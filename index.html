@@ -159,6 +159,11 @@ td input{margin:0}
 [data-tip]{cursor:help}
 th[data-sort][data-tip]{cursor:pointer}
 .tip{position:fixed;z-index:50;background:var(--ink);color:var(--bg);font-size:.82rem;line-height:1.4;padding:8px 10px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.2);pointer-events:none;text-transform:none;letter-spacing:0;font-weight:400}
+/* touch screens and phones: larger, easier-to-read help popups and bigger "?" marks to tap */
+@media (pointer:coarse), (max-width:640px){
+  .tip{font-size:1.05rem;line-height:1.5;padding:12px 15px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.3)}
+  .tipmark{width:20px;height:20px;font-size:.78rem;margin-left:6px}
+}
 /* stats tables: header and card names stay visible while scrolling */
 .stickywrap{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:8px}
 /* stats table: collapsible column groups and a column picker */
@@ -5516,7 +5521,8 @@ const tip = document.createElement('div'); tip.className = 'tip'; tip.setAttribu
 function showTip(el){
   const text = el.getAttribute('data-tip'); if (!text) return;
   tip.textContent = text; tip.hidden = false;
-  const r = el.getBoundingClientRect(), w = Math.min(300, window.innerWidth - 24);
+  const big = matchMedia('(pointer:coarse), (max-width:640px)').matches;
+  const r = el.getBoundingClientRect(), w = Math.min(big ? 380 : 300, window.innerWidth - 24);
   tip.style.maxWidth = w + 'px';
   const tw = tip.offsetWidth, th = tip.offsetHeight;
   let x = Math.min(Math.max(12, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 12);
