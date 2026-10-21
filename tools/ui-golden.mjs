@@ -2,7 +2,8 @@
 // UI golden-master test: plays whole games through the real page in a headless browser by clicking its buttons,
 // and saves what happened. A UI refactor must replay every game identically, with no page errors.
 //
-// Games: vs the full-strength AI (unrated), and pass-and-play. Math.random is seeded, so a game replays exactly
+// Games: vs the full-strength AI (unrated), pass-and-play, and online play against a simulated friend (the room
+// connection is replaced by a fake one; the friend buys simply and fields every unit it owns). Math.random is seeded, so a game replays exactly
 // as long as the code makes the same choices in the same order. The scripted player buys the first card it can,
 // sells once a game, uses Black Market and Mason's Guild when it has them, and accepts every reminder.
 //
@@ -45,12 +46,35 @@ async function playGame(browser, kind, seed){
   }, seed);
   await page.goto(pathToFileURL(HTML).href);
   await page.waitForFunction(() => typeof renderPlay === 'function');
+  if (kind === 'net') await page.evaluate(async seed => {
+    // a fake room: our presence goes nowhere, and the "friend" is whatever the test puts in __friend
+    roomNS = async () => ({ join: async () => ({ onPeers(cb){ window.__peers = cb; }, presence(){ return Promise.resolve(); }, leave: async () => {} }) });
+    await netOpen({ code: 'testrm', seat: 0, name: 'Host', seed, target: 3, acts: [] });
+    window.__friend = [];
+    window.__tellFriend = () => __peers({ peers: [{ sameTab: false, presence: { app: 'sow', v: NET_V, code: 'testrm', seat: 1, name: 'Friend', hash: NET.hash, acts: __friend } }] });
+    __tellFriend();
+  }, seed);
+  // the simulated friend's next move, if it has one to make
+  const friendMove = () => page.evaluate(() => {
+    if (!G || G.over || NET.err) return null;
+    const sent = __friend.length, p = G.players[1];
+    if (G.phase === 'mobilize' && __friend.filter(a => a[0] === 'd').length < G.round){
+      const units = Object.keys(p.hand).filter(n => n !== 'Recruit' && !exemptUnit(n)).slice(0, deckCap(p));
+      __friend.push(['d', units.map(n => [netIx(n), 0, 0])]);
+    } else if (G.phase === 'shop' && cur(G) === 1 && NET.applied[1] === __friend.length){
+      const b = G.buys[1], opts = [...G.disp.u.map((c, k) => ['du', k, c.name]), ['recruit', 0, 'Recruit'], ['field', 0, 'Field'], ...G.disp.b.map((c, k) => ['db', k, c.name])];
+      const o = b.u + b.b < 2 && opts.find(([src, k, n]) => n !== "Mason's Guild" && buyInfo(G, 1, n, src === 'du' || src === 'recruit' ? 'u' : 'b', src).ok);
+      __friend.push(o ? ['b', o[0], o[1], null] : ['p']);
+    }
+    if (__friend.length === sent) return null;
+    __tellFriend(); return __friend[__friend.length - 1][0];
+  });
 
   const state = () => page.evaluate(() => ({
     start: !!(ui.start || !G), roll: !!ui.roll, rolled: !!(ui.roll && ui.roll.first != null), rolling: !!(ui.roll && ui.roll.rolling),
     phase: G && G.phase, over: !!(G && G.over), cur: G && G.phase === 'shop' ? cur(G) : null, seat: G ? seat() : 0,
     pp: !!(G && G.pp), battle: !!ui.battle, remind: !!ui.remind, mason: !!ui.mason, planning: !!ui.planning, handoff: ui.handoff ?? null,
-    round: G ? G.round : 0,
+    round: G ? G.round : 0, locked: !!(G && G.net && NET && NET.acts.length > NET.applied[NET.seat]),
   }));
   // what the board shows, fingerprinted just before each of our clicks (a stable moment)
   const views = [];
@@ -67,6 +91,7 @@ async function playGame(browser, kind, seed){
     if (s.remind){ steps.push('remind'); await click('[data-act="remind-go"]'); continue; }
     if (s.battle){ await click('[data-act="b-last"]'); if (s.over) break; steps.push('continue'); await click('[data-act="continue"]'); continue; }
     if (s.phase === 'shop'){
+      if (kind === 'net' && s.cur === 1){ const f = await friendMove(); if (f) steps.push('friend-' + f); else await sleep(50); continue; }
       if (!s.pp && s.cur === 1){ await sleep(100); continue; }   // the AI's turn
       if (s.mason){ steps.push('mason'); await click('[data-act="mason-to"]'); continue; }
       if (!sold && s.round >= 2 && await click('[data-act="sell-u"], [data-act="sell-b"]')){ sold = true; steps.push('sell'); continue; }
@@ -79,6 +104,7 @@ async function playGame(browser, kind, seed){
     if (s.phase === 'mobilize'){
       if (s.planning){ await sleep(100); continue; }
       if (s.handoff != null){ await click('[data-act="pp-ready"]'); continue; }
+      if (kind === 'net'){ const f = await friendMove(); if (f) steps.push('friend-' + f); if (s.locked){ await sleep(50); continue; } }
       const sk = `${s.round}-${s.seat}`;
       if (s.round % 2 && !suggested.has(sk)){ suggested.add(sk); steps.push('suggest'); await click('[data-act="suggest"]'); continue; }
       steps.push('lock'); await click('[data-act="lock"]'); await sleep(50); continue;
@@ -93,10 +119,10 @@ async function playGame(browser, kind, seed){
 const browser = await chromium.launch({ headless: !args.includes('--show') });
 const results = {};
 const t0 = Date.now();
-for (const kind of ['ai', 'pp']) for (const seed of SEEDS){
+for (const kind of ['ai', 'pp', 'net']) for (const seed of SEEDS){
   const r = await playGame(browser, kind, seed);
   results[`${kind}-${seed}`] = r;
-  console.log(`${kind === 'ai' ? 'vs AI       ' : 'pass-and-play'} seed ${seed}: ${r.rounds} rounds, winner ${r.winner}, ${r.log.length} log lines, ${r.steps.filter(x => x === 'buy').length} buys, ${r.steps.includes('sell') ? 'sold' : 'no sale'}${r.steps.includes('bm') ? ', black market' : ''}${r.steps.includes('mason') ? ', mason' : ''}${r.errors.length ? `, ${r.errors.length} ERRORS` : ''}`);
+  console.log(`${{ai:'vs AI        ', pp:'pass-and-play', net:'online (sim) '}[kind]} seed ${seed}: ${r.rounds} rounds, winner ${r.winner}, ${r.log.length} log lines, ${r.steps.filter(x => x === 'buy').length} buys, ${r.steps.includes('sell') ? 'sold' : 'no sale'}${r.steps.includes('bm') ? ', black market' : ''}${r.steps.includes('mason') ? ', mason' : ''}${r.errors.length ? `, ${r.errors.length} ERRORS` : ''}`);
 }
 await browser.close();
 console.log(`(${((Date.now() - t0) / 1000).toFixed(0)} s)`);
