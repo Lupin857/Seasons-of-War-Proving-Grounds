@@ -2839,23 +2839,25 @@ const PP = () => !!(G && G.pp);
 function seat(){ if (G && G.net && NET) return NET.seat; if (!PP()) return 0; if (G.phase === 'shop') return cur(G); if (G.phase === 'mobilize') return ui.mobSeat || 0; return 0; }
 const nm = i => G.labels[i];
 const poss = i => PP() ? `${esc(nm(i))}'s` : i === 0 ? 'Your' : 'AI';
+// Starting a game: stop the last game's timers and give the screen a clean state. Pass-and-play and online
+// use the per-seat fields (each seat's draft, whose hand-off it is); they're simply unused against the AI.
+function stopTimers(){ if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; } if (ui.animT) clearTimeout(ui.animT); }
+const freshUI = extra => ({battle:null, frame:0, draft:null, lastDraft:null, lastDrafts:[null, null], drafts:[null, null], mobSeat:0, handoff:null, err:'', start:false, ...extra});
+const newRoll = () => ({you:null, ai:null, rolling:false, tie:false, first:null});
 function newPassPlay(names){
-  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
-  if (ui.animT) clearTimeout(ui.animT);
+  stopTimers();
   G = newGame({genomes:[null, null], labels:names, target:LEN});
   G.pp = true; G.opp = null;
-  ui = {battle:null, frame:0, draft:null, lastDraft:null, lastDrafts:[null, null], drafts:[null, null], mobSeat:0, handoff:null, err:'', start:false,
-        roll:{you:null, ai:null, rolling:false, tie:false, first:null}};
+  ui = freshUI({roll:newRoll()});
   renderPlay();
 }
 function newPlay(opp){
-  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
-  if (ui.animT) clearTimeout(ui.animT);
+  stopTimers();
   const genome = opp && CAL ? clone(CAL.genome) : clone(brain.champ);
   G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, loadOm()], target:LEN});
   G.opp = opp || null;
   if (opp && CAL) G.players[1].skill = skillFor(opp.rating);
-  ui = {battle:null, frame:0, draft:null, lastDraft:null, err:'', start:false, roll:{you:null, ai:null, rolling:false, tie:false, first:null}};
+  ui = freshUI({roll:newRoll()});
   renderPlay();
 }
 // What the AI has learned about how you order your army, carried between games in this browser. Older games count
@@ -3113,25 +3115,54 @@ function netPeers(ch){
 function netStart(){
   let names = NET.seat === 0 ? [NET.name, NET.peer.name] : [NET.peer.name, NET.name];
   if (names[0] === names[1]) names = [names[0] + ' 1', names[1] + ' 2'];
-  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
-  if (ui.animT) clearTimeout(ui.animT);
+  stopTimers();
   G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, rnd:mulberry32(NET.seed)});
   G.pp = true; G.net = true; G.opp = null;
-  ui = {battle:null, frame:0, draft:null, lastDraft:null, lastDrafts:[null, null], drafts:[null, null], err:'', start:false, roll:null, mktTab:'u'};
+  ui = freshUI({roll:null, mktTab:'u'});
   NET.started = true; NET.applied = [0, 0]; NET.needShop = false;
   startShop(G);
   NET.live = false; netPump(); NET.live = true;   // replay moves made before a reload, quietly
   if (G.phase === 'shop' && NET.acts.length + NET.peerActs.length === 0) showToast(`${nm(cur(G))} shops first.`);
   netAfter();
 }
-function netApply(i, a){
+/* ===================== SHOP MOVES =====================
+   Every way of playing makes the same shop moves: ['b', src, idx, masonTarget] buy, ['s', kind, name] sell,
+   ['p'] pass, ['m', kind] Black Market. Online play sends them with card names as numbers (netEncode/netDecode). */
+const netEncode = a => a[0] === 'b' ? ['b', a[1], a[2], a[3] == null ? null : netIx(a[3])] : a[0] === 's' ? ['s', a[1], netIx(a[2])] : a;
+const netDecode = a => a[0] === 'b' ? ['b', a[1], a[2], a[3] == null ? null : netName(a[3])] : a[0] === 's' ? ['s', a[1], netName(a[2])] : a;
+function applyMove(i, a){
   switch (a[0]){
-    case 'b': return buy(G, i, a[1], a[2], a[3] == null ? undefined : netName(a[3]));
-    case 's': return sell(G, i, a[1], netName(a[2]));
+    case 'b': return buy(G, i, a[1], a[2], a[3] == null ? undefined : a[3]);
+    case 's': return sell(G, i, a[1], a[2]);
     case 'p': return pass(G, i);
     case 'm': return useBM(G, i, a[1]);
   }
   return false;
+}
+// the faded "bought" card a market buy leaves behind for the rest of the round
+function addGhost(k, idx, name, price, who){
+  if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
+  ui.ghosts[k].push({idx, name, price, who});
+}
+const MOVE_SOUND = {b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), p:() => sfx.wood()};
+// Make a shop move for player i, plus what the screen does around it: the ghost card and a sound.
+// vol: how loud a successful move sounds (null: silent); own: a failed move is this screen's player's, so it buzzes.
+function shopMove(i, a, vol, own){
+  const k = a[0] === 'b' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
+  const name = k && G.disp[k][a[2]] ? G.disp[k][a[2]].name : null, pos = k ? mergedPos(k, a[2]) : -1, m0 = G.players[i].money;
+  const ok = applyMove(i, a);
+  if (ok && k && name) addGhost(k, pos, name, m0 - G.players[i].money, i);
+  if (vol != null){ if (ok) MOVE_SOUND[a[0]](vol); else if (own) sfx.err(); }
+  return ok;
+}
+// The player at this screen makes a shop move: online it goes to the room (and comes back through netPump);
+// otherwise it happens here, and a bought card flies to its new owner.
+function doMove(a){
+  if (G.net){ netDo(netEncode(a)); return; }
+  const S = seat(), fly = a[0] === 'b' ? {own0:snapOwn(S), mk:marketSnap()} : null;
+  const ok = shopMove(S, a, 1, true);
+  if (a[0] === 'b' || a[0] === 'p') afterAction(); else renderPlay();
+  if (ok && fly) flyBuys(S, fly.own0, fly.mk);
 }
 // apply every move both players have made that this page hasn't applied yet
 function netPump(){
@@ -3149,31 +3180,22 @@ function netPump(){
       const i = cur(G), a = actsOf(i)[NET.applied[i]]; if (!a) break;
       if (a[0] === 'd'){ NET.err = 'The two games fell out of step. Leave the room and start a new one.'; break; }
       const live = NET.live && !ui.battle, own0 = live ? snapOwn(i) : null, mk = live && !flights.length ? marketSnap() : null;
-      const k = a[0] === 'b' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
-      const nmB = k && G.disp[k][a[2]] ? G.disp[k][a[2]].name : null, pos = k ? mergedPos(k, a[2]) : -1, m0 = G.players[i].money, n0 = G.log.length;
-      const ok = netApply(i, a); NET.applied[i]++; changed = true;
-      if (ok && k && nmB){
-        if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
-        ui.ghosts[k].push({idx:pos, name:nmB, price:m0 - G.players[i].money, who:i});
-      }
+      const n0 = G.log.length;
+      const ok = shopMove(i, netDecode(a), NET.live ? (i === NET.seat ? 1 : 0.45) : null, i === NET.seat); NET.applied[i]++; changed = true;
       if (NET.live){
-        if (ok && a[0] === 'b'){ if (mk) flights.push({i, own0, mk}); sfx.coin(i === NET.seat ? 1 : 0.45); }
-        else if (ok && a[0] === 's') sfx.sell(); else if (ok && a[0] === 'm') sfx.rustle(); else if (ok && a[0] === 'p') sfx.wood();
-        else if (!ok && i === NET.seat) sfx.err();
+        if (ok && a[0] === 'b' && mk) flights.push({i, own0, mk});
         if (i !== NET.seat) toasts.push(...G.log.slice(n0).filter(l => l.side === i).map(l => l.t));
       }
     } else if (G.phase === 'mobilize'){
       const a0 = actsOf(0)[NET.applied[0]], a1 = actsOf(1)[NET.applied[1]];
       if (!a0 || !a1) break;
       if (a0[0] !== 'd' || a1[0] !== 'd'){ NET.err = 'The two games fell out of step. Leave the room and start a new one.'; break; }
-      [a0, a1].forEach((a, i) => {
-        let spec = (Array.isArray(a[1]) ? a[1] : []).map(u => ({name:netName(u[0]), arm:+u[1] || 0, tr:+u[2] || 0}));
-        if (spec.some(u => !DEFS[u.name]) || validateDeck(G, i, spec)) spec = [];
-        setDeck(G, i, spec);
+      const specs = [a0, a1].map((a, i) => {
+        const spec = (Array.isArray(a[1]) ? a[1] : []).map(u => ({name:netName(u[0]), arm:+u[1] || 0, tr:+u[2] || 0}));
+        return spec.some(u => !DEFS[u.name]) || validateDeck(G, i, spec) ? [] : spec;
       });
-      finishMobilize(G);
-      const res = doBattle(G, true); NET.applied[0]++; NET.applied[1]++; changed = true;
-      if (NET.live){ stopAuto(); stopAnim(); ui.battle = res; ui.frame = 0; ui.bannerOff = false; ui.draft = null; ui.pick = null; ui.remind = null; flights.length = 0; NET.battleNew = true; }
+      const res = playBattle(specs[0], specs[1]); NET.applied[0]++; NET.applied[1]++; changed = true;
+      if (NET.live){ stopAuto(); stopAnim(); showBattle(res); ui.bannerOff = false; ui.remind = null; flights.length = 0; NET.battleNew = true; }
       else ui.lastNetBattle = res;
       if (!G.over) NET.needShop = true;
     } else break;
@@ -3970,6 +3992,38 @@ function dealMarket(){
   ui.dealUntil = performance.now() + end;
   deck.animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:170, iterations:Math.max(1, n), delay:120});
 }
+// Lock in the deck being built at this screen (after a reminder about unused tokens, if any). Online it goes to the
+// room; pass-and-play hands the device to the second player, then fights; against the AI, the AI plans and fights.
+function lockDeck(){
+  const d = ui.draft;
+  const err = validateDeck(G, seat(), d);
+  if (err){ ui.err = err; sfx.err(); renderPlay(); return; }
+  if (!ui.remindOk && !(G.noRemind && G.noRemind.lock)){
+    const left = mobilizeLeftovers();
+    if (left){ ui.remind = {kind:'lock', items:left}; sfx.soft(); renderPlay(); return; }
+  }
+  ui.remindOk = false;
+  if (G.net){ sfx.lock(); ui.err = ''; ui.pick = null; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => [netIx(u.name), u.arm || 0, u.tr || 0])]); return; }
+  if (PP()){
+    const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = ''; ui.pick = null;
+    if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); window.scrollTo({top:0}); return; }
+    showBattle(playBattle(ui.drafts[0], ui.drafts[1])); ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
+    renderPlay(); window.scrollTo({top:0}); startAuto(); return;
+  }
+  sfx.lock();
+  ui.err = ''; ui.lastDraft = d; ui.planning = true; renderPlay();
+  setTimeout(() => {
+    // the AI plans from public information only; your locked deck is not visible to it
+    const aiDeck = aiMobilize(G, 1, 60, DEPTH.play) || [];
+    showBattle(playBattle(d, aiDeck)); ui.planning = false;
+    noteOm();
+    if (G.over) recordResult();
+    renderPlay(); startAuto();
+  }, 30);
+}
+// both armies are set: fight the battle (returns the replay), and show a replay from its first step
+function playBattle(d0, d1){ setDeck(G, 0, d0); setDeck(G, 1, d1); finishMobilize(G); return doBattle(G, true); }
+function showBattle(res){ ui.battle = res; ui.frame = 0; ui.draft = null; ui.pick = null; }
 $('view-play').addEventListener('click', e => {
   // a picked bench token goes to the tapped unit
   if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip')){
@@ -3986,39 +4040,25 @@ $('view-play').addEventListener('click', e => {
     case 'mason-to':
     case 'buy': {
       const src = t.dataset.src, idx = t.dataset.idx === '' ? 0 : +t.dataset.idx;
-      const SS = seat(), nm0 = (sourceCard(G, SS, src, idx) || {}).name;
-      if (act === 'buy' && nm0 === "Mason's Guild"){ sfx.pick(); ui.mason = {src, idx}; renderPlay(); return; }
+      const nm0 = (sourceCard(G, seat(), src, idx) || {}).name;
+      if (act === 'buy' && nm0 === "Mason's Guild"){ sfx.pick(); ui.mason = {src, idx}; renderPlay(); return; }   // pick what it levels up first
       ui.mason = null;
-      if (G.net){ netDo(['b', src, idx, act === 'mason-to' ? netIx(t.dataset.name) : null]); return; }
-      const sel = act === 'mason-to' ? {value:t.dataset.name} : null;
-      const k = src === 'du' ? 'u' : src === 'db' ? 'b' : null, pos = k ? mergedPos(k, idx) : -1;
-      const nm = k && G.disp[k][idx] ? G.disp[k][idx].name : null, m0 = G.players[SS].money;
-      const own0 = snapOwn(SS), mk = marketSnap();
-      const ok = buy(G, SS, src, idx, sel ? sel.value : undefined);
-      if (ok) sfx.coin(); else sfx.err();
-      if (ok && k && nm){
-        if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
-        ui.ghosts[k].push({idx:pos, name:nm, price:m0 - G.players[SS].money, who:SS});
-      }
-      afterAction(); if (ok) flyBuys(SS, own0, mk); return;
+      doMove(['b', src, idx, act === 'mason-to' ? t.dataset.name : null]); return;
     }
     case 'pass': {
       const left = G.noRemind && G.noRemind.pass ? null : netClone(shopLeftovers);
-      if (!left && G.net){ netDo(['p']); return; }
       if (left){ ui.remind = {kind:'pass', items:left}; sfx.soft(); renderPlay(); return; }
-      pass(G, seat()); sfx.wood(); afterAction(); return;
+      doMove(['p']); return;
     }
     case 'remind-back': case 'remind-go': {
       const r = ui.remind; ui.remind = null; if (!r) return;
       const off = $('remind-off'); if (off && off.checked){ G.noRemind = G.noRemind || {}; G.noRemind[r.kind] = true; }
       if (act === 'remind-back'){ sfx.soft(); renderPlay(); return; }
-      if (r.kind === 'pass'){ if (G.net){ netDo(['p']); return; } if (pass(G, seat())) sfx.wood(); afterAction(); return; }
-      ui.remindOk = true; const lb = document.createElement('button'); lb.dataset.act = 'lock'; lb.hidden = true;
-      $('view-play').appendChild(lb); lb.click(); lb.remove(); return;
+      if (r.kind === 'pass'){ doMove(['p']); return; }
+      ui.remindOk = true; lockDeck(); return;
     }
-    case 'bm-u': if (G.net){ netDo(['m', 'u']); return; } if (useBM(G, seat(), 'u')) sfx.rustle(); renderPlay(); return;
-    case 'bm-b': if (G.net){ netDo(['m', 'b']); return; } if (useBM(G, seat(), 'b')) sfx.rustle(); renderPlay(); return;
-    case 'sell-u': case 'sell-b': if (G.net){ netDo(['s', act === 'sell-u' ? 'u' : 'b', netIx(t.dataset.name)]); return; } if (sell(G, seat(), act === 'sell-u' ? 'u' : 'b', t.dataset.name)) sfx.sell(); else sfx.err(); renderPlay(); return;
+    case 'bm-u': case 'bm-b': doMove(['m', act === 'bm-u' ? 'u' : 'b']); return;
+    case 'sell-u': case 'sell-b': doMove(['s', act === 'sell-u' ? 'u' : 'b', t.dataset.name]); return;
     case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); window.scrollTo({top:0}); return;
     case 'd-add': d.push({name:t.dataset.name, arm:0, tr:0}); sfx.drop(); break;
     case 'd-rec': d.push({name:'Recruit', arm:0, tr:0}); sfx.drop(); break;
@@ -4029,37 +4069,7 @@ $('view-play').addEventListener('click', e => {
     case 't-cancel': sfx.soft(); ui.pick = null; renderPlay(); return;
     case 't-off': { sfx.soft(); const k = t.dataset.tok === 'arm' ? 'arm' : 'tr'; d[i][k] = Math.max(0, (d[i][k]||0) - 1); break; }
     case 'suggest': sfx.rustle(); ui.draft = draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH.play)) || []); break;
-    case 'lock': {
-      const err = validateDeck(G, seat(), d);
-      if (err){ ui.err = err; sfx.err(); renderPlay(); return; }
-      if (!ui.remindOk && !(G.noRemind && G.noRemind.lock)){
-        const left = mobilizeLeftovers();
-        if (left){ ui.remind = {kind:'lock', items:left}; sfx.soft(); renderPlay(); return; }
-      }
-      ui.remindOk = false;
-      if (G.net){ sfx.lock(); ui.err = ''; ui.pick = null; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => [netIx(u.name), u.arm || 0, u.tr || 0])]); return; }
-      if (PP()){
-        const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = ''; ui.pick = null;
-        if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); window.scrollTo({top:0}); return; }
-        setDeck(G, 0, ui.drafts[0]); setDeck(G, 1, ui.drafts[1]);
-        finishMobilize(G);
-        ui.battle = doBattle(G, true); ui.frame = 0; ui.draft = null; ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
-        renderPlay(); window.scrollTo({top:0}); startAuto(); return;
-      }
-      sfx.lock();
-      ui.err = ''; ui.lastDraft = d; ui.planning = true; renderPlay();
-      setTimeout(() => {
-        // the AI plans from public information only; your locked deck is not visible to it
-        const aiDeck = aiMobilize(G, 1, 60, DEPTH.play) || [];
-        setDeck(G, 0, d); setDeck(G, 1, aiDeck);
-        finishMobilize(G);
-        ui.battle = doBattle(G, true); ui.frame = 0; ui.draft = null; ui.planning = false; ui.pick = null;
-        noteOm();
-        if (G.over) recordResult();
-        renderPlay(); startAuto();
-      }, 30);
-      return;
-    }
+    case 'lock': lockDeck(); return;
     case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); return; }
     case 'b-first': sfx.soft(); stopAuto(true); goFrame(0); return;
     case 'b-prev': sfx.soft(); stopAuto(true); goFrame(Math.max(0, ui.frame - 1)); return;
