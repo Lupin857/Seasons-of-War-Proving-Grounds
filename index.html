@@ -3925,6 +3925,7 @@ function remindHTML(){
   </div></div>`;
 }
 function renderPlay(){
+  try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(true); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale
   if (NET && !NET.started && !ui.start){ $('view-play').innerHTML = netLobbyHTML(); return; }
   if (!G || ui.start){ $('view-play').innerHTML = startHTML(); return; }
@@ -5319,7 +5320,7 @@ function startHTML(){
   const L = ladder(), [lo, hi] = ratingRange(), inGame = G && !G.over;
   const placing = ME.rating == null, mine = placing ? null : ME.rating;
   if (ui.pick == null) ui.pick = placing ? placementOpp() : Math.max(lo, Math.min(hi, mine));
-  const R = placing ? placementOpp() : ui.pick, br = bracketOf(R), myBr = mine != null ? bracketOf(mine) : null;
+  const R = ui.pick, br = bracketOf(R), myBr = mine != null ? bracketOf(mine) : null;
   const resign = inGame && G.opp && G.opp.rated && !G.ratedDone;
   const calBox = calState.busy
     ? `<p class="turn">Calibrating the ladder… ${calState.done} of ${calState.total} batches of games</p>`
@@ -5335,15 +5336,15 @@ function startHTML(){
       <div class="row"><h2>Choose your opponent</h2><span class="grow"></span>${inGame ? `<button type="button" data-act="st-back">Back to your game</button>` : ''}</div>
       ${lenSegHTML()}
       <div class="me">${placing
-        ? `<span class="eyebrow">Your rating · first to ${LEN}</span><span class="big">Unrated</span><span class="note">Placement game ${ME.placement.length + 1} of ${PLACEMENT_GAMES}. Your first ${PLACEMENT_GAMES} games are against a mid-ladder AI${L.length ? ` (${placementOpp()})` : ''}; they set your starting rating.</span>`
+        ? `<span class="eyebrow">Your rating · first to ${LEN}</span><span class="big">Unrated</span><span class="note">Placement game ${ME.placement.length + 1} of ${PLACEMENT_GAMES}. Your first ${PLACEMENT_GAMES} games set your starting rating. Pick any AI for each one; ${L.length ? `${placementOpp()} is mid-ladder` : 'mid-ladder is a good start'}.</span>`
         : `<span class="eyebrow">Your rating · first to ${LEN}</span><span class="big">${mine}</span><span class="note">${myBr.name} · ${ME.games} rated game${ME.games === 1 ? '' : 's'}${ME.history[0] && !ME.history[0].placement ? ` · last game ${ME.history[0].after - ME.history[0].before >= 0 ? '+' : '−'}${Math.abs(ME.history[0].after - ME.history[0].before)}` : ''}</span>`}</div>
       ${calBox}
       ${L.length ? `
         <div class="pick">
           <label for="st-r" class="eyebrow">AI rating</label>
           <div class="row"><span class="pickr">${R}</span><span class="pickn">${br.name}</span>${!placing ? `<span class="note" id="st-exp">${pct(expected(mine, R))} expected win chance for you</span>` : ''}</div>
-          <input type="range" id="st-r" min="${lo}" max="${hi}" step="10" value="${R}" ${placing || calState.busy ? 'disabled' : ''} aria-describedby="st-help">
-          <span class="note" id="st-help">${placing ? 'Fixed for placement games.' : `Slide from ${lo} (buys at random) to ${hi} (today's full-strength AI). A 400-point gap means the stronger side wins about 10 to 1.`}</span>
+          <input type="range" id="st-r" min="${lo}" max="${hi}" step="10" value="${R}" ${calState.busy ? 'disabled' : ''} aria-describedby="st-help">
+          <span class="note" id="st-help">${placing ? `Slide from ${lo} (buys at random) to ${hi} (today's full-strength AI). Beating a stronger AI places you higher.` : `Slide from ${lo} (buys at random) to ${hi} (today's full-strength AI). A 400-point gap means the stronger side wins about 10 to 1.`}</span>
         </div>
         ${strip}` : ''}
       ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
@@ -5405,10 +5406,10 @@ $('view-play').addEventListener('click', e => {
     if (resign) recordResult(true);
     const placing = ME.rating == null;
     ui.pick = null; netLeave();
-    newPlay(a === 'st-free' ? null : {rating: placing ? placementOpp() : bracketPick(), rated:true, placement:placing});
+    newPlay(a === 'st-free' ? null : {rating: bracketPick(), rated:true, placement:placing});
   }
 }, true);
-function bracketPick(){ const [lo, hi] = ratingRange(); return Math.max(lo, Math.min(hi, ui.pick ?? ME.rating ?? lo)); }
+function bracketPick(){ const [lo, hi] = ratingRange(); return Math.max(lo, Math.min(hi, ui.pick ?? ME.rating ?? placementOpp())); }
 // the ladder: neighbours and next-but-one neighbours play each other
 async function runCalibration(){
   if (calState.busy || job) return;
