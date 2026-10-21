@@ -83,6 +83,7 @@ async function playGame(browser, kind, seed){
   const steps = [];
   let sold = false;
   const suggested = new Set();
+  const earlyPass = new Set();
   for (let guard = 0; guard < 2000; guard++){
     const s = await state();
     if (s.over && !s.battle) break;
@@ -96,6 +97,7 @@ async function playGame(browser, kind, seed){
       if (s.mason){ steps.push('mason'); await click('[data-act="mason-to"]'); continue; }
       if (!sold && s.round >= 2 && await click('[data-act="sell-u"], [data-act="sell-b"]')){ sold = true; steps.push('sell'); continue; }
       if (await click('[data-act="bm-u"]')){ steps.push('bm'); continue; }
+      if (s.round === 2 && !earlyPass.has(s.seat)){ earlyPass.add(s.seat); steps.push('pass'); await click('[data-act="pass"]'); continue; }   // pass with money left, to see the reminder
       const buys = page.locator('[data-act="buy"]:not([disabled])');
       const nb = await buys.count();
       if (nb){ steps.push('buy'); await look(); await buys.nth((steps.length * 7) % nb).click(); continue; }   // varied but repeatable picks
