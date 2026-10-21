@@ -1233,19 +1233,20 @@ function noteSeen(g, i){
   for (const c of g.disp.b) g.seen[i].add(c.name);
   if (g.bm[i]) for (const n of g.bm[i].cards) g.seen[i].add(n);
 }
+// Could this player hold one more of the card? Ignores money and buys. st is anything with {hand, city}:
+// a real player or a hypothetical one. Returns why not, or null if it can.
+function cantAcquire(st, name, kind){
+  if (kind === 'u') return !exemptUnit(name) && (st.hand[name] || 0) >= uMax(name) ? 'Already at highest level' : null;
+  if (name === "Mason's Guild") return masonTargets(st).length ? null : 'No building to level up';
+  if (name !== 'Field' && (st.city[name] || 0) >= BDEFS[name].lv.length) return 'Already at highest level';
+  if ((name === 'Field' || !st.city[name]) && slotsUsed(st) >= RULES.citySlots) return 'City is full';
+  return null;
+}
 function buyInfo(g, i, name, kind, src){
   const p = g.players[i], b = g.buys[i];
   const Dd = kind === 'u' ? DEFS[name] : BDEFS[name];
   let price = Dd.c;
-  if (kind === 'u'){
-    if (!exemptUnit(name) && (p.hand[name] || 0) >= uMax(name)) return {ok:false, why:'Already at highest level'};
-  } else {
-    if (name === "Mason's Guild"){ if (!masonTargets(p).length) return {ok:false, why:'No building to level up'}; }
-    else {
-      if (name !== 'Field' && (p.city[name] || 0) >= BDEFS[name].lv.length) return {ok:false, why:'Already at highest level'};
-      if ((name === 'Field' || !p.city[name]) && slotsUsed(p) >= RULES.citySlots) return {ok:false, why:'City is full'};
-    }
-  }
+  const no = cantAcquire(p, name, kind); if (no) return {ok:false, why:no};
   let slot;
   const baseOk = kind === 'u' ? b.u < RULES.unitsPerShop : b.b < RULES.bldgPerShop;
   if (baseOk) slot = 'base';
@@ -1540,9 +1541,7 @@ function bmPeekCalc(g, i, k, U, p, G, deck){
   // a typical shop's spending money and buys of this kind
   const budget = Math.max(p.money, Math.max(0, income(p))), buys = U ? RULES.unitsPerShop : RULES.bldgPerShop;
   const Dk = U ? DEFS : BDEFS, free = U ? 'Recruit' : 'Field';
-  const blocked = n => U ? (!exemptUnit(n) && (p.hand[n] || 0) >= uMax(n))
-    : n === "Mason's Guild" ? !masonTargets(p).length
-    : ((n !== 'Field' && (p.city[n] || 0) >= BDEFS[n].lv.length) || ((n === 'Field' || !p.city[n]) && slotsUsed(p) >= RULES.citySlots));
+  const blocked = n => !!cantAcquire(p, n, U ? 'u' : 'b');
   const opt = (n, price) => blocked(n) || price > budget ? null
     : {n, price, v:aiValue(g, i, n, U ? 'u' : 'b') - price * G.m};
   const disp = [opt(free, Dk[free].c), ...(U ? g.disp.u : g.disp.b).map(c => opt(c.name, Dk[c.name].c))].filter(o => o && o.v > 0);
@@ -1800,9 +1799,7 @@ function predictOppBuys(g, i, G, excl){
       for (const c of opts){
         if (c.taken || (c.kind === 'u' ? !uLeft : !bLeft)) continue;
         const price = (c.kind === 'u' ? DEFS : BDEFS)[c.name].c; if (price > money) continue;
-        if (c.kind === 'u' && !exemptUnit(c.name) && (fake.hand[c.name] || 0) >= uMax(c.name)) continue;
-        if (c.kind === 'b' && c.name !== 'Field' && (fake.city[c.name] || 0) >= BDEFS[c.name].lv.length) continue;
-        if (c.kind === 'b' && (c.name === 'Field' || !fake.city[c.name]) && slotsUsed(fake) >= RULES.citySlots) continue;
+        if (cantAcquire(fake, c.name, c.kind)) continue;
         const v = aiValue(g, o, c.name, c.kind) - price * G.m;
         if (v > G.thresh && (!best || v > best.v)) best = {...c, v, price};
       }
