@@ -120,7 +120,7 @@ textarea{width:100%;font-family:var(--f-mono);font-size:.78rem;min-height:90px}
 .card .pw{display:flex;align-items:baseline;gap:4px;font-variant-numeric:tabular-nums}
 .card .pw .big{font-family:var(--f-mono);font-size:1.25rem;font-weight:600}
 .card .pw .dm{font-family:var(--f-mono);font-size:.78rem;color:var(--gules)}
-.card .tk{display:flex;flex-wrap:wrap;gap:3px}
+
 .card .vr{position:absolute;top:4px;right:5px;font-family:var(--f-mono);font-size:.62rem;color:var(--muted)}
 .card .st{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .hp{height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
@@ -768,7 +768,7 @@ const BDEFS = {
   'Trebuchet':{c:3,n:2,lv:[3,5],t:'Battle start: deal 3/5 damage with overrun to the enemy Vanguard.'},
   'Black Market':{c:3,n:3,lv:[3,6,9],t:'Shop: once per shop, look at the top 3/6/9 cards of the unit deck or the building deck (not both). You may buy one of them for $1/$2/$3 less.'},
   "Mason's Guild":{c:1,n:3,lv:[1],attach:true,t:'When you buy this, attach it to another building to level that building up.'},
-  'Bazaar':{c:2,n:0,lv:[1,2,3],t:'Retired: selling was removed from the game, so this has no effect.'},
+  'Bazaar':{c:2,n:0,lv:[1,2,3],t:'Retired: no longer in the game.'},
   "Carpenter's Guild":{c:1,n:3,lv:[1,2,3],t:'Shop: you may buy 1/2/3 extra buildings each shop. Buildings cost $1 less (minimum $1).'},
   'Smithy':{c:1,n:3,lv:[1,2,3],t:'Mobilize: attach 1/2/3 Armaments to your units.'},
   'Barracks':{c:1,n:3,lv:[1,2,3],t:'Mobilize: add 1/2/3 Recruits to your deck.'},
@@ -792,7 +792,7 @@ function runBattle(cfgs, record){
     const deck = cfg.units.map(u => mkUnit(u, i));
     return {nm:cfg.label || ['Azure','Gules'][i], deck, charge:null, grave:[], van:deck.length ? deck[0].uid : null,
             rear:deck.length ? deck[deck.length-1].uid : null,
-            revealed:null, inf:!!cfg.infirmary, infUsed:false, treb:+cfg.treb||0, armory:+cfg.armory||0, yard:+cfg.yard||0};
+            revealed:null, inf:!!cfg.infirmary, infUsed:false, treb:+cfg.treb||0, armory:cfg.armory ? BDEFS.Armory.lv[cfg.armory-1] : 0, yard:+cfg.yard||0};
   });
   const log = record ? (t, side, meta) => logs.push(meta ? {t, side, ...meta} : {t, side}) : () => {};
   const key = u => u.copyOf || u.name;
@@ -805,7 +805,6 @@ function runBattle(cfgs, record){
     const d = D(u); return d.p[idx(u, d.p)] + u.arm;
   };
   const val = u => { const v = D(u).v; return v ? v[idx(u, v)] : 0; };
-  const val2 = u => { const x = D(u).x; return x ? x[idx(u, x)] : 0; };
   const many = (n, one, few) => n === 1 ? one : `${n} ${few}`;
   const nameOf = u => `${P[u.owner].nm} ${u.name === 'Jester' && u.copyOf ? `Jester (as ${u.copyOf})` : u.name}`;
   const top = p => P[p].deck[0] || null;
@@ -857,7 +856,7 @@ function runBattle(cfgs, record){
     const N = record ? nameOf(u) : '', v = val(u);
     switch (key(u)){
       case 'Slinger': { const t = top(1-p); if (t) hit(t, v, N, s); break; }
-      case 'Dutiful Squire': { const c = P[p].charge; if (c){ c.arm += v; log(`${N} gives ${nameOf(c)} ${v} Armament${v>1?'s':''}.`, s, tokMeta(u, c, s, 'arm', v)); } break; }
+      case 'Dutiful Squire': { const c = P[p].charge; if (c){ c.arm += v; log(`${N} gives ${nameOf(c)} ${v} ${plural(v, 'Armament')}.`, s, tokMeta(u, c, s, 'arm', v)); } break; }
       case 'Musketeer': { const c = P[1-p].charge, t = top(1-p); if (c) hit(c, v, N, s); if (t) hit(t, v, N, s); break; }
       case 'Dark Knight': { const c = P[p].charge; if (c && c !== u) hit(c, v, N, s); break; }
       case 'Cannon': { const e = P[1-p], t = enemyAhead(p); if (t) overrunHit(t, v, N, s, t === e.charge ? e.deck[0] : e.deck[1]); break; }   // excess hits the enemy unit behind the target
@@ -875,7 +874,7 @@ function runBattle(cfgs, record){
         }
         break; }
       case 'Royal Watchman': if (u.uid === P[p].rear && v > 0){ u.sh += v; log(`${N} is the Rearguard and gains ${many(v, 'a Shield', 'Shields')}.`, s, tokMeta(u, u, s, 'sh', v)); } break;
-      case 'Sleepy Guard': if (u.uid === P[p].rear){ u.arm += v; log(`${N} is the Rearguard and gains ${v} Armament${v>1?'s':''}.`, s, tokMeta(u, u, s, 'arm', v)); } break;
+      case 'Sleepy Guard': if (u.uid === P[p].rear){ u.arm += v; log(`${N} is the Rearguard and gains ${v} ${plural(v, 'Armament')}.`, s, tokMeta(u, u, s, 'arm', v)); } break;
       case 'Scholar': { const c = P[p].charge; if (c && c !== u) for (let i = 0; i < v; i++) train(c, N, s); break; }
     }
   }
@@ -883,7 +882,7 @@ function runBattle(cfgs, record){
     if (u.jFail) return;
     const s = p, N = record ? nameOf(u) : '', v = val(u);
     switch (key(u)){
-      case 'Knight': if (u.uid === P[p].van){ u.arm += v; log(`${N} is the Vanguard and gains ${v} Armament${v>1?'s':''}.`, s, tokMeta(u, u, s, 'arm', v)); } break;
+      case 'Knight': if (u.uid === P[p].van){ u.arm += v; log(`${N} is the Vanguard and gains ${v} ${plural(v, 'Armament')}.`, s, tokMeta(u, u, s, 'arm', v)); } break;
       case 'Dark Knight': { const t = top(p); if (t) hit(t, v, N, s); break; }
       case 'Scholar': { const t = top(p); if (t) for (let i = 0; i < v; i++) train(t, N, s); break; }
       case 'Man-at-arms': if (v > 0){ u.sh += v; log(`${N} gains ${many(v, 'a Shield', 'Shields')}.`, s, tokMeta(u, u, s, 'sh', v)); } break;
@@ -893,7 +892,7 @@ function runBattle(cfgs, record){
         for (const g of [P[1-p].grave, P[p].grave]){
           for (let i = g.length - 1; i >= 0 && need > 0; i--){ const n = Math.min(need, g[i].arm); if (n && !from) from = g[i]; g[i].arm -= n; need -= n; took += n; }
         }
-        u.arm += took; log(took ? `${N} takes ${took} Armament${took>1?'s':''} from the graveyards.` : `${N} finds no Armaments in the graveyards.`, s, took ? tokMeta(from, u, s, 'arm', took) : undefined);
+        u.arm += took; log(took ? `${N} takes ${took} ${plural(took, 'Armament')} from the graveyards.` : `${N} finds no Armaments in the graveyards.`, s, took ? tokMeta(from, u, s, 'arm', took) : undefined);
         break;
       }
       case 'Recruiter': {
@@ -901,7 +900,7 @@ function runBattle(cfgs, record){
         if (t && t.dmg > 0){ t.dmg = 0; log(`${nameOf(t)} is covered and its damage clears.`, s); }
         for (let i = 0; i < v; i++) P[p].deck.unshift(recruit(p));
         P[p].revealed = top(p).uid;
-        log(`${N} places ${v} Recruit${v>1?'s':''} on top of the deck.`, s, v > 0 ? tokMeta(u, top(p), s, 'rec', v) : undefined);
+        log(`${N} places ${v} ${plural(v, 'Recruit')} on top of the deck.`, s, v > 0 ? tokMeta(u, top(p), s, 'rec', v) : undefined);
         break;
       }
     }
@@ -970,7 +969,7 @@ function runBattle(cfgs, record){
         const alive = b => b && (P[p].charge === b || P[p].deck.includes(b));
         switch (key(u)){
           case 'Desperate Infantry': { const t = enemyAhead(p); if (t) hit(t, val(u), `${N} (On My Death)`, p); break; }
-          case 'Veteran Knight': { const b = d.behind; if (alive(b)){ b.arm += val(u); log(`${N} passes ${val(u)} Armament${val(u)>1?'s':''} to ${nameOf(b)}.`, p, tokMeta(u, b, p, 'arm', val(u))); } break; }
+          case 'Veteran Knight': { const b = d.behind; if (alive(b)){ b.arm += val(u); log(`${N} passes ${val(u)} ${plural(val(u), 'Armament')} to ${nameOf(b)}.`, p, tokMeta(u, b, p, 'arm', val(u))); } break; }
           case 'Aging Master': { const b = d.behind; if (alive(b)) for (let i = 0; i < val(u); i++) train(b, `${N} (On My Death)`, p); break; }
         }
       }
@@ -1007,11 +1006,11 @@ function runBattle(cfgs, record){
     }
     for (const p of [0,1]){
       const t = top(p);
-      if (t && key(t) === 'Studious Squire' && !t.jFail){ const v = val(t); t.arm += v; log(`${nameOf(t)} watches and gains ${v} Armament${v>1?'s':''}.`, p, tokMeta(t, t, p, 'arm', v)); }
+      if (t && key(t) === 'Studious Squire' && !t.jFail){ const v = val(t); t.arm += v; log(`${nameOf(t)} watches and gains ${v} ${plural(v, 'Armament')}.`, p, tokMeta(t, t, p, 'arm', v)); }
     }
     // Brawler gains only if it survives the exchange, so the Armaments never save it from a lethal hit
     for (const p of [0,1]){
-      if (killed[p] && key(c[p]) === 'Brawler' && !c[p].jFail && !isDead(c[p])){ const v = val(c[p]); c[p].arm += v; log(`${nameOf(c[p])} wins the fight and gains ${v} Armament${v>1?'s':''}.`, p, tokMeta(c[p], c[p], p, 'arm', v)); }
+      if (killed[p] && key(c[p]) === 'Brawler' && !c[p].jFail && !isDead(c[p])){ const v = val(c[p]); c[p].arm += v; log(`${nameOf(c[p])} wins the fight and gains ${v} ${plural(v, 'Armament')}.`, p, tokMeta(c[p], c[p], p, 'arm', v)); }
     }
     return true;
   }
@@ -1045,10 +1044,10 @@ function runBattle(cfgs, record){
   const out = p => !P[p].charge && P[p].deck.length === 0;
 
   for (const p of [0,1]){ const t = top(p); if (t){ P[p].revealed = t.uid; log(`${nameOf(t)} is revealed as the Vanguard.`, p); } }
-  for (const p of [0,1]){ const t = top(p); if (P[p].armory && t){ t.sh += P[p].armory; log(`Armory gives ${nameOf(t)} ${P[p].armory} Shield${P[p].armory>1?'s':''}.`, p, tokMeta(null, t, p, 'sh', P[p].armory)); } }
+  for (const p of [0,1]){ const t = top(p); if (P[p].armory && t){ t.sh += P[p].armory; log(`Armory gives ${nameOf(t)} ${P[p].armory} ${plural(P[p].armory, 'Shield')}.`, p, tokMeta(null, t, p, 'sh', P[p].armory)); } }
   for (const p of [0,1]){ const t = top(p); if (P[p].yard && t) for (let k = 0; k < P[p].yard; k++) train(t, `${P[p].nm} Training Yard`, p); }
   for (const p of [0,1]){
-    if (P[p].treb){ const t = top(1-p); if (t) overrunHit(t, [3,5][P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1]); }
+    if (P[p].treb){ const t = top(1-p); if (t) overrunHit(t, BDEFS.Trebuchet.lv[P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1]); }
   }
   for (const p of [0,1]){ const t = top(p); if (t) doReveal(t, p); }
   frame('Battle start');
@@ -1143,7 +1142,7 @@ function freeBuildingGames(b, lvl, n, depth){
     const me = k % 2, g = newGame({genomes:[baseGenome(), baseGenome()]});
     g.players[me].city[b] = lvl;
     while (!g.over) autoRound(g, 8, depth);
-    w += g.winner === me ? 1 : g.winner === -1 ? 0.5 : 0;
+    w += scoreFor(g.winner, me);
   }
   return w;
 }
@@ -1156,7 +1155,7 @@ function forcedCardGames(card, n, depth, once){
     g.players[me].force = card; g.players[me].forceOnce = !!once;
     let first = 0;
     while (!g.over){ autoRound(g, 8, depth); if (!first && g.players[me].bought.includes(card)) first = g.round; }
-    const r = g.winner === me ? 1 : g.winner === -1 ? 0.5 : 0;
+    const r = scoreFor(g.winner, me);
     w += r; if (first){ got++; gw += r; rsum += first; }
   }
   return {w, got, gw, rsum};
@@ -1171,7 +1170,7 @@ function slotBattles(a, b, lvl, n){
     const A = mine.slice(), B = mine.slice();
     A.splice(at, 0, {name:a, copies:lvl}); B.splice(at, 0, {name:b, copies:lvl});
     const ra = runBattle([{units:A}, {units:enemy}], false).result.w, rb = runBattle([{units:B}, {units:enemy}], false).result.w;
-    wa += ra === 0 ? 1 : ra === -1 ? 0.5 : 0; wb += rb === 0 ? 1 : rb === -1 ? 0.5 : 0;
+    wa += scoreFor(ra, 0); wb += scoreFor(rb, 0);
   }
   return [wa, wb];
 }
@@ -1179,6 +1178,12 @@ function slotBattles(a, b, lvl, n){
 function shuffle(a, rnd){ for (let i = a.length-1; i > 0; i--){ const j = Math.floor(rnd()*(i+1)); const x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
 const uMax = n => DEFS[n].p.length;
 const uLvl = (n, c) => Math.min(c, uMax(n));
+// a fielded unit's level: its copies plus any Training, capped at the card's highest level
+const armyLvl = u => uLvl(u.name, u.copies + (u.tr || 0));
+// a result as points for player i: 1 for a win, 0.5 for a draw (w === -1), 0 for a loss
+const scoreFor = (w, i) => w === i ? 1 : w === -1 ? 0.5 : 0;
+// "Armament" / "Armaments": plural only above 1, as the log has always worded it
+const plural = (n, word) => n > 1 ? word + 's' : word;
 function bLvl(p, n){ const c = p.city[n] || 0; return Math.min(c, BDEFS[n].lv.length); }
 function bVal(p, n){ const l = bLvl(p, n); return l ? BDEFS[n].lv[l-1] : 0; }
 function slotsUsed(p){ let s = 0; for (const k in p.city){ if (!p.city[k]) continue; s += k === 'Field' ? p.city[k] : 1; } return s; }
@@ -1409,7 +1414,7 @@ function finishMobilize(g){
     const p = g.players[i], opp = g.players[1-i];
     for (const u of g.decks[i]){
       const d = DEFS[u.name]; if (!d.m) continue;
-      const l = Math.min(u.copies + (u.tr||0), uMax(u.name));
+      const l = armyLvl(u);
       let gain = d.m[l-1];
       if (u.name === 'Arsonist') gain *= (opp.city.Field || 0);
       if (gain){ p.money += gain; g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'gain':'gains'} $${gain} from ${u.name}.`, side:i}); }
@@ -1622,7 +1627,6 @@ function aiValue(g, i, name, kind){
     case 'Trebuchet': v = G.s * rf * 0.6 * inc; break;
     case 'Reserve Encampment': v = G.s * rf * (uniqueUnits(p) > deckCap(p) ? 3 : 0.4) * inc; break;
     case 'Infirmary': v = G.s * rf * 2.5; break;
-    case 'Bazaar': v = G.e * 0.3 * rE * inc; break;
     case 'Black Market': {
       if (G.bmv === 0){ v = c === 0 ? G.e * 1.0 * rE : G.e * 0.15 * rE * inc / 3; break; }   // old: just the $1 it saves
       // what the bigger peek finds (at whichever deck is better to look at), over this shop (if I still have a buy) and the shops likely left
@@ -1696,7 +1700,7 @@ function buildArmy(p, extraTrain, must){
   // must: a unit that has to make the army even if it's weak on its own (a combo piece being tested in the shop)
   const cap = deckCap(p);
   const units = Object.keys(p.hand).filter(n => n !== 'Recruit').map(n => ({name:n, copies:p.hand[n], arm:0, sh:0, tr:0}));
-  const lv = u => Math.min(u.copies + u.tr, uMax(u.name));
+  const lv = armyLvl;
   units.sort((a, b) => strengthU(b.name, lv(b)) - strengthU(a.name, lv(a)));
   const plain = units.filter(u => !exemptUnit(u.name)), top = plain.slice(0, cap);
   if (must && cap > 0 && !top.some(u => u.name === must)){ const m = plain.find(u => u.name === must); if (m) top[top.length - 1] = m; }
@@ -1717,7 +1721,7 @@ function assemble(order, recs, arm, recFront, armFirst){
   if (arm && deck.length){
     let t;
     if (armFirst) t = deck[0];
-    else { t = deck[0]; for (const u of deck) if (strengthU(u.name, Math.min(u.copies+u.tr, uMax(u.name))) > strengthU(t.name, Math.min(t.copies+t.tr, uMax(t.name)))) t = u; }
+    else { t = deck[0]; for (const u of deck) if (strengthU(u.name, armyLvl(u)) > strengthU(t.name, armyLvl(t))) t = u; }
     t.arm += arm;
   }
   return full;
@@ -1756,7 +1760,7 @@ function battleScore(deck, gd, i, myCfg, oppCfg){
   const cfgs = [{...myCfg, units:deck}, {...oppCfg, units:gd}];
   if (i === 1) cfgs.reverse();
   const r = runBattle(cfgs, false);
-  return (r.result.w === i ? 1 : r.result.w === -1 ? 0.5 : 0) + 0.02 * (r.left[i] - r.left[1-i]);
+  return (scoreFor(r.result.w, i)) + 0.02 * (r.left[i] - r.left[1-i]);
 }
 // Robust score (70% average, 30% worst case) across guesses, blended with the result against the predicted deck
 function scoreDeck(deck, i, myCfg, oppCfg, guesses, pred, read){
@@ -2259,7 +2263,7 @@ function pairWin(a, b, ctx){
     const d = c.mine.filter(u => u.name !== a && u.name !== b);
     d.splice(Math.min(c.at, d.length), 0, {name:a, copies:1}, {name:b, copies:1});
     const r = runBattle([{units:d}, {units:c.en}], false).result.w;
-    w += r === 0 ? 1 : r === -1 ? 0.5 : 0;
+    w += scoreFor(r, 0);
   }
   return w / ctx.length;
 }
@@ -2323,7 +2327,7 @@ function pairGames(A, B, seed, K, depth, st){
     const g = newGame({genomes: sw ? [B, A] : [A, B], rnd: mulberry32(seed)});
     while (!g.over) autoRound(g, K, depth);
     if (st) recordStats(st, g);
-    s += g.winner === sw ? 1 : g.winner === -1 ? 0.5 : 0;
+    s += scoreFor(g.winner, sw);
   }
   return s / 2;
 }
@@ -2457,7 +2461,7 @@ function crossover(A, B, rnd){
 }
 function recordStats(stats, g){
   for (const i of [0,1]){
-    const won = g.winner === i ? 1 : g.winner === -1 ? 0.5 : 0;
+    const won = scoreFor(g.winner, i);
     for (const c of new Set(g.players[i].bought)){
       const s = stats[c] || (stats[c] = {n:0, w:0}); s.n++; s.w += won;
     }
@@ -2471,9 +2475,9 @@ function recordStats(stats, g){
   }
   // sales: how many copies of each card were sold, and whether the seller went on to win
   if (g.sold){ const S = stats.__sold || (stats.__sold = {});
-    for (const i of [0,1]) for (const c of g.sold[i] || []){ const s = S[c] || (S[c] = {n:0, w:0}); s.n++; s.w += g.winner === i ? 1 : g.winner === -1 ? 0.5 : 0; } }
+    for (const i of [0,1]) for (const c of g.sold[i] || []){ const s = S[c] || (S[c] = {n:0, w:0}); s.n++; s.w += scoreFor(g.winner, i); } }
   // offers: each time a card was available to a player in a shop phase, did they take it, and did they win?
-  const won = i => g.winner === i ? 1 : g.winner === -1 ? 0.5 : 0;
+  const won = i => scoreFor(g.winner, i);
   const bucket = lead => lead < 0 ? 'b' : lead > 0 ? 'a' : 't';
   const O = stats.__offer || (stats.__offer = {}), L = stats.__lead || (stats.__lead = {}), B = stats.__base || (stats.__base = {});
   for (const s of (g.states || [])){ const q = B[bucket(s.lead)] || (B[bucket(s.lead)] = {n:0, w:0}); q.n++; q.w += won(s.i); }
@@ -2502,7 +2506,7 @@ function recordStats(stats, g){
   const V = stats.__vs || (stats.__vs = {});
   for (const b of (g.battles || [])){
     for (const i of [0,1]){
-      const r = b.w === i ? 1 : b.w === -1 ? 0.5 : 0, d = b.d[i];
+      const r = scoreFor(b.w, i), d = b.d[i];
       for (const n of new Set(d)) bump(U, n, r);
       const names = [...new Set(d)].sort();
       for (let x = 0; x < names.length; x++) for (let y = x + 1; y < names.length; y++) bump(P, names[x] + '|' + names[y], r);
@@ -2790,14 +2794,13 @@ function pokeStyle(u, side){
 function cardHTML(u, side, mode){
   if (!u) return '';
   const hp = Math.max(0, Math.min(100, (u.pow - u.dmg) / Math.max(1, u.pow) * 100));
-  const pk = pokeStyle(u, side), tk = '';
+  const pk = pokeStyle(u, side);
   const vr = [u.van ? 'V' : '', u.rear ? 'R' : ''].filter(Boolean).join(' ');
   return `<div class="card ${mode}${pk.html ? ' poked' : ''}" data-side="${side}" data-uid="${side}-${u.uid}" style="${pk.style}"${pk.title ? ` title="${esc(pk.title)}"` : ''}>${pk.html}
     <span class="vr">${vr}</span><span class="cn">${esc(u.name)}</span>
     <span class="pw"><span class="big">${u.pow}</span><span class="note">pwr</span></span>
     <span class="hprow"><span class="hp"><i style="width:${hp}%"></i></span><span class="hpn${u.dmg ? ' hurt' : ''}"><b>${Math.max(0, u.pow - u.dmg)}</b>/${u.pow} hp</span></span>
-    <span class="st">Lv ${u.lvl}${mode==='hidden'?' · hidden':mode==='charging'?' · charging':' · revealed'}</span>
-    <span class="tk">${tk}</span></div>`;
+    <span class="st">Lv ${u.lvl}${mode==='hidden'?' · hidden':mode==='charging'?' · charging':' · revealed'}</span></div>`;
 }
 const graveHTML = (g, side) => `<div class="grave">${g.length ? g.map(u => `<b data-uid="${side}-${u.uid}">${esc(u.name)}</b>`).join('') : 'Empty'}</div>`;
 // the rest of a deck, as a slightly splayed stack of name strips (the next card up sits nearest the revealed one)
@@ -3005,7 +3008,6 @@ function netHash(){
   let h = 2166136261; for (let k = 0; k < src.length; k++){ h ^= src.charCodeAt(k); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(36);
 }
-function seeded(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const netCode = () => Array.from({length:6}, () => 'abcdefghjkmnpqrstuvwxyz23456789'[Math.floor(Math.random() * 31)]).join('');
 const actsOf = i => i === NET.seat ? NET.acts : NET.peerActs;
 // UI helpers that use the game's random numbers (deck suggestions, reminders) run on a copy, so both pages stay in step
@@ -3131,7 +3133,7 @@ function netStart(){
   if (names[0] === names[1]) names = [names[0] + ' 1', names[1] + ' 2'];
   if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
   if (ui.animT) clearTimeout(ui.animT);
-  G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, rnd:seeded(NET.seed)});
+  G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, rnd:mulberry32(NET.seed)});
   G.pp = true; G.net = true; G.opp = null;
   ui = {battle:null, frame:0, draft:null, lastDraft:null, lastDrafts:[null, null], drafts:[null, null], err:'', start:false, roll:null, mktTab:'u'};
   NET.started = true; NET.applied = [0, 0]; NET.needShop = false;
@@ -3932,7 +3934,7 @@ function renderPlay(){
   if (ui.roll){ $('view-play').innerHTML = rollHTML(); return; }
   const dealNow = !ui.battle && G.phase === 'shop' && ui.dealt !== G.round;
   const changes = describeOverrides(OV);
-  let h = netNoticeHTML() + (changes.length && !(G && G.net) ? `<p class="note">Custom balance active (${changes.length} unfinalized change${changes.length>1?'s':''}, set in Balance lab). New games use it.</p>` : '') + boardHTML();
+  let h = netNoticeHTML() + (changes.length && !(G && G.net) ? `<p class="note">Custom balance active (${changes.length} unfinalized ${plural(changes.length, 'change')}, set in Balance lab). New games use it.</p>` : '') + boardHTML();
   if (ui.battle) h += battleHTML();
   else if (G.phase === 'shop') h += shopHTML();
   else if (G.phase === 'mobilize') h += mobilizeHTML();
@@ -4264,7 +4266,7 @@ function workerMain(){
     for (let k = 0; k < m.n; k++){
       const sw = k % 2, g = playAIGame(sw ? m.B : m.A, sw ? m.A : m.B, 8, m.depth);
       recordStats(st, g);
-      const my = sw ? 1 : 0; w += g.winner === my ? 1 : g.winner === -1 ? 0.5 : 0;
+      const my = sw ? 1 : 0; w += scoreFor(g.winner, my);
     }
     postMessage({id:m.id, score:w / m.n, stats:st, games:m.n});
   };
@@ -4438,7 +4440,7 @@ function renderTrain(){
     </div>
     <div class="panel">
       <div class="row"><button type="button" class="primary" data-act="t10" ${busy?'disabled':''}>Train 10 steps</button><button type="button" data-act="t50" ${busy?'disabled':''}>Train 50</button><button type="button" data-act="t200" ${busy?'disabled':''}>Train 200</button><button type="button" data-act="stop" ${busy?'':'disabled'}>Stop</button>
-        ${''}<span class="note">${busy ? (job.kind === 'train' ? (job.stop ? 'Stopping after the current matches…' : `Training… step ${job.done} of ${job.total}`) : `Running stat games… ${job.done} of ${job.total}`) : `Using ${POOL_SIZE} background worker${POOL_SIZE>1?'s':''}. Each step plays ${ES.dirs * ES.pairs * 2} games${brain.deep === false ? ' (a few seconds)' : ' (roughly 30–90 seconds with thinking on)'}, and every ${ES.every}th step adds ${(ES.gatePairs + ES.progPairs) * 2} games of checks${brain.deep === false ? '' : ' (several minutes)'}. You can keep playing while it trains.`}</span></div>
+        ${''}<span class="note">${busy ? (job.kind === 'train' ? (job.stop ? 'Stopping after the current matches…' : `Training… step ${job.done} of ${job.total}`) : `Running stat games… ${job.done} of ${job.total}`) : `Using ${POOL_SIZE} background ${plural(POOL_SIZE, 'worker')}. Each step plays ${ES.dirs * ES.pairs * 2} games${brain.deep === false ? ' (a few seconds)' : ' (roughly 30–90 seconds with thinking on)'}, and every ${ES.every}th step adds ${(ES.gatePairs + ES.progPairs) * 2} games of checks${brain.deep === false ? '' : ' (several minutes)'}. You can keep playing while it trains.`}</span></div>
       ${sparkSVG(brain.history)}
       ${aiSyncHTML()}
       ${syncBarHTML()}
@@ -4798,7 +4800,7 @@ function renderLab(){
       <div class="row"><span class="note">After big changes, the trained AI and the card stats describe the old numbers.</span><span class="grow"></span><button type="button" data-act="fresh" ${busy?'disabled':''}>Start fresh: reset the AI and clear stats</button></div>
       <div class="list"><span class="eyebrow">Unfinalized changes · this browser only</span>
       ${changes.length ? `${changes.map(c => `<div class="li draft"><span class="nm">${esc(c)}</span></div>`).join('')}</div>
-        <div class="row">${finalState.err ? `<span class="err">Couldn't finalize: ${esc(finalState.err)}.</span>` : ''}<span class="grow"></span><button type="button" data-act="resetall" ${busy || finalState.busy ?'disabled':''}>Discard unfinalized changes</button>${dbns ? `<button type="button" class="primary" data-act="finalize" ${busy || finalState.busy ?'disabled':''}>${finalState.busy ? 'Saving…' : `Finalize ${changes.length} change${changes.length>1?'s':''}`}</button>` : ''}</div>` : `<p class="note">None. You are testing the ${hasFinal() ? 'finalized numbers' : 'sheet'} as is.</p></div>`}
+        <div class="row">${finalState.err ? `<span class="err">Couldn't finalize: ${esc(finalState.err)}.</span>` : ''}<span class="grow"></span><button type="button" data-act="resetall" ${busy || finalState.busy ?'disabled':''}>Discard unfinalized changes</button>${dbns ? `<button type="button" class="primary" data-act="finalize" ${busy || finalState.busy ?'disabled':''}>${finalState.busy ? 'Saving…' : `Finalize ${changes.length} ${plural(changes.length, 'change')}`}</button>` : ''}</div>` : `<p class="note">None. You are testing the ${hasFinal() ? 'finalized numbers' : 'sheet'} as is.</p></div>`}
     </div>
     <div class="forces">
       <div class="panel"><h3>Card test</h3>
