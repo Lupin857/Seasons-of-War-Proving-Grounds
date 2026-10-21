@@ -735,14 +735,28 @@ header{position:relative}
 .mcard.drow .dpos{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-weight:600;margin-right:2px}
 .mcard .tags{display:flex;gap:4px;flex-wrap:wrap;align-self:flex-start}
 .mcard.drow .behind{display:flex;flex-wrap:wrap;gap:4px;padding-top:2px}
-.mcard.drow .dbtn{display:flex;gap:4px;margin-top:auto}
+.mcard.drow .dbtn{display:none}
+.forces.mob [data-drag]{touch-action:none}
+/* tokens tucked behind a deck card: their exposed edges, tappable */
+.dgrid .mcard.drow{overflow:visible}
+.mcard.drow .pkhit{position:absolute;z-index:2;left:calc(100% + var(--j) * 8px);top:calc((var(--j) + 1) * -6px);width:8px;height:calc(100% - 10px);
+  display:flex;align-items:flex-start;justify-content:center;padding-top:10px;font-size:8px;line-height:1;cursor:pointer}
+.mcard.drow .pkhit:hover{background:color-mix(in srgb, currentColor 25%, transparent);border-radius:0 6px 6px 0}
+@media (pointer:coarse){ .mcard.drow .pkhit::before{content:"";position:absolute;inset:-4px -3px} }
+/* bench tokens: small cards */
+.tokchip.tokcard{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:2px;width:86px;height:64px;border-radius:7px;border-width:1px;padding:5px 7px;
+  background:color-mix(in srgb, currentColor 12%, var(--surface));box-shadow:inset 0 3px 0 currentColor;font-size:.8rem;line-height:1.15}
+.tokchip.tokcard .ico{width:18px;height:18px;font-size:.7rem}
+.tokchip.tokcard .tl{color:var(--ink)}
+.tokchip.tokcard .fx{font-size:.7rem}
+.tokchip.tokcard.picked{background:var(--or-soft);box-shadow:inset 0 3px 0 currentColor,0 0 0 3px var(--or-soft),0 0 0 5px currentColor}
 .mcard.drow .dbtn button{flex:1;padding:3px 0}
 .mcard.drow .tx,.mcard.bcard .tx{overflow:visible}
 @media (max-width:640px){ .dgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 8px} .mcard.drow{min-height:170px} .mcard.bcard{min-height:150px} }
 /* forces and mobilize: battle-sized cards; press and hold one to read it full size */
 .fcards,.dgrid{grid-template-columns:repeat(auto-fill,118px)!important;gap:14px 10px!important}
 .fcards .mcard,.dgrid .mcard{height:150px;min-height:0;padding:6px 7px;gap:2px}
-.dgrid .mcard.drow{height:188px;min-height:0}
+.dgrid .mcard.drow{height:160px;min-height:0}
 .dgrid .mcard.bcard{height:150px;min-height:0}
 .fcards .mcard .top,.dgrid .mcard .top{flex-wrap:wrap;gap:0 4px}
 .fcards .mcard .nm,.dgrid .mcard .nm{font-size:.8rem}
@@ -4715,11 +4729,25 @@ function draftPower(u){
   const c = G.players[seat()].hand[u.name] || 1, L = Math.min(c + (u.tr||0), uMax(u.name));
   return u.name === 'Jester' ? '?' : DEFS[u.name].p[L-1] + (u.arm||0);
 }
+const DPX = 8, DPY = 6;
+function deckPoke(u, c, i){
+  const list = [...Array(Math.min(3, extraCopies(u.name, 'u', c))).fill('cp'), ...Array(u.arm || 0).fill('arm'), ...Array(u.tr || 0).fill('tr')];
+  if (!list.length) return {style:'', html:''};
+  const sh = ['inset 0 3px 0 var(--muted)'];
+  list.forEach((k, j) => { const dx = DPX * (j + 1), dy = -DPY * (j + 1), col = `var(${TOKS[k].c})`;
+    sh.push(`${dx}px ${dy}px 0 -1px ${TOKS[k].fill || `color-mix(in srgb, ${col} 22%, var(--surface))`}`, `${dx}px ${dy}px 0 0 ${col}`); });
+  const n = list.length;
+  const html = list.map((k, j) => k === 'cp' ? '' : `<span class="pkhit" style="--j:${j};color:var(${TOKS[k].c})" role="button" tabindex="0" data-act="t-off" data-tok="${k}" data-i="${i}" title="${TOKS[k].n}: tap to send it back to the bench" aria-label="Send this ${TOKS[k].n} back to the bench">${TOKS[k].i}</span>`).join('');
+  const nt = list.filter(k => k !== 'cp').length, cp = n - nt;
+  const title = [cp ? `${cp} extra cop${cp > 1 ? 'ies' : 'y'}` : '', u.arm ? `${u.arm} Armament${u.arm > 1 ? 's' : ''}` : '', u.tr ? `${u.tr} Training` : ''].filter(Boolean).join(', ');
+  return {style:` style="box-shadow:${sh.join(',')};margin-right:${DPX * n}px;margin-top:${DPY * n}px" title="${title} behind it"`, html};
+}
 function tokChip(kind, where, i){
   const lbl = kind === 'arm' ? 'Armament' : 'Training', fx = kind === 'arm' ? '+1 power' : '+1 level';
   const pick = where === 'bench' && ui.pick === kind ? ' picked' : '';
   const act = where === 'bench' ? `data-act="t-pick"` : `data-act="t-off" data-i="${i}"`;
   const tip = where === 'bench' ? `Drag onto a unit (or tap, then tap a unit)` : `Tap to send back to the bench, or drag to another unit`;
+  if (where === 'bench') return `<span class="tokchip tokcard ${kind}${pick}" role="button" tabindex="0" data-drag="tok" data-tok="${kind}" ${act} title="${tip}" aria-label="${lbl} (${fx}). ${tip}"><span class="ico" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span><span class="tl">${lbl}</span><span class="fx">${fx}</span></span>`;
   return `<span class="tokchip ${kind}${pick}" role="button" tabindex="0" data-drag="${where === 'bench' ? 'tok' : 'ton'}" data-tok="${kind}" ${act} ${where==='row'?`data-i="${i}"`:''} title="${tip}" aria-label="${lbl} (${fx}). ${tip}"><span class="ico" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span>${where === 'bench' ? `${lbl} <span class="fx">${fx}</span>` : (kind === 'arm' ? '+1 Arm' : '+1 Lv')}</span>`;
 }
 // can this token go on this draft unit? returns an error message or ''
@@ -4765,18 +4793,16 @@ function mobilizeHTML(){
     const c = u.name === 'Recruit' ? 1 : me.hand[u.name];
     const tags = [i === 0 ? 'Vanguard' : '', i === d.length-1 ? 'Rearguard' : ''].filter(Boolean).map(t => `<span class="tag">${t}</span>`).join(' ');
     const key = `${u.name}#${(occ[u.name] = (occ[u.name] || 0) + 1)}`;
-    const toks = [...Array(u.arm||0)].map(() => tokChip('arm', 'row', i)).join('') + [...Array(u.tr||0)].map(() => tokChip('tr', 'row', i)).join('');
+    const pk = deckPoke(u, c, i);
     const can = ui.pick && !tokBlock(ui.pick, u);
     const lv = u.name === 'Recruit' ? 1 : c + (u.tr||0);
     const sel = ui.sel && ui.sel.zone === 'deck' && ui.sel.i === i ? ' sel' : ui.sel ? ' cansel' : '';
-    return `<div class="mcard fcard u drow${sel}${ui.pick ? (can ? ' target' : ' notarget') : ''}" data-drag="deck" data-i="${i}" data-key="${esc(key)}" data-uname="${esc(u.name)}"${copyStyle(extraCopies(u.name, 'u', c), 'u')}>
-      <div class="top"><span class="nm"><span class="dpos"><span class="grip" aria-hidden="true">⠿</span>${i+1}</span> ${esc(u.name)}</span><span class="cost">${'$'.repeat(DEFS[u.name].c)}</span></div>
+    return `<div class="mcard fcard u drow${sel}${ui.pick ? (can ? ' target' : ' notarget') : ''}" data-drag="deck" data-i="${i}" data-key="${esc(key)}" data-uname="${esc(u.name)}"${pk.style}>${pk.html}
+      <div class="top"><span class="nm"><span class="dpos">${i+1}</span> ${esc(u.name)}</span><span class="cost">${'$'.repeat(DEFS[u.name].c)}</span></div>
       ${tags ? `<span class="tags">${tags}</span>` : ''}
       <span class="curve">${curveText(u.name, 'u', lv)}${u.arm ? ` <span class="tag">+${u.arm} Arm</span>` : ''}</span>
       <span class="tx">${cardTx(u.name, 'u', lv)}</span>${shortHTML(u.name, 'u', lv)}
       <span class="ownrow"><span class="own">${u.name === 'Recruit' ? 'Token' : `×${c}${exemptUnit(u.name) ? '' : ` · Lv ${Math.min(lv, uMax(u.name))}`}`} · ${draftPower(u)} pwr</span></span>
-      ${toks ? `<span class="behind">${toks}</span>` : ''}
-      <span class="dbtn"><button type="button" class="small" data-act="d-up" data-i="${i}" ${i===0?'disabled':''} aria-label="Move earlier" title="Move earlier">←</button><button type="button" class="small" data-act="d-down" data-i="${i}" ${i===d.length-1?'disabled':''} aria-label="Move later" title="Move later">→</button><button type="button" class="small" data-act="d-del" data-i="${i}" aria-label="Back to bench" title="Back to bench">✕</button></span>
     </div>`;
   }).join('') || '<p class="note">Your deck is empty. Add units from the bench.</p>';
   const avail = Object.keys(me.hand).filter(n => n !== 'Recruit' && !d.some(u => u.name === n));
@@ -4791,17 +4817,17 @@ function mobilizeHTML(){
       <div class="row"><button type="button" data-act="suggest">Suggest a deck</button><span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${ui.planning ? 'The AI is planning its deck…' : PP() && !G.net && S === 0 ? `Lock in and pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle'}</button></div>
     </div>
     <div class="sidecol">
-    <div class="panel benchp"><h2>Bench</h2>
-      <p class="note mobhelp">${coarse() ? 'Tap a card, then tap another to swap them or put it there. Hold a card for a moment to drag it. Double-tap a card to read it.' : 'Drag units into your deck and drag them around to reorder; drag one back here to bench it. Or click a card, then another to swap them. Double-click a card to read it.'}${smith || study ? ' Drag tokens onto a unit to place them behind it, or tap a token and then a unit.' : ''}</p>
+    <div class="panel benchp dropzone" data-zone="bench"><h2>Bench</h2>
+      <p class="note mobhelp">${coarse() ? 'Drag units into your deck, drag them around to reorder, and drag one back here to bench it. Or tap a card, then another to swap them. Double-tap a card to read it.' : 'Drag units into your deck, drag them around to reorder, and drag one back here to bench it. Or click a card, then another to swap them. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to tuck it behind (or tap the token, then a unit). Tap a token\'s edge behind a unit to send it back.' : ''}</p>
       ${smith || study ? `<span class="eyebrow">Tokens</span><div class="tokbench dropzone" data-zone="bench">${benchToks || '<span class="note">All tokens placed.</span>'}</div><span class="eyebrow">Units</span>` : ''}
       <div class="list dropzone dgrid" id="bench-list" data-zone="bench">${avail.map(n => { const c = me.hand[n];
         return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
-        <div class="top"><span class="nm"><span class="grip" aria-hidden="true">⠿</span> ${esc(n)}</span><span class="cost">${'$'.repeat(DEFS[n].c)}</span></div>
+        <div class="top"><span class="nm">${esc(n)}</span><span class="cost">${'$'.repeat(DEFS[n].c)}</span></div>
         <span class="curve">${curveText(n, 'u', c)}</span><span class="tx">${cardTx(n, 'u', c)}</span>${shortHTML(n, 'u', c)}
         <span class="ownrow"><span class="own">×${c}${exemptUnit(n) ? '' : ` · Lv ${uLvl(n, c)}`}</span></span>
         <button type="button" data-act="d-add" data-name="${esc(n)}">Add to deck</button></div>`; }).join('') || '<p class="note">Every unit is in your deck.</p>'}
       ${Array.from({length:Math.max(0, recAvail - recUsed)}, (_, k) => `<div class="mcard fcard u bcard${!k && ui.sel && ui.sel.zone === 'bench' && ui.sel.name === 'Recruit' ? ' sel' : ''}" data-drag="bench" data-name="Recruit">
-        <div class="top"><span class="nm"><span class="grip" aria-hidden="true">⠿</span> Recruit</span><span class="cost">$</span></div>
+        <div class="top"><span class="nm">Recruit</span><span class="cost">$</span></div>
         <span class="curve">${curveText('Recruit', 'u', 1)}</span><span class="tx">${cardTx('Recruit', 'u', 1)}</span>${shortHTML('Recruit', 'u', 1)}
         <button type="button" data-act="d-rec">Add to deck</button></div>`).join('')}</div>
     </div>
@@ -5299,12 +5325,12 @@ function benchHas(n){
 }
 $('view-play').addEventListener('click', e => {
   // a picked bench token goes to the tapped unit
-  if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip')){
+  if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip,.pkhit')){
     const row = e.target.closest('#deck-list .drow');
     if (row){ placeTok(ui.pick, +row.dataset.i); if (!ui.err) ui.pick = null; renderPlay(); return; }
   }
   // mobilize by tapping: tap a card to pick it up, tap another to swap (or place it), double-tap to read it
-  if (!ui.pick && G && G.phase === 'mobilize' && !ui.battle && ui.draft && !e.target.closest('button,.tokchip,select,input,a,summary')){
+  if (!ui.pick && G && G.phase === 'mobilize' && !ui.battle && ui.draft && !e.target.closest('button,.tokchip,.pkhit,select,input,a,summary')){
     const card = e.target.closest('#deck-list .drow, #bench-list .bcard');
     if (card){ mobTap(card); return; }
     if (ui.sel){
@@ -5454,7 +5480,7 @@ function slideFrom(rects, els, ms){
 }
 const deckRows = zone => [...zone.querySelectorAll('.drow')].filter(r => !drag || r !== drag.src);
 function placeGap(zone, at){
-  const rows = deckRows(zone), rects = new Map(rows.map(r => [r, r.getBoundingClientRect()]));
+  const rows = deckRows(zone || $('deck-list')), rects = new Map(rows.map(r => [r, r.getBoundingClientRect()]));
   if (zone){ if (at < rows.length) zone.insertBefore(drag.line, rows[at]); else zone.appendChild(drag.line); }
   else if (drag.line.parentNode) drag.line.remove();
   slideFrom(rects, rows);
@@ -5463,7 +5489,7 @@ $('view-play').addEventListener('pointerdown', e => {
   if (!G || G.phase !== 'mobilize' || ui.battle || ui.planning || e.button > 0) return;
   const src = e.target.closest('[data-drag]'); if (!src || e.target.closest('button,select,input')) return;
   // a finger picks a card up by holding it still for a moment (a quick swipe still scrolls the page); tokens and the mouse go right away
-  const hold = e.pointerType !== 'mouse' && !e.target.closest('.tokchip');
+  const hold = false;
   if (drag && drag.t) clearTimeout(drag.t);
   drag = {src, kind:src.dataset.drag, tok:src.dataset.tok, i:+src.dataset.i, name:src.dataset.name, x0:e.clientX, y0:e.clientY, on:false, ghost:null, line:null, at:-1, zone:null, row:-1, hold, armed:!hold, t:null};
   if (hold) drag.t = setTimeout(() => {
