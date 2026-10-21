@@ -1506,7 +1506,7 @@ function expShops(g, i){
   const T = g.target, a0 = total(g.players[i]), b0 = total(g.players[1-i]), cap = Math.max(0, RULES.maxRounds - g.round);
   const q0 = Math.round(battleOdds(g, i) * 50) / 50, G = g.players[i].genome || {};
   // this round's battle is fought with today's armies; after that the other side rebuilds, so later battles lean back toward even
-  const qf = G.sp === 0 ? q0 : 0.5 + 0.35 * (q0 - 0.5);
+  const qf = 0.5 + 0.35 * (q0 - 0.5);
   const key = `${i}|${g.round}|${a0}|${b0}|${q0}|${qf}|${T}`;
   if (g._es && g._es.key === key) return g._es.v;
   const memo = new Map();
@@ -1582,8 +1582,8 @@ function roundsLeft(g){ const lead = Math.max(total(g.players[0]), total(g.playe
 
 function aiValue(g, i, name, kind){
   const p = g.players[i], G = p.genome || baseGenome(), rL = roundsLeft(g), rf = Math.min(rL, 4)/2 + 0.5, bias = (G.bias[name] || 0) + ctxBonus(G, p, g.players[1-i], name) + sitBonus(G, g, i, name);
-  // rE: how many future shops an income or discount card is likely to pay out in (hz 0 = the old score-only estimate)
-  const rE = G.hz === 0 ? rL : expShops(g, i) * (G.hk ?? 2);
+  // rE: how many future shops an income or discount card is likely to pay out in 
+  const rE = expShops(g, i) * (G.hk ?? 2);
   if (kind === 'u'){
     if (name === 'Recruit') return G.s * 0.6 + bias;
     const c = p.hand[name] || 0, L = Math.min(c + 1, uMax(name));
@@ -1601,7 +1601,7 @@ function aiValue(g, i, name, kind){
     if (c === 0) v += G.s * (G.combo ?? 1) * 8 * comboBonus(p, name) * rf;
     // level-ups: the pairing already counted when the first copy came in; a stronger copy makes it pay off more,
     // in proportion to how much stronger the unit gets
-    else if (G.syn2 !== 0 && G.lu2 !== 0){ const s0 = strengthU(name, c), up = strengthU(name, L) - s0; if (s0 > 0 && up > 0) v += G.s * (G.combo ?? 1) * 8 * comboBonus(p, name) * rf * Math.min(1, up / s0) * (G.lu2 ?? 0.35); }
+    else if (G.lu2 !== 0){ const s0 = strengthU(name, c), up = strengthU(name, L) - s0; if (s0 > 0 && up > 0) v += G.s * (G.combo ?? 1) * 8 * comboBonus(p, name) * rf * Math.min(1, up / s0) * (G.lu2 ?? 0.35); }
     // Hired Blade's drawback has its own weight, so learning to ignore it can't drag down how much the AI values income
     if (name === 'Hired Blade') v -= (G.hb ?? 0.5) * rE * (hiredBladeCost(c + 1) - hiredBladeCost(c));
     const d = DEFS[name];
@@ -1629,7 +1629,6 @@ function aiValue(g, i, name, kind){
     case 'Reserve Encampment': v = G.s * rf * (uniqueUnits(p) > deckCap(p) ? 3 : 0.4) * inc; break;
     case 'Infirmary': v = G.s * rf * 2.5; break;
     case 'Black Market': {
-      if (G.bmv === 0){ v = c === 0 ? G.e * 1.0 * rE : G.e * 0.15 * rE * inc / 3; break; }   // old: just the $1 it saves
       // what the bigger peek finds (at whichever deck is better to look at), over this shop (if I still have a buy) and the shops likely left
       const lv = BDEFS['Black Market'].lv, b = g.buys && g.buys[i];
       const shops = (b && (b.u < RULES.unitsPerShop || b.b < RULES.bldgPerShop) ? 1 : 0) + expShops(g, i);
@@ -1745,8 +1744,7 @@ function oppGuessSet(g, i, n){
   const out = oppGuesses(g, i), a = buildArmy(g.players[1-i]);
   if (!a.core.length && !a.recs){
     // no army yet: they field nothing, or (if they can still shop) the one unit they could still afford
-    const opp = g.players[1-i], G = g.players[i].genome || {};
-    if (G.eg === 0) return out;
+    const opp = g.players[1-i];
     out.push([]);
     if (g.phase === 'shop' && !g.passed[1-i] && g.buys && g.buys[1-i].u < RULES.unitsPerShop){
       const names = new Set(['Recruit', ...g.disp.u.map(c => c.name)]);
@@ -1842,10 +1840,10 @@ function omObserve(g){
   g.omPending = [null, null];
 }
 // The guess to lean on and how far to trust it, from what this opponent has done so far (only for the thinking AI's
-// own decisions, not inside its prediction of the opponent). G.om = 0 turns it off.
+// own decisions, not inside its prediction of the opponent).
 function omPick(g, i, G, D, guesses, pred){
   const read0 = G.read ?? 0.4, m = g.om && g.om[i];
-  if (!D || !D.predictDeep || G.om === 0 || !m || !m.n) return {pred, read:read0};
+  if (!D || !D.predictDeep || !m || !m.n) return {pred, read:read0};
   const opp = g.players[1 - i];
   let best = null;
   for (const [k, d] of [['pred', pred], ['strong', guesses[0]], [opp.prevDeck ? 'last' : 'weak', guesses[1]]]){
@@ -1863,7 +1861,6 @@ function predictOpp(g, i, K){ return aiMobilizeAt(g, 1 - i, K) || null; }   // a
 // table, and random ones), screen them against one guess of the enemy, then fully score the best few.
 // must: the card being tested, kept in the army even if it's weak on its own.
 function quickStrength(g, i, fake, guesses, oppCfg, pred, read, must){
-  { const Gq = g.players[i].genome || {}; if (Gq.syn2 === 0 || Gq.qs2 === 0) return quickStrengthOld(g, i, fake, guesses, oppCfg, pred, read); }
   const a = buildArmy(fake, 0, must);
   if (!a.core.length && !a.recs) return 0;
   const myCfg = battleCfgOf(fake), nP = (g._qsD && g._qsD.shopPerms) || 8;
@@ -1879,18 +1876,6 @@ function quickStrength(g, i, fake, guesses, oppCfg, pred, read, must){
   }
   let best = -Infinity;
   for (const d of decks){ const s = scoreDeck(d, i, myCfg, oppCfg, guesses, pred, read); if (s > best) best = s; }
-  return best;
-}
-function quickStrengthOld(g, i, fake, guesses, oppCfg, pred, read){
-  const a = buildArmy(fake);
-  if (!a.core.length && !a.recs) return 0;
-  const myCfg = battleCfgOf(fake);
-  let best = -Infinity;
-  for (let k = 0; k < 6; k++){
-    const perm = k === 0 ? a.core.slice() : shuffle(a.core.slice(), g.rnd);
-    const s = scoreDeck(assemble(perm, a.recs, a.arm, k % 2 === 0, k % 3 === 0), i, myCfg, oppCfg, guesses, pred, read);
-    if (s > best) best = s;
-  }
   return best;
 }
 // a line-up built from the combo table: start from the strongest unit and keep adding whichever unit pairs best
@@ -1936,7 +1921,7 @@ function aiShopTurnSeen(g, i, depth){
   }
   // Money only matters if there's a later shop to spend it in: near the end (2-2, say) a purchase is nearly free
   // and passing to save is pointless, so the price weight and the buy-or-pass bar fade with the shops likely left.
-  const mE = G.hz === 0 || G.mh === 0 ? 1 : Math.min(1, expShops(g, i));
+  const mE = Math.min(1, expShops(g, i));
   const TH = G.thresh * mE;
   const cands = [];
   for (const o of aiShopOptions(g, i)){
@@ -1950,8 +1935,8 @@ function aiShopTurnSeen(g, i, depth){
     let read = G.read ?? 0.4;
     g._qsD = D;
     // My side: does this card help me beat the army they'll have at the battle? That's the army they have now plus
-    // what I expect them to buy with the rest of this shop (G.opb: 0 = only the army they have now).
-    const fut = G.opb === 0 ? null : predictOppBuys(g, i, G, null);
+    // what I expect them to buy with the rest of this shop.
+    const fut = predictOppBuys(g, i, G, null);
     const view0 = oppView(g, i, D, fut && fut.fake), {guesses, oppCfg} = view0;
     let pred = view0.pred;
     ({pred, read} = omPick(g, i, G, D, guesses, pred));
@@ -1961,7 +1946,7 @@ function aiShopTurnSeen(g, i, depth){
     const inFut = c => !!fut && (c.src === 'du' || c.src === 'db') && fut.picks.some(k => k.src === c.src && k.idx === c.idx);
     // This round's battle already won against every army they could field? Then buying more strength only helps
     // in later battles: count that share of a unit's value, and let economy compete for the rest.
-    if (G.lk !== 0 && base >= 0.95){
+    if (base >= 0.95){
       const E = expShops(g, i), later = E / (1 + E);
       for (const c of cands) if (c.kind === 'u' || BATTLE_BLDGS.has(c.name)){ const raw = c.v + c.price * G.m * mE; c.v = raw * later - c.price * G.m * mE; }
     }
@@ -1971,7 +1956,7 @@ function aiShopTurnSeen(g, i, depth){
     let relevant = cands.filter(c => c.kind === 'u' || BATTLE_BLDGS.has(c.name) || c.name === "Mason's Guild")
                           .sort((a, b) => b.v - a.v).slice(0, D.shopCands);
     // battle buildings always get the battle test: their flat score says nothing about my army, so it shouldn't filter them out
-    if (G.bb !== 0) for (const c of cands) if (c.kind === 'b' && BATTLE_BLDGS.has(c.name) && !relevant.includes(c)) relevant.push(c);
+    for (const c of cands) if (c.kind === 'b' && BATTLE_BLDGS.has(c.name) && !relevant.includes(c)) relevant.push(c);
     for (const c of relevant){
       const mine = withCard(p, c, c.name === "Mason's Guild" ? aiMasonTarget(g, i) : null);
       if (mine){
@@ -1982,7 +1967,7 @@ function aiShopTurnSeen(g, i, depth){
         } else c.delta = quickStrength(g, i, mine, guesses, oppCfg, pred, read, c.kind === 'u' ? c.name : null) - base;
         // Study lasts all game: also test it on the army I'm likely to have soon (today's army plus the two units I'd most
         // likely buy from this display), weighted by how many shops are likely left to grow into it
-        if (c.name === 'Study' && G.sf !== 0){
+        if (c.name === 'Study'){
           const soon = cands.filter(x => x.kind === 'u' && x.name !== 'Recruit').sort((a, b) => b.v - a.v).slice(0, 2);
           if (soon.length){
             const later = {hand:{...p.hand}, city:{...p.city}}; for (const x of soon) later.hand[x.name] = (later.hand[x.name] || 0) + 1;
@@ -2005,7 +1990,7 @@ function aiShopTurnSeen(g, i, depth){
   if (rung && rung.sharp < 1 && best && best.v > TH)
     best = sharpPick(cands.filter(c => c.v > TH).sort((a, b) => b.v - a.v).slice(0, 4), rung.sharp, g.rnd);
   // Selling: would selling one card (for $1, or to free a city slot) let me buy something worth more than my best plain buy?
-  const sp = G.sl === 0 ? null : aiSellPlan(g, i, G, mE, deepCtx, best && best.v > TH ? best.v : TH);
+  const sp = aiSellPlan(g, i, G, mE, deepCtx, best && best.v > TH ? best.v : TH);
   if (sp){
     sell(g, i, sp.s.kind, sp.s.name);
     if (buyInfo(g, i, sp.o.name, sp.o.kind, sp.o.src).ok){ buy(g, i, sp.o.src, sp.o.idx, sp.o.name === "Mason's Guild" ? aiMasonTarget(g, i) : undefined); return sp.o.name; }
@@ -2087,7 +2072,7 @@ function aiSellPlan(g, i, G, mE, deepCtx, bar){
 }
 // The best card in the display I can't afford now but could next round (cards bought this round stay one more round).
 function aiSaveTarget(g, i, G, mE){
-  if ((mE != null && !(G.hz === 0 || G.mh === 0) ? mE < 0.8 : roundsLeft(g) <= 1.2) || (G.save ?? 0.3) <= 0) return null;
+  if ((mE != null ? mE < 0.8 : roundsLeft(g) <= 1.2) || (G.save ?? 0.3) <= 0) return null;
   const p = g.players[i], next = p.money + Math.max(0, income(p));
   let t = null;
   for (const [src, arr, kind] of [['du', g.disp.u, 'u'], ['db', g.disp.b, 'b']]) arr.forEach((c, idx) => {
@@ -2177,10 +2162,10 @@ function mobilizeSearch(g, i, D, K){
   if (!vars.length || (!vars[0].core.length && !vars[0].recs)) return null;
   const guesses = oppGuessSet(g, i, D.guesses), myCfg = battleCfgOf(p), oppCfg = battleCfgOf(opp);
   // Predict their order with a lighter copy of the same search they'll run (thinking through units, Training and
-  // order against my likely orders), rather than a handful of random shuffles. G.mp2 = 0: the quick prediction.
+  // order against my likely orders), rather than a handful of random shuffles.
   // When mixing, keep their top K orders too: they are the columns of the grid.
   let pred = null, oppCands = [];
-  if (G.mp2 === 0 || !D.predictDeep) pred = predictOpp(g, i, D.predictK);
+  if (!D.predictDeep) pred = predictOpp(g, i, D.predictK);
   else { const o = mobilizeSearch(g, 1 - i, D.predictDeep, K); oppCands = o ? o.cands.map(c => c.d) : []; pred = o ? o.cands[0].d : []; }
   if (!oppCands.length && pred && pred.length) oppCands = [pred];
   if (D.predictDeep){   // remember these guesses to check against what they actually field
@@ -2336,7 +2321,6 @@ function synRows(as, N, seed){
 const SYN_DEFAULT = {"Hired Blade>Studious Squire":0.047,"Hired Blade>Dark Knight":0.038,"Hired Blade>Lancer":0.032,"Hired Blade>Scholar":-0.069,"Pikeman>Scholar":-0.102,"Royal Watchman>Conscripted Farmhand":0.033,"Royal Watchman>Assassin":0.033,"Royal Watchman>Marksman":0.033,"Royal Watchman>Dark Knight":0.078,"Royal Watchman>Scholar":-0.066,"Desperate Infantry>Marksman":0.036,"Desperate Infantry>Musketeer":0.043,"Desperate Infantry>Dark Knight":0.038,"Slinger>Desperate Infantry":0.031,"Slinger>Marksman":0.031,"Slinger>Musketeer":0.048,"Slinger>Dark Knight":0.041,"Slinger>Scholar":-0.072,"Slinger>Halberd Knight":0.035,"Dutiful Squire>Dark Knight":0.063,"Dutiful Squire>Grave-Robber":0.06,"Dutiful Squire>Lancer":0.037,"Dutiful Squire>Scholar":-0.075,"Conscripted Farmhand>Dark Knight":0.068,"Conscripted Farmhand>Scholar":-0.073,"Veteran Knight>Assassin":0.052,"Veteran Knight>Marksman":0.041,"Veteran Knight>Dark Knight":0.08,"Veteran Knight>Lancer":0.126,"Veteran Knight>Man-at-arms":0.04,"Veteran Knight>Armored Knight":0.063,"Cowardly Squire>Marksman":0.104,"Cowardly Squire>Studious Squire":0.069,"Cowardly Squire>Musketeer":0.043,"Cowardly Squire>Dark Knight":0.035,"Cowardly Squire>White Knight":-0.03,"Arsonist>Scholar":-0.061,"Assassin>Slinger":0.031,"Assassin>Dutiful Squire":0.047,"Assassin>Marksman":0.095,"Assassin>Studious Squire":0.03,"Assassin>Barber-Surgeon":0.04,"Assassin>Scholar":0.044,"Marksman>Scholar":-0.038,"Marksman>Halberd Knight":0.033,"Studious Squire>Dark Knight":0.036,"Studious Squire>Cannon":0.038,"Studious Squire>Grave-Robber":0.06,"Studious Squire>White Knight":0.042,"Studious Squire>Scholar":0.036,"Aging Master>Hired Blade":-0.048,"Aging Master>Pikeman":-0.086,"Aging Master>Royal Watchman":-0.058,"Aging Master>Slinger":-0.066,"Aging Master>Dutiful Squire":-0.065,"Aging Master>Conscripted Farmhand":-0.068,"Aging Master>Arsonist":-0.052,"Aging Master>Assassin":0.056,"Aging Master>Marksman":-0.031,"Aging Master>Barber-Surgeon":-0.044,"Aging Master>Pigeon Hunter":-0.061,"Aging Master>Sleepy Guard":-0.031,"Aging Master>Musketeer":-0.042,"Aging Master>Dark Knight":0.035,"Aging Master>Knight":-0.047,"Aging Master>Cannon":-0.038,"Aging Master>Grave-Robber":-0.067,"Aging Master>Mercenary":-0.052,"Aging Master>Lancer":0.192,"Barber-Surgeon>Scholar":-0.06,"Pigeon Hunter>Veteran Knight":0.034,"Pigeon Hunter>Assassin":0.037,"Pigeon Hunter>Studious Squire":0.032,"Pigeon Hunter>Scholar":-0.036,"Pigeon Hunter>Halberd Knight":0.032,"Pigeon Hunter>Armored Knight":0.052,"Sleepy Guard>Scholar":-0.068,"Musketeer>Desperate Infantry":0.034,"Musketeer>Dark Knight":0.04,"Musketeer>Lancer":0.037,"Musketeer>Scholar":-0.074,"Musketeer>Halberd Knight":0.041,"Dark Knight>Hired Blade":0.058,"Dark Knight>Royal Watchman":0.062,"Dark Knight>Desperate Infantry":0.047,"Dark Knight>Slinger":0.065,"Dark Knight>Dutiful Squire":0.068,"Dark Knight>Conscripted Farmhand":0.077,"Dark Knight>Veteran Knight":0.093,"Dark Knight>Cowardly Squire":0.069,"Dark Knight>Assassin":0.035,"Dark Knight>Marksman":-0.039,"Dark Knight>Studious Squire":-0.042,"Dark Knight>Aging Master":0.093,"Dark Knight>Musketeer":0.041,"Dark Knight>Cannon":0.063,"Dark Knight>Mercenary":0.061,"Dark Knight>Lancer":0.03,"Dark Knight>White Knight":0.063,"Dark Knight>Recruiter":-0.065,"Dark Knight>Halberd Knight":0.05,"Dark Knight>Armored Knight":0.068,"Knight>Scholar":-0.053,"Cannon>Hired Blade":0.034,"Cannon>Marksman":0.032,"Cannon>Barber-Surgeon":0.031,"Cannon>Dark Knight":0.057,"Cannon>Lancer":0.039,"Cannon>Scholar":-0.077,"Cannon>Halberd Knight":0.043,"Cannon>Armored Knight":0.03,"Grave-Robber>Scholar":-0.062,"Mercenary>Studious Squire":0.045,"Mercenary>Dark Knight":0.037,"Mercenary>Scholar":-0.074,"Lancer>Hired Blade":0.036,"Lancer>Dutiful Squire":0.063,"Lancer>Assassin":0.032,"Lancer>Studious Squire":0.034,"Lancer>Mercenary":0.031,"Lancer>White Knight":0.067,"Lancer>Scholar":0.125,"White Knight>Cannon":0.033,"Recruiter>Slinger":0.078,"Recruiter>Dutiful Squire":0.052,"Recruiter>Marksman":0.033,"Recruiter>Musketeer":0.167,"Recruiter>Dark Knight":-0.051,"Recruiter>Cannon":0.182,"Recruiter>White Knight":0.044,"Recruiter>Scholar":-0.057,"Scholar>Hired Blade":-0.046,"Scholar>Pikeman":-0.083,"Scholar>Royal Watchman":-0.066,"Scholar>Slinger":-0.038,"Scholar>Conscripted Farmhand":-0.071,"Scholar>Arsonist":-0.045,"Scholar>Assassin":0.04,"Scholar>Barber-Surgeon":-0.039,"Scholar>Pigeon Hunter":-0.052,"Scholar>Sleepy Guard":-0.037,"Scholar>Musketeer":0.032,"Scholar>Dark Knight":0.038,"Scholar>Knight":-0.05,"Scholar>Cannon":-0.04,"Scholar>Grave-Robber":-0.05,"Scholar>Mercenary":-0.043,"Scholar>Lancer":0.143,"Scholar>White Knight":-0.044,"Scholar>Man-at-arms":-0.055,"Man-at-arms>Dutiful Squire":0.037,"Man-at-arms>Assassin":0.034,"Man-at-arms>Marksman":0.063,"Man-at-arms>Studious Squire":0.111,"Man-at-arms>Barber-Surgeon":0.033,"Man-at-arms>Musketeer":0.043,"Man-at-arms>Cannon":0.049,"Man-at-arms>Lancer":0.032,"Man-at-arms>White Knight":0.051,"Halberd Knight>Hired Blade":0.037,"Halberd Knight>Assassin":0.038,"Halberd Knight>Studious Squire":0.038,"Halberd Knight>Barber-Surgeon":0.03,"Halberd Knight>Pigeon Hunter":0.031,"Halberd Knight>Dark Knight":0.05,"Halberd Knight>Cannon":-0.06,"Halberd Knight>Mercenary":0.03,"Halberd Knight>Lancer":0.049,"Halberd Knight>White Knight":0.059,"Halberd Knight>Scholar":-0.044,"Armored Knight>Studious Squire":0.056,"Armored Knight>Barber-Surgeon":0.072,"Armored Knight>Dark Knight":0.037,"Armored Knight>Scholar":-0.032};
 let SYN = SYN_DEFAULT;   // replaced by a recomputed table when card numbers change
 function comboBonus(p, name){
-  if ((p.genome || {}).syn2 === 0 || (p.genome || {}).cb2 === 0){ let s = 0; for (const y in p.hand){ if (y === name || exemptUnit(y)) continue; s += Math.max(SYN[name + '>' + y] || 0, SYN[y + '>' + name] || 0, 0); } return s; }
   // In a line a unit has one neighbour in front and one behind, so it can use at most two pairings, with different
   // partners: the best "partner in front of me" plus the best "me in front of partner". Bad pairings are left out,
   // since Mobilize can keep those units apart.
@@ -2941,23 +2925,25 @@ const PP = () => !!(G && G.pp);
 function seat(){ if (G && G.net && NET) return NET.seat; if (!PP()) return 0; if (G.phase === 'shop') return cur(G); if (G.phase === 'mobilize') return ui.mobSeat || 0; return 0; }
 const nm = i => G.labels[i];
 const poss = i => PP() ? `${esc(nm(i))}'s` : i === 0 ? 'Your' : 'AI';
+// Starting a game: stop the last game's timers and give the screen a clean state. Pass-and-play and online
+// use the per-seat fields (each seat's draft, whose hand-off it is); they're simply unused against the AI.
+function stopTimers(){ if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; } if (ui.animT) clearTimeout(ui.animT); }
+const freshUI = extra => ({battle:null, frame:0, draft:null, lastDraft:null, lastDrafts:[null, null], drafts:[null, null], mobSeat:0, handoff:null, err:'', start:false, ...extra});
+const newRoll = () => ({you:null, ai:null, rolling:false, tie:false, first:null});
 function newPassPlay(names){
-  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
-  if (ui.animT) clearTimeout(ui.animT);
+  stopTimers();
   G = newGame({genomes:[null, null], labels:names, target:LEN});
   G.pp = true; G.opp = null;
-  ui = {battle:null, frame:0, draft:null, lastDraft:null, lastDrafts:[null, null], drafts:[null, null], mobSeat:0, handoff:null, err:'', start:false,
-        roll:{you:null, ai:null, rolling:false, tie:false, first:null}};
+  ui = freshUI({roll:newRoll()});
   renderPlay();
 }
 function newPlay(opp){
-  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
-  if (ui.animT) clearTimeout(ui.animT);
+  stopTimers();
   const genome = opp && CAL ? clone(CAL.genome) : clone(brain.champ);
   G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, loadOm()], target:LEN});
   G.opp = opp || null;
   if (opp && CAL) G.players[1].skill = skillFor(opp.rating);
-  ui = {battle:null, frame:0, draft:null, lastDraft:null, err:'', start:false, roll:{you:null, ai:null, rolling:false, tie:false, first:null}};
+  ui = freshUI({roll:newRoll()});
   renderPlay();
 }
 // What the AI has learned about how you order your army, carried between games in this browser. Older games count
@@ -3215,25 +3201,54 @@ function netPeers(ch){
 function netStart(){
   let names = NET.seat === 0 ? [NET.name, NET.peer.name] : [NET.peer.name, NET.name];
   if (names[0] === names[1]) names = [names[0] + ' 1', names[1] + ' 2'];
-  if (aiTimer){ clearTimeout(aiTimer); aiTimer = null; }
-  if (ui.animT) clearTimeout(ui.animT);
+  stopTimers();
   G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, rnd:mulberry32(NET.seed)});
   G.pp = true; G.net = true; G.opp = null;
-  ui = {battle:null, frame:0, draft:null, lastDraft:null, lastDrafts:[null, null], drafts:[null, null], err:'', start:false, roll:null, mktTab:'u'};
+  ui = freshUI({roll:null, mktTab:'u'});
   NET.started = true; NET.applied = [0, 0]; NET.needShop = false;
   startShop(G);
   NET.live = false; netPump(); NET.live = true;   // replay moves made before a reload, quietly
   if (G.phase === 'shop' && NET.acts.length + NET.peerActs.length === 0) showToast(`${nm(cur(G))} shops first.`);
   netAfter();
 }
-function netApply(i, a){
+/* ===================== SHOP MOVES =====================
+   Every way of playing makes the same shop moves: ['b', src, idx, masonTarget] buy, ['s', kind, name] sell,
+   ['p'] pass, ['m', kind] Black Market. Online play sends them with card names as numbers (netEncode/netDecode). */
+const netEncode = a => a[0] === 'b' ? ['b', a[1], a[2], a[3] == null ? null : netIx(a[3])] : a[0] === 's' ? ['s', a[1], netIx(a[2])] : a;
+const netDecode = a => a[0] === 'b' ? ['b', a[1], a[2], a[3] == null ? null : netName(a[3])] : a[0] === 's' ? ['s', a[1], netName(a[2])] : a;
+function applyMove(i, a){
   switch (a[0]){
-    case 'b': return buy(G, i, a[1], a[2], a[3] == null ? undefined : netName(a[3]));
-    case 's': return sell(G, i, a[1], netName(a[2]));
+    case 'b': return buy(G, i, a[1], a[2], a[3] == null ? undefined : a[3]);
+    case 's': return sell(G, i, a[1], a[2]);
     case 'p': return pass(G, i);
     case 'm': return useBM(G, i, a[1]);
   }
   return false;
+}
+// the faded "bought" card a market buy leaves behind for the rest of the round
+function addGhost(k, idx, name, price, who){
+  if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
+  ui.ghosts[k].push({idx, name, price, who});
+}
+const MOVE_SOUND = {b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), p:() => sfx.wood()};
+// Make a shop move for player i, plus what the screen does around it: the ghost card and a sound.
+// vol: how loud a successful move sounds (null: silent); own: a failed move is this screen's player's, so it buzzes.
+function shopMove(i, a, vol, own){
+  const k = a[0] === 'b' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
+  const name = k && G.disp[k][a[2]] ? G.disp[k][a[2]].name : null, pos = k ? mergedPos(k, a[2]) : -1, m0 = G.players[i].money;
+  const ok = applyMove(i, a);
+  if (ok && k && name) addGhost(k, pos, name, m0 - G.players[i].money, i);
+  if (vol != null){ if (ok) MOVE_SOUND[a[0]](vol); else if (own) sfx.err(); }
+  return ok;
+}
+// The player at this screen makes a shop move: online it goes to the room (and comes back through netPump);
+// otherwise it happens here, and a bought card flies to its new owner.
+function doMove(a){
+  if (G.net){ netDo(netEncode(a)); return; }
+  const S = seat(), fly = a[0] === 'b' ? {own0:snapOwn(S), mk:marketSnap()} : null;
+  const ok = shopMove(S, a, 1, true);
+  if (a[0] === 'b' || a[0] === 'p') afterAction(); else renderPlay();
+  if (ok && fly) flyBuys(S, fly.own0, fly.mk);
 }
 // apply every move both players have made that this page hasn't applied yet
 function netPump(){
@@ -3251,31 +3266,22 @@ function netPump(){
       const i = cur(G), a = actsOf(i)[NET.applied[i]]; if (!a) break;
       if (a[0] === 'd'){ NET.err = 'The two games fell out of step. Leave the room and start a new one.'; break; }
       const live = NET.live && !ui.battle, own0 = live ? snapOwn(i) : null, mk = live && !flights.length ? marketSnap() : null;
-      const k = a[0] === 'b' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
-      const nmB = k && G.disp[k][a[2]] ? G.disp[k][a[2]].name : null, pos = k ? mergedPos(k, a[2]) : -1, m0 = G.players[i].money, n0 = G.log.length;
-      const ok = netApply(i, a); NET.applied[i]++; changed = true;
-      if (ok && k && nmB){
-        if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
-        ui.ghosts[k].push({idx:pos, name:nmB, price:m0 - G.players[i].money, who:i});
-      }
+      const n0 = G.log.length;
+      const ok = shopMove(i, netDecode(a), NET.live ? (i === NET.seat ? 1 : 0.45) : null, i === NET.seat); NET.applied[i]++; changed = true;
       if (NET.live){
-        if (ok && a[0] === 'b'){ if (mk) flights.push({i, own0, mk}); sfx.coin(i === NET.seat ? 1 : 0.45); }
-        else if (ok && a[0] === 's') sfx.sell(); else if (ok && a[0] === 'm') sfx.rustle(); else if (ok && a[0] === 'p') sfx.wood();
-        else if (!ok && i === NET.seat) sfx.err();
+        if (ok && a[0] === 'b' && mk) flights.push({i, own0, mk});
         if (i !== NET.seat) toasts.push(...G.log.slice(n0).filter(l => l.side === i).map(l => l.t));
       }
     } else if (G.phase === 'mobilize'){
       const a0 = actsOf(0)[NET.applied[0]], a1 = actsOf(1)[NET.applied[1]];
       if (!a0 || !a1) break;
       if (a0[0] !== 'd' || a1[0] !== 'd'){ NET.err = 'The two games fell out of step. Leave the room and start a new one.'; break; }
-      [a0, a1].forEach((a, i) => {
-        let spec = (Array.isArray(a[1]) ? a[1] : []).map(u => ({name:netName(u[0]), arm:+u[1] || 0, tr:+u[2] || 0}));
-        if (spec.some(u => !DEFS[u.name]) || validateDeck(G, i, spec)) spec = [];
-        setDeck(G, i, spec);
+      const specs = [a0, a1].map((a, i) => {
+        const spec = (Array.isArray(a[1]) ? a[1] : []).map(u => ({name:netName(u[0]), arm:+u[1] || 0, tr:+u[2] || 0}));
+        return spec.some(u => !DEFS[u.name]) || validateDeck(G, i, spec) ? [] : spec;
       });
-      finishMobilize(G);
-      const res = doBattle(G, true); NET.applied[0]++; NET.applied[1]++; changed = true;
-      if (NET.live){ stopAuto(); stopAnim(); ui.battle = res; ui.frame = 0; ui.bannerOff = false; ui.draft = null; ui.pick = null; ui.remind = null; flights.length = 0; NET.battleNew = true; }
+      const res = playBattle(specs[0], specs[1]); NET.applied[0]++; NET.applied[1]++; changed = true;
+      if (NET.live){ stopAuto(); stopAnim(); showBattle(res); ui.bannerOff = false; ui.remind = null; flights.length = 0; NET.battleNew = true; }
       else ui.lastNetBattle = res;
       if (!G.over) NET.needShop = true;
     } else break;
@@ -3376,7 +3382,7 @@ function defaultDraft(){
     }
     return keep;
   }
-  return draftFromDeck(aiMobilize(G, S, 24, DEPTH.play) || []);
+  return draftFromDeck(aiMobilize(G, S, 24, DEPTH_HINT) || []);
 }
 function phaseLabel(){
   if (ui.battle) return G.over ? 'Game over' : 'Battle';
@@ -4072,6 +4078,38 @@ function dealMarket(){
   ui.dealUntil = performance.now() + end;
   deck.animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:170, iterations:Math.max(1, n), delay:120});
 }
+// Lock in the deck being built at this screen (after a reminder about unused tokens, if any). Online it goes to the
+// room; pass-and-play hands the device to the second player, then fights; against the AI, the AI plans and fights.
+function lockDeck(){
+  const d = ui.draft;
+  const err = validateDeck(G, seat(), d);
+  if (err){ ui.err = err; sfx.err(); renderPlay(); return; }
+  if (!ui.remindOk && !(G.noRemind && G.noRemind.lock)){
+    const left = mobilizeLeftovers();
+    if (left){ ui.remind = {kind:'lock', items:left}; sfx.soft(); renderPlay(); return; }
+  }
+  ui.remindOk = false;
+  if (G.net){ sfx.lock(); ui.err = ''; ui.pick = null; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => [netIx(u.name), u.arm || 0, u.tr || 0])]); return; }
+  if (PP()){
+    const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = ''; ui.pick = null;
+    if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); window.scrollTo({top:0}); return; }
+    showBattle(playBattle(ui.drafts[0], ui.drafts[1])); ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
+    renderPlay(); window.scrollTo({top:0}); startAuto(); return;
+  }
+  sfx.lock();
+  ui.err = ''; ui.lastDraft = d; ui.planning = true; renderPlay();
+  setTimeout(() => {
+    // the AI plans from public information only; your locked deck is not visible to it
+    const aiDeck = aiMobilize(G, 1, 60, DEPTH.play) || [];
+    showBattle(playBattle(d, aiDeck)); ui.planning = false;
+    noteOm();
+    if (G.over) recordResult();
+    renderPlay(); startAuto();
+  }, 30);
+}
+// both armies are set: fight the battle (returns the replay), and show a replay from its first step
+function playBattle(d0, d1){ setDeck(G, 0, d0); setDeck(G, 1, d1); finishMobilize(G); return doBattle(G, true); }
+function showBattle(res){ ui.battle = res; ui.frame = 0; ui.draft = null; ui.pick = null; }
 $('view-play').addEventListener('click', e => {
   // a picked bench token goes to the tapped unit
   if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip')){
@@ -4088,39 +4126,25 @@ $('view-play').addEventListener('click', e => {
     case 'mason-to':
     case 'buy': {
       const src = t.dataset.src, idx = t.dataset.idx === '' ? 0 : +t.dataset.idx;
-      const SS = seat(), nm0 = (sourceCard(G, SS, src, idx) || {}).name;
-      if (act === 'buy' && nm0 === "Mason's Guild"){ sfx.pick(); ui.mason = {src, idx}; renderPlay(); return; }
+      const nm0 = (sourceCard(G, seat(), src, idx) || {}).name;
+      if (act === 'buy' && nm0 === "Mason's Guild"){ sfx.pick(); ui.mason = {src, idx}; renderPlay(); return; }   // pick what it levels up first
       ui.mason = null;
-      if (G.net){ netDo(['b', src, idx, act === 'mason-to' ? netIx(t.dataset.name) : null]); return; }
-      const sel = act === 'mason-to' ? {value:t.dataset.name} : null;
-      const k = src === 'du' ? 'u' : src === 'db' ? 'b' : null, pos = k ? mergedPos(k, idx) : -1;
-      const nm = k && G.disp[k][idx] ? G.disp[k][idx].name : null, m0 = G.players[SS].money;
-      const own0 = snapOwn(SS), mk = marketSnap();
-      const ok = buy(G, SS, src, idx, sel ? sel.value : undefined);
-      if (ok) sfx.coin(); else sfx.err();
-      if (ok && k && nm){
-        if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
-        ui.ghosts[k].push({idx:pos, name:nm, price:m0 - G.players[SS].money, who:SS});
-      }
-      afterAction(); if (ok) flyBuys(SS, own0, mk); return;
+      doMove(['b', src, idx, act === 'mason-to' ? t.dataset.name : null]); return;
     }
     case 'pass': {
       const left = G.noRemind && G.noRemind.pass ? null : netClone(shopLeftovers);
-      if (!left && G.net){ netDo(['p']); return; }
       if (left){ ui.remind = {kind:'pass', items:left}; sfx.soft(); renderPlay(); return; }
-      pass(G, seat()); sfx.wood(); afterAction(); return;
+      doMove(['p']); return;
     }
     case 'remind-back': case 'remind-go': {
       const r = ui.remind; ui.remind = null; if (!r) return;
       const off = $('remind-off'); if (off && off.checked){ G.noRemind = G.noRemind || {}; G.noRemind[r.kind] = true; }
       if (act === 'remind-back'){ sfx.soft(); renderPlay(); return; }
-      if (r.kind === 'pass'){ if (G.net){ netDo(['p']); return; } if (pass(G, seat())) sfx.wood(); afterAction(); return; }
-      ui.remindOk = true; const lb = document.createElement('button'); lb.dataset.act = 'lock'; lb.hidden = true;
-      $('view-play').appendChild(lb); lb.click(); lb.remove(); return;
+      if (r.kind === 'pass'){ doMove(['p']); return; }
+      ui.remindOk = true; lockDeck(); return;
     }
-    case 'bm-u': if (G.net){ netDo(['m', 'u']); return; } if (useBM(G, seat(), 'u')) sfx.rustle(); renderPlay(); return;
-    case 'bm-b': if (G.net){ netDo(['m', 'b']); return; } if (useBM(G, seat(), 'b')) sfx.rustle(); renderPlay(); return;
-    case 'sell-u': case 'sell-b': if (G.net){ netDo(['s', act === 'sell-u' ? 'u' : 'b', netIx(t.dataset.name)]); return; } if (sell(G, seat(), act === 'sell-u' ? 'u' : 'b', t.dataset.name)) sfx.sell(); else sfx.err(); renderPlay(); return;
+    case 'bm-u': case 'bm-b': doMove(['m', act === 'bm-u' ? 'u' : 'b']); return;
+    case 'sell-u': case 'sell-b': doMove(['s', act === 'sell-u' ? 'u' : 'b', t.dataset.name]); return;
     case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); window.scrollTo({top:0}); return;
     case 'd-add': d.push({name:t.dataset.name, arm:0, tr:0}); sfx.drop(); break;
     case 'd-rec': d.push({name:'Recruit', arm:0, tr:0}); sfx.drop(); break;
@@ -4130,38 +4154,8 @@ $('view-play').addEventListener('click', e => {
     case 't-pick': ui.pick = ui.pick === t.dataset.tok ? null : t.dataset.tok; ui.err = ''; if (ui.pick) sfx.pick(); else sfx.soft(); renderPlay(); return;
     case 't-cancel': sfx.soft(); ui.pick = null; renderPlay(); return;
     case 't-off': { sfx.soft(); const k = t.dataset.tok === 'arm' ? 'arm' : 'tr'; d[i][k] = Math.max(0, (d[i][k]||0) - 1); break; }
-    case 'suggest': sfx.rustle(); ui.draft = draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH.play)) || []); break;
-    case 'lock': {
-      const err = validateDeck(G, seat(), d);
-      if (err){ ui.err = err; sfx.err(); renderPlay(); return; }
-      if (!ui.remindOk && !(G.noRemind && G.noRemind.lock)){
-        const left = mobilizeLeftovers();
-        if (left){ ui.remind = {kind:'lock', items:left}; sfx.soft(); renderPlay(); return; }
-      }
-      ui.remindOk = false;
-      if (G.net){ sfx.lock(); ui.err = ''; ui.pick = null; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => [netIx(u.name), u.arm || 0, u.tr || 0])]); return; }
-      if (PP()){
-        const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = ''; ui.pick = null;
-        if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); window.scrollTo({top:0}); return; }
-        setDeck(G, 0, ui.drafts[0]); setDeck(G, 1, ui.drafts[1]);
-        finishMobilize(G);
-        ui.battle = doBattle(G, true); ui.frame = 0; ui.draft = null; ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
-        renderPlay(); window.scrollTo({top:0}); startAuto(); return;
-      }
-      sfx.lock();
-      ui.err = ''; ui.lastDraft = d; ui.planning = true; renderPlay();
-      setTimeout(() => {
-        // the AI plans from public information only; your locked deck is not visible to it
-        const aiDeck = aiMobilize(G, 1, 60, DEPTH.play) || [];
-        setDeck(G, 0, d); setDeck(G, 1, aiDeck);
-        finishMobilize(G);
-        ui.battle = doBattle(G, true); ui.frame = 0; ui.draft = null; ui.planning = false; ui.pick = null;
-        noteOm();
-        if (G.over) recordResult();
-        renderPlay(); startAuto();
-      }, 30);
-      return;
-    }
+    case 'suggest': sfx.rustle(); ui.draft = draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH_HINT)) || []); break;
+    case 'lock': lockDeck(); return;
     case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); return; }
     case 'b-first': sfx.soft(); stopAuto(true); goFrame(0); return;
     case 'b-prev': sfx.soft(); stopAuto(true); goFrame(Math.max(0, ui.frame - 1)); return;
@@ -4408,6 +4402,8 @@ function mergeStats(st, T){
     const s = T[k] || (T[k] = {n:0, w:0}); s.n += st[k].n; s.w += st[k].w;
   }
 }
+// Orders suggested to a player are the single best order, never a draw from the AI's mix
+const DEPTH_HINT = {...DEPTH.play, mix:0};
 const thinkDepth = () => brain.deep === false ? null : DEPTH.train;
 function refreshViews(){ if (!$('view-train').hidden) renderTrain(); if (!$('view-stats').hidden) renderStats(); if (!$('view-lab').hidden) renderLab(); }
 // Training (evolution strategies). Each step tests ES.dirs random directions: the AI nudged one way plays the AI
