@@ -1242,8 +1242,10 @@ function cantAcquire(st, name, kind){
   if ((name === 'Field' || !st.city[name]) && slotsUsed(st) >= RULES.citySlots) return 'City is full';
   return null;
 }
-function buyInfo(g, i, name, kind, src){
-  const p = g.players[i], b = g.buys[i];
+function buyInfo(g, i, name, kind, src){ return buyQuote(g.players[i], g.buys[i], name, kind, src); }
+// The price and buy slot for one card, or why it can't be bought. p is anything with {hand, city, money}
+// and b the buys used this shop ({u, b, carp, extra}), so the AI can price hypothetical purchases the same way.
+function buyQuote(p, b, name, kind, src){
   const Dd = kind === 'u' ? DEFS[name] : BDEFS[name];
   let price = Dd.c;
   const no = cantAcquire(p, name, kind); if (no) return {ok:false, why:no};
@@ -1259,6 +1261,7 @@ function buyInfo(g, i, name, kind, src){
   return {ok:true, price, slot};
 }
 const bmOff = p => Math.max(1, bLvl(p, 'Black Market'));
+function useSlot(b, kind, slot){ if (slot === 'base'){ if (kind === 'u') b.u++; else b.b++; } else if (slot === 'carp') b.carp++; else b.extra = true; }
 function sourceCard(g, i, src, idx){
   if (src === 'du') return g.disp.u[idx] && {name:g.disp.u[idx].name, kind:'u'};
   if (src === 'db') return g.disp.b[idx] && {name:g.disp.b[idx].name, kind:'b'};
@@ -1277,8 +1280,7 @@ function buy(g, i, src, idx, attach){
   if (g.buyTags && !g.buyTags[i][sc.name]) g.buyTags[i][sc.name] = sitTags(g, i);
   if (sc.name === "Mason's Guild"){ const ts = masonTargets(p); if (!ts.includes(attach)) attach = ts[0]; }
   p.money -= info.price;
-  if (info.slot === 'base'){ if (sc.kind === 'u') b.u++; else b.b++; }
-  else if (info.slot === 'carp') b.carp++; else b.extra = true;
+  useSlot(b, sc.kind, info.slot);
   if (src === 'du') g.disp.u.splice(idx, 1);
   if (src === 'db') g.disp.b.splice(idx, 1);
   if (src === 'bm'){
@@ -1783,30 +1785,29 @@ function withOpp(g, i, fake, fn){
 function predictOppBuys(g, i, G, excl){
   const o = 1 - i, opp = g.players[o];
   if (g.phase !== 'shop' || !g.buys || g.passed[o]) return null;
-  const b = g.buys[o];
-  let uLeft = Math.max(0, RULES.unitsPerShop - b.u), bLeft = Math.max(0, RULES.bldgPerShop - b.b), money = opp.money;
-  if (!uLeft && !bLeft) return null;
+  // their buys and money as they'd stand after each predicted purchase, priced by the real rules
+  // (Carpenter's Guild slots and discount, the +$1 extra buy)
+  const b = {...g.buys[o]};
   const opts = [];
   g.disp.u.forEach((c, idx) => { if (!(excl && excl.src === 'du' && excl.idx === idx)) opts.push({name:c.name, kind:'u', src:'du', idx}); });
   g.disp.b.forEach((c, idx) => { if (!(excl && excl.src === 'db' && excl.idx === idx) && c.name !== "Mason's Guild") opts.push({name:c.name, kind:'b', src:'db', idx}); });
   opts.push({name:'Recruit', kind:'u', src:'recruit'}, {name:'Field', kind:'b', src:'field'});
-  const fake = {hand:{...opp.hand}, city:{...opp.city}}, picks = [];
+  const fake = {hand:{...opp.hand}, city:{...opp.city}, money:opp.money}, picks = [];
   const g0 = opp.genome, h0 = opp.hand, c0 = opp.city;
   opp.genome = G; opp.hand = fake.hand; opp.city = fake.city;
   try{
-    for (let k = 0; k < 3 && (uLeft || bLeft); k++){
+    for (let k = 0; k < 6; k++){
       let best = null;
       for (const c of opts){
-        if (c.taken || (c.kind === 'u' ? !uLeft : !bLeft)) continue;
-        const price = (c.kind === 'u' ? DEFS : BDEFS)[c.name].c; if (price > money) continue;
-        if (cantAcquire(fake, c.name, c.kind)) continue;
-        const v = aiValue(g, o, c.name, c.kind) - price * G.m;
-        if (v > G.thresh && (!best || v > best.v)) best = {...c, v, price};
+        if (c.taken) continue;
+        const q = buyQuote(fake, b, c.name, c.kind, c.src); if (!q.ok) continue;
+        const v = aiValue(g, o, c.name, c.kind) - q.price * G.m;
+        if (v > G.thresh && (!best || v > best.v)) best = {...c, v, price:q.price, slot:q.slot};
       }
       if (!best) break;
-      picks.push(best); money -= best.price;
-      if (best.kind === 'u'){ uLeft--; fake.hand[best.name] = (fake.hand[best.name] || 0) + 1; }
-      else { bLeft--; fake.city[best.name] = (fake.city[best.name] || 0) + 1; }
+      picks.push(best); fake.money -= best.price; useSlot(b, best.kind, best.slot);
+      if (best.kind === 'u') fake.hand[best.name] = (fake.hand[best.name] || 0) + 1;
+      else fake.city[best.name] = (fake.city[best.name] || 0) + 1;
       if (best.src === 'du' || best.src === 'db'){ const x = opts.find(c => c.src === best.src && c.idx === best.idx); if (x) x.taken = true; }
     }
   } finally { opp.genome = g0; opp.hand = h0; opp.city = c0; }
@@ -1993,7 +1994,7 @@ function aiShopTurnSeen(g, i, depth){
         c.v += 8 * G.s * c.delta;
       }
       if (deny > 0 && !c.denied && (c.src === 'du' || c.src === 'db')){
-        const ok = c.kind === 'u' ? (opp.hand[c.name] || 0) < uMax(c.name) : (c.name !== "Mason's Guild" && (opp.city[c.name] || 0) < BDEFS[c.name].lv.length);
+        const ok = c.name !== "Mason's Guild" && !cantAcquire(opp, c.name, c.kind);
         const theirs = ok ? withCard(opp, c, null) : null;
         if (theirs){ c.denial = quickStrength(g, 1 - i, theirs, myGuesses, myCfgPub, null, 0, c.kind === 'u' ? c.name : null) - theirBase; c.v += 8 * G.s * deny * Math.max(0, c.denial); }
       }
