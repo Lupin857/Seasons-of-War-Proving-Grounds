@@ -1412,12 +1412,12 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 .fcards .mcard:not(.peek){height:auto!important;aspect-ratio:1/1!important;min-height:0!important;width:var(--card-sq)}
 
 /* attached tokens: a tab on top of each tucked-behind token card, with its icon and name */
-#deck-list .mcard.drow .pkhit.tkt{position:absolute;z-index:1;width:auto;display:flex;align-items:center;gap:3px;padding:0 5px;font-size:.56rem;font-weight:700;letter-spacing:.02em;line-height:1;white-space:nowrap;overflow:hidden;border-radius:7px 7px 0 0;background:none;cursor:pointer}
-#deck-list .mcard.drow .pkhit.tkt .gi{width:10px;height:10px;flex:none;margin:0;vertical-align:0}
-#deck-list .mcard.drow .pkhit.tkt span{overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
-#deck-list .mcard.drow .pkhit.tkt::before{display:none}
-#deck-list .mcard.drow .pkhit.tkt:hover{background:color-mix(in srgb, currentColor 14%, transparent)}
-.dragghost .pkhit.tkt{display:none}
+.mcard.drow .pkhit.tkt{position:absolute;z-index:1;width:auto;display:flex;align-items:center;gap:3px;padding:0 5px;font-size:.56rem;font-weight:700;letter-spacing:.02em;line-height:1;white-space:nowrap;overflow:hidden;border-radius:7px 7px 0 0;background:none;cursor:pointer}
+.mcard.drow .pkhit.tkt .gi{width:10px;height:10px;flex:none;margin:0;vertical-align:0}
+.mcard.drow .pkhit.tkt span{overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.mcard.drow .pkhit.tkt::before{display:none}
+.mcard.drow .pkhit.tkt:hover{background:color-mix(in srgb, currentColor 14%, transparent)}
+.dragwrap>.mcard.drow.dragghost{overflow:visible!important}
 @media (max-width:640px){
   .forces.mob2{gap:6px}
   .forces.mob2 .panel{padding:8px 6px}
@@ -5491,7 +5491,7 @@ function deckPoke(u, c, i){
   const html = toks.map((k, j) => `<span class="pkhit tkt t-${k}" style="--j:${j};top:${-(base + TKT * (j + 1))}px;left:${base + TKX * (j + 1)}px;right:${-(base + TKX * (j + 1))}px;height:${TKT}px;color:var(${TOKS[k].c})" role="button" tabindex="0" data-act="t-off" data-tok="${k}" data-i="${i}" title="${TOKS[k].n}: tap to send the newest token back to the bench" aria-label="${TOKS[k].n} attached. Tap to send the newest token back to the bench">${tokIcon(k)}<span>${TOKS[k].n}</span></span>`).join('');
   const room = base + TKT * toks.length;
   const title = [cps ? `${cps} extra cop${cps > 1 ? 'ies' : 'y'}` : '', u.arm ? `${u.arm} Armament${u.arm > 1 ? 's' : ''}` : '', u.tr ? `${u.tr} Training` : ''].filter(Boolean).join(', ');
-  return {style:` style="box-shadow:${sh.join(',')};margin-top:${room}px" data-room="${room}" title="${title} behind it"`, html};
+  return {style:` style="box-shadow:${sh.join(',')};margin-top:${room}px" data-room="${room}" data-tkbase="${base}" title="${title} behind it"`, html};
 }
 // rules text printed on the bench token cards
 const TOKRULES = {
@@ -5532,6 +5532,66 @@ function popTok(u, kind){
   const o = tokOrder(u), j = kind ? o.lastIndexOf(kind) : o.length - 1;
   if (j < 0) return null;
   const k = o.splice(j, 1)[0]; u[k] = Math.max(0, (u[k]||0) - 1); setTokOrder(u, o); return k;
+}
+// ---- tokens slide like cards: a token card flies between the bench and its place behind a unit, with the same
+// easing and timing as the other Mobilize cards, while the cards around it slide to make room ----
+const deckRowEl = i => document.querySelector(`#deck-list .drow[data-i="${i}"]`);
+// where token card j (0 = closest) sits behind a deck row
+function tokRectOf(row, j){
+  const r = row.getBoundingClientRect(), base = +row.dataset.tkbase || 0;
+  return {left:r.left + base + TKX * (j + 1), top:r.top - (base + TKT * (j + 1)), width:r.width, height:r.height};
+}
+const mobKeyOf = el => el.dataset.key || (el.dataset.tok ? 't' + el.dataset.tok : 'b' + (el.dataset.name || ''));
+function snapMob(){
+  const m = new Map();
+  for (const el of document.querySelectorAll('#deck-list .drow, #bench-list .mcard')){ const k = mobKeyOf(el); if (!m.has(k)) m.set(k, el.getBoundingClientRect()); }
+  return m;
+}
+function slideMob(m){
+  if (reduceMotion()) return;
+  for (const el of document.querySelectorAll('#deck-list .drow, #bench-list .mcard')){
+    const r0 = m.get(mobKeyOf(el)); if (!r0) continue;
+    const r1 = el.getBoundingClientRect(), dx = r0.left - r1.left, dy = r0.top - r1.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+    el.animate([{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}], {duration:240, easing:SLIDE});
+  }
+}
+// a token card in flight, drawn like the bench token card
+function flyTok(kind, from, to, done){
+  if (reduceMotion() || !from || !to){ if (done) done(); return; }
+  const el = document.createElement('div');
+  el.className = `mcard tcard ${kind} tokfly`; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = `<div class="top"><span class="nm">${kind === 'arm' ? 'Armament' : 'Training'}</span></div><span class="tbig">${tokIcon(kind)}</span>`;
+  Object.assign(el.style, {position:'fixed', left:from.left + 'px', top:from.top + 'px', width:from.width + 'px', height:from.height + 'px', margin:'0', zIndex:'69', pointerEvents:'none'});
+  document.body.appendChild(el);
+  const a = el.animate([{transform:'none'}, {transform:`translate(${to.left - from.left}px,${to.top - from.top}px) scale(${to.width / from.width},${to.height / from.height})`}], {duration:260, easing:SLIDE, fill:'forwards'});
+  a.onfinish = () => { el.remove(); if (done) done(); };
+}
+// attach a token of `kind` to deck card i, flying in from `from` (a rect: the bench token card, or the dragged token)
+function attachTokAnim(kind, i, from){
+  const before = snapMob(), old = deckRowEl(i), oldSh = old ? old.style.boxShadow : '';
+  placeTok(kind, i); if (ui.err){ renderPlay(); return; }
+  ui.pick = null; renderPlay();
+  const row = deckRowEl(i); if (!row){ return; }
+  const tabs = row.querySelectorAll('.tkt'), tab = tabs[tabs.length - 1], to = tokRectOf(row, tabs.length - 1), newSh = row.style.boxShadow;
+  slideMob(before);
+  if (reduceMotion() || !from) return;
+  row.style.boxShadow = oldSh; if (tab) tab.style.visibility = 'hidden';   // the new token appears when it lands
+  flyTok(kind, from, to, () => { if (row.isConnected){ row.style.boxShadow = newSh; if (tab) tab.style.visibility = ''; } });
+}
+// send deck card i's newest token back to the bench, flying out from behind the card
+function popTokAnim(i){
+  const u = ui.draft && ui.draft[i], row0 = deckRowEl(i); if (!u) return false;
+  const o = tokOrder(u); if (!o.length) return false;
+  const kind = o[o.length - 1], from = row0 ? tokRectOf(row0, o.length - 1) : null;
+  const had = !!document.querySelector(`#bench-list .tcard.${kind}`), before = snapMob();
+  popTok(u); ui.err = ''; renderPlay();
+  const dest = document.querySelector(`#bench-list .tcard.${kind}`), to = dest ? dest.getBoundingClientRect() : null;
+  slideMob(before);
+  if (!dest || !from || reduceMotion()) return true;
+  if (!had) dest.style.visibility = 'hidden';
+  flyTok(kind, from, to, () => { if (dest.isConnected){ dest.style.visibility = ''; if (had) dest.animate([{transform:'scale(1.05)'}, {transform:'none'}], {duration:200, easing:SLIDE}); } });
+  return true;
 }
 function placeTok(kind, to, from){
   const d = ui.draft, u = d[to]; if (!u) return;
@@ -6427,7 +6487,7 @@ $('view-play').addEventListener('click', e => {
   // a picked bench token goes to the tapped unit
   if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip,.tcard,.pkhit')){
     const row = e.target.closest('#deck-list .drow');
-    if (row){ placeTok(ui.pick, +row.dataset.i); if (!ui.err) ui.pick = null; renderPlay(); return; }
+    if (row){ const src = document.querySelector(`#bench-list .tcard.${ui.pick}`); attachTokAnim(ui.pick, +row.dataset.i, src ? src.getBoundingClientRect() : null); return; }
   }
   // mobilize by tapping: tap a card to pick it up, tap another to swap (or place it), double-tap to read it
   if (!ui.pick && G && G.phase === 'mobilize' && !ui.battle && ui.draft && !e.target.closest('button,.tokchip,.tcard,.pkhit,select,input,a,summary')){
@@ -6489,7 +6549,7 @@ $('view-play').addEventListener('click', e => {
     case 'sel-clear': ui.sel = null; ui.pick = null; sfx.soft(); renderPlay(); return;
     case 'b-speed': { sfx.soft(); LS.set('sow-autofast', !autoFast()); const b = t; b.textContent = speedLabel(); b.setAttribute('aria-pressed', autoFast() ? 'true' : 'false'); if (autoOn() && autoT){ startAuto(200); } return; }
     case 't-cancel': sfx.soft(); ui.pick = null; renderPlay(); return;
-    case 't-off': { sfx.soft(); popTok(d[i]); break; }
+    case 't-off': { sfx.soft(); ui.sel = null; popTokAnim(i); return; }
     case 'suggest': sfx.rustle(); ui.draft = draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH_HINT)) || []); break;
     case 'lock': lockDeck(); return;
     case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); mountAbWin(); return; }
@@ -6533,9 +6593,7 @@ function mobSingle(ref){
   if (ref.zone === 'deck'){
     const u = d[ref.i]; if (!u) return;
     if ((u.arm || 0) + (u.tr || 0)){
-      popTok(u); sfx.soft(); renderPlay();
-      const el = document.querySelector(`#deck-list .drow[data-i="${ref.i}"]`);
-      if (el && !reduceMotion()) el.animate([{transform:'translateX(6px)'}, {transform:'none'}], {duration:160, easing:SLIDE});
+      sfx.soft(); popTokAnim(ref.i);
       return;
     }
     d.splice(ref.i, 1); changed = true; sfx.soft();
@@ -6617,6 +6675,9 @@ function dragMove(e){
     // the card being dragged is the same square card as in the stacks: it rides in a stand-in stack, so every rule
     // that draws a Mobilize card (size, text, hidden buttons, card color) applies to it unchanged
     let g = drag.src.cloneNode(true); g.classList.add('dragghost'); g.classList.remove('lifted', 'tapping', 'sel', 'cansel', 'target', 'notarget', 'dragging', 'isvan'); g.removeAttribute('hidden');
+    // a deck card carries its attached tokens: the token cards tucked behind it and their name tabs ride along
+    if (drag.kind === 'deck' && drag.src.dataset.room && drag.src.style.boxShadow)
+      g.style.setProperty('box-shadow', drag.src.style.boxShadow + ',0 14px 32px rgba(0,0,0,.3)', 'important');
     if (g.classList.contains('mcard')){
       const host = document.createElement('div'); host.className = 'dgrid stack dragwrap'; host.setAttribute('aria-hidden', 'true');
       host.style.setProperty('--sc', r.width + 'px'); host.appendChild(g); g = host;
@@ -6629,6 +6690,8 @@ function dragMove(e){
     if (drag.kind === 'tok' || drag.kind === 'ton'){ drag.src.classList.add('dragging'); ui.pick = null; for (const r of document.querySelectorAll('#deck-list .drow')){ const u = ui.draft[+r.dataset.i]; r.classList.add(u && !tokBlock(drag.tok, u) ? 'target' : 'notarget'); } }
     else if (drag.kind === 'deck'){
       // the row lifts out and an empty slot of the same size stays behind
+      // the slot left behind keeps the room the tokens' tabs took, so the column doesn't jump
+      drag.line.style.marginTop = (+drag.src.dataset.room || 0) + 'px'; drag.line.dataset.room = drag.src.dataset.room || 0;
       drag.src.parentNode.insertBefore(drag.line, drag.src); drag.src.hidden = true; drag.src.remove();
       drag.zone = 'deck'; drag.at = drag.i;
     } else drag.src.classList.add('dragging');
@@ -6689,14 +6752,15 @@ function dragEnd(){
   if (d.scrollT) cancelAnimationFrame(d.scrollT);
   const deck = ui.draft;
   if (d.kind === 'tok' || d.kind === 'ton'){
+    const gc = d.ghost.querySelector('.mcard') || d.ghost, gr = gc.getBoundingClientRect();
     drag = null; d.ghost.remove();
     document.body.classList.remove('is-dragging');
     document.body.classList.add('just-dragged'); setTimeout(() => document.body.classList.remove('just-dragged'), 0);
     ui.err = '';
+    if (d.row >= 0 && d.kind === 'tok'){ attachTokAnim(d.tok, d.row, gr); return; }
     if (d.row >= 0) placeTok(d.tok, d.row, d.kind === 'ton' ? d.i : null);
     else if (d.kind === 'ton' && deck[d.i]) popTok(deck[d.i], d.tok === 'arm' ? 'arm' : 'tr');
     renderPlay();
-    if (d.row >= 0 && !reduceMotion()){ const r = document.querySelector(`#deck-list .drow[data-i="${d.row}"] .behind`); if (r && r.lastElementChild) r.lastElementChild.animate([{transform:'scale(1.5)', opacity:.3}, {transform:'none', opacity:1}], {duration:280, easing:SLIDE}); }
     return;
   }
   let moved = null;
