@@ -4601,7 +4601,7 @@ function mobHintText(){
   if (ui.pick) return `Tap a unit in your deck to give it ${ui.pick === 'arm' ? 'an Armament' : 'a Training token'}.`;
   if (s && s.zone === 'deck' && d[s.i]) return `Tap another deck card to swap it with <b>${esc(d[s.i].name)}</b>, or tap the bench to bench it.`;
   if (s && s.zone === 'bench') return `Tap a deck card to put <b>${esc(s.name)}</b> in its place, or tap the deck's empty space to add it at the end.`;
-  return 'The top card fights first. Tap two cards to swap them, hold one to drag it, double-tap to read it.';
+  return 'The top card fights first. Drag cards to reorder. Tap a card to move it between deck and bench; double-tap to read it.';
 }
 function dockHTML(){
   if (!G || ui.start || ui.roll || ui.remind) return '';
@@ -4818,7 +4818,7 @@ function mobilizeHTML(){
     </div>
     <div class="sidecol">
     <div class="panel benchp dropzone" data-zone="bench"><h2>Bench</h2>
-      <p class="note mobhelp">${coarse() ? 'Drag units into your deck, drag them around to reorder, and drag one back here to bench it. Or tap a card, then another to swap them. Double-tap a card to read it.' : 'Drag units into your deck, drag them around to reorder, and drag one back here to bench it. Or click a card, then another to swap them. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to tuck it behind (or tap the token, then a unit). Tap a token\'s edge behind a unit to send it back.' : ''}</p>
+      <p class="note mobhelp">${coarse() ? 'Drag units into your deck and drag them around to reorder. Tap a card to move it between your deck and the bench. Double-tap a card to read it.' : 'Drag units into your deck and drag them around to reorder. Click a card to move it between your deck and the bench. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to tuck it behind (or tap the token, then a unit). Tap a token\'s edge behind a unit to send it back.' : ''}</p>
       ${smith || study ? `<span class="eyebrow">Tokens</span><div class="tokbench dropzone" data-zone="bench">${benchToks || '<span class="note">All tokens placed.</span>'}</div><span class="eyebrow">Units</span>` : ''}
       <div class="list dropzone dgrid" id="bench-list" data-zone="bench">${avail.map(n => { const c = me.hand[n];
         return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
@@ -5406,8 +5406,7 @@ $('view-play').addEventListener('click', e => {
   ui.err = ''; ui.sel = null; renderPlay();
 });
 /* Tap play for Mobilize. A single tap waits a moment in case it's the first half of a double-tap (which opens the
-   card to read). Tap a deck card, then another: they swap. Tap a bench card, then a deck card: it takes that spot
-   (the deck card goes back to the bench). With a deck card picked, tap the bench to bench it. */
+   card to read). A single tap moves the card: deck → bench (only when it has no tokens on it), bench → end of deck. */
 let mobTapT = null, mobTapK = null, mobTapAt = 0, mobTapRef = null;
 const mobKey = card => card.classList.contains('drow') ? 'd' + card.dataset.i : 'b' + card.dataset.name;
 function mobTap(card){
@@ -5426,25 +5425,20 @@ function mobSingle(ref){
   if (!ref || !G || G.phase !== 'mobilize' || ui.battle || !ui.draft) return;
   const d = ui.draft, s = ui.sel;
   let changed = false;
+  ui.sel = null; ui.err = '';
   if (ref.zone === 'deck'){
-    if (!d[ref.i]) return;
-    if (!s){ ui.sel = ref; sfx.pick(); }
-    else if (s.zone === 'deck'){
-      if (s.i !== ref.i && d[s.i]){ [d[s.i], d[ref.i]] = [d[ref.i], d[s.i]]; changed = true; sfx.drop(); } else sfx.soft();
-      ui.sel = null;
-    } else {   // a bench card takes this spot; the deck card goes back to the bench
-      d.splice(ref.i, 1, {name:s.name, arm:0, tr:0}); ui.sel = null; changed = true; sfx.drop();
-    }
-  } else if (ref.zone === 'bench'){
-    if (s && s.zone === 'deck'){ if (d[s.i]) d.splice(s.i, 1); ui.sel = null; changed = true; sfx.soft(); }
-    else if (s && s.zone === 'bench' && s.name === ref.name){ ui.sel = null; sfx.soft(); }
-    else if (ref.name){ ui.sel = ref; sfx.pick(); }
-  } else if (ref.zone === 'end'){
-    if (s && s.zone === 'bench'){ d.push({name:s.name, arm:0, tr:0}); changed = true; sfx.drop(); }
-    ui.sel = null;
+    const u = d[ref.i]; if (!u) return;
+    if ((u.arm || 0) + (u.tr || 0)){ ui.err = `Send ${u.name}'s tokens back first (tap their edges), or drag it to the bench.`; sfx.soft(); renderPlay(); return; }
+    d.splice(ref.i, 1); changed = true; sfx.soft();
+  } else if (ref.zone === 'bench' && ref.name){
+    if (!benchHas(ref.name)) return;
+    d.push({name:ref.name, arm:0, tr:0}); changed = true; sfx.drop();
   }
-  ui.err = '';
+  if (changed) ui.err = '';
   if (!changed){ renderPlay(); return; }
+  return mobSlide();
+}
+function mobSlide(){
   // slide every card from where it was to where it is now (matched by name: a card that changed zones slides across)
   const rects = new Map();
   for (const r of document.querySelectorAll('#deck-list .drow, #bench-list .bcard')){ const n = r.dataset.uname || r.dataset.name; if (n && !rects.has(n)) rects.set(n, r.getBoundingClientRect()); }
