@@ -6332,8 +6332,9 @@ function leaveToPile(rows){
   });
   return end ? end + 120 : 0;
 }
-/* Deal the market at the start of each shop: new cards fly face down out of the deck and flip over;
-   returning cards slide back in from the side; Recruit and Field just fade in. */
+/* Deal the market at the start of each shop: new cards fly face down out of the deck and flip over.
+   Like real cards left on the table, unbought cards from last shop never move: they are already in the same spot
+   when the shop opens and only get their hourglass token stamped on. Recruit and Field stay put too. */
 function dealMarket(){
   if (reduceMotion()) return;
   const vp = $('view-play'), rows = ['u','b'].map(k => vp.querySelector(`.mktp .msec[data-k="${k}"] .market`));
@@ -6347,17 +6348,10 @@ function dealMarket(){
   const base = 120 + leaveToPile(rows);
   let n = 0, end = 0;
   const cards = rows.filter(Boolean).flatMap(row => [...row.querySelectorAll('.mcard')]).filter(el => !el.classList.contains('ghost') && el.offsetParent);
-  // 1) returning cards slide back into their slots
+  // 1) cards left over from last shop never moved: they sit in their spots from the start (no animation)
   const returning = cards.filter(el => el.classList.contains('leaving') && !el.classList.contains('always'));
-  let slideEnd = base;
-  returning.forEach((el, i) => {
-    const delay = base + i * 85;
-    const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
-    for (const b of wrapEl ? wrapEl.querySelectorAll('.mirback') : []) b.animate([{opacity:0, transform:'translateX(-40px)'}, {opacity:1, transform:'none'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
-    el.animate([{opacity:0, transform:'translateX(-40px)'}, {opacity:1, transform:'none'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
-    slideEnd = Math.max(slideEnd, delay + 420);
-  });
-  // 2) then each one's hourglass token drops onto its corner like a stamp
+  const slideEnd = base;
+  // 2) each one's hourglass token drops onto its corner like a stamp
   let tokEnd = slideEnd;
   returning.forEach((el, i) => {
     const tok = el.querySelector('.hgtok'); if (!tok) return;
@@ -6376,10 +6370,7 @@ function dealMarket(){
   const dealBase = returning.length ? tokEnd + 160 : base;
   for (const el of cards){
     const r = el.getBoundingClientRect();
-    if (el.classList.contains('always')){
-      el.animate([{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'none'}], {duration:300, easing:'ease-out', fill:'backwards'});
-      continue;
-    }
+    if (el.classList.contains('always')) continue;   // Recruit and Field never leave the table
     // miracles under this card: each is drawn and laid down first (farthest back first), then the card lands on top
     const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
     const backsEl = wrapEl ? [...wrapEl.querySelectorAll('.mirback')].reverse() : [];
