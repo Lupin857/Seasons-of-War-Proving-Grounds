@@ -5308,13 +5308,13 @@ function draftPower(u){
 }
 const DPX = 8, DPY = 6;
 function deckPoke(u, c, i){
-  const list = [...Array(Math.min(3, extraCopies(u.name, 'u', c))).fill('cp'), ...Array(u.arm || 0).fill('arm'), ...Array(u.tr || 0).fill('tr')];
+  const list = [...Array(Math.min(3, extraCopies(u.name, 'u', c))).fill('cp'), ...tokOrder(u)];
   if (!list.length) return {style:'', html:''};
   const sh = ['inset 0 3px 0 var(--muted)'];
   list.forEach((k, j) => { const dx = DPX * (j + 1), dy = -DPY * (j + 1), col = `var(${TOKS[k].c})`;
     sh.push(`${dx}px ${dy}px 0 -1px ${TOKS[k].fill || `color-mix(in srgb, ${col} 22%, var(--surface))`}`, `${dx}px ${dy}px 0 0 ${col}`); });
   const n = list.length;
-  const html = list.map((k, j) => k === 'cp' ? '' : `<span class="pkhit" style="--j:${j};color:var(${TOKS[k].c})" role="button" tabindex="0" data-act="t-off" data-tok="${k}" data-i="${i}" title="${TOKS[k].n}: tap to send it back to the bench" aria-label="Send this ${TOKS[k].n} back to the bench">${TOKS[k].i}</span>`).join('');
+  const html = list.map((k, j) => k === 'cp' ? '' : `<span class="pkhit" style="--j:${j};color:var(${TOKS[k].c})" role="button" tabindex="0" data-act="t-off" data-tok="${k}" data-i="${i}" title="${TOKS[k].n}: tap the card to send its newest token back to the bench" aria-label="Send this ${TOKS[k].n} back to the bench">${TOKS[k].i}</span>`).join('');
   const nt = list.filter(k => k !== 'cp').length, cp = n - nt;
   const title = [cp ? `${cp} extra cop${cp > 1 ? 'ies' : 'y'}` : '', u.arm ? `${u.arm} Armament${u.arm > 1 ? 's' : ''}` : '', u.tr ? `${u.tr} Training` : ''].filter(Boolean).join(', ');
   return {style:` style="box-shadow:${sh.join(',')}" title="${title} behind it"`, html};
@@ -5341,14 +5341,32 @@ function tokBlock(kind, u){
   if (c + (u.tr||0) >= uMax(u.name)) return `${u.name} is already at max level.`;
   return '';
 }
+// the order a unit's tokens were attached, oldest first (kept in u.tko as 'a'/'t'), always matching its counts
+function tokOrder(u){
+  const o = [...(u.tko || '')].map(c => c === 'a' ? 'arm' : 'tr');
+  for (const k of ['arm', 'tr']){
+    let have = o.filter(x => x === k).length, want = u[k] || 0;
+    while (have > want){ o.splice(o.lastIndexOf(k), 1); have--; }
+    while (have < want){ o.push(k); have++; }
+  }
+  return o;
+}
+function setTokOrder(u, o){ u.tko = o.map(k => k === 'arm' ? 'a' : 't').join(''); }
+// take a token off a unit: the newest one, or the newest of a kind; returns the kind taken
+function popTok(u, kind){
+  if (!u) return null;
+  const o = tokOrder(u), j = kind ? o.lastIndexOf(kind) : o.length - 1;
+  if (j < 0) return null;
+  const k = o.splice(j, 1)[0]; u[k] = Math.max(0, (u[k]||0) - 1); setTokOrder(u, o); return k;
+}
 function placeTok(kind, to, from){
   const d = ui.draft, u = d[to]; if (!u) return;
   const k = kind === 'arm' ? 'arm' : 'tr';
   if (from === to) return;
   const why = tokBlock(kind, from != null ? {...u} : u);
   if (why){ ui.err = why; return; }
-  if (from != null && d[from]) d[from][k] = Math.max(0, (d[from][k]||0) - 1);
-  u[k] = (u[k]||0) + 1; ui.err = '';
+  if (from != null && d[from]) popTok(d[from], k);
+  const o = tokOrder(u); o.push(k); u[k] = (u[k]||0) + 1; setTokOrder(u, o); ui.err = '';
 }
 function handoffHTML(){
   const S = ui.handoff, O = 1 - S;
@@ -5403,7 +5421,7 @@ function mobilizeHTML(){
     </div>
     <div class="sidecol">
     <div class="panel benchp dropzone" data-zone="bench"><h2>Bench</h2>
-      <p class="note mobhelp">${coarse() ? 'Drag units into your deck and drag them around to reorder. Tap a card to move it between your deck and the bench. Double-tap a card to read it.' : 'Drag units into your deck and drag them around to reorder. Click a card to move it between your deck and the bench. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to attach it (or tap the token, then a unit). Tap a token\'s edge behind a unit to send it back.' : ''}</p>
+      <p class="note mobhelp">${coarse() ? 'Drag units into your deck and drag them around to reorder. Tap a card to move it between your deck and the bench. Double-tap a card to read it.' : 'Drag units into your deck and drag them around to reorder. Click a card to move it between your deck and the bench. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to attach it (or tap the token, then a unit). Tap a unit to send its newest token back to the bench.' : ''}</p>
       ${smith || study ? `<span class="eyebrow">Tokens</span><div class="tokbench dropzone" data-zone="bench">${benchToks || '<span class="note">All tokens placed.</span>'}</div><span class="eyebrow">Units</span>` : ''}
       <div class="list dropzone dgrid" id="bench-list" data-zone="bench">${avail.map(n => { const c = me.hand[n];
         return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
@@ -6171,7 +6189,7 @@ function dealPeeks(skip){
 // Lock in the deck being built at this screen (after a reminder about unused tokens, if any). Online it goes to the
 // room; pass-and-play hands the device to the second player, then fights; against the AI, the AI plans and fights.
 function lockDeck(){
-  const d = ui.draft;
+  const d = draftFromDeck(ui.draft);
   const err = validateDeck(G, seat(), d);
   if (err){ ui.err = err; sfx.err(); renderPlay(); return; }
   if (!ui.remindOk && !(G.noRemind && G.noRemind.lock)){
@@ -6278,7 +6296,7 @@ $('view-play').addEventListener('click', e => {
     case 'sel-clear': ui.sel = null; ui.pick = null; sfx.soft(); renderPlay(); return;
     case 'b-speed': { sfx.soft(); LS.set('sow-autofast', !autoFast()); const b = t; b.textContent = speedLabel(); b.setAttribute('aria-pressed', autoFast() ? 'true' : 'false'); if (autoOn() && autoT){ startAuto(200); } return; }
     case 't-cancel': sfx.soft(); ui.pick = null; renderPlay(); return;
-    case 't-off': { sfx.soft(); const k = t.dataset.tok === 'arm' ? 'arm' : 'tr'; d[i][k] = Math.max(0, (d[i][k]||0) - 1); break; }
+    case 't-off': { sfx.soft(); popTok(d[i]); break; }
     case 'suggest': sfx.rustle(); ui.draft = draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH_HINT)) || []); break;
     case 'lock': lockDeck(); return;
     case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); mountAbWin(); return; }
@@ -6299,7 +6317,7 @@ $('view-play').addEventListener('click', e => {
   ui.err = ''; ui.sel = null; renderPlay();
 });
 /* Tap play for Mobilize. A single tap waits a moment in case it's the first half of a double-tap (which opens the
-   card to read). A single tap moves the card: deck → bench (only when it has no tokens on it), bench → end of deck. */
+   card to read). A single tap moves the card: deck → bench, bench → end of deck. A deck card with tokens first gives back its newest token, one per tap. */
 let mobTapT = null, mobTapK = null, mobTapAt = 0, mobTapRef = null;
 const mobKey = card => card.classList.contains('drow') ? 'd' + card.dataset.i : 'b' + card.dataset.name;
 function mobTap(card){
@@ -6321,7 +6339,12 @@ function mobSingle(ref){
   ui.sel = null; ui.err = '';
   if (ref.zone === 'deck'){
     const u = d[ref.i]; if (!u) return;
-    if ((u.arm || 0) + (u.tr || 0)){ ui.err = `Send ${u.name}'s tokens back first (tap their edges), or drag it to the bench.`; sfx.soft(); renderPlay(); return; }
+    if ((u.arm || 0) + (u.tr || 0)){
+      popTok(u); sfx.soft(); renderPlay();
+      const el = document.querySelector(`#deck-list .drow[data-i="${ref.i}"]`);
+      if (el && !reduceMotion()) el.animate([{transform:'translateX(6px)'}, {transform:'none'}], {duration:160, easing:SLIDE});
+      return;
+    }
     d.splice(ref.i, 1); changed = true; sfx.soft();
   } else if (ref.zone === 'bench' && ref.name){
     if (!benchHas(ref.name)) return;
@@ -6442,9 +6465,16 @@ function dragHover(){
   for (const z of document.querySelectorAll('.dropzone')) z.classList.toggle('over', z === zone && zone.dataset.zone !== 'deck');
   const zn = zone ? zone.dataset.zone : null;
   if (zn === 'deck'){
-    const rows = deckRows(zone);
-    let at = rows.length;
-    for (let k = 0; k < rows.length; k++){ const r = rows[k].getBoundingClientRect(); if (e.clientY < r.top || (e.clientY <= r.bottom && e.clientX < r.left + r.width / 2)){ at = k; break; } }
+    // the slot outlines behind the deck never move, so the drop spot can't flicker as cards slide aside
+    const rows = deckRows(zone), slots = [...document.querySelectorAll('.dslots .dslot')];
+    let at = rows.length, best = Infinity;
+    slots.forEach((sl, k) => {
+      const r = sl.getBoundingClientRect();
+      const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right), dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+      const dd = dx * dx + dy * dy; if (dd < best){ best = dd; at = k; }
+    });
+    at = Math.min(at, rows.length);
+    if (best > 0 && drag.zone === 'deck' && drag.at >= 0) at = drag.at;   // in the gutter between slots: keep the current spot
     if (at !== drag.at || drag.zone !== 'deck') placeGap(zone, at);
     drag.at = at;
   } else if (drag.zone === 'deck'){ placeGap(null); drag.at = -1; }
@@ -6465,7 +6495,7 @@ function dragEnd(){
     document.body.classList.add('just-dragged'); setTimeout(() => document.body.classList.remove('just-dragged'), 0);
     ui.err = '';
     if (d.row >= 0) placeTok(d.tok, d.row, d.kind === 'ton' ? d.i : null);
-    else if (d.kind === 'ton' && deck[d.i]){ const k = d.tok === 'arm' ? 'arm' : 'tr'; deck[d.i][k] = Math.max(0, (deck[d.i][k]||0) - 1); }
+    else if (d.kind === 'ton' && deck[d.i]) popTok(deck[d.i], d.tok === 'arm' ? 'arm' : 'tr');
     renderPlay();
     if (d.row >= 0 && !reduceMotion()){ const r = document.querySelector(`#deck-list .drow[data-i="${d.row}"] .behind`); if (r && r.lastElementChild) r.lastElementChild.animate([{transform:'scale(1.5)', opacity:.3}, {transform:'none', opacity:1}], {duration:280, easing:SLIDE}); }
     return;
