@@ -1047,6 +1047,15 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 /* phones: shop and forces cards are as tall as they are wide, whatever the browser's toolbars leave of the screen */
 @media (max-width:640px){
   .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.mktp .mirwrap>.mcard:not(.peek){height:auto!important;aspect-ratio:1/1;min-height:0!important}
+  /* Mobilize: deck, bench and the slots behind the deck are square too */
+  .dgrid .mcard:not(.peek),.dgrid .mcard.drow:not(.peek),.dgrid .mcard.bcard:not(.peek){height:auto!important;aspect-ratio:1/1;min-height:0!important}
+  .dslot,.dspacer{height:auto!important;aspect-ratio:1/1}
+}
+/* wider screens: forces and Mobilize cards are 140px squares */
+@media (min-width:641px){
+  .fcards,.dgrid,.deckwrap{--ch:140px;--chd:140px}
+  .fcards,.dgrid{grid-template-columns:repeat(auto-fill,140px)!important}
+  .dslot,.dspacer{height:140px}
 }
 .mcard.cant>.zhw,.mirwrap>.mcard.cant>.zhw{opacity:.1}
 .fcards .zhw,.dgrid .zhw{--wm:84px}
