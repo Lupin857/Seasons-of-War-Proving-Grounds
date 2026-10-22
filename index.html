@@ -3,7 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&family=LXGW+WenKai+TC:wght@400;700&display=swap">
 <style>
 /* Layout: a war-table header with the score, three tabs (Play, Train, Card stats).
    Play stacks market → your forces → enemy forces; the battle view reuses the sandbox's battle line. */
@@ -123,6 +123,28 @@ textarea{width:100%;font-family:var(--f-mono);font-size:.78rem;min-height:90px}
 
 .card .vr{position:absolute;top:4px;right:5px;font-family:var(--f-mono);font-size:.62rem;color:var(--muted)}
 .card .st{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+/* Chinese names: each card carries its name as a xiangqi-style chip, two carved rings filled with the card's own color */
+:root{--f-zh:"LXGW WenKai TC","Kaiti TC","STKaiti","KaiTi",serif}
+.zh{position:relative;flex:none;align-self:center;width:var(--chip,46px);height:var(--chip,46px);box-sizing:border-box;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center}
+.zh::after{content:"";position:absolute;inset:2.5px;border:1px solid currentColor;border-radius:50%;pointer-events:none}
+.zh span{writing-mode:vertical-rl;text-orientation:upright;font-family:var(--f-zh);font-weight:700;line-height:1;letter-spacing:-.04em;font-size:calc(var(--chip,46px) * .56)}
+.zh[data-n="2"] span{font-size:calc(var(--chip,46px) * .38)}
+.zh[data-n="3"] span{font-size:calc(var(--chip,46px) * .27)}
+/* battle cards: name with power at the top right, the chip, then health; the zone label names the slot */
+.card .ctop{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
+.card .ctop .cn{flex:1;min-width:0;min-height:2.2em;font-size:.78rem;line-height:1.1}
+.card .cpw{display:flex;flex-direction:column;align-items:flex-end;line-height:1;font-variant-numeric:tabular-nums}
+.card .cpw b{font-family:var(--f-mono);font-size:1.15rem;font-weight:600}
+.card .cpw i{font-style:normal;font-family:var(--f-mono);font-size:.6rem;color:var(--muted);margin-top:2px;white-space:nowrap}
+.card .zh{--chip:62px;margin:2px auto 4px}
+.card[data-side="0"] .zh{color:var(--azure)} .card[data-side="1"] .zh{color:var(--gules)}
+@media (max-width:640px){ .card .zh{--chip:56px} }
+/* market cards: name and cost, power curve, the chip, then the rules */
+.mcard .zh{--chip:46px;margin:3px auto;color:var(--ink)}
+.mcard.b .zh{color:var(--or)}
+@media (max-width:860px){ .mcard .zh{--chip:40px;margin:2px auto} }
+@media (max-width:480px){ .mcard .zh{--chip:36px} }
+@media (max-width:640px){ .mcard .zh{--chip:34px;margin:1px auto} }
 .hp{height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
 .hp i{display:block;height:100%;background:var(--ok)}
 .chron{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px}
@@ -1000,6 +1022,52 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 .deckwrap .dgrid{row-gap:28px!important;column-gap:14px!important;padding-top:22px}
 @media (max-width:640px){ .deckwrap .dgrid{column-gap:10px!important;row-gap:24px!important} .dslot::before{inset:-3px} }
 @media (max-width:640px){ .dslot,.dspacer{height:var(--chd)} .dslot .dlab{font-size:.52rem;letter-spacing:.04em} }
+
+/* ---- one card face everywhere (market, bought/taken, forces, mobilize): the name's Chinese chip sits faintly behind
+   the text, and status stamps hang just under the card ---- */
+.mcard{isolation:isolate}
+.zhw{position:absolute;z-index:-1;left:50%;top:50%;transform:translate(-50%,-50%);height:min(var(--wm,96px),66%);aspect-ratio:1;width:auto;
+  box-sizing:border-box;border-radius:50%;border:2px solid currentColor;color:var(--ink);opacity:.15;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;container-type:size}
+.zhw::after{content:"";position:absolute;inset:4px;border:1px solid currentColor;border-radius:50%}
+.zhw span{writing-mode:vertical-rl;text-orientation:upright;font-family:var(--f-zh);font-weight:700;line-height:1;letter-spacing:-.04em;font-size:56cqh}
+.zhw[data-n="2"] span{font-size:38cqh}
+.zhw[data-n="3"] span{font-size:27cqh}
+.mcard.b .zhw{color:var(--or);opacity:.2}
+.mcard.ghost .zhw{color:var(--muted)}
+.mcard.cant>.zhw,.mirwrap>.mcard.cant>.zhw{opacity:.1}
+.fcards .zhw,.dgrid .zhw{--wm:84px}
+.mcard.peek .zhw{--wm:120px;top:50%}
+/* the phone sheet shows the chip at full strength above the rules */
+.sheet .mcard.peek .zhw{position:relative;left:auto;top:auto;transform:none;opacity:.9;width:88px;height:88px;flex:none;align-self:center;margin:2px auto 4px;z-index:0}
+.sheet .mcard.peek .zhw::after{inset:4px}
+.sheet .mcard.peek>.top,.sheet .mcard.peek>.curve{order:-1}
+.stamps{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;display:flex;justify-content:center;gap:4px;pointer-events:none}
+.stamp{font-size:.7rem;font-weight:700;line-height:1.4;letter-spacing:.02em;padding:0 8px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;border:1px solid transparent}
+.stamp.st-need{color:var(--gules);border-color:var(--gules);background:var(--surface)}
+.stamp.st-own{color:var(--ok);border-color:var(--ok);background:var(--surface)}
+.stamp.st-mine{background:var(--azure);color:var(--bg)}
+.stamp.st-theirs,.stamp.st-new{background:var(--gules);color:var(--bg)}
+/* a newly bought card in the forces is marked in its owner's color */
+.mcard.fcard.isnew.so0{border-color:var(--azure)!important;box-shadow:inset 0 3px 0 var(--azure),0 0 0 1px var(--azure)}
+.mcard.fcard.isnew.so1{border-color:var(--gules)!important;box-shadow:inset 0 3px 0 var(--gules),0 0 0 1px var(--gules)}
+.so0 .stamp.st-new{background:var(--azure)}
+.mcard.peek .stamps,.sheet .mcard.peek .stamps{position:static;justify-content:flex-start;margin-top:4px}
+.mcard.peek .stamp{font-size:.85rem}
+/* cards are always unclipped so the stamps can hang below them */
+.mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek){overflow:visible!important}
+@media (min-width:641px){
+  .mktp .mcard.hasst:not(.peek):not(.masonpick)>button[data-act="buy"],.fcards .mcard.hasst:not(.peek)>button{top:calc(100% + 28px)}
+  .mktp .market{row-gap:72px!important;padding-bottom:62px}
+  .fcards{row-gap:70px!important;padding-bottom:60px}
+}
+@media (max-width:640px){
+  .mktp,.fcards{--mkfix:444px}
+  .mktp .market,.fcards{row-gap:22px!important;padding-bottom:18px}
+  .stamps{top:calc(100% + 3px)}
+  .stamp{font-size:.6rem;padding:0 6px;line-height:1.35}
+  .mktp .zhw,.fcards .zhw{--wm:70px}
+}
 </style>
 
 <div class="wrap">
@@ -1113,6 +1181,47 @@ const BDEFS = {
   'Windmill':{c:2,n:4,lv:[2,4],t:'Shop: +$2/$4 income.'},
   'Infirmary':{c:4,n:2,lv:[1],t:'Once per battle, when you run out of units, return your Vanguard to your deck.'},
 };
+// Traditional Chinese names, shown on each card as a xiangqi-style chip
+const ZH = {
+  'Hired Blade':'傭劍','Pikeman':'槍兵','Royal Watchman':'御衛','Desperate Infantry':'死士','Slinger':'投石兵',
+  'Strong Villager':'壯丁','Dutiful Squire':'忠侍','Conscripted Farmhand':'徵農','Veteran Knight':'老騎','Cowardly Squire':'怯侍',
+  'Arsonist':'火賊','Assassin':'刺客','Marksman':'神射','Studious Squire':'學侍','Aging Master':'老宗師','Barber-Surgeon':'軍醫',
+  'Pigeon Hunter':'獵鴿人','Brawler':'鬥士','Fencer':'劍客','Sleepy Guard':'瞌睡衛','Musketeer':'火槍手','Dark Knight':'黑騎',
+  'Knight':'騎士','Jester':'弄臣','Cannon':'炮','Grave-Robber':'盜墓賊','Mercenary':'傭兵','Lancer':'槍騎','White Knight':'白騎',
+  'Recruiter':'募兵官','Scholar':'學士','Man-at-arms':'甲士','Halberd Knight':'戟騎','Armored Knight':'鐵騎','Recruit':'新兵',
+  'Field':'田','Cathedral':'聖殿','Trebuchet':'投石機','Black Market':'黑市',"Mason's Guild":'石匠會',"Carpenter's Guild":'木匠會',
+  'Smithy':'鐵匠鋪','Barracks':'兵營','Reserve Encampment':'預備營','Study':'書房','Armory':'軍械庫','Training Yard':'校場',
+  'Windmill':'風車','Infirmary':'醫館',
+};
+// the faint chip watermark behind a card's text (market, bought/taken, forces, mobilize)
+function zhMark(name){
+  const z = ZH[name]; if (!z) return '';
+  return `<span class="zhw" data-n="${Math.min(3, [...z].length)}" aria-hidden="true"><span lang="zh-Hant">${z}</span></span>`;
+}
+// One face for every card that should look the same: name and cost, power curve, the chip, then the rules text.
+// Each place adds its own wrapper classes, stamps (shown under the card) and buttons.
+function cardFace(name, kind, own, noNext){
+  const d = kind === 'u' ? DEFS[name] : BDEFS[name];
+  return `${zhMark(name)}<div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div>
+    <span class="curve">${curveText(name, kind, own, noNext)}</span>
+    <span class="tx">${cardTx(name, kind, own, noNext)}</span>${shortHTML(name, kind, own, noNext)}`;
+}
+// status stamps sit just under the card, outside it
+const stampsHTML = list => { list = list.filter(Boolean); return list.length ? `<span class="stamps">${list.map(([c, t]) => `<span class="stamp ${c}">${t}</span>`).join('')}</span>` : ''; };
+function ownStamp(name, kind, own){
+  if (!own) return null;
+  const n = kind === 'u' ? 0 : BDEFS[name].lv.length;
+  if (kind === 'b' && name !== 'Field' && n <= 1) return ['st-own', 'You own it'];
+  const have = kind === 'u' || name === 'Field' ? `×${own}` : `Lv ${Math.min(own, n)}`;
+  let next = '';
+  if (kind === 'u' && !exemptUnit(name)){ const L = uLvl(name, own); if (L < uMax(name)) next = ` → Lv ${L + 1}`; }
+  else if (kind === 'b' && name !== 'Field' && own < n) next = ` → Lv ${own + 1}`;
+  return ['st-own', `You own ${have}${next}`];
+}
+function zhChip(name){
+  const z = ZH[name]; if (!z) return '';
+  return `<span class="zh" data-n="${Math.min(3, [...z].length)}" aria-hidden="true"><span lang="zh-Hant">${z}</span></span>`;
+}
 
 /* ===================== BATTLE ENGINE ===================== */
 function runBattle(cfgs, record){
@@ -3773,10 +3882,9 @@ function cardHTML(u, side, mode){
   const pk = pokeStyle(u, side);
   const vr = [u.van ? 'V' : '', u.rear ? 'R' : ''].filter(Boolean).join(' ');
   return `<div class="card ${mode}${pk.html ? ' poked' : ''}" data-side="${side}" data-uid="${side}-${u.uid}" style="${pk.style}"${pk.title ? ` title="${esc(pk.title)}"` : ''}>${pk.html}
-    <span class="vr">${vr}</span><span class="cn">${esc(u.name)}</span>
-    <span class="pw"><span class="big">${u.pow}</span><span class="note">pwr</span></span>
-    <span class="hprow"><span class="hp"><i style="width:${hp}%"></i></span><span class="hpn${u.dmg ? ' hurt' : ''}"><b>${Math.max(0, u.pow - u.dmg)}</b>/${u.pow} hp</span></span>
-    <span class="st">Lv ${u.lvl}${mode==='hidden'?' · hidden':mode==='charging'?' · charging':' · revealed'}</span></div>`;
+    <span class="ctop"><span class="cn">${esc(u.name)}</span><span class="cpw"><b title="Power">${u.pow}</b><i>Lv ${u.lvl}${vr ? ' · ' + vr : ''}</i></span></span>
+    ${zhChip(u.name)}
+    <span class="hprow"><span class="hp"><i style="width:${hp}%"></i></span><span class="hpn${u.dmg ? ' hurt' : ''}"><b>${Math.max(0, u.pow - u.dmg)}</b>/${u.pow} hp</span></span></div>`;
 }
 const graveHTML = (g, side) => `<div class="grave">${g.length ? g.map(u => `<b data-uid="${side}-${u.uid}">${esc(u.name)}</b>`).join('') : 'Empty'}</div>`;
 // the rest of a deck, as a slightly splayed stack of name strips (the next card up sits nearest the revealed one)
@@ -3798,7 +3906,7 @@ function lineHTML(f, names){
     const rev = sd.deck[0], rest = sd.deck.slice(1);
     const stack = rest.length ? `<div class="stack">${(side === 1 ? rest.slice().reverse() : rest).map((u, k) => miniHTML(u, side, side === 1 ? rest.length - 1 - k : k)).join('')}</div>` : '';
     const top = rev ? cardHTML(rev, side, 'revealed') : '<div class="slot">Deck empty</div>';
-    return `<div class="tz deckz"><span class="zl">${names[side]} deck · ${sd.deck.length} left</span><div class="tzc">${side === 1 ? stack + top : top + stack}</div></div>`;
+    return `<div class="tz deckz"><span class="zl">${names[side]} revealed · ${sd.deck.length} in deck</span><div class="tzc">${side === 1 ? stack + top : top + stack}</div></div>`;
   };
   const chargeZone = (sd, side) => `<div class="tz chz"><span class="zl">${names[side]} charge</span><div class="tzc"><div class="charge">${cardHTML(sd.charge, side, 'charging') || '<span class="note">Empty</span>'}</div></div></div>`;
   const graveZone = (sd, side) => `<div class="tz grz"><span class="zl">${names[side]} graveyard</span><div class="tzc">${graveHTML(sd.grave, side)}</div></div>`;
@@ -4607,12 +4715,9 @@ function marketCard(name, kind, src, idx, side, always, mir){
   const jump = info.ok || short ? jumpText(name, kind, own) : '';
   const label = info.ok ? `Buy $${info.price}${info.slot === 'extra' ? ' (extra buy)' : info.slot === 'carp' ? ' (Carpenter)' : info.slot === 'fav' ? ' (Divine Favor)' : ''}${src === 'bm' ? ` ($${bmOff(me)} off)` : ''}${info.disc ? ` (${esc(info.disc)})` : ''}` : esc(info.why);
   const sur = mirSur(mir), hasMir = !!(mir && mir.length), mkey = `${src}:${idx}:${name}`;
-  const card = `<div class="mcard ${kind}${short ? ' cant' : ''}${info.ok && myTurn ? ' canbuy' : ''}${jump ? ' lvup' : ''}${always ? ' always' : ''}${hasMir ? ' hasmir' : ''}${side ? ' leaving' : ''}"${hasMir ? ` data-act="mir-peek" data-k="${esc(mkey)}" title="${mir.length > 1 ? `${mir.length} miracles` : 'A miracle'} behind this card. Click to see." aria-label="${esc(name)}: ${mir.length > 1 ? `${mir.length} miracles` : 'a miracle'} behind it. Click to see." role="button" tabindex="0"` : ''}>
-    <div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div>
-
-    ${short ? `<span class="need">Need $${info.price - me.money} more</span>` : ''}
-    <span class="curve">${curveText(name, kind, own)}</span>
-    <span class="tx">${cardTx(name, kind, own)}</span>${shortHTML(name, kind, own)}
+  const card = `<div class="mcard ${kind}${short ? ' cant' : ''}${info.ok && myTurn ? ' canbuy' : ''}${jump ? ' lvup' : ''}${always ? ' always' : ''}${hasMir ? ' hasmir' : ''}${side ? ' leaving' : ''}${short || own ? ' hasst' : ''}"${hasMir ? ` data-act="mir-peek" data-k="${esc(mkey)}" title="${mir.length > 1 ? `${mir.length} miracles` : 'A miracle'} behind this card. Click to see." aria-label="${esc(name)}: ${mir.length > 1 ? `${mir.length} miracles` : 'a miracle'} behind it. Click to see." role="button" tabindex="0"` : ''}>
+    ${cardFace(name, kind, own)}
+    ${stampsHTML([short ? ['st-need', `Need $${info.price - me.money} more`] : null, always ? null : ownStamp(name, kind, own)])}
     ${extra}${info.ok && myTurn ? `<span class="ctag">Buy $${info.price}</span>` : ''}
     <button type="button" class="${info.ok && myTurn ? 'primary' : ''}" data-act="buy" data-src="${src}" data-idx="${idx ?? ''}" ${info.ok && myTurn ? '' : 'disabled'}>${label}</button>
     ${side ? hgToken() : ''}
@@ -4648,11 +4753,10 @@ function forceCard(n, c, kind, canSell, isNew, ai){
   const own = !hasLevels(n, kind) ? `${owner} ${verb} it` : `${owner} ${verb} ${have}`;
   const sell = canSell && !isNew && !(kind === 'u' && n === 'Recruit')
     ? `<button type="button" data-act="sell-${kind}" data-name="${esc(n)}" title="${kind === 'u' ? 'Sell one copy' : 'Sell one level'} for $1">Sell $1</button>` : '';
-  return `<div class="mcard fcard ${kind}${ai ? ' ai' : ''}${isNew ? ' isnew' : ''}" data-card="${esc(n)}"${copyStyle(extraCopies(n, kind, c), kind)}>
-    <div class="top"><span class="nm">${esc(n)}</span><span class="cost">${'$'.repeat(d.c)}</span></div>
-    ${isNew ? '<span class="side-tag"><span class="newb">NEW</span></span>' : ''}
-    <span class="curve">${curveText(n, kind, c)}</span>
-    <span class="tx">${cardTx(n, kind, c)}</span>${shortHTML(n, kind, c)}
+  const oside = ai ? 1 - seat() : seat();   // whose card this is: blue for seat 0, red for seat 1
+  return `<div class="mcard fcard ${kind}${ai ? ' ai' : ''} so${oside}${isNew ? ' isnew hasst' : ''}" data-card="${esc(n)}"${copyStyle(extraCopies(n, kind, c), kind)}>
+    ${cardFace(n, kind, c)}
+    ${stampsHTML([isNew ? ['st-new', 'NEW'] : null])}
     ${sell}
   </div>`;
 }
@@ -4781,11 +4885,9 @@ function marketRow(kind, src){
 function ghostCard(g, kind){
   const d = kind === 'u' ? DEFS[g.name] : BDEFS[g.name]; if (!d) return '';
   const S = seat(), mine = g.who === S, tp = G.players[g.who] || {hand:{}, city:{}}, own = (kind === 'u' ? tp.hand[g.name] : tp.city[g.name]) || 0;
-  return `<div class="mcard ghost ${kind} ${mine ? 'mine' : 'theirs'}">
-    <div class="top"><span class="nm">${esc(g.name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div>
-    <span class="taken">${mine ? (PP() && !G.net ? `${esc(nm(S))} bought this` : 'You bought this') : `Taken by ${PP() ? esc(nm(g.who)) : 'AI'}`} · $${g.price}</span>
-    <span class="curve">${curveText(g.name, kind, own, true)}</span>
-    <span class="tx">${cardTx(g.name, kind, own, true)}</span>${shortHTML(g.name, kind, own, true)}
+  return `<div class="mcard ghost hasst ${kind} ${mine ? 'mine' : 'theirs'}">
+    ${cardFace(g.name, kind, own, true)}
+    ${stampsHTML([[mine ? 'st-mine' : 'st-theirs', `${mine ? (PP() && !G.net ? `${esc(nm(S))} bought this` : 'You bought this') : `Taken by ${PP() ? esc(nm(g.who)) : 'AI'}`} · $${g.price}`]])}
   </div>`;
 }
 function noteAIMoves(before, money0, logN){
@@ -4915,9 +5017,7 @@ function mobilizeHTML(){
     const lv = u.name === 'Recruit' ? 1 : c + (u.tr||0);
     const sel = ui.sel && ui.sel.zone === 'deck' && ui.sel.i === i ? ' sel' : ui.sel ? ' cansel' : '';
     return `<div class="mcard fcard u drow${sel}${ui.pick ? (can ? ' target' : ' notarget') : ''}" data-drag="deck" data-i="${i}" data-key="${esc(key)}" data-uname="${esc(u.name)}"${pk.style}>${pk.html}
-      <div class="top"><span class="nm">${esc(u.name)}</span><span class="cost">${'$'.repeat(DEFS[u.name].c)}</span></div>
-      <span class="curve">${curveText(u.name, 'u', lv)}</span>
-      <span class="tx">${cardTx(u.name, 'u', lv)}</span>${shortHTML(u.name, 'u', lv)}
+      ${cardFace(u.name, 'u', lv)}
     </div>`;
   }).join('');
   // slots: one for every card you could field (each unit you own up to your unique limit, plus Mercenaries and Recruits)
@@ -4943,12 +5043,10 @@ function mobilizeHTML(){
       ${smith || study ? `<span class="eyebrow">Tokens</span><div class="tokbench dropzone" data-zone="bench">${benchToks || '<span class="note">All tokens placed.</span>'}</div><span class="eyebrow">Units</span>` : ''}
       <div class="list dropzone dgrid" id="bench-list" data-zone="bench">${avail.map(n => { const c = me.hand[n];
         return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
-        <div class="top"><span class="nm">${esc(n)}</span><span class="cost">${'$'.repeat(DEFS[n].c)}</span></div>
-        <span class="curve">${curveText(n, 'u', c)}</span><span class="tx">${cardTx(n, 'u', c)}</span>${shortHTML(n, 'u', c)}
+        ${cardFace(n, 'u', c)}
         <button type="button" data-act="d-add" data-name="${esc(n)}">Add to deck</button></div>`; }).join('') || '<p class="note">Every unit is in your deck.</p>'}
       ${Array.from({length:Math.max(0, recAvail - recUsed)}, (_, k) => `<div class="mcard fcard u bcard${!k && ui.sel && ui.sel.zone === 'bench' && ui.sel.name === 'Recruit' ? ' sel' : ''}" data-drag="bench" data-name="Recruit">
-        <div class="top"><span class="nm">Recruit</span><span class="cost">$</span></div>
-        <span class="curve">${curveText('Recruit', 'u', 1)}</span><span class="tx">${cardTx('Recruit', 'u', 1)}</span>${shortHTML('Recruit', 'u', 1)}
+        ${cardFace('Recruit', 'u', 1)}
         <button type="button" data-act="d-rec">Add to deck</button></div>`).join('')}</div>
     </div>
     <div class="panel aip"><span class="eyebrow">${PP() ? `${esc(nm(O))}'s forces` : 'AI forces'} (deck order is secret)</span>${forcesHTML({...G.players[O], hand:pubHand(G.players[O])}, false, aiFresh(), true)}</div>
