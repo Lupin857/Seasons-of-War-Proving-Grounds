@@ -5813,19 +5813,25 @@ function turnFlash(big, small, kind, side, news){
   document.addEventListener('keydown', key, true);
   document.body.appendChild(el);
 }
-/* In a game, the page sits scrolled past the title banner so the scoreboard and board fill the screen (scroll up for the title and tabs). */
-var inGameView = false;
+/* In a game, the page sits scrolled past the title banner so the scoreboard and board fill the screen (scroll up for the title and tabs).
+   It re-centers there at the opening roll and on every phase change (shop, mobilize, battle). */
+var inGameView = false, phaseKey = null;
 function toGame(){
-  const v = $('view-play'); if (!v || v.hidden || !G || ui.start) return;
+  const v = $('view-play'); if (!v || v.hidden || !G || ui.start || (NET && !NET.started)) return;
   window.scrollTo({top: Math.max(0, v.getBoundingClientRect().top + window.scrollY - 8)});
 }
-function markGame(on){ const was = inGameView; inGameView = on; document.body.classList.toggle('ingame', on); if (on && !was) requestAnimationFrame(toGame); }
+function markGame(on){
+  inGameView = on; document.body.classList.toggle('ingame', on);
+  const k = !on ? null : ui.roll ? 'roll' : (G.round || 0) + ':' + (ui.battle ? 'battle' : G.over ? 'over' : G.phase);
+  if (on && k !== phaseKey) requestAnimationFrame(toGame);
+  phaseKey = k;
+}
 function renderPlay(){
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(true); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale
   if (NET && !NET.started && !ui.start){ markGame(false); $('view-play').innerHTML = netLobbyHTML(); return; }
   if (!G || ui.start){ markGame(false); $('view-play').innerHTML = startHTML(); if (turnKey === null) turnKey = ''; return; }
-  if (ui.roll){ markGame(false); $('view-play').innerHTML = rollHTML(); if (turnKey === null) turnKey = ''; saveGame(); return; }
+  if (ui.roll){ markGame(true); $('view-play').innerHTML = rollHTML(); if (turnKey === null) turnKey = ''; saveGame(); return; }
   if (ui.battle && ui.frame >= ui.battle.frames.length - 1) ui.revealed = true;   // the result shows once the battle has played out (or been skipped)
   if (ui.sel && (G.phase !== 'mobilize' || ui.battle || !ui.draft || (ui.sel.zone === 'deck' && !ui.draft[ui.sel.i]) || (ui.sel.zone === 'bench' && !benchHas(ui.sel.name)))) ui.sel = null;
   const dealNow = !ui.battle && G.phase === 'shop' && ui.dealt !== G.round;
