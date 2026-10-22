@@ -1210,21 +1210,22 @@ body.dsopen{overflow:hidden}
 .tfcard.sell{opacity:.85;border-style:dashed}
 .tfcard b.kw{color:var(--ink)}
 
-/* ability notes beside the battlefield */
-.abwin{display:contents}
-.stage.hasab{display:grid;grid-template-columns:minmax(150px,210px) minmax(0,1fr) minmax(150px,210px);gap:0 14px;align-items:start}
-.stage.hasab>.abwin>.abcol.s0{grid-column:1;grid-row:1}
-.stage.hasab>.abwin>.abcol.s1{grid-column:3;grid-row:1}
-.stage.hasab>.linewrap{grid-column:2;grid-row:1;min-width:0}
-.abcol{display:flex;flex-direction:column;gap:8px;padding-top:44px;min-width:0}
-.abbox{position:relative;z-index:4;display:flex;flex-direction:column;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:.8rem;line-height:1.35;color:var(--muted);box-shadow:0 4px 14px rgba(0,0,0,.08);animation:abin .22s ease-out backwards}
-.abbox.s0{box-shadow:inset 3px 0 0 var(--azure),0 4px 14px rgba(0,0,0,.08)}
-.abbox.s1{box-shadow:inset -3px 0 0 var(--gules),0 4px 14px rgba(0,0,0,.08)}
+/* ability notes: laid over the bottom corners of the battlefield (yours bottom left, theirs bottom right),
+   so nothing on the table moves when they appear; tap a note to fold it down to its name */
+.abwin{position:absolute;inset:0;pointer-events:none;z-index:6}
+.abcol{position:absolute;bottom:6px;width:210px;max-height:calc(100% - 12px);display:flex;flex-direction:column;justify-content:flex-end;gap:6px;min-width:0}
+.abcol.s0{left:0} .abcol.s1{right:0}
+.abbox{pointer-events:auto;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:3px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:.8rem;line-height:1.35;color:var(--muted);box-shadow:0 4px 14px rgba(0,0,0,.12);animation:abin .22s ease-out backwards}
+.abbox.s0{box-shadow:inset 3px 0 0 var(--azure),0 4px 14px rgba(0,0,0,.12)}
+.abbox.s1{box-shadow:inset -3px 0 0 var(--gules),0 4px 14px rgba(0,0,0,.12)}
 .abbox .abn{font-weight:800;font-size:.9rem;color:var(--ink)}
 .abbox.s0 .abn{color:var(--azure)} .abbox.s1 .abn{color:var(--gules)}
+.abbox.s1{text-align:right}
 .abbox b.kw{color:var(--ink)}
 .abbox .abtg{font-weight:700;color:var(--ink)}
 .abbox .lv{padding:0 2px}
+.abbox.min .abt{display:none}
+.abbox.min .abn::after{content:" ›";opacity:.6}
 .ablines{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:5}
 .ablines .abl{fill:none;stroke-width:1.5;stroke-dasharray:4 3;opacity:.8}
 .ablines .abl.s0{stroke:var(--azure)} .ablines .abl.s1{stroke:var(--gules)}
@@ -1232,16 +1233,12 @@ body.dsopen{overflow:hidden}
 @keyframes abin{from{opacity:0;transform:translateY(4px)}}
 .abtog[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or)}
 @media (prefers-reduced-motion: reduce){ .abbox{animation:none} }
-@media (max-width:900px){ .stage.hasab{grid-template-columns:minmax(130px,170px) minmax(0,1fr) minmax(130px,170px);gap:0 10px} }
 @media (max-width:640px){
-  /* phones: the notes sit in two columns above the battlefield, yours left, theirs right */
-  .stage.hasab{display:block}
-  .abwin{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:4px 0 22px;align-items:start}
-  .abcol{padding-top:0}
-  .stage.hasab>.abwin>.abcol.s0{grid-column:1;grid-row:1}
-  .stage.hasab>.abwin>.abcol.s1{grid-column:2;grid-row:1}
-  .abbox{font-size:.74rem;padding:6px 7px}
-  .abbox .abn{font-size:.82rem}
+  /* phones: pinned to the bottom corners of the screen, just above the bottom bar, wherever the battle is scrolled */
+  .abcol{position:fixed;width:calc(50% - 12px);bottom:calc(var(--dockh,100px) + 8px);max-height:46vh;overflow:auto;z-index:15}
+  .abcol.s0{left:8px} .abcol.s1{right:8px}
+  .abbox{font-size:.72rem;padding:5px 7px;line-height:1.3}
+  .abbox .abn{font-size:.8rem}
 }
 </style>
 
@@ -5379,7 +5376,7 @@ function abNoteHTML(g, f, i){
 }
 function mountAbWin(){
   const stage = $('view-play').querySelector('.stage'); if (!stage) return;
-  stage.querySelectorAll('.abwin, .ablines').forEach(n => n.remove()); stage.classList.remove('hasab');
+  stage.querySelectorAll('.abwin, .ablines').forEach(n => n.remove());
   cancelAnimationFrame(abRaf); abRaf = 0;
   if (!ui.battle || !abOn() || autoOn()) return;
   const f = ui.battle.frames[ui.frame], gs = abGroups(f); if (!gs.length) return;
@@ -5387,7 +5384,8 @@ function mountAbWin(){
   const win = document.createElement('div'); win.className = 'abwin';
   win.innerHTML = `<div class="abcol s0">${col(0)}</div><div class="abcol s1">${col(1)}</div>`;
   try{ kwDecorate(win); }catch(e){}
-  stage.prepend(win); stage.classList.add('hasab');
+  win.addEventListener('click', e => { const bx = e.target.closest('.abbox'); if (bx){ e.stopPropagation(); bx.classList.toggle('min'); } });
+  stage.appendChild(win);
   const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'ablines'); svg.setAttribute('aria-hidden', 'true');
   stage.appendChild(svg);
   const tick = () => {
@@ -5399,26 +5397,21 @@ function mountAbWin(){
 function placeAbLines(stage, svg, gs){
   const sr = stage.getBoundingClientRect(), phone = compact();
   svg.setAttribute('width', Math.round(sr.width)); svg.setAttribute('height', Math.round(sr.height));
-  const paths = [...stage.querySelectorAll('.arrows:not(.out) path.arw')];
   let out = '';
   gs.forEach((g, i) => {
     const box = stage.querySelector(`.abbox[data-abi="${i}"]`); if (!box) return;
     const ab = g.ab, br = box.getBoundingClientRect();
-    // the arrow this ability drew, else the card (or building) itself
+    // from the card whose ability it is (a building: its chip in the city row), so it never sits on top of an arrow
     let pt = null;
-    const mine = paths.filter(p => p._arw && (ab.u ? p._arw.from === ab.u : (p._arw.by === ab.s && !p._arw.from && (p._arw.chip || '').includes(`"${ab.n}"`))));
-    const tgts = new Set(g.lines.map(l => l.to));
-    const pick = mine.find(p => tgts.has(p._arw.to)) || mine[0];
-    if (pick && pick.getTotalLength){ try{ const L = pick.getTotalLength(); if (L > 0){ const q = pick.getPointAtLength(L / 2); pt = {x:q.x, y:q.y}; } }catch(e){} }
-    if (!pt){
-      const el = ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`))
-                      : stage.querySelector(`.city[data-side="${ab.s}"] .bchip[data-b="${CSS.escape(ab.n)}"]`);
-      if (el){ const r = el.getBoundingClientRect(); if (r.width) pt = {x:r.left + r.width / 2 - sr.left, y:r.top + r.height / 2 - sr.top}; }
-    }
+    const el = ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`) || stage.querySelector(`[data-uid="${ab.u}"]`))
+                    : stage.querySelector(`.city[data-side="${ab.s}"] .bchip[data-b="${CSS.escape(ab.n)}"]`);
+    if (el){ const r = el.getBoundingClientRect(); if (r.width){
+      const left = (ab.s === 0) ? r.left : r.right;   // the card edge facing its note's corner
+      pt = {x:left - sr.left, y:r.top + Math.min(r.height / 2, 24) - sr.top}; } }
     if (!pt) return;
-    const x1 = phone ? br.left + br.width / 2 - sr.left : ab.s === 0 ? br.right - sr.left : br.left - sr.left;
-    const y1 = phone ? br.bottom - sr.top : br.top + Math.min(22, br.height / 2) - sr.top;
-    const mx = phone ? x1 : (x1 + pt.x) / 2, my = phone ? (y1 + pt.y) / 2 : y1;
+    const x1 = ab.s === 0 ? br.right - sr.left : br.left - sr.left;
+    const y1 = br.top + Math.min(14, br.height / 2) - sr.top;
+    const mx = (x1 + pt.x) / 2, my = y1;
     out += `<path class="abl s${ab.s}" d="M${x1},${y1} Q${mx},${my} ${pt.x},${pt.y}"/><circle class="abd s${ab.s}" cx="${pt.x}" cy="${pt.y}" r="3.5"/><circle class="abd s${ab.s}" cx="${x1}" cy="${y1}" r="2.5"/>`;
   });
   if (svg._last !== out){ svg.innerHTML = out; svg._last = out; }
