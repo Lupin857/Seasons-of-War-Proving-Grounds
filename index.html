@@ -1485,6 +1485,19 @@ html,body{overflow-x:clip}
 /* the large pop-up card (press-and-hold, tap sheet on phones, miracles behind a card) matches the cards in the rows */
 .mcard.peek,.sheet .mcard.peek{background:var(--card)!important;border-color:var(--card-line)}
 .mirpop,.mirhover .mirseal,.mirpop .mirseal,.sheetmir .mirseal{background:var(--card)}
+/* THE large pop-up card (built by cardPop): one look in every phase. Card color, a firm edge, and a top stripe for
+   its kind (unit grey, building gold, the opponent's red). Nothing else from the card's old spot applies. */
+.mcard.cardpop{background:var(--card)!important;border:1px solid var(--card-line)!important;outline:none!important;opacity:1!important;filter:none!important;transform-origin:0 0}
+.mcard.cardpop>*{opacity:1!important}
+.mcard.cardpop.u{box-shadow:0 18px 48px rgba(0,0,0,.35),inset 0 3px 0 var(--muted)!important}
+.mcard.cardpop.b{box-shadow:0 18px 48px rgba(0,0,0,.35),inset 0 3px 0 var(--or)!important}
+.mcard.cardpop.ai{box-shadow:0 18px 48px rgba(0,0,0,.35),inset 0 3px 0 var(--gules)!important}
+.sheet .mcard.cardpop.u{box-shadow:inset 0 4px 0 var(--muted)!important}
+.sheet .mcard.cardpop.b{box-shadow:inset 0 4px 0 var(--or)!important}
+.sheet .mcard.cardpop.ai{box-shadow:inset 0 4px 0 var(--gules)!important}
+.mcard.cardpop .zh{color:var(--ink)} .mcard.cardpop.b .zh{color:var(--or)}
+.mcard.cardpop .stamps{position:static!important;display:flex;flex-wrap:wrap;gap:6px;transform:none!important}
+.mcard.cardpop>button{display:block!important;position:static!important;width:100%}
 /* the "Always available" label shows above them on every screen, phones included */
 .mktp .alwaysw .alab{display:block!important}
 @media (max-width:640px){ .mktp .alwaysw .alab{font-size:.56rem!important;letter-spacing:.02em!important;line-height:1.1} }
@@ -1580,7 +1593,7 @@ function cardFace(name, kind, own, noNext){
   const d = kind === 'u' ? DEFS[name] : BDEFS[name];
   return `${zhMark(name)}<div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div>
     <span class="curve">${curveText(name, kind, own, noNext)}</span>
-    <span class="tx">${cardTx(name, kind, own, noNext)}</span>${shortHTML(name, kind, own, noNext)}`;
+    <span class="tx">${cardTx(name, kind, own, noNext)}</span>${shortHTML(name, kind, own, noNext)}<i class="cfm" hidden data-n="${esc(name)}" data-k="${kind}" data-o="${own ?? ''}" data-x="${noNext ? 1 : ''}"></i>`;
 }
 // status stamps sit just under the card, outside it
 const stampsHTML = list => { list = list.filter(Boolean); return list.length ? `<span class="stamps">${list.map(([c, t]) => `<span class="stamp ${c}">${t}</span>`).join('')}</span>` : ''; };
@@ -8165,13 +8178,34 @@ function kwGlossHTML(ids, self){
     return `<div class="kwmini ${tok(n) ? 'tok t-' + n.toLowerCase() : b ? 'b' : 'u'}"><span class="kwmn">${esc(n)}${tok(n) ? '<i>Token</i>' : ''}</span><span class="kwmt">${kwText(kwMiniText(n))}</span></div>`; };
   return `<div class="kwgloss">${defs.length ? `<span class="eyebrow">Keywords</span><dl>${defs.map(id => `<div><dt>${esc(KW_BY[id][1])}</dt><dd>${kwText(KW_BY[id][3])}</dd></div>`).join('')}</dl>` : ''}${minis.length ? `<span class="eyebrow">Tokens and cards named</span><div class="kwminis">${minis.map(mini).join('')}</div>` : ''}</div>`;
 }
+/* THE large pop-up card. Every phase (shop, deck view, Mobilize, battle; phone sheet or press-and-hold) builds it here,
+   fresh from the card's identity, so it always looks the same: the shared cardFace(), then the source card's status
+   stamps and its buttons. Nothing from where the card sat (Vanguard ring, faded "can't afford", stack shadows,
+   tapped or selected states) comes along. Styled only by .cardpop / .peek. */
+const popBtns = card => [...card.querySelectorAll(':scope > button, :scope > .row button, :scope .dbtn button')];
+function cardPop(card){
+  const m = card.querySelector('.cfm');
+  const side = card.classList.contains('ai') ? ' ai' : '';
+  const pk = document.createElement('div');
+  if (m){
+    const k = m.dataset.k === 'b' ? 'b' : 'u', o = m.dataset.o === '' ? 0 : +m.dataset.o;
+    pk.className = `mcard cardpop peek ${k}${side}`;
+    pk.innerHTML = cardFace(m.dataset.n, k, o, !!m.dataset.x);
+  } else {
+    // a card drawn without cardFace (a token card, the Salvage Writ picker): its own contents, none of its context
+    pk.className = `mcard cardpop peek ${card.classList.contains('b') ? 'b' : 'u'}${side}`;
+    pk.innerHTML = card.innerHTML;
+    pk.querySelectorAll('.stamps, button, .dord, .pkhit, .dealback, .mirpop, .hgtok').forEach(n => n.remove());
+  }
+  const st = card.querySelector(':scope > .stamps'); if (st) pk.appendChild(st.cloneNode(true));
+  for (const b of popBtns(card)){ const c = b.cloneNode(true); c.removeAttribute('style'); pk.appendChild(c); }
+  return pk;
+}
 function openPeek(card, byTap){
   closePeek(true);
   const r = card.getBoundingClientRect(), w = Math.min(320, window.innerWidth - 32);
   const wrap = document.createElement('div'); wrap.className = 'peekwrap';
-  const pk = card.cloneNode(true);
-  pk.querySelectorAll('.dealback, .mirpop').forEach(n => n.remove());
-  pk.classList.add('peek'); pk.classList.remove('more', 'tapping', 'lifted', 'sel', 'cansel', 'target', 'notarget'); pk.removeAttribute('style'); pk.setAttribute('aria-hidden', 'true');
+  const pk = cardPop(card); pk.setAttribute('aria-hidden', 'true');
   try{
     const kwIds = kwDecorate(pk);   // only the keywords printed on this card
     const self = (pk.querySelector('.nm') || {}).textContent;
@@ -8213,7 +8247,7 @@ function openSheet(card, pk, wrap){
   const mw = card.parentElement && card.parentElement.classList.contains('mirwrap') ? card.parentElement.querySelector('.mirhover') : null;
   if (mw){ const m = mw.cloneNode(true); try{ kwDecorate(m); }catch(e){} m.className = 'sheetmir'; m.removeAttribute('aria-hidden'); box.appendChild(m); }
   pk.removeAttribute('aria-hidden'); box.appendChild(pk);
-  pk.querySelectorAll('.dbtn button[aria-label]').forEach(b => { b.textContent = b.getAttribute('aria-label'); });   // spell out the ← → ✕ buttons
+  pk.querySelectorAll('button[aria-label]').forEach(b => { if (b.textContent.trim().length <= 2) b.textContent = b.getAttribute('aria-label'); });   // spell out the ← → ✕ buttons
   // a hint under the buttons when there's nothing to do with the card right now
   if (!pk.querySelector('button:not([disabled])')) box.insertAdjacentHTML('beforeend', '<p class="note sheetnote">Tap outside the card to close it.</p>');
   wrap.appendChild(box); document.body.appendChild(wrap);
@@ -8227,7 +8261,7 @@ function openSheet(card, pk, wrap){
 function wirePeek(card, wrap){
   // each button in the enlarged copy presses the same button on the real card: matched by position when it opened,
   // or (if the screen has redrawn since) by finding the live button whose data matches, compared directly
-  const liveBtns = [...card.querySelectorAll('button')];
+  const liveBtns = popBtns(card);
   const sameData = (a, b) => { const ka = Object.keys(a.dataset); return ka.length && ka.length === Object.keys(b.dataset).length && ka.every(k => a.dataset[k] === b.dataset[k]); };
   wrap.addEventListener('click', e => {
     if (!peekReady) return;                       // ignore the release of the press that opened it
