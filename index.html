@@ -1527,6 +1527,12 @@ html,body{overflow-x:clip}
 .dragwrap>.mcard.tcard.tr{box-shadow:inset 0 3px 0 var(--azure),0 14px 32px rgba(0,0,0,.3)!important}
 .dragwrap .dord{display:none}
 @media (prefers-reduced-motion: reduce){ .dragwrap>.mcard.dragghost{transform:none} }
+/* Pass glows when nothing is affordable; a money note inside the turn banner */
+button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-out infinite;border-color:var(--or)}
+@keyframes passglow{0%,100%{box-shadow:0 0 0 2px var(--or),0 0 6px 1px color-mix(in srgb,var(--or) 50%,transparent)}50%{box-shadow:0 0 0 2px var(--or),0 0 18px 6px color-mix(in srgb,var(--or) 65%,transparent)}}
+@media (prefers-reduced-motion: reduce){ button[data-act="pass"].passglow{animation:none;box-shadow:0 0 0 3px var(--or)} }
+.turnflash .tfnote{margin-top:8px;padding:8px 12px;border-radius:8px;background:var(--or-soft);color:var(--ink);font-size:.9rem;font-weight:500;max-width:34ch;line-height:1.35}
+.turnflash .tfnote b{color:var(--ink)}
 /* the "Always available" label shows above them on every screen, phones included */
 .mktp .alwaysw .alab{display:block!important}
 @media (max-width:640px){ .mktp .alwaysw .alab{font-size:.56rem!important;letter-spacing:.02em!important;line-height:1.1} }
@@ -6159,9 +6165,13 @@ function turnWatch(){
   turnKey = key;
   if (first){ turnMarks = [G.log.length, G.log.length]; return; }   // a reload or a resumed game: no announcement
   const otherPassed = G.passed[1 - who];
-  let big, small = '', side = who;
-  if (PP() && !G.net){ big = `${nm(who)}’s turn`; small = otherPassed ? `${nm(1 - who)} has passed` : 'Pass the device'; }
-  else if (who === S){ big = 'Your turn'; small = otherPassed ? `${PP() ? nm(1 - S) : 'Opponent'} passed. Keep shopping or pass.` : 'Buy a card or pass'; }
+  // a player who ran out of buys was passed automatically: say so instead of the usual line
+  const ap = ui.autoPass && ui.autoPass.round === G.round && !ui.autoPass.shown ? ui.autoPass : null;
+  const oppOut = otherPassed && noBuysLeft(G, 1 - who, true);
+  let big, small = '', side = who, sticky = false;
+  if (PP() && !G.net){ big = `${nm(who)}’s turn`; small = ap && ap.who === 1 - who ? `${nm(1 - who)} has no buys left this round and passes. Pass the device.` : otherPassed ? `${nm(1 - who)} has passed` : 'Pass the device'; if (ap) ap.shown = true; }
+  else if (who === S){ big = 'Your turn'; small = otherPassed ? `${PP() || G.net ? nm(1 - S) : 'Opponent'} ${oppOut ? 'is out of buys and passed' : 'passed'}. Keep shopping or pass.` : 'Buy a card or pass'; }
+  else if (ap && ap.who === S){ ap.shown = true; big = 'Out of buys'; small = 'You have no buys left this round and pass your turn.'; side = S; sticky = true; }
   else { big = G.net ? `${nm(who)}’s turn` : 'Opponent’s turn'; small = G.passed[S] ? 'You passed. They’re finishing up.' : 'Wait for them to buy or pass'; }
   // what the other player bought and sold since this player last had the turn
   let news = '';
@@ -6171,15 +6181,83 @@ function turnWatch(){
     turnMarks[who] = G.log.length;
     if (evs.length) news = `<div class="tfnews"><span class="eyebrow">Since ${who === S && !(PP() && !G.net) ? 'your' : 'their'} last turn, ${esc(PP() || G.net ? nm(1 - who) : 'Opponent')}:</span><div class="tfcards">${evs.map(l => turnNewsCard(l.ev, 1 - who)).join('')}</div></div>`;
   }
-  turnFlash(big, small, side === S || (PP() && !G.net) ? 'mine' : 'theirs', side, news);
+  if (who === S && noBuysLeft(G, S)){ autoNews = news; return; }   // out of buys: the auto-pass banner says so, with this news
+  if (sticky && !news){ news = autoNews; autoNews = ''; }   // the opponent's buys from just before, shown with the auto-pass
+  turnFlash(big, small, side === S || (PP() && !G.net) ? 'mine' : 'theirs', side, news, sticky);
+  flashedNow = true;
   if (who === S || (PP() && !G.net)){ sfx.turnMine(); if (navigator.vibrate) try{ navigator.vibrate([18, 60, 18]); }catch(e){} }
   else sfx.turnTheirs();
 }
-function dismissTurnFlash(){ document.querySelectorAll('.turnflash:not(.out)').forEach(n => n._close ? n._close() : n.remove()); }
-function turnFlash(big, small, kind, side, news){
+
+/* ===== Shop streamlining: out of money, only Recruits/Fields left, out of buys =====
+   All of it reads the same buy rules as the Buy buttons (buyQuote), so it can't disagree with them. */
+var flashedNow = false, autoPassT = null, noteSeenKeys = null, autoNews = '';
+// no buy left this shop: nothing could be bought even with unlimited money, and no Divine Favor in hand to add one
+// (afterPass: judge a player who already passed, for the "out of buys" notice about the opponent)
+function noBuysLeft(g, i, afterPass){
+  if (!g || g.phase !== 'shop' || (!afterPass && g.passed[i])) return false;
+  const p = g.players[i];
+  if ((p.mir || []).includes('Divine Favor')) return false;
+  const rich = {...p, money:1e9};
+  for (const o of aiShopOptions(g, i)) if (buyQuote(rich, g.buys[i], o.name, o.kind, o.src, mirSur(mirOf(g, o))).ok) return false;
+  return true;
+}
+// 'broke': buys left but nothing affordable; 'low': the only things affordable are Recruits and Fields
+function shopMoneyState(g, i){
+  if (noBuysLeft(g, i)) return null;
+  const names = new Set();
+  for (const o of aiShopOptions(g, i)) if (buyInfo(g, i, o.name, o.kind, o.src, o.idx).ok) names.add(o.name);
+  if (!names.size) return {st:'broke'};
+  if ([...names].every(n => n === 'Recruit' || n === 'Field')) return {st:'low', names};
+  return null;
+}
+function shopNotes(){
+  document.querySelectorAll('[data-act="pass"].passglow').forEach(b => b.classList.remove('passglow'));
+  if (!G || ui.start || ui.roll) return;
+  const ap = ui.autoPass;
+  // the auto-pass ended the shop (the other player had already passed): still say why
+  if (ap && ap.round === G.round && !ap.shown && G.phase !== 'shop'){
+    ap.shown = true;
+    const pp = PP() && !G.net;
+    turnFlash('Out of buys', pp ? `${nm(ap.who)} has no buys left this round and passes.` : 'You have no buys left this round and pass your turn.', 'mine', ap.who, pp ? '' : autoNews, true); autoNews = '';
+    return;
+  }
+  if (ui.battle || G.over || G.phase !== 'shop') return;
+  const S = seat(); if (cur(G) !== S || G.passed[S]) return;
+  if (G.net && !NET) return;
+  // out of buys: pass for them, after a moment so the card they just bought can land
+  if (noBuysLeft(G, S)){
+    if (autoPassT) return;
+    autoPassT = setTimeout(() => {
+      autoPassT = null;
+      const s2 = seat();
+      if (!G || G.phase !== 'shop' || ui.battle || cur(G) !== s2 || G.passed[s2] || !noBuysLeft(G, s2)) return;
+      ui.autoPass = {round:G.round, who:s2, shown:false};
+      doMove(['p']);
+    }, 800);
+    return;
+  }
+  const m = shopMoneyState(G, S); if (!m) return;
+  if (m.st === 'broke') document.querySelectorAll('[data-act="pass"]').forEach(b => b.classList.add('passglow'));
+  if (!noteSeenKeys) noteSeenKeys = new Set();
+  const key = `${G.round}|${S}|${m.st}`; if (noteSeenKeys.has(key)) return;   // once per shop for each
+  noteSeenKeys.add(key);
+  const money = G.players[S].money, who = PP() && !G.net ? `${nm(S)}, you have` : 'You have';
+  const cheap = m.names ? (m.names.has('Recruit') && m.names.has('Field') ? 'a Recruit or a Field' : m.names.has('Field') ? 'a Field' : 'a Recruit') : '';
+  const big = m.st === 'broke' ? 'Not enough money' : 'Running low';
+  const small = m.st === 'broke'
+    ? `${who} $${money}, not enough to buy anything. Pass, or open your deck to sell cards for $1 each.`
+    : `${who} $${money}: enough for ${cheap}, but nothing else. You can also open your deck to sell cards for $1 each.`;
+  // the turn banner just opened (it's your turn now): add this to it rather than covering it
+  const box = flashedNow && document.querySelector('.turnflash:not(.out) .tfbox');
+  if (box) box.querySelector(':scope > em').insertAdjacentHTML('beforebegin', `<div class="tfnote"><b>${esc(big)}.</b> ${esc(small)}</div>`);
+  else turnFlash(big, small, 'mine', S, '');
+}
+function dismissTurnFlash(){ document.querySelectorAll('.turnflash:not(.out):not(.sticky)').forEach(n => n._close ? n._close() : n.remove()); }
+function turnFlash(big, small, kind, side, news, sticky){
   document.querySelectorAll('.turnflash').forEach(n => n.remove());
   const el = document.createElement('div');
-  el.className = `turnflash ${kind} s${VS(side)}`; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.tabIndex = -1;
+  el.className = `turnflash ${kind} s${VS(side)}${sticky ? ' sticky' : ''}`; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.tabIndex = -1;
   el.innerHTML = `<div class="tfbox"><b>${esc(big)}</b>${small ? `<span>${esc(small)}</span>` : ''}${news || ''}<em>${kind === 'theirs' ? 'Tap to hide' : 'Tap anywhere to continue'}</em></div>`;
   // stays up until tapped or clicked (anywhere); that tap only dismisses it, so it can't buy a card by accident
   const close = e => { if (e){ e.preventDefault(); e.stopPropagation(); } el.classList.add('out'); setTimeout(() => el.remove(), 160); document.removeEventListener('keydown', key, true); };
@@ -6237,7 +6315,9 @@ function renderPlay(){
   if (ui.battle && ui.chronOpen){ const on = document.querySelector('.fr.on'); if (on) on.scrollIntoView({block:'nearest'}); }
   const bd = $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px');
   markMore();
+  flashedNow = false;
   turnWatch();
+  shopNotes();
   if (dealNow){ ui.dealt = G.round; dealMarket(); }
   dealPeeks(dealNow);
   markGame(true);
