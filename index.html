@@ -1138,6 +1138,11 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 .dkic i:first-child{left:3px;top:0}.dkic i:last-child{left:0;top:3px}
 .dkgo{font-family:var(--f-body);font-weight:700;opacity:.7}
 .board .deckbtn .m3{font-family:var(--f-body)}
+.board .deckbtn .caps b{font-weight:600;color:var(--ink)}
+.board .deckbtn .caps b.full{color:var(--or);background:var(--or-soft);border-radius:3px;padding:0 3px}
+.board .deckbtn .caps{white-space:nowrap}
+.board .deckbtn .caps b{font-family:var(--f-mono)}
+@media (max-width:640px){ .board .deckbtn .caps{font-family:var(--f-body);font-size:.74rem;letter-spacing:-.01em} .board .deckbtn .caps b.full{padding:0 2px} }
 .board .deckbtn.you .m3{color:var(--azure)}
 .logp .log{max-height:180px}
 .decksheet{position:fixed;inset:0;z-index:65;background:rgba(10,14,20,.38);display:flex;align-items:flex-end;justify-content:center;animation:peekbg .16s ease-out}
@@ -1211,6 +1216,28 @@ body.dsopen{overflow:hidden}
 @keyframes tfin{from{opacity:0;transform:translateY(16px) scale(.92)}}
 @media (prefers-reduced-motion: reduce){ .turnflash,.turnflash .tfbox{animation:none} .board .deckbtn.active{animation:none} }
 @media (max-width:640px){ .board .deckbtn .tchip{font-size:.58rem;padding:0 6px} }
+/* phone footer: larger text and buy pips so it reads at arm's length; numbers use the narrower body font so lines don't wrap */
+@media (max-width:640px){
+  .dock .board.inDock .deckbtn .meta{font-family:var(--f-body);font-size:.92rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .dock .board.inDock .deckbtn .caps{font-size:.9rem;letter-spacing:0}
+  .dock .board.inDock .deckbtn .caps b{font-family:var(--f-body);font-weight:700}
+  .dock .board.inDock .deckbtn .tchip{font-size:.72rem;padding:1px 8px}
+  .dock .board.inDock .deckbtn .who{font-size:1rem!important}
+  .dock .board.inDock .mid .rd{font-size:.74rem;max-width:84px;margin-inline:auto}
+  .dock .board.inDock .mid .sc{font-size:1.45rem}
+  .dock .dhint{font-size:1rem}
+  .dock .dphase{font-size:.74rem;padding:2px 8px}
+  .dock .purse{gap:6px}
+  .dock .purse .amt{font-size:1.85rem}
+  .dock .purse .nx{font-size:.8rem}
+  .dock .slots{gap:4px 9px}
+  .dock .slotg{font-size:.74rem;gap:4px;letter-spacing:.02em}
+  .dock .pip{width:17px;height:17px}
+  .dock .slotg .pips{gap:4px;margin-left:1px}
+  .dock .dbar{gap:8px}
+  .dock .dbar button{padding:10px 14px}
+}
+@media (max-width:370px){ .dock .slotg{font-size:.66rem} .dock .pip{width:15px;height:15px} }
 
 .turnflash.theirs{inset:0 0 auto 0;align-items:flex-start;background:none;padding-top:calc(10px + env(safe-area-inset-top,0px));pointer-events:none;animation:none}
 .turnflash.theirs .tfbox{pointer-events:auto;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:4px 12px;padding:8px 18px}
@@ -4768,6 +4795,14 @@ function deckLabel(i){
   if (PP() && !G.net) return `${esc(nm(i))}'s deck`;
   return i === seat() ? 'Your deck' : "Opponent's deck";
 }
+// Unique units against the deck cap, and city slots against the city cap, under each player's deck (shop and mobilize only).
+// Gold once a cap is reached: another unit type won't fit in the deck, or a new building needs a free slot.
+function capsHTML(i){
+  if (ui.battle || G.over || (G.phase !== 'shop' && G.phase !== 'mobilize')) return '';
+  const p = G.players[i], u = uniqueUnits(i === seat() ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots;
+  const one = (n, c, w, t) => `<span class="meta caps" title="${t}"><b class="${n >= c ? 'full' : ''}">${n}/${c}</b> ${w}</span>`;
+  return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + one(b, bc, 'Bldgs', `City slots used; the city holds ${bc} (each Field takes a slot)`);
+}
 function boardHTML(where){
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
@@ -4775,7 +4810,7 @@ function boardHTML(where){
   const deckBtn = i => `<button type="button" class="side ${VS(i) ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${deckLabel(i)}: view cards">
       <span class="who"><span class="dkic" aria-hidden="true"><i></i><i></i></span>${deckLabel(i)}<span class="dkgo" aria-hidden="true">›</span></span>
       <span class="meta">$${B.money[i]} · income $${B.inc[i]}</span>
-      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${turnChip(i)}</button>`;
+      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${capsHTML(i)}${turnChip(i)}</button>`;
   const L = VS(0), Rt = VS(1);   // you on the left
   return `<div class="board${where === 'dock' ? ' inDock' : ' topboard'}">
     ${deckBtn(L)}
