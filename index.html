@@ -1036,6 +1036,14 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 .mcard.b .zhw{color:var(--or);opacity:.2}
 .mcard.ghost .zhw{color:var(--muted)}
 .stage .card{cursor:pointer}
+/* market cards keep one square shape at any screen width (the row no longer stretches them on a wide window) */
+@media (min-width:861px){
+  .mktp .market{grid-template-columns:minmax(0,150px) 2px repeat(5,minmax(0,150px));justify-content:start}
+  .mktp .market.plain{grid-template-columns:repeat(6,minmax(0,150px))}
+}
+@media (min-width:641px) and (max-width:860px){
+  .mktp .market,.mktp .market.plain{grid-template-columns:repeat(3,minmax(0,150px));justify-content:start}
+}
 .mcard.cant>.zhw,.mirwrap>.mcard.cant>.zhw{opacity:.1}
 .fcards .zhw,.dgrid .zhw{--wm:84px}
 .mcard.peek .zhw{--wm:120px;top:50%}
