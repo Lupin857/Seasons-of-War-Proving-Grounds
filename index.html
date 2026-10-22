@@ -1181,15 +1181,17 @@ body.dsopen{overflow:hidden}
 .board .deckbtn.ai.active{border-color:var(--gules);box-shadow:0 0 0 2px var(--gules),0 2px 0 var(--line);animation:turnglow1 1.8s ease-in-out infinite}
 @keyframes turnglow0{50%{box-shadow:0 0 0 2px var(--azure),0 0 14px 3px color-mix(in srgb,var(--azure) 55%,transparent)}}
 @keyframes turnglow1{50%{box-shadow:0 0 0 2px var(--gules),0 0 14px 3px color-mix(in srgb,var(--gules) 55%,transparent)}}
-.turnflash{position:fixed;left:0;right:0;top:38%;z-index:90;display:flex;justify-content:center;pointer-events:none;padding:0 16px}
+.turnflash{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:0 16px;background:rgba(10,14,20,.22);cursor:pointer;animation:peekbg .16s ease-out}
+.turnflash.out{opacity:0;transition:opacity .15s}
+.turnflash em{font-style:normal;font-size:.72rem;color:var(--muted);margin-top:6px;letter-spacing:.04em}
 .turnflash .tfbox{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 34px;border-radius:12px;background:var(--surface);border:2px solid currentColor;box-shadow:0 14px 40px rgba(0,0,0,.28);max-width:100%;text-align:center;
-  animation:tfin 1.7s cubic-bezier(.2,.9,.3,1) forwards}
+  animation:tfin .28s cubic-bezier(.2,.9,.3,1.1)}
 .turnflash.s0{color:var(--azure)} .turnflash.s1{color:var(--gules)}
 .turnflash b{font-family:var(--f-display);font-weight:400;font-size:clamp(1.9rem,7vw,2.8rem);line-height:1.1}
 .turnflash span{font-size:.92rem;color:var(--muted);font-weight:600}
 .turnflash.theirs .tfbox{box-shadow:0 10px 30px rgba(0,0,0,.18)}
-@keyframes tfin{0%{opacity:0;transform:translateY(16px) scale(.92)}14%{opacity:1;transform:none}80%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-10px)}}
-@media (prefers-reduced-motion: reduce){ .turnflash .tfbox{animation:tffade 1.8s linear forwards} .board .deckbtn.active{animation:none} @keyframes tffade{0%,85%{opacity:1}100%{opacity:0}} }
+@keyframes tfin{from{opacity:0;transform:translateY(16px) scale(.92)}}
+@media (prefers-reduced-motion: reduce){ .turnflash,.turnflash .tfbox{animation:none} .board .deckbtn.active{animation:none} }
 @media (max-width:640px){ .board .deckbtn .tchip{font-size:.58rem;padding:0 6px} }
 </style>
 
@@ -5604,10 +5606,14 @@ function turnWatch(){
 function turnFlash(big, small, kind, side){
   document.querySelectorAll('.turnflash').forEach(n => n.remove());
   const el = document.createElement('div');
-  el.className = `turnflash ${kind} s${side}`; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
-  el.innerHTML = `<div class="tfbox"><b>${esc(big)}</b>${small ? `<span>${esc(small)}</span>` : ''}</div>`;
+  el.className = `turnflash ${kind} s${side}`; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.tabIndex = -1;
+  el.innerHTML = `<div class="tfbox"><b>${esc(big)}</b>${small ? `<span>${esc(small)}</span>` : ''}<em>Tap anywhere to continue</em></div>`;
+  // stays up until tapped or clicked (anywhere); that tap only dismisses it, so it can't buy a card by accident
+  const close = e => { if (e){ e.preventDefault(); e.stopPropagation(); } el.classList.add('out'); setTimeout(() => el.remove(), 160); document.removeEventListener('keydown', key, true); };
+  const key = e => { if (['Escape', 'Enter', ' '].includes(e.key) && el.isConnected){ close(e); } };
+  el.addEventListener('click', close);
+  document.addEventListener('keydown', key, true);
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), reduceMotion() ? 1800 : 1700);
 }
 function renderPlay(){
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
@@ -7639,7 +7645,7 @@ function openPeek(card, byTap){
     if (mw0) kwDecorate(mw0.cloneNode(true), kwIds);
     const self = (pk.querySelector('.nm') || {}).textContent;
     const gl = kwGlossHTML(kwIds, self && self.trim());
-    if (gl){ const btn = pk.querySelector(':scope > button'); if (btn) btn.insertAdjacentHTML('beforebegin', gl); else pk.insertAdjacentHTML('beforeend', gl); }
+    if (gl) pk.insertAdjacentHTML('beforeend', gl);   // under the card's own buttons, so Buy and Sell stay at the top
   }catch(e){}
   if (compact()) return openSheet(card, pk, wrap);
   pk.style.width = w + 'px'; pk.style.left = '0px'; pk.style.top = '0px';
