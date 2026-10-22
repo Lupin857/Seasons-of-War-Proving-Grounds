@@ -641,7 +641,7 @@ header{position:relative}
   /* the bar says whose turn it is and carries the main buttons, so the in-page copies step aside */
   .turnrow .turn{display:none}
   .turnrow:not(.hasbm){display:none}
-  .battlectl [data-act="b-first"],.battlectl [data-act="b-next"],.battlectl [data-act="b-last"]{display:none}
+  .battlectl [data-act="b-first"],.battlectl [data-act="b-next"],.battlectl [data-act="b-prev"]{display:none}
   .dock.ph-battle .dbar button,.dock.ph-mobilize .dbar button.primary{flex:1 1 0}
   .dock.ph-mobilize .dbar .grow{display:none}
   .benchp .mobhelp{display:none}
@@ -728,7 +728,7 @@ header{position:relative}
 .table .trow{gap:16px}
 .table .charge{padding:10px}
 .stage .linewrap{padding:18px 0}
-@media (max-width:640px){ .table .trow{gap:6px} .table .charge{padding:4px;min-width:96px} .table .grave{width:80px} .table .trow{grid-template-columns:minmax(0,1fr) auto minmax(0,.85fr)} }
+@media (max-width:640px){ .table .trow{gap:6px} .table .charge{padding:4px;min-width:96px} .table .grave{width:80px} .table .trow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)} }
 
 /* token arrows: dashed, colored by what was given */
 .arw.tok{stroke-width:2.5;stroke-dasharray:5 4;animation:tokin .35s ease-out backwards}
@@ -1035,6 +1035,7 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 .zhw[data-n="3"] span{font-size:27cqh}
 .mcard.b .zhw{color:var(--or);opacity:.2}
 .mcard.ghost .zhw{color:var(--muted)}
+.stage .card{cursor:pointer}
 .mcard.cant>.zhw,.mirwrap>.mcard.cant>.zhw{opacity:.1}
 .fcards .zhw,.dgrid .zhw{--wm:84px}
 .mcard.peek .zhw{--wm:120px;top:50%}
@@ -3881,7 +3882,7 @@ function cardHTML(u, side, mode){
   const hp = Math.max(0, Math.min(100, (u.pow - u.dmg) / Math.max(1, u.pow) * 100));
   const pk = pokeStyle(u, side);
   const vr = [u.van ? 'V' : '', u.rear ? 'R' : ''].filter(Boolean).join(' ');
-  return `<div class="card ${mode}${pk.html ? ' poked' : ''}" data-side="${side}" data-uid="${side}-${u.uid}" style="${pk.style}"${pk.title ? ` title="${esc(pk.title)}"` : ''}>${pk.html}
+  return `<div class="card ${mode}${pk.html ? ' poked' : ''}" data-side="${side}" data-uid="${side}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${pk.style}"${pk.title ? ` title="${esc(pk.title)}"` : ''}>${pk.html}
     <span class="ctop"><span class="cn">${esc(u.name)}</span><span class="cpw"><b title="Power">${u.pow}</b><i>Lv ${u.lvl}${vr ? ' · ' + vr : ''}</i></span></span>
     ${zhChip(u.name)}
     <span class="hprow"><span class="hp"><i style="width:${hp}%"></i></span><span class="hpn${u.dmg ? ' hurt' : ''}"><b>${Math.max(0, u.pow - u.dmg)}</b>/${u.pow} hp</span></span></div>`;
@@ -3896,7 +3897,7 @@ function miniHTML(u, side, k){
   const edges = t.map((x, j) => { const dx = sgn * 6 * (j + 1), c = `var(${TOKS[x].c})`;
     return `${dx}px ${-sgn * 2 * (j + 1)}px 0 -1px ${TOKS[x].fill || `color-mix(in srgb, ${c} 25%, var(--surface))`},${dx}px ${-sgn * 2 * (j + 1)}px 0 0 ${c}`; }).join(',');
   const st = `--k:${k}` + (edges ? `;box-shadow:inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'}),${edges};margin-${side === 1 ? 'left' : 'right'}:${6 * t.length}px` : '');
-  return `<div class="card mini" data-side="${side}" data-uid="${side}-${u.uid}" style="${st}" title="${esc(u.name)} · ${u.pow} power · Lv ${u.lvl}${tk}"><span class="cn">${esc(u.name)}</span><span class="mp">${u.pow}</span></div>`;
+  return `<div class="card mini" data-side="${side}" data-uid="${side}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${st}" title="${esc(u.name)} · ${u.pow} power · Lv ${u.lvl}${tk}"><span class="cn">${esc(u.name)}</span><span class="mp">${u.pow}</span></div>`;
 }
 // The table: the AI sits across from you (its row is rotated: graveyard, charge, then its deck on the far side),
 // you sit at the bottom (your deck, charge, graveyard). Charges meet in the middle.
@@ -4832,7 +4833,7 @@ function dockHTML(){
     body = atEnd
       ? (G.over ? `<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button>`
                 : `<button type="button" class="primary" data-act="continue">${G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`}</button>`)
-      : `<button type="button" data-act="b-last">Skip to end</button><button type="button" class="primary" data-act="b-next">Next step</button>`;
+      : `<button type="button" data-act="b-prev" ${ui.frame === 0 ? 'disabled' : ''}>Back</button><button type="button" class="primary" data-act="b-next">Next step</button>`;
   } else if (G.phase === 'shop'){
     const me = G.players[S], myTurn = cur(G) === S;
     const lbl = G.passed[S] ? 'Passed' : myTurn ? 'Pass' : G.net || PP() ? `${esc(nm(1 - S))}'s turn` : 'AI turn';
@@ -7329,6 +7330,23 @@ function wirePeek(card, wrap){
     if (e.target.closest('.sheetx') || !e.target.closest('.peek, .sheet')) closePeek();   // tap outside the card: back to the market
   });
 }
+// Battle cards: click (or tap) one to read its full rules as a shop-style card, at its level in this battle.
+let rulesSrc = null;
+function openRules(el){
+  const n = el.dataset.name, lv = +el.dataset.lvl || 1; if (!n || !DEFS[n]) return;
+  if (rulesSrc) rulesSrc.remove();
+  const r = el.getBoundingClientRect();
+  const src = rulesSrc = document.createElement('div');
+  src.className = 'mcard fcard u' + (el.dataset.side === '1' ? ' ai' : ''); src.setAttribute('aria-hidden', 'true');
+  src.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;visibility:hidden;pointer-events:none`;
+  src.innerHTML = cardFace(n, 'u', lv, true);
+  document.body.appendChild(src);
+  openPeek(src, true);
+}
+$('view-play').addEventListener('click', e => {
+  const c = e.target.closest('.stage .card'); if (!c || e.target.closest('button')) return;
+  openRules(c);
+});
 function closePeek(now){
   if (!peekEl) return;
   const w = peekEl; peekEl = null;
