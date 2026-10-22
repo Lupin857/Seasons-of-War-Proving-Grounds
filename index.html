@@ -1980,6 +1980,13 @@ function cantAcquire(st, name, kind){
   if ((name === 'Field' || !st.city[name]) && slotsUsed(st) >= RULES.citySlots) return 'City is full';
   return null;
 }
+// The buy button's wording when a card can't be bought: how much more money, or which buys are used up this shop.
+function whyNot(info, p){
+  if (info.price != null && p.money < info.price) return `Need $${info.price - p.money} more`;
+  if (info.why === 'Unit buys used up') return 'No unit buys left this round';
+  if (info.why === 'Building buy used up') return 'No building buys left this round';
+  return info.why;
+}
 function buyInfo(g, i, name, kind, src, idx){ return buyQuote(g.players[i], g.buys[i], name, kind, src, mirSur(mirOf(g, {src, idx}))); }
 // The price and buy slot for one card, or why it can't be bought. p is anything with {hand, city, money}
 // and b the buys used this shop ({u, b, carp, extra}), so the AI can price hypothetical purchases the same way.
@@ -4955,7 +4962,7 @@ function marketCard(name, kind, src, idx, side, always, mir){
   }
   const short = !info.ok && info.price != null && me.money < info.price;
   const jump = info.ok || short ? jumpText(name, kind, own) : '';
-  const label = info.ok ? `Buy $${info.price}${info.slot === 'extra' ? ' (extra buy)' : info.slot === 'carp' ? ' (Carpenter)' : info.slot === 'fav' ? ' (Divine Favor)' : ''}${src === 'bm' ? ` ($${bmOff(me)} off)` : ''}${info.disc ? ` (${esc(info.disc)})` : ''}` : esc(info.why);
+  const label = info.ok ? `Buy $${info.price}${info.slot === 'extra' ? ' (extra buy)' : info.slot === 'carp' ? ' (Carpenter)' : info.slot === 'fav' ? ' (Divine Favor)' : ''}${src === 'bm' ? ` ($${bmOff(me)} off)` : ''}${info.disc ? ` (${esc(info.disc)})` : ''}` : esc(whyNot(info, me));
   const sur = mirSur(mir), hasMir = !!(mir && mir.length), mkey = `${src}:${idx}:${name}`;
   const card = `<div class="mcard ${kind}${short ? ' cant' : ''}${info.ok && myTurn ? ' canbuy' : ''}${jump ? ' lvup' : ''}${always ? ' always' : ''}${hasMir ? ' hasmir' : ''}${side ? ' leaving' : ''}${short || own ? ' hasst' : ''}"${hasMir ? ` data-act="mir-peek" data-k="${esc(mkey)}" title="${mir.length > 1 ? `${mir.length} miracles` : 'A miracle'} behind this card. Click to see." aria-label="${esc(name)}: ${mir.length > 1 ? `${mir.length} miracles` : 'a miracle'} behind it. Click to see." role="button" tabindex="0"` : ''}>
     ${cardFace(name, kind, own)}
