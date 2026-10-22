@@ -5123,6 +5123,59 @@ function fadeArrows(svg, into){
   const a = svg.animate([{opacity:1}, {opacity:0}], {duration:420, easing:'ease-out', fill:'forwards'});
   a.onfinish = a.oncancel = () => svg.remove();
 }
+// Aim one battle arrow at the cards it joins, from where they are drawn right now (moves, lunges and token nudges
+// included). If a card has left the board, the arrow keeps its last shape.
+function placeArrow(path, stage, sr){
+  const A = path._arw; if (!A) return;
+  const find = id => id && (stage.querySelector(`.card[data-uid="${id}"]`) || stage.querySelector(`.grave [data-uid="${id}"]`));
+  const te = find(A.to); if (!te) return;
+  const tr = te.getBoundingClientRect();
+  const lbl = A.lbl;
+  if (A.self){
+    // a unit buffing itself: a small curl over its own top corner
+    const side = A.by === 0 ? 1 : -1, ex = side > 0 ? tr.right - sr.left - 8 : tr.left - sr.left + 8, ey = tr.top - sr.top + 10;
+    path.setAttribute('d', `M${ex - side * 26},${ey - 6} C${ex - side * 20},${ey - 34} ${ex + side * 14},${ey - 30} ${ex},${ey}`);
+    lbl.setAttribute('x', ex + side * 8); lbl.setAttribute('y', ey - 22); lbl.style.textAnchor = side > 0 ? 'start' : 'end';
+    return;
+  }
+  const fe = A.from ? find(A.from) : A.chip ? stage.querySelector(A.chip) : null;
+  if (A.from && !fe) return;
+  const cxOf = r => r.left + r.width / 2 - sr.left, cyOf = r => r.top + r.height / 2 - sr.top;
+  let x1, y1, x2 = cxOf(tr), y2;
+  if (fe){
+    const fr = fe.getBoundingClientRect(); x1 = cxOf(fr);
+    const down = cyOf(tr) > cyOf(fr);
+    y1 = down ? fr.bottom - sr.top - 6 : fr.top - sr.top + 6;
+    y2 = down ? tr.top - sr.top + 6 : tr.bottom - sr.top - 6;
+    if (Math.abs(cyOf(tr) - cyOf(fr)) < 20){ y1 = fr.top - sr.top + 6; y2 = tr.top - sr.top + 6; }   // same row: arc over
+  } else {   // a building without a chip on screen: from that player's edge of the table
+    x1 = x2; y1 = A.by === 0 ? sr.height - 4 : 4;
+    y2 = A.by === 0 ? tr.bottom - sr.top - 6 : tr.top - sr.top + 6;
+  }
+  const sideways = (A.by === 0 ? 1 : -1) * (22 + A.n * 16) + (x2 - x1) * 0.1;
+  const cx = (x1 + x2) / 2 + sideways, cy = (y1 + y2) / 2 + (Math.abs(y2 - y1) < 30 ? -34 : 0);
+  path.setAttribute('d', `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`);
+  lbl.setAttribute('x', (x1 + 2 * cx + x2) / 4 + (A.by === 0 ? 6 : -6)); lbl.setAttribute('y', (y1 + 2 * cy + y2) / 4 + 4);
+  lbl.style.textAnchor = A.by === 0 ? 'start' : 'end';   // yours label to the right of its arc, the AI's to the left
+}
+// While the battle shows arrows, re-aim them every frame so their ends stay fixed to the cards as the cards move.
+let arrowRaf = 0;
+function followArrows(){
+  if (arrowRaf) return;
+  const tick = () => {
+    const stage = ui.battle && $('view-play').querySelector('.stage');
+    const svgs = stage ? stage.querySelectorAll('.arrows') : [];
+    if (!svgs.length){ arrowRaf = 0; return; }
+    const sr = stage.getBoundingClientRect();
+    for (const svg of svgs){
+      if (+svg.getAttribute('width') !== Math.round(sr.width)) svg.setAttribute('width', Math.round(sr.width));
+      if (+svg.getAttribute('height') !== Math.round(sr.height)) svg.setAttribute('height', Math.round(sr.height));
+      for (const p of svg.querySelectorAll('path.arw')) placeArrow(p, stage, sr);
+    }
+    arrowRaf = requestAnimationFrame(tick);
+  };
+  arrowRaf = requestAnimationFrame(tick);
+}
 function drawArrows(list, animate, rects){
   const stage = $('view-play').querySelector('.stage'); if (!stage) return;
   const old = stage.querySelector('.arrows:not(.out)'); if (old){ if (animate === true) fadeArrows(old); else old.remove(); }
@@ -5141,61 +5194,34 @@ function drawArrows(list, animate, rects){
   for (const h of pairs.values()){
     const te = find(h.to); if (!te || (h.from && !find(h.from) && h.tok)) continue;
     drawn++;
-    const rectOf = el => (el.dataset.uid && rects && rects.get(el.dataset.uid)) || el.getBoundingClientRect();
-    let fe = find(h.from);
+    let chipSel = null;
     if (!h.from){   // a building: point from its chip in that player's city row
       const bn = ['Training Yard', 'Trebuchet', 'Armory', 'Infirmary'].find(b => (h.t || '').includes(b));
-      const chip = bn && stage.querySelector(`.city[data-side="${h.by}"] .bchip[data-b="${bn}"]`);
-      if (chip){ fe = chip; if (animate === true && chip.animate) chip.animate([{boxShadow:'0 0 0 0 transparent'}, {boxShadow:'0 0 0 4px color-mix(in srgb, var(--or) 45%, transparent)', offset:.3}, {boxShadow:'0 0 0 0 transparent'}], {duration:700, delay:n * 90}); }
+      chipSel = bn ? `.city[data-side="${h.by}"] .bchip[data-b="${bn}"]` : null;
     }
-    const n = lane[h.by]++, tr = rectOf(te);
+    const n = lane[h.by]++;
+    const chip = chipSel && stage.querySelector(chipSel);
+    if (chip && animate === true && chip.animate) chip.animate([{boxShadow:'0 0 0 0 transparent'}, {boxShadow:'0 0 0 4px color-mix(in srgb, var(--or) 45%, transparent)', offset:.3}, {boxShadow:'0 0 0 0 transparent'}], {duration:700, delay:n * 90});
     const cls = h.tok ? `arw tok t-${h.tok}` : `arw s${h.by}`, mk = h.tok ? `aht-${h.tok}` : `ah${h.by}`;
     const text = h.tok === 'ret' ? 'returns' : h.tok ? `+${h.amt}${h.tok === 'rec' && h.amt > 1 ? ' Recruits' : TOKLBL[h.tok]}` : (h.amt ? `${h.amt}` : 'blocked');
-    if (h.tok && fe === te && h.tok !== 'ret'){
-      // a unit buffing itself: a small curl over its own top corner
-      const side = h.by === 0 ? 1 : -1, ex = side > 0 ? tr.right - sr.left - 8 : tr.left - sr.left + 8, ey = tr.top - sr.top + 10;
-      const path = document.createElementNS(NS, 'path');
-      path.setAttribute('d', `M${ex - side * 26},${ey - 6} C${ex - side * 20},${ey - 34} ${ex + side * 14},${ey - 30} ${ex},${ey}`);
-      path.setAttribute('class', cls); path.setAttribute('marker-end', `url(#${mk})`);
-      if (animate === true) path.style.animationDelay = (n * 90) + 'ms';
-      svg.appendChild(path);
-      const lbl = document.createElementNS(NS, 'text');
-      lbl.setAttribute('x', ex + side * 8); lbl.setAttribute('y', ey - 22); lbl.style.textAnchor = side > 0 ? 'start' : 'end';
-      lbl.setAttribute('class', `arl tok t-${h.tok}`); lbl.textContent = text;
-      if (animate === true) lbl.style.animationDelay = (n * 90 + 200) + 'ms';
-      svg.appendChild(lbl);
-      continue;
-    }
-    const cxOf = r => r.left + r.width / 2 - sr.left, cyOf = r => r.top + r.height / 2 - sr.top;
-    let x1, y1, x2 = cxOf(tr), y2;
-    if (fe){
-      const fr = rectOf(fe); x1 = cxOf(fr);
-      const down = cyOf(tr) > cyOf(fr);
-      y1 = down ? fr.bottom - sr.top - 6 : fr.top - sr.top + 6;
-      y2 = down ? tr.top - sr.top + 6 : tr.bottom - sr.top - 6;
-      if (Math.abs(cyOf(tr) - cyOf(fr)) < 20){ y1 = fr.top - sr.top + 6; y2 = tr.top - sr.top + 6; }   // same row: arc over
-    } else {   // a building: from that player's edge of the table
-      x1 = x2; y1 = h.by === 0 ? sr.height - 4 : 4;
-      y2 = h.by === 0 ? tr.bottom - sr.top - 6 : tr.top - sr.top + 6;
-    }
-    const sideways = (h.by === 0 ? 1 : -1) * (22 + n * 16) + (x2 - x1) * 0.1;
-    const cx = (x1 + x2) / 2 + sideways, cy = (y1 + y2) / 2 + (Math.abs(y2 - y1) < 30 ? -34 : 0);
     const path = document.createElementNS(NS, 'path');
-    path.setAttribute('d', `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`);
     path.setAttribute('class', cls); path.setAttribute('marker-end', `url(#${mk})`);
     if (animate === true) path.style.animationDelay = (n * 90) + 'ms';
     svg.appendChild(path);
     const lbl = document.createElementNS(NS, 'text');
-    lbl.setAttribute('x', (x1 + 2 * cx + x2) / 4 + (h.by === 0 ? 6 : -6)); lbl.setAttribute('y', (y1 + 2 * cy + y2) / 4 + 4);
-    lbl.style.textAnchor = h.by === 0 ? 'start' : 'end';   // yours label to the right of its arc, the AI's to the left
     lbl.setAttribute('class', h.tok ? `arl tok t-${h.tok}` : `arl s${h.by}`); lbl.textContent = text;
     if (animate === true) lbl.style.animationDelay = (n * 90 + 200) + 'ms';
     svg.appendChild(lbl);
+    // each arrow remembers what it joins, so it can be re-aimed at the cards wherever they are drawn on screen
+    path._arw = {from:h.from, to:h.to, chip:chipSel, by:h.by, n, self:!!(h.tok && h.from === h.to && h.tok !== 'ret'), lbl};
+    placeArrow(path, stage, sr);
   }
   svg.dataset.full = drawn >= pairs.size ? '1' : '0';   // an arrow to a unit that doesn't exist yet (a new Recruit) is missing
   stage.appendChild(svg);
   if (animate === 'quiet') svg.classList.add('quiet');
-  if (animate === true) for (const p of svg.querySelectorAll('.arw:not(.tok)')){ const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; }
+  if (animate === true) for (const p of svg.querySelectorAll('.arw:not(.tok)')){ const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+    p.addEventListener('animationend', () => { p.style.animation = 'none'; p.style.strokeDasharray = ''; p.style.strokeDashoffset = '0'; }, {once:true}); }
+  followArrows();
 }
 const stepArrows = () => ui.battle ? ui.battle.frames[ui.frame].lines.filter(l => l.to) : [];
 let arrowRz = null;
