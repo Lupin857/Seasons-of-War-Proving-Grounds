@@ -1148,6 +1148,27 @@ body.dsopen{overflow:hidden}
   .decksheet{z-index:80}
   .dsheet{max-height:88vh}
 }
+
+/* keywords in the pop-up card */
+.peek b.kw,.sheetmir b.kw,.peekmir b.kw{font-weight:800;color:var(--ink)}
+.kwgloss{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:8px;border-top:1px solid var(--line);flex:none!important}
+.kwgloss .eyebrow{font-size:.62rem}
+.kwgloss dl{margin:0;display:flex;flex-direction:column;gap:5px}
+.kwgloss dl>div{font-size:.84rem;line-height:1.35;color:var(--muted)}
+.kwgloss dt{display:inline;font-weight:800;color:var(--ink)}
+.kwgloss dt::after{content:": "}
+.kwgloss dd{display:inline;margin:0}
+.kwgloss b.kw{font-weight:700;color:var(--ink)}
+.kwminis{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.kwmini{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:var(--bg);box-shadow:inset 0 3px 0 var(--muted);font-size:.78rem;line-height:1.3;color:var(--muted)}
+.kwmini.b{box-shadow:inset 0 3px 0 var(--or)}
+.kwmini.tok{background:color-mix(in srgb,currentColor 10%,var(--surface));box-shadow:inset 0 3px 0 currentColor;color:var(--muted)}
+.kwmini.t-armament{color:var(--or)} .kwmini.t-training{color:var(--azure)} .kwmini.t-shield{color:var(--ok)}
+.kwmini .kwmn{font-weight:700;color:var(--ink);display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.kwmini.tok .kwmn{color:currentColor}
+.kwmini .kwmn i{font-style:normal;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.kwmini .kwmt{color:var(--muted)}
+.kwmini b.kw{color:var(--ink)}
 </style>
 
 <div class="wrap">
@@ -7440,6 +7461,113 @@ function markMore(){
   }
 }
 let press = null, peekEl = null, eatClick = false, peekReady = false;
+
+/* ===== Keywords on the large pop-up card =====
+   Every keyword in a card's (and its miracles') rules text is shown capitalized and bold. Under the text, a glossary
+   defines each keyword the card uses, plus every keyword those definitions need, and shows a mini card for each
+   token or card the text names. One shared list; the definitions mirror the Keywords tab of the SOW rules sheet. */
+const KW = [
+  // [id, shown as, pattern (case-insensitive), definition]  (no definition = bold only)
+  ['wrev', 'While Revealed', 'while revealed', 'Active as long as this unit is your **Revealed Unit**.'],
+  ['wchg', 'While Charging', 'while charging', 'Active as long as this unit is your **Charging Unit**.'],
+  ['death', 'On My Death', 'on my death', 'Triggers immediately when this unit **Dies**, before any units move.'],
+  ['bstart', 'Battle Start', 'battle start', 'Triggers once as the battle begins.'],
+  ['revu', 'Revealed Unit', 'revealed units?|revealed', 'The top card of your deck during battle.'],
+  ['chgu', 'Charging Unit', 'charging units?|charging', 'The unit in your charge zone. It fights the enemy **Charging Unit**.'],
+  ['charge', 'Charge', 'charges?(?! zones?)', 'Triggers when this unit moves into your charge zone.'],
+  ['reveal', 'Reveal', 'reveal', 'Triggers when this unit becomes the top card of your deck, including at the start of a battle.'],
+  ['mob', 'Mobilize', 'mobilize', 'Triggers during the Mobilize phase.'],
+  ['shop', 'Shop', 'shops?', 'Active during the Shop phase.'],
+  ['van', 'Vanguard', 'vanguard', 'The first unit in your deck’s **Mobilize** order, tokens included. A unit stays the Vanguard for the whole battle, even after it moves or **Dies**.'],
+  ['rear', 'Rearguard', 'rearguard', 'The last unit in your deck’s **Mobilize** order, tokens included. A unit stays the Rearguard for the whole battle, even after it moves or **Dies**.'],
+  ['ahead', 'Ahead of Me / Behind Me', 'ahead of me|behind me', 'Units form one line: your deck, your charge zone, the enemy’s charge zone, the enemy’s deck. “Ahead of me” is the next unit toward the enemy; “behind me” is the next unit toward the bottom of my deck. Empty zones are skipped. Graveyards don’t count.'],
+  ['grave', 'Graveyard', 'graveyards?', 'Where your units go when they **Die**, keeping their tokens. They return to your deck after each battle.'],
+  ['overrun', 'Overrun', 'overrun', 'If this damage kills its target, the leftover damage hits the next enemy unit behind the target.'],
+  ['stealth', 'Stealth', 'stealth', 'In a fight, I **Attack** the enemy **Revealed Unit** (if there is one) instead of the enemy **Charging Unit**. The enemy **Charging Unit** still attacks me.'],
+  ['level', 'Level', 'levels?', 'Values written X/X/X have one number per level. A card’s level equals its number of copies: 1 copy uses the first number, 2 copies the second, and so on. Copies beyond the highest level have no extra effect.'],
+  ['train', 'Train', 'train', '**Attach** a **Training** token to the unit.'],
+  ['token', 'Token', 'tokens?', 'A card or marker gained from an ability. Tokens don’t count toward the unique-unit limit and don’t combine.'],
+  ['attach', 'Attach', 'attach(?:es|ed)?', 'Place a token directly behind a unit. It stays with that unit, even in the **Graveyard**.'],
+  ['income', 'Income', 'income', 'Money you gain each shop, on top of $3.'],
+  ['city', 'City', 'city', 'Where your buildings go: 5 slots.'],
+  ['power', 'Power', 'power', ''],
+  ['attack', 'Attack', 'attacks?', ''],
+  ['dies', 'Dies', 'dies|die|died', ''],
+  // named tokens and cards: shown as mini cards
+  ['c:Armament', 'Armament', 'armaments?', ''],
+  ['c:Shield', 'Shield', 'shields?', ''],
+  ['c:Training', 'Training', 'training', ''],
+  ['c:Recruit', 'Recruit', 'recruits?', ''],
+  ['c:Field', 'Field', 'fields?', '']
+];
+const KW_BY = Object.fromEntries(KW.map(k => [k[0], k]));
+const KW_RE = new RegExp(`\\b(?:${KW.map(k => `(${k[2]})`).join('|')})\\b`, 'gi');
+const KW_TOKENS = {
+  Armament:'**Token**. **Attach**ed to a unit, it gives that unit +1 **Power**.',
+  Shield:'**Token**. **Attach**ed to a unit. If that unit would take damage, discard one Shield instead.',
+  Training:'**Token**. **Attach**ed to a unit, it counts as an extra copy of that unit for its **Level**. It can\u2019t raise a unit past its highest level.'
+};
+const kwTitle = t => t.replace(/\b[a-z]/g, c => c.toUpperCase()).replace(/ Of /g, ' of ');
+// find keyword ids in plain text, in order of first appearance
+function kwScan(text, into){
+  KW_RE.lastIndex = 0; let m;
+  while ((m = KW_RE.exec(text))){ const i = m.slice(1).findIndex(Boolean); if (i >= 0) into.add(KW[i][0]); }
+  return into;
+}
+// bold and capitalize every keyword inside an element's rules text; returns the ids found
+function kwDecorate(root, into){
+  into = into || new Set();
+  root.querySelectorAll('.tx, .mtx, .kwt').forEach(el => {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [];
+    while (w.nextNode()) if (!w.currentNode.parentElement.closest('b.kw')) nodes.push(w.currentNode);
+    for (const n of nodes){
+      const t = n.nodeValue; KW_RE.lastIndex = 0; if (!KW_RE.test(t)) continue;
+      KW_RE.lastIndex = 0;
+      const f = document.createDocumentFragment(); let last = 0, m;
+      while ((m = KW_RE.exec(t))){
+        const i = m.slice(1).findIndex(Boolean); into.add(KW[i][0]);
+        f.append(t.slice(last, m.index));
+        const b = document.createElement('b'); b.className = 'kw'; b.textContent = kwTitle(m[0]); f.append(b);
+        last = m.index + m[0].length;
+      }
+      f.append(t.slice(last)); n.replaceWith(f);
+    }
+  });
+  return into;
+}
+// definition / mini-card text: **bold** marks, then every keyword bolded and capitalized like the card text
+function kwText(src){
+  const raw = esc(src).replace(/\*\*(.+?)\*\*/g, '$1');
+  return raw.replace(KW_RE, m => `<b class="kw">${kwTitle(m)}</b>`);
+}
+const kwPlain = src => src.replace(/\*\*(.+?)\*\*/g, '$1');
+function kwMiniText(name){
+  if (KW_TOKENS[name]) return KW_TOKENS[name];
+  const d = DEFS[name] || BDEFS[name]; return d ? d.t : '';
+}
+// every keyword the card uses, then every keyword their definitions and mini cards use, until nothing new turns up
+function kwClosure(ids, self){
+  const out = new Set(ids); let grew = true;
+  while (grew){
+    grew = false;
+    for (const id of [...out]){
+      const k = KW_BY[id]; const txt = id.startsWith('c:') ? kwMiniText(id.slice(2)) : k[3];
+      const before = out.size; kwScan(kwPlain(txt || ''), out); if (out.size > before) grew = true;
+    }
+  }
+  if (self) out.delete('c:' + self);
+  return out;
+}
+function kwGlossHTML(ids, self){
+  const all = [...kwClosure(ids, self)];
+  const defs = all.filter(id => !id.startsWith('c:') && KW_BY[id][3]);
+  const minis = all.filter(id => id.startsWith('c:'));
+  if (!defs.length && !minis.length) return '';
+  const tok = n => !!KW_TOKENS[n];
+  const mini = id => { const n = id.slice(2), b = !!BDEFS[n] && !DEFS[n];
+    return `<div class="kwmini ${tok(n) ? 'tok t-' + n.toLowerCase() : b ? 'b' : 'u'}"><span class="kwmn">${esc(n)}${tok(n) ? '<i>Token</i>' : ''}</span><span class="kwmt">${kwText(kwMiniText(n))}</span></div>`; };
+  return `<div class="kwgloss">${defs.length ? `<span class="eyebrow">Keywords</span><dl>${defs.map(id => `<div><dt>${esc(KW_BY[id][1])}</dt><dd>${kwText(KW_BY[id][3])}</dd></div>`).join('')}</dl>` : ''}${minis.length ? `<span class="eyebrow">Tokens and cards named</span><div class="kwminis">${minis.map(mini).join('')}</div>` : ''}</div>`;
+}
 function openPeek(card, byTap){
   closePeek(true);
   const r = card.getBoundingClientRect(), w = Math.min(320, window.innerWidth - 32);
@@ -7447,6 +7575,13 @@ function openPeek(card, byTap){
   const pk = card.cloneNode(true);
   pk.querySelectorAll('.dealback, .mirpop').forEach(n => n.remove());
   pk.classList.add('peek'); pk.classList.remove('more', 'tapping', 'lifted', 'sel', 'cansel', 'target', 'notarget'); pk.removeAttribute('style'); pk.setAttribute('aria-hidden', 'true');
+  try{
+    const kwIds = kwDecorate(pk), mw0 = card.parentElement && card.parentElement.classList.contains('mirwrap') ? card.parentElement.querySelector('.mirhover') : null;
+    if (mw0) kwDecorate(mw0.cloneNode(true), kwIds);
+    const self = (pk.querySelector('.nm') || {}).textContent;
+    const gl = kwGlossHTML(kwIds, self && self.trim());
+    if (gl){ const btn = pk.querySelector(':scope > button'); if (btn) btn.insertAdjacentHTML('beforebegin', gl); else pk.insertAdjacentHTML('beforeend', gl); }
+  }catch(e){}
   if (compact()) return openSheet(card, pk, wrap);
   pk.style.width = w + 'px'; pk.style.left = '0px'; pk.style.top = '0px';
   wrap.appendChild(pk); document.body.appendChild(wrap);
@@ -7460,7 +7595,7 @@ function openPeek(card, byTap){
   // miracles behind it: the hover box, shown as its own box above the full-size card
   const mw = card.parentElement && card.parentElement.classList.contains('mirwrap') ? card.parentElement.querySelector('.mirhover') : null;
   if (mw){
-    const box = mw.cloneNode(true); box.classList.add('peekmir'); box.style.left = x + 'px'; box.style.width = w + 'px'; box.style.top = '0px';
+    const box = mw.cloneNode(true); try{ kwDecorate(box); }catch(e){} box.classList.add('peekmir'); box.style.left = x + 'px'; box.style.width = w + 'px'; box.style.top = '0px';
     wrap.appendChild(box);
     const bh = box.offsetHeight, py = Math.max(16, y);
     let by = py - bh - 12;
@@ -7480,7 +7615,7 @@ function openSheet(card, pk, wrap){
   const box = document.createElement('div'); box.className = 'sheet'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
   box.innerHTML = '<div class="sheethead"><span class="grab" aria-hidden="true"></span><button type="button" class="sheetx" aria-label="Close">✕</button></div>';
   const mw = card.parentElement && card.parentElement.classList.contains('mirwrap') ? card.parentElement.querySelector('.mirhover') : null;
-  if (mw){ const m = mw.cloneNode(true); m.className = 'sheetmir'; m.removeAttribute('aria-hidden'); box.appendChild(m); }
+  if (mw){ const m = mw.cloneNode(true); try{ kwDecorate(m); }catch(e){} m.className = 'sheetmir'; m.removeAttribute('aria-hidden'); box.appendChild(m); }
   pk.removeAttribute('aria-hidden'); box.appendChild(pk);
   pk.querySelectorAll('.dbtn button[aria-label]').forEach(b => { b.textContent = b.getAttribute('aria-label'); });   // spell out the ← → ✕ buttons
   // a hint under the buttons when there's nothing to do with the card right now
