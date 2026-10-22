@@ -1361,13 +1361,14 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 .dord b{font-family:var(--f-mono);font-weight:600;font-size:.82rem;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:var(--surface)}
 .dord i{font-style:normal;font-size:.56rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-top:3px}
 .dord.van,.dord.rear{color:var(--ink)}
-.dord.van b{background:var(--or);border-color:var(--or);color:var(--bg)}
+.dord.van{color:var(--azure)}
+.dord.van b{background:var(--azure);border-color:var(--azure);color:var(--bg)}
 .dragghost .dord{display:none}
-.mcard.drow.isvan:not(.dragghost){outline:2px solid var(--or);outline-offset:2px}
+.mcard.drow.isvan:not(.dragghost){outline:2px solid var(--azure);outline-offset:2px}
 .dend{display:flex;align-items:center;gap:6px;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted);padding-left:30px}
 .dend span{padding:1px 6px;border-radius:999px;border:1px solid currentColor}
-.dend.front{color:var(--or)}
-.dend.front span{background:var(--or);border-color:var(--or);color:var(--bg)}
+.dend.front{color:var(--azure)}
+.dend.front span{background:var(--azure);border-color:var(--azure);color:var(--bg)}
 /* bench tokens: the same size and shape as a unit card, one per kind, with how many are left */
 .mcard.tcard{cursor:grab;user-select:none;-webkit-user-select:none;align-items:stretch}
 .mcard.tcard.arm{box-shadow:inset 0 3px 0 var(--or);border-color:color-mix(in srgb,var(--or) 55%,var(--line))}
