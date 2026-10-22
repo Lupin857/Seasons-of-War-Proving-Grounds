@@ -1481,6 +1481,9 @@ html,body{overflow-x:clip}
 .astack>.mcard.b:not(.peek){box-shadow:inset 0 3px 0 var(--or),3px 3px 0 -1px var(--card),3px 3px 0 0 var(--card-line),6px 6px 0 -1px var(--card),6px 6px 0 0 var(--card-line),var(--card-sh)}
 /* Your deck / Enemy's deck buttons on the scoreboard: card-colored (white in light mode) so they stand out from the table */
 .board .deckbtn:not(.on){background:var(--card);border-color:var(--card-line)}
+/* the large pop-up card (press-and-hold, tap sheet on phones, miracles behind a card) matches the cards in the rows */
+.mcard.peek,.sheet .mcard.peek{background:var(--card)!important;border-color:var(--card-line)}
+.mirpop,.mirhover .mirseal,.mirpop .mirseal,.sheetmir .mirseal{background:var(--card)}
 /* the "Always available" label shows above them on every screen, phones included */
 .mktp .alwaysw .alab{display:block!important}
 @media (max-width:640px){ .mktp .alwaysw .alab{font-size:.56rem!important;letter-spacing:.02em!important;line-height:1.1} }
