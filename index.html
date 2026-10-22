@@ -893,6 +893,25 @@ html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobi
 .sheetnote{text-align:center;margin-top:-2px}
 html.sheet-open,html.sheet-open body{overflow:hidden}
 @media (prefers-reduced-motion: reduce){ .peekwrap.sheetwrap{animation:none} }
+
+/* phones: the whole market (6 units + 6 buildings) fits on one screen; card height follows the screen height */
+@media (max-width:640px){
+  .mktp{--ch:clamp(88px, calc((100vh - var(--mkfix, 372px)) / 4), 150px);gap:6px}
+  @supports (height:100dvh){ .mktp{--ch:clamp(88px, calc((100dvh - var(--mkfix, 372px)) / 4), 150px)} }
+  .mktp .mirwrap{--ms:15px}
+  .mktp .mirback .mn{font-size:.72rem} .mktp .mirback .ms{font-size:.7rem}
+  .mktp .mkthead h2{font-size:1.1rem}
+  .mktp .dealdeck{width:20px;height:27px;margin-right:2px}
+  .mktp .peekhint,.mktp .alwaysw .alab{display:none!important}
+  .mktp .msec{gap:3px!important}
+  .mktp .msec>.eyebrow{font-size:.6rem;line-height:1.1}
+  .mktp .market{row-gap:6px!important;column-gap:6px!important;gap:6px!important;padding-bottom:0}
+  .mktp .mcard:not(.peek):not(.masonpick){padding:5px 6px 6px!important;gap:1px!important}
+  .mktp .mcard:not(.peek) .nm{font-size:.8rem!important}
+  .mktp .mcard:not(.peek) .stx{-webkit-line-clamp:3;font-size:.7rem;padding-top:2px}
+  .mktp .musterbtn{padding:3px 10px;gap:8px;font-size:.85rem}
+  .mktp .mstack{transform:scale(.75);margin:-3px -4px}
+}
 </style>
 
 <div class="wrap">
