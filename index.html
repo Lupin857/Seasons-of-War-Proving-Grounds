@@ -1334,6 +1334,81 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 .mpile.empty .pcount{color:var(--muted)}
 .mphit{left:auto;right:-4px;top:-5px}
 @media (max-width:640px){ .mphit{left:auto} .pcount{font-size:.88rem} }
+/* ===== Mobilize: two columns, deck (left) and bench (right), each an overlapping stack of full-size cards =====
+   The deck is held face up like the physical game: the front card at the bottom is shown in full and is the Vanguard;
+   each card behind it shows a strip above it, back to the Rearguard at the top. */
+.forces.mob2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+.forces.mob2 [data-drag]{touch-action:none}
+.forces.mob2 .panel{gap:8px;min-width:0}
+.forces.mob2 h2{display:flex;align-items:center;gap:8px}
+.stack.dgrid{display:flex!important;flex-direction:column;align-items:stretch;gap:0!important;row-gap:0!important;padding:0 0 0!important;grid-template-columns:none!important;
+  --sc:var(--card-sq);--strip:52px;min-height:var(--sc);width:auto}
+#deck-list.stack{padding-left:30px!important;padding-right:26px!important;padding-top:4px!important}
+#bench-list.stack{padding-right:4px!important}
+/* every Mobilize card is the same square as everywhere else in the game */
+.stack.dgrid>.mcard:not(.peek),.stack.dgrid>.dropgap{flex:none;width:var(--sc)!important;height:var(--sc)!important;min-height:0!important;aspect-ratio:1/1!important;position:relative;margin:0}
+.dempty{width:var(--sc)}
+.stack.dgrid>*:not(:last-child){margin-bottom:calc(var(--strip) - var(--sc))!important}
+.stack.dgrid>.mcard:not(:last-child){box-shadow:inset 0 3px 0 var(--muted),0 -2px 6px rgba(0,0,0,.08)}
+/* a covered card shows its tokens only beside its own strip */
+#deck-list.stack>.mcard.drow:not(:last-child){clip-path:inset(-60px -60px calc(100% - var(--strip)) -40px)}
+#deck-list.stack .mcard.drow:not(.peek){overflow:visible!important}
+.stack .mcard>button,#bench-list.stack .mcard.bcard:not(.peek)>button{display:none!important}
+.dempty{display:flex;align-items:center;justify-content:center;text-align:center;height:var(--sc);border:2px dashed var(--line);border-radius:8px;color:var(--muted);font-size:.85rem;padding:10px}
+.stack:has(.dropgap) .dempty{display:none}
+/* fight order: a numbered rail on the left, the front card ringed, and labels at the back and the front */
+.dord{position:absolute;left:-30px;top:4px;width:26px;display:flex;flex-direction:column;align-items:center;line-height:1;color:var(--muted);pointer-events:none}
+.dord b{font-family:var(--f-mono);font-weight:600;font-size:.82rem;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:var(--surface)}
+.dord i{font-style:normal;font-size:.56rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-top:3px}
+.dord.van,.dord.rear{color:var(--ink)}
+.dord.van b{background:var(--or);border-color:var(--or);color:var(--bg)}
+.dragghost .dord{display:none}
+.mcard.drow.isvan:not(.dragghost){outline:2px solid var(--or);outline-offset:2px}
+.dend{display:flex;align-items:center;gap:6px;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted);padding-left:30px}
+.dend span{padding:1px 6px;border-radius:999px;border:1px solid currentColor}
+.dend.front{color:var(--or)}
+.dend.front span{background:var(--or);border-color:var(--or);color:var(--bg)}
+/* bench tokens: the same size and shape as a unit card, one per kind, with how many are left */
+.mcard.tcard{cursor:grab;user-select:none;-webkit-user-select:none;align-items:stretch}
+.mcard.tcard.arm{box-shadow:inset 0 3px 0 var(--or);border-color:color-mix(in srgb,var(--or) 55%,var(--line))}
+.mcard.tcard.tr{box-shadow:inset 0 3px 0 var(--azure);border-color:color-mix(in srgb,var(--azure) 55%,var(--line))}
+.mcard.tcard .tn{font-family:var(--f-mono);font-weight:700;font-size:.9rem!important}
+.mcard.tcard.arm .tn,.mcard.tcard.arm .tbig{color:var(--or)} .mcard.tcard.tr .tn,.mcard.tcard.tr .tbig{color:var(--azure)}
+.mcard.tcard .tbig{font-size:2.4rem;line-height:1;text-align:center;margin:6px 0 2px;opacity:.85}
+.mcard.tcard .stx{display:block!important;font-size:.72rem;line-height:1.25;color:var(--muted);-webkit-line-clamp:unset!important}
+.mcard.tcard.picked{background:var(--or-soft)!important;outline:2px solid var(--or);outline-offset:2px}
+.mcard.tcard.dragging{opacity:.5}
+/* the ⓘ for the phase you're in */
+.infob{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-height:0!important;padding:0!important;border-radius:50%;font-family:var(--f-body);font-style:italic;font-weight:700!important;font-size:.85rem;line-height:1;color:var(--muted);flex:none}
+.dock .dbar .infob{width:30px;height:30px;font-size:1rem}
+.dock .dbar .dphase{flex:none;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--or);color:var(--bg)}
+
+/* ===== ONE CARD SIZE: market, deck view and Mobilize =====
+   Every card in those three places is drawn by cardFace() and is a square of --card-sq. Change the size here and
+   it changes everywhere; the older --ch / --chd heights all point at it. Phones fit three across. */
+:root{--card-sq:140px}
+@media (max-width:860px){ :root{--card-sq:clamp(96px, calc((100vw - 64px) / 3), 132px)} }
+.mktp,.fcards,.dgrid,.deckwrap,.stack{--ch:var(--card-sq)!important;--chd:var(--card-sq)!important}
+/* market: columns are the card's width, so each card is a true square */
+.market{grid-template-columns:minmax(0,var(--card-sq)) 2px repeat(5,minmax(0,var(--card-sq)))!important;justify-content:start}
+.market.plain{grid-template-columns:repeat(6,minmax(0,var(--card-sq)))!important}
+@media (max-width:860px){ .market,.market.plain{grid-template-columns:repeat(3,minmax(0,var(--card-sq)))!important;justify-content:center} }
+.mktp .mcard:not(.peek):not(.masonpick),.mktp .mirwrap>.mcard:not(.peek){height:auto!important;aspect-ratio:1/1!important;min-height:0!important}
+/* deck view (the scoreboard's deck buttons) */
+.fcards{grid-template-columns:repeat(auto-fill,var(--card-sq))!important}
+.fcards .mcard:not(.peek){height:auto!important;aspect-ratio:1/1!important;min-height:0!important;width:var(--card-sq)}
+@media (max-width:640px){
+  .forces.mob2{gap:6px}
+  .forces.mob2 .panel{padding:8px 6px}
+  .forces.mob2 h2{font-size:1.05rem}
+  .forces.mob2 .deckp .infob{display:none}
+  .forces.mob2 .deckp>.row{display:none}
+  .forces.mob2 .deckp>.note{font-size:.76rem}
+  .stack.dgrid{--strip:54px}
+  #deck-list.stack{padding-left:28px!important;padding-right:20px!important}
+  .dord{left:-28px}
+  .dend{padding-left:28px;font-size:.6rem;letter-spacing:.06em}
+}
 </style>
 
 <div class="wrap">
@@ -5189,7 +5264,7 @@ function mobHintText(){
   if (ui.pick) return `Tap a unit in your deck to give it ${ui.pick === 'arm' ? 'an Armament' : 'a Training token'}.`;
   if (s && s.zone === 'deck' && d[s.i]) return `Tap another deck card to swap it with <b>${esc(d[s.i].name)}</b>, or tap the bench to bench it.`;
   if (s && s.zone === 'bench') return `Tap a deck card to put <b>${esc(s.name)}</b> in its place, or tap the deck's empty space to add it at the end.`;
-  return 'The top card fights first. Drag cards to reorder. Tap a card to move it between deck and bench; double-tap to read it.';
+  return '';
 }
 function dockHTML(){
   if (!G || ui.start || ui.roll || ui.remind) return '';
@@ -5215,9 +5290,9 @@ function dockHTML(){
     if (PP() && ui.handoff != null) return '';
     hint = mobHintText(); mine = !ui.planning;
     const lbl = ui.planning ? 'AI is planning…' : PP() && !G.net && S === 0 ? `Lock in, pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle';
-    body = `${ui.sel ? '<button type="button" data-act="sel-clear">Cancel</button>' : ''}<span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lbl}</button>`;
+    body = `${hint ? '' : `<span class="dphase">${esc(phase)}</span><button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button>`}${ui.sel ? '<button type="button" data-act="sel-clear">Cancel</button>' : ''}<span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lbl}</button>`;
   } else return '';
-  return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock">${boardHTML('dock')}<div class="dhint"><span class="dphase">${esc(phase)}</span><span class="dtxt">${hint}</span></div>
+  return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock">${boardHTML('dock')}<div class="dhint"${hint ? '' : ' hidden'}><span class="dphase">${esc(phase)}</span><span class="dtxt">${hint}</span></div>
     <div class="dbar">${body}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
 // "Taken by AI" placeholders keep their spot in the market for the rest of the shop
@@ -5399,6 +5474,7 @@ function placeTok(kind, to, from){
   if (from != null && d[from]) popTok(d[from], k);
   const o = tokOrder(u); o.push(k); u[k] = (u[k]||0) + 1; setTokOrder(u, o); ui.err = '';
 }
+function ordinal(n){ return n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'); }
 function handoffHTML(){
   const S = ui.handoff, O = 1 - S;
   return `<div class="panel handoff s${VS(S)}">
@@ -5429,40 +5505,51 @@ function mobilizeHTML(){
     const can = ui.pick && !tokBlock(ui.pick, u);
     const lv = u.name === 'Recruit' ? 1 : c + (u.tr||0);
     const sel = ui.sel && ui.sel.zone === 'deck' && ui.sel.i === i ? ' sel' : ui.sel ? ' cansel' : '';
-    return `<div class="mcard fcard u drow${sel}${ui.pick ? (can ? ' target' : ' notarget') : ''}" data-drag="deck" data-i="${i}" data-key="${esc(key)}" data-uname="${esc(u.name)}"${pk.style}>${pk.html}
+    const ord = `<span class="dord${i === 0 ? ' van' : ''}${i > 0 && i === d.length - 1 ? ' rear' : ''}" aria-hidden="true"><b>${i + 1}</b>${i === 0 ? '<i>Van</i>' : i === d.length - 1 ? '<i>Rear</i>' : ''}</span>`;
+    return `<div class="mcard fcard u drow${i === 0 ? ' isvan' : ''}${sel}${ui.pick ? (can ? ' target' : ' notarget') : ''}" data-drag="deck" data-i="${i}" data-key="${esc(key)}" data-uname="${esc(u.name)}" aria-label="${i === 0 ? 'Vanguard, fights first' : i === d.length - 1 ? 'Rearguard, fights last' : `Fights ${ordinal(i + 1)}`}: ${esc(u.name)}"${pk.style}>${pk.html}${ord}
       ${cardFace(u.name, 'u', lv)}
     </div>`;
-  }).join('');
-  // slots: one for every card you could field (each unit you own up to your unique limit, plus Mercenaries and Recruits)
-  const ownNames = Object.keys(me.hand).filter(n => n !== 'Recruit');
-  const nSlots = Math.max(1, d.length, Math.min(deckCap(me), ownNames.filter(n => !exemptUnit(n)).length) + ownNames.filter(n => exemptUnit(n)).length + recAvail);
-  const slotLab = i => i === 0 ? (d.length === 1 ? 'Vanguard · Rearguard' : 'Vanguard') : i === d.length - 1 ? 'Rearguard' : String(i + 1);
-  const slots = Array.from({length:nSlots}, (_, i) => `<div class="dslot${i < d.length ? ' filled' : ''}${i === 0 ? ' van' : ''}${i > 0 && i === d.length - 1 ? ' rear' : ''}"><span class="dlab">${slotLab(i)}</span></div>`).join('');
-  const spacers = '<div class="dspacer"></div>'.repeat(Math.max(0, nSlots - d.length));
+  });
   const avail = Object.keys(me.hand).filter(n => n !== 'Recruit' && !d.some(u => u.name === n));
-  const benchToks = [...Array(Math.max(0, smith - armUsed))].map(() => tokChip('arm', 'bench')).join('') + [...Array(Math.max(0, study - trUsed))].map(() => tokChip('tr', 'bench')).join('');
-  return `<div class="forces mob">
-    <div class="panel deckp"><h2>${PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck'}</h2>
-      <p class="note">Top card fights first. ${uniq}/${deckCap(me)} unique units${smith ? ` · Armaments ${armUsed}/${smith}` : ''}${study ? ` · Training ${trUsed}/${study}` : ''}${recAvail ? ` · Recruits ${recUsed}/${recAvail}` : ''}</p>
+  // one card per kind of token, with how many are left on it
+  const tokCards = (smith - armUsed > 0 ? tokCard('arm', smith - armUsed) : '') + (study - trUsed > 0 ? tokCard('tr', study - trUsed) : '');
+  const benchUnits = avail.map(n => { const c = me.hand[n];
+        return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
+        ${cardFace(n, 'u', c)}
+        <button type="button" data-act="d-add" data-name="${esc(n)}">Add to deck</button></div>`; }).join('')
+    + Array.from({length:Math.max(0, recAvail - recUsed)}, (_, k) => `<div class="mcard fcard u bcard${!k && ui.sel && ui.sel.zone === 'bench' && ui.sel.name === 'Recruit' ? ' sel' : ''}" data-drag="bench" data-name="Recruit">
+        ${cardFace('Recruit', 'u', 1)}
+        <button type="button" data-act="d-rec">Add to deck</button></div>`).join('');
+  const one = d.length === 1;
+  // the deck is held face up like the physical game: the front card (bottom of the column, shown in full) is the
+  // Vanguard and fights first; each card behind it peeks out above, back to the Rearguard at the top
+  return `<div class="forces mob2">
+    <div class="panel deckp"><h2>${PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck'} <button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button></h2>
+      <p class="note">${uniq}/${deckCap(me)} unique${smith ? ` · ⚒ ${armUsed}/${smith}` : ''}${study ? ` · ▲ ${trUsed}/${study}` : ''}${recAvail ? ` · Recruits ${recUsed}/${recAvail}` : ''}</p>
       ${mobMir.length ? `<p class="note">✶ Miracles in hand: ${mobMir.map(esc).join(', ')}. Their Recruits, Armaments and Training are on the bench; placing more than your own uses them up.${spend.length ? ` <b>This deck uses ${spend.map(esc).join(' and ')}.</b>` : ' This deck keeps them for later.'}</p>` : ''}
       ${ui.pick ? `<p class="pickhint">Tap a unit to give it ${ui.pick === 'arm' ? 'an Armament' : 'a Training token'}. <button type="button" class="small" data-act="t-cancel">Cancel</button></p>` : ''}
-      <div class="deckwrap"><div class="dgrid dslots" aria-hidden="true">${slots}</div><div class="list dropzone dgrid" id="deck-list" data-zone="deck">${rows}${spacers}</div></div>
+      ${d.length > 1 ? `<div class="dend back"><span>Back</span> Rearguard · fights last</div>` : ''}
+      <div class="list dropzone dgrid stack" id="deck-list" data-zone="deck">${rows.reverse().join('') || '<div class="dempty">Drag or tap units from the bench</div>'}</div>
+      ${d.length ? `<div class="dend front"><span>Front</span> ${one ? 'Vanguard and Rearguard' : 'Vanguard · fights first'}</div>` : ''}
       ${ui.err ? `<p class="err">${esc(ui.err)}</p>` : ''}
       <div class="row"><button type="button" data-act="suggest">Suggest a deck</button><span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${ui.planning ? 'The AI is planning its deck…' : PP() && !G.net && S === 0 ? `Lock in and pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle'}</button></div>
     </div>
-    <div class="sidecol">
     <div class="panel benchp dropzone" data-zone="bench"><h2>Bench</h2>
-      <p class="note mobhelp">${coarse() ? 'Drag units into your deck and drag them around to reorder. Tap a card to move it between your deck and the bench. Double-tap a card to read it.' : 'Drag units into your deck and drag them around to reorder. Click a card to move it between your deck and the bench. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to attach it (or tap the token, then a unit). Tap a unit to send its newest token back to the bench.' : ''}</p>
-      ${smith || study ? `<span class="eyebrow">Tokens</span><div class="tokbench dropzone" data-zone="bench">${benchToks || '<span class="note">All tokens placed.</span>'}</div><span class="eyebrow">Units</span>` : ''}
-      <div class="list dropzone dgrid" id="bench-list" data-zone="bench">${avail.map(n => { const c = me.hand[n];
-        return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
-        ${cardFace(n, 'u', c)}
-        <button type="button" data-act="d-add" data-name="${esc(n)}">Add to deck</button></div>`; }).join('') || '<p class="note">Every unit is in your deck.</p>'}
-      ${Array.from({length:Math.max(0, recAvail - recUsed)}, (_, k) => `<div class="mcard fcard u bcard${!k && ui.sel && ui.sel.zone === 'bench' && ui.sel.name === 'Recruit' ? ' sel' : ''}" data-drag="bench" data-name="Recruit">
-        ${cardFace('Recruit', 'u', 1)}
-        <button type="button" data-act="d-rec">Add to deck</button></div>`).join('')}</div>
+      <div class="list dropzone dgrid stack" id="bench-list" data-zone="bench">${tokCards + benchUnits || '<div class="dempty">Every unit is in your deck</div>'}</div>
     </div>
-    </div></div>`;
+  </div>`;
+}
+// the help behind the ⓘ during Mobilize
+const MOB_INFO = 'Mobilize: set your deck in secret. Your deck is held face up, like the physical game: the front card (the full card at the bottom) is your Vanguard and fights first, the cards behind it fight next in order, and the back card (at the top) is your Rearguard. Drag cards to reorder them, or tap a bench card to add it to the back. Drag a token onto a unit, or tap the token and then a unit. Tap a deck card to send its newest token back, or to bench it once it has none. Double-tap any card to read it.';
+// a bench token, the same size and shape as a unit card, with how many of that kind are left
+function tokCard(kind, n){
+  const lbl = kind === 'arm' ? 'Armament' : 'Training', fx = kind === 'arm' ? '+1 power' : '+1 level';
+  return `<div class="mcard tcard ${kind}${ui.pick === kind ? ' picked' : ''}" role="button" tabindex="0" data-drag="tok" data-tok="${kind}" data-act="t-pick" title="Drag onto a unit (or tap, then tap a unit)" aria-label="${n} ${lbl}${n > 1 ? 's' : ''} left: ${TOKRULES[kind]} Drag onto a unit, or tap it and then a unit.">
+    <div class="top"><span class="nm">${lbl}</span><span class="cost tn">×${n}</span></div>
+    <div class="curve">${fx}</div>
+    <span class="tbig" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span>
+    <div class="stx">${TOKRULES[kind]}</div>
+  </div>`;
 }
 function battleHTML(){
   const res = ui.battle, f = res.frames[ui.frame], w = res.result.w, last = res.frames.length - 1, atEnd = ui.frame === last;
@@ -6263,12 +6350,12 @@ function benchHas(n){
 }
 $('view-play').addEventListener('click', e => {
   // a picked bench token goes to the tapped unit
-  if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip,.pkhit')){
+  if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip,.tcard,.pkhit')){
     const row = e.target.closest('#deck-list .drow');
     if (row){ placeTok(ui.pick, +row.dataset.i); if (!ui.err) ui.pick = null; renderPlay(); return; }
   }
   // mobilize by tapping: tap a card to pick it up, tap another to swap (or place it), double-tap to read it
-  if (!ui.pick && G && G.phase === 'mobilize' && !ui.battle && ui.draft && !e.target.closest('button,.tokchip,.pkhit,select,input,a,summary')){
+  if (!ui.pick && G && G.phase === 'mobilize' && !ui.battle && ui.draft && !e.target.closest('button,.tokchip,.tcard,.pkhit,select,input,a,summary')){
     const card = e.target.closest('#deck-list .drow, #bench-list .bcard');
     if (card){ mobTap(card); return; }
     if (ui.sel){
@@ -6350,7 +6437,7 @@ $('view-play').addEventListener('click', e => {
 /* Tap play for Mobilize. A single tap waits a moment in case it's the first half of a double-tap (which opens the
    card to read). A single tap moves the card: deck → bench, bench → end of deck. A deck card with tokens first gives back its newest token, one per tap. */
 let mobTapT = null, mobTapK = null, mobTapAt = 0, mobTapRef = null;
-const mobKey = card => card.classList.contains('drow') ? 'd' + card.dataset.i : 'b' + card.dataset.name;
+const mobKey = card => card.classList.contains('drow') ? 'd' + card.dataset.i : 'b' + card.dataset.name;   // deck rows and bench units only
 function mobTap(card){
   const k = mobKey(card), now = performance.now();
   if (mobTapT && mobTapK === k && now - mobTapAt < 330){
@@ -6400,7 +6487,7 @@ function mobSlide(){
   }
 }
 document.addEventListener('keydown', e => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('tokchip')){ e.preventDefault(); e.target.click(); return; }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && (e.target.classList.contains('tokchip') || e.target.classList.contains('tcard'))){ e.preventDefault(); e.target.click(); return; }
   if (!ui.battle || $('view-play').hidden || e.target.closest('input,select,textarea')) return;
   if (e.key === 'ArrowRight'){ stepForward(); e.preventDefault(); }
   if (e.key === 'ArrowLeft'){ goFrame(Math.max(0, ui.frame - 1)); e.preventDefault(); }
@@ -6420,9 +6507,10 @@ function slideFrom(rects, els, ms){
   }
 }
 const deckRows = zone => [...zone.querySelectorAll('.drow')].filter(r => !drag || r !== drag.src);
+// the deck is laid out back (top) to front (bottom), so deck position `at` goes just above the card now at `at - 1`
 function placeGap(zone, at){
-  const rows = deckRows(zone || $('deck-list')), rects = new Map(rows.map(r => [r, r.getBoundingClientRect()]));
-  if (zone){ if (at < rows.length) zone.insertBefore(drag.line, rows[at]); else zone.insertBefore(drag.line, zone.querySelector('.dspacer')); }
+  const list = $('deck-list'), rows = deckRows(list), rects = new Map(rows.map(r => [r, r.getBoundingClientRect()]));
+  if (zone){ const m = rows.length, ref = at > 0 ? rows[m - at] : null; if (ref) list.insertBefore(drag.line, ref); else list.appendChild(drag.line); }
   else if (drag.line.parentNode) drag.line.remove();
   slideFrom(rects, rows);
 }
@@ -6460,7 +6548,7 @@ function dragMove(e){
     if (drag.kind === 'tok' || drag.kind === 'ton'){ drag.src.classList.add('dragging'); ui.pick = null; for (const r of document.querySelectorAll('#deck-list .drow')){ const u = ui.draft[+r.dataset.i]; r.classList.add(u && !tokBlock(drag.tok, u) ? 'target' : 'notarget'); } }
     else if (drag.kind === 'deck'){
       // the row lifts out and an empty slot of the same size stays behind
-      drag.src.parentNode.insertBefore(drag.line, drag.src); drag.src.hidden = true;
+      drag.src.parentNode.insertBefore(drag.line, drag.src); drag.src.hidden = true; drag.src.remove();
       drag.zone = 'deck'; drag.at = drag.i;
     } else drag.src.classList.add('dragging');
   }
@@ -6496,17 +6584,13 @@ function dragHover(){
   for (const z of document.querySelectorAll('.dropzone')) z.classList.toggle('over', z === zone && zone.dataset.zone !== 'deck');
   const zn = zone ? zone.dataset.zone : null;
   if (zn === 'deck'){
-    // the slot outlines behind the deck never move, so the drop spot can't flicker as cards slide aside
-    const rows = deckRows(zone), slots = [...document.querySelectorAll('.dslots .dslot')];
-    let at = rows.length, best = Infinity;
-    slots.forEach((sl, k) => {
-      const r = sl.getBoundingClientRect();
-      const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right), dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
-      const dd = dx * dx + dy * dy; if (dd < best){ best = dd; at = k; }
-    });
-    at = Math.min(at, rows.length);
-    if (best > 0 && drag.zone === 'deck' && drag.at >= 0) at = drag.at;   // in the gutter between slots: keep the current spot
-    if (at !== drag.at || drag.zone !== 'deck') placeGap(zone, at);
+    // every card shows a strip of the same height, the front card sits at the bottom, and the column's top never
+    // moves, so the drop spot comes straight from how far down the pointer is: steady while cards slide aside
+    const list = $('deck-list'), rows = deckRows(list), cs = getComputedStyle(list);
+    const strip = parseFloat(cs.getPropertyValue('--strip')) || 58, top = list.getBoundingClientRect().top + parseFloat(cs.paddingTop || 0);
+    const N = rows.length + 1, v = Math.max(0, Math.min(N - 1, Math.floor((e.clientY - top) / strip)));
+    const at = N - 1 - v;
+    if (at !== drag.at || drag.zone !== 'deck') placeGap(list, at);
     drag.at = at;
   } else if (drag.zone === 'deck'){ placeGap(null); drag.at = -1; }
   drag.zone = zn;
@@ -8182,7 +8266,7 @@ function endPress(){
   if (peekEl && !peekReady){ eatClick = true; setTimeout(() => { eatClick = false; peekReady = !!peekEl; }, 60); }
 }
 $('view-play').addEventListener('pointerdown', e => {
-  const card = e.target.closest('.mktp .mcard, .fcards .mcard, .dgrid .mcard'); if (!card || e.button > 0 || card.classList.contains('masonpick')) return;
+  const card = e.target.closest('.mktp .mcard, .fcards .mcard, .dgrid .mcard'); if (!card || e.button > 0 || card.classList.contains('masonpick') || card.classList.contains('tcard')) return;
   if (compact()) return;   // phones open a card with a tap instead
   if (e.pointerType !== 'mouse' && card.closest('.dgrid')) return;   // touch: holding a Mobilize card picks it up to drag; double-tap reads it
   endPress();
