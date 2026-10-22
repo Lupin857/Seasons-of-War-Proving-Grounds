@@ -1209,6 +1209,40 @@ body.dsopen{overflow:hidden}
 .tfcard.s1 .tfa{color:var(--gules)} .tfcard.s0 .tfa{color:var(--azure)}
 .tfcard.sell{opacity:.85;border-style:dashed}
 .tfcard b.kw{color:var(--ink)}
+
+/* ability notes beside the battlefield */
+.abwin{display:contents}
+.stage.hasab{display:grid;grid-template-columns:minmax(150px,210px) minmax(0,1fr) minmax(150px,210px);gap:0 14px;align-items:start}
+.stage.hasab>.abwin>.abcol.s0{grid-column:1;grid-row:1}
+.stage.hasab>.abwin>.abcol.s1{grid-column:3;grid-row:1}
+.stage.hasab>.linewrap{grid-column:2;grid-row:1;min-width:0}
+.abcol{display:flex;flex-direction:column;gap:8px;padding-top:44px;min-width:0}
+.abbox{position:relative;z-index:4;display:flex;flex-direction:column;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:.8rem;line-height:1.35;color:var(--muted);box-shadow:0 4px 14px rgba(0,0,0,.08);animation:abin .22s ease-out backwards}
+.abbox.s0{box-shadow:inset 3px 0 0 var(--azure),0 4px 14px rgba(0,0,0,.08)}
+.abbox.s1{box-shadow:inset -3px 0 0 var(--gules),0 4px 14px rgba(0,0,0,.08)}
+.abbox .abn{font-weight:800;font-size:.9rem;color:var(--ink)}
+.abbox.s0 .abn{color:var(--azure)} .abbox.s1 .abn{color:var(--gules)}
+.abbox b.kw{color:var(--ink)}
+.abbox .abtg{font-weight:700;color:var(--ink)}
+.abbox .lv{padding:0 2px}
+.ablines{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:5}
+.ablines .abl{fill:none;stroke-width:1.5;stroke-dasharray:4 3;opacity:.8}
+.ablines .abl.s0{stroke:var(--azure)} .ablines .abl.s1{stroke:var(--gules)}
+.ablines .abd.s0{fill:var(--azure)} .ablines .abd.s1{fill:var(--gules)}
+@keyframes abin{from{opacity:0;transform:translateY(4px)}}
+.abtog[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or)}
+@media (prefers-reduced-motion: reduce){ .abbox{animation:none} }
+@media (max-width:900px){ .stage.hasab{grid-template-columns:minmax(130px,170px) minmax(0,1fr) minmax(130px,170px);gap:0 10px} }
+@media (max-width:640px){
+  /* phones: the notes sit in two columns above the battlefield, yours left, theirs right */
+  .stage.hasab{display:block}
+  .abwin{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:4px 0 22px;align-items:start}
+  .abcol{padding-top:0}
+  .stage.hasab>.abwin>.abcol.s0{grid-column:1;grid-row:1}
+  .stage.hasab>.abwin>.abcol.s1{grid-column:2;grid-row:1}
+  .abbox{font-size:.74rem;padding:6px 7px}
+  .abbox .abn{font-size:.82rem}
+}
 </style>
 
 <div class="wrap">
@@ -1378,7 +1412,12 @@ function runBattle(cfgs, record){
             rear:deck.length ? deck[deck.length-1].uid : null,
             revealed:null, inf:!!cfg.infirmary, infUsed:false, treb:+cfg.treb||0, armory:cfg.armory ? BDEFS.Armory.lv[cfg.armory-1] : 0, yard:+cfg.yard||0};
   });
-  const log = record ? (t, side, meta) => logs.push(meta ? {t, side, ...meta} : {t, side}) : () => {};
+  // AB: the ability being resolved right now; every line it writes carries it (for the battle view's ability windows)
+  let AB = null;
+  const log = record ? (t, side, meta) => logs.push(AB ? {t, side, ...(meta || {}), ab:AB} : meta ? {t, side, ...meta} : {t, side}) : () => {};
+  const withAb = (ab, fn) => { if (!record) return fn(); const o = AB; AB = ab; try{ return fn(); } finally { AB = o; } };
+  const abU = (u, p) => ({n:u.name, as:u.copyOf || null, u:`${u.owner}-${u.uid}`, s:p});
+  const abB = (n, p) => ({n, b:true, s:p});
   const key = u => u.copyOf || u.name;
   const D = u => DEFS[key(u)];
   const maxLv = u => DEFS[u.name].p.length;
@@ -1422,12 +1461,13 @@ function runBattle(cfgs, record){
     if (lvl(u) >= maxLv(u)){ if (record) log(`${src} trains ${nameOf(u)}, but it is already at its highest level.`, side); return; }
     u.train++; if (record) log(`${src} trains ${nameOf(u)} to level ${lvl(u)} (${power(u)} power).`, side, tokMeta(srcUnit(src), u, side, 'tr', 1));
   }
-  function overrunHit(target, amt, src, side, spill){
+  function overrunHit(target, amt, src, side, spill, spillAb){
     const rem = power(target) - target.dmg;
     const dealt = hit(target, amt, src, side);
-    if (dealt > rem && rem >= 0 && spill && spill !== target) hit(spill, dealt - rem, `${src} (overrun)`, side);
+    if (dealt > rem && rem >= 0 && spill && spill !== target) withAb(spillAb || AB, () => hit(spill, dealt - rem, `${src} (overrun)`, side));
   }
-  function doReveal(u, p){
+  function doReveal(u, p){ return withAb(abU(u, p), () => doReveal0(u, p)); }
+  function doReveal0(u, p){
     const s = p;
     if (u.name === 'Jester' && !u.copyOf && !u.jFail){
       const k0 = P[p].deck.indexOf(u);
@@ -1462,7 +1502,8 @@ function runBattle(cfgs, record){
       case 'Scholar': { const c = P[p].charge; if (c && c !== u) for (let i = 0; i < v; i++) train(c, N, s); break; }
     }
   }
-  function doCharge(u, p){
+  function doCharge(u, p){ return withAb(abU(u, p), () => doCharge0(u, p)); }
+  function doCharge0(u, p){
     if (u.jFail) return;
     const s = p, N = record ? nameOf(u) : '', v = val(u);
     switch (key(u)){
@@ -1505,7 +1546,7 @@ function runBattle(cfgs, record){
       if (pl.inf && !pl.infUsed && !pl.charge && pl.deck.length === 0){
         const i = pl.grave.findIndex(u => u.uid === pl.van);
         if (i >= 0){ const u = pl.grave.splice(i,1)[0]; u.dmg = 0; pl.deck.push(u); pl.infUsed = true;
-          log(`Infirmary returns ${nameOf(u)} to the deck.`, p, record ? {from:null, to:`${u.owner}-${u.uid}`, by:p, amt:0, tok:'ret'} : undefined); return true; }
+          withAb(abB('Infirmary', p), () => log(`Infirmary returns ${nameOf(u)} to the deck.`, p, record ? {from:null, to:`${u.owner}-${u.uid}`, by:p, amt:0, tok:'ret'} : undefined)); return true; }
       }
     }
     return false;
@@ -1518,7 +1559,7 @@ function runBattle(cfgs, record){
         const c = P[p].charge, t = top(p);
         if (c && isDead(c) && t && key(t) === 'Barber-Surgeon' && !t.jFail && !isDead(t) && (t.saves || 0) < val(t)){
           t.saves = (t.saves || 0) + 1; c.dmg = 0; P[p].charge = null; P[p].deck.push(c);
-          log(`${nameOf(t)} saves ${nameOf(c)} and sends it to the bottom of the deck.`, p);
+          withAb(abU(t, p), () => log(`${nameOf(t)} saves ${nameOf(c)} and sends it to the bottom of the deck.`, p, record ? {from:`${t.owner}-${t.uid}`, to:null, by:p, amt:0} : undefined));
         }
       }
       const dying = [];
@@ -1537,7 +1578,7 @@ function runBattle(cfgs, record){
         const deck = P[d.p].deck;
         d.behind = (d.zone === 'c' ? deck : deck.slice(d.i + 1)).find(x => !dead.has(x)) || null;
       }
-      const replace = (u, p) => { if (key(u) === 'Cowardly Squire' && !u.jFail){ const k = val(u); if (k <= 0) return []; const rs = Array.from({length:k}, () => recruit(p)); log(`${nameOf(u)} is replaced by ${many(k, 'a Recruit', 'Recruits')}.`, p, tokMeta(u, rs[0], p, 'rec', k)); return rs; } return []; };
+      const replace = (u, p) => { if (key(u) === 'Cowardly Squire' && !u.jFail){ const k = val(u); if (k <= 0) return []; const rs = Array.from({length:k}, () => recruit(p)); withAb(abU(u, p), () => log(`${nameOf(u)} is replaced by ${many(k, 'a Recruit', 'Recruits')}.`, p, tokMeta(u, rs[0], p, 'rec', k))); return rs; } return []; };
       if (record) for (const d of dying) log(`${nameOf(d.u)} dies.`, d.p);
       for (const p of [0,1]){
         const pl = P[p];
@@ -1551,11 +1592,11 @@ function runBattle(cfgs, record){
         const u = d.u, p = d.p, N = record ? nameOf(u) : '';
         if (u.jFail) continue;
         const alive = b => b && (P[p].charge === b || P[p].deck.includes(b));
-        switch (key(u)){
+        withAb(abU(u, p), () => { switch (key(u)){
           case 'Desperate Infantry': { const t = enemyAhead(p); if (t) hit(t, val(u), `${N} (On My Death)`, p); break; }
           case 'Veteran Knight': { const b = d.behind; if (alive(b)){ b.arm += val(u); log(`${N} passes ${val(u)} ${plural(val(u), 'Armament')} to ${nameOf(b)}.`, p, tokMeta(u, b, p, 'arm', val(u))); } break; }
           case 'Aging Master': { const b = d.behind; if (alive(b)) for (let i = 0; i < val(u); i++) train(b, `${N} (On My Death)`, p); break; }
-        }
+        } });
       }
       frameIf('On My Death abilities');
     }
@@ -1566,7 +1607,7 @@ function runBattle(cfgs, record){
     if (!c[0] || !c[1]) return false;
     for (const p of [0,1]){
       if (key(c[p]) === 'Fencer' && !c[p].jFail && c[1-p].arm > 0 && val(c[p]) > 0){
-        const k = Math.min(val(c[p]), c[1-p].arm); c[1-p].arm -= k; c[p].arm += k; log(`${nameOf(c[p])} takes ${many(k, 'an Armament', 'Armaments')} from ${nameOf(c[1-p])}.`, p, tokMeta(c[1-p], c[p], p, 'arm', k));
+        const k = Math.min(val(c[p]), c[1-p].arm); c[1-p].arm -= k; c[p].arm += k; withAb(abU(c[p], p), () => log(`${nameOf(c[p])} takes ${many(k, 'an Armament', 'Armaments')} from ${nameOf(c[1-p])}.`, p, tokMeta(c[1-p], c[p], p, 'arm', k)));
       }
     }
     const atk = [0,1].map(p => {
@@ -1577,24 +1618,28 @@ function runBattle(cfgs, record){
     const tgt = [0,1].map(p => (key(c[p]) === 'Assassin' && !c[p].jFail && top(1-p)) ? top(1-p) : c[1-p]);
     for (const p of [0,1]){
       const t = top(p);
-      if (t && key(t) === 'Marksman' && !t.jFail) hit(c[1-p], power(t), record ? `${nameOf(t)} (first shot)` : '', p);
+      if (t && key(t) === 'Marksman' && !t.jFail) withAb(abU(t, p), () => hit(c[1-p], power(t), record ? `${nameOf(t)} (first shot)` : '', p));
     }
     frameIf('Before the fight');
     if (record) log(`${nameOf(c[0])} and ${nameOf(c[1])} fight.`);
     const killed = [false, false];   // Brawler: did my own attack kill the enemy charging unit?
     for (const p of [0,1]){
       const N = record ? nameOf(c[p]) : '', was = !isDead(c[1-p]);
-      if (key(c[p]) === 'Lancer' && !c[p].jFail) overrunHit(tgt[p], atk[p], N, p, top(1-p));
-      else hit(tgt[p], atk[p], N, p);
+      // a fight hit is the plain fight, unless an ability shaped it (Pikeman's bonus, Assassin's Stealth)
+      const shaped = (key(c[p]) === 'Pikeman' && !c[p].jFail && atk[p] > power(c[p])) || tgt[p] !== c[1-p];
+      withAb(shaped ? abU(c[p], p) : null, () => {
+        if (key(c[p]) === 'Lancer' && !c[p].jFail) overrunHit(tgt[p], atk[p], N, p, top(1-p), abU(c[p], p));
+        else hit(tgt[p], atk[p], N, p);
+      });
       killed[p] = was && tgt[p] === c[1-p] && isDead(c[1-p]);
     }
     for (const p of [0,1]){
       const t = top(p);
-      if (t && key(t) === 'Studious Squire' && !t.jFail){ const v = val(t); t.arm += v; log(`${nameOf(t)} watches and gains ${v} ${plural(v, 'Armament')}.`, p, tokMeta(t, t, p, 'arm', v)); }
+      if (t && key(t) === 'Studious Squire' && !t.jFail){ const v = val(t); t.arm += v; withAb(abU(t, p), () => log(`${nameOf(t)} watches and gains ${v} ${plural(v, 'Armament')}.`, p, tokMeta(t, t, p, 'arm', v))); }
     }
     // Brawler gains only if it survives the exchange, so the Armaments never save it from a lethal hit
     for (const p of [0,1]){
-      if (killed[p] && key(c[p]) === 'Brawler' && !c[p].jFail && !isDead(c[p])){ const v = val(c[p]); c[p].arm += v; log(`${nameOf(c[p])} wins the fight and gains ${v} ${plural(v, 'Armament')}.`, p, tokMeta(c[p], c[p], p, 'arm', v)); }
+      if (killed[p] && key(c[p]) === 'Brawler' && !c[p].jFail && !isDead(c[p])){ const v = val(c[p]); c[p].arm += v; withAb(abU(c[p], p), () => log(`${nameOf(c[p])} wins the fight and gains ${v} ${plural(v, 'Armament')}.`, p, tokMeta(c[p], c[p], p, 'arm', v))); }
     }
     return true;
   }
@@ -1628,10 +1673,10 @@ function runBattle(cfgs, record){
   const out = p => !P[p].charge && P[p].deck.length === 0;
 
   for (const p of [0,1]){ const t = top(p); if (t){ P[p].revealed = t.uid; log(`${nameOf(t)} is revealed as the Vanguard.`, p); } }
-  for (const p of [0,1]){ const t = top(p); if (P[p].armory && t){ t.sh += P[p].armory; log(`Armory gives ${nameOf(t)} ${P[p].armory} ${plural(P[p].armory, 'Shield')}.`, p, tokMeta(null, t, p, 'sh', P[p].armory)); } }
-  for (const p of [0,1]){ const t = top(p); if (P[p].yard && t) for (let k = 0; k < P[p].yard; k++) train(t, `${P[p].nm} Training Yard`, p); }
+  for (const p of [0,1]){ const t = top(p); if (P[p].armory && t){ t.sh += P[p].armory; withAb(abB('Armory', p), () => log(`Armory gives ${nameOf(t)} ${P[p].armory} ${plural(P[p].armory, 'Shield')}.`, p, tokMeta(null, t, p, 'sh', P[p].armory))); } }
+  for (const p of [0,1]){ const t = top(p); if (P[p].yard && t) withAb(abB('Training Yard', p), () => { for (let k = 0; k < P[p].yard; k++) train(t, `${P[p].nm} Training Yard`, p); }); }
   for (const p of [0,1]){
-    if (P[p].treb){ const t = top(1-p); if (t) overrunHit(t, BDEFS.Trebuchet.lv[P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1]); }
+    if (P[p].treb){ const t = top(1-p); if (t) withAb(abB('Trebuchet', p), () => overrunHit(t, BDEFS.Trebuchet.lv[P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1])); }
   }
   for (const p of [0,1]){ const t = top(p); if (t) doReveal(t, p); }
   frame('Battle start');
@@ -5231,7 +5276,7 @@ function battleHTML(){
   } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
   return `<div class="panel">
-    <div class="row battlectl"><button type="button" data-act="b-first" ${ui.frame===0?'disabled':''}>Start</button><button type="button" data-act="b-prev" ${ui.frame===0?'disabled':''}>Back</button><button type="button" class="primary" data-act="b-next" ${atEnd?'disabled':''}>Next step</button>${atEnd ? '<button type="button" data-act="b-replay">Replay fight</button>' : '<button type="button" data-act="b-last">Skip to end</button>'}<button type="button" class="autobtn" data-act="b-auto" aria-pressed="${autoOn() ? 'true' : 'false'}" title="Play the battle step by step on its own">${autoLabel()}</button><button type="button" class="speedbtn" data-act="b-speed" aria-pressed="${autoFast() ? 'true' : 'false'}" title="Auto-play speed" aria-label="Auto-play speed">${speedLabel()}</button><span class="note">${ui.frame+1} / ${res.frames.length} · ${esc(f.label)}</span></div>
+    <div class="row battlectl"><button type="button" data-act="b-first" ${ui.frame===0?'disabled':''}>Start</button><button type="button" data-act="b-prev" ${ui.frame===0?'disabled':''}>Back</button><button type="button" class="primary" data-act="b-next" ${atEnd?'disabled':''}>Next step</button>${atEnd ? '<button type="button" data-act="b-replay">Replay fight</button>' : '<button type="button" data-act="b-last">Skip to end</button>'}<button type="button" class="autobtn" data-act="b-auto" aria-pressed="${autoOn() ? 'true' : 'false'}" title="Play the battle step by step on its own">${autoLabel()}</button><button type="button" class="abtog" data-act="b-abwin" aria-pressed="${abOn() ? 'true' : 'false'}" title="Show a note for each ability that triggers in this step">Ability notes</button><button type="button" class="speedbtn" data-act="b-speed" aria-pressed="${autoFast() ? 'true' : 'false'}" title="Auto-play speed" aria-label="Auto-play speed">${speedLabel()}</button><span class="note">${ui.frame+1} / ${res.frames.length} · ${esc(f.label)}</span></div>
     <div class="stage">${lineHTML(f, PP() ? [poss(0), poss(1)] : ['Your','AI'])}${banner}</div>
     ${tail}
   </div>
@@ -5309,6 +5354,74 @@ function followArrows(){
     arrowRaf = requestAnimationFrame(tick);
   };
   arrowRaf = requestAnimationFrame(tick);
+}
+
+/* Ability notes: during a battle step, every ability that triggered gets a note beside the battlefield (yours on the
+   left, the opponent's on the right; on phones, two columns above it), with the card's name, its rules text at the
+   level it has, and who it hit in brackets. A thin line joins each note to its arrow (or to the card, when the ability
+   draws no arrow). Notes belong to the step on screen and go when you move on; they are hidden while auto-play runs,
+   and the Ability notes button turns them off. */
+const abOn = () => LS.get('sow-abwin') !== false;
+let abRaf = 0;
+function abGroups(f){
+  const groups = new Map();
+  for (const l of f.lines){ if (!l.ab) continue; const k = l.ab.u || `b:${l.ab.s}:${l.ab.n}`; if (!groups.has(k)) groups.set(k, {ab:l.ab, lines:[]}); groups.get(k).lines.push(l); }
+  return [...groups.values()];
+}
+function abNoteHTML(g, f, i){
+  const ab = g.ab, units = unitsOf(f, ['charge', 'deck', 'grave']);
+  const src = ab.u ? units.get(ab.u) : null, lvl = src ? src.lvl || 1 : 1;
+  let title, body;
+  if (ab.b){ const pl = G && G.players && G.players[ab.s]; title = ab.n; body = BDEFS[ab.n] ? cardTx(ab.n, 'b', pl ? bLvl(pl, ab.n) : 1, true) : ''; }
+  else { const nm0 = ab.as || ab.n; title = ab.as ? `${ab.n} (as ${ab.as})` : ab.n; body = DEFS[nm0] ? cardTx(nm0, 'u', lvl, true) : ''; }
+  const tg = [...new Set(g.lines.map(l => l.to).filter(x => x && x !== ab.u).map(x => { const u = units.get(x); return u ? u.name.replace(/^Jester → /, 'Jester as ') : null; }).filter(Boolean))];
+  return `<div class="abbox s${ab.s}" data-abi="${i}"><b class="abn">${esc(title)}</b><span class="abt"><span class="kwt">${body}</span>${tg.length ? ` <span class="abtg">(${tg.map(esc).join(', ')})</span>` : ''}</span></div>`;
+}
+function mountAbWin(){
+  const stage = $('view-play').querySelector('.stage'); if (!stage) return;
+  stage.querySelectorAll('.abwin, .ablines').forEach(n => n.remove()); stage.classList.remove('hasab');
+  cancelAnimationFrame(abRaf); abRaf = 0;
+  if (!ui.battle || !abOn() || autoOn()) return;
+  const f = ui.battle.frames[ui.frame], gs = abGroups(f); if (!gs.length) return;
+  const col = s => gs.map((g, i) => [g, i]).filter(([g]) => g.ab.s === s).map(([g, i]) => abNoteHTML(g, f, i)).join('');
+  const win = document.createElement('div'); win.className = 'abwin';
+  win.innerHTML = `<div class="abcol s0">${col(0)}</div><div class="abcol s1">${col(1)}</div>`;
+  try{ kwDecorate(win); }catch(e){}
+  stage.prepend(win); stage.classList.add('hasab');
+  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'ablines'); svg.setAttribute('aria-hidden', 'true');
+  stage.appendChild(svg);
+  const tick = () => {
+    if (!svg.isConnected){ abRaf = 0; return; }
+    placeAbLines(stage, svg, gs); abRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+function placeAbLines(stage, svg, gs){
+  const sr = stage.getBoundingClientRect(), phone = compact();
+  svg.setAttribute('width', Math.round(sr.width)); svg.setAttribute('height', Math.round(sr.height));
+  const paths = [...stage.querySelectorAll('.arrows:not(.out) path.arw')];
+  let out = '';
+  gs.forEach((g, i) => {
+    const box = stage.querySelector(`.abbox[data-abi="${i}"]`); if (!box) return;
+    const ab = g.ab, br = box.getBoundingClientRect();
+    // the arrow this ability drew, else the card (or building) itself
+    let pt = null;
+    const mine = paths.filter(p => p._arw && (ab.u ? p._arw.from === ab.u : (p._arw.by === ab.s && !p._arw.from && (p._arw.chip || '').includes(`"${ab.n}"`))));
+    const tgts = new Set(g.lines.map(l => l.to));
+    const pick = mine.find(p => tgts.has(p._arw.to)) || mine[0];
+    if (pick && pick.getTotalLength){ try{ const L = pick.getTotalLength(); if (L > 0){ const q = pick.getPointAtLength(L / 2); pt = {x:q.x, y:q.y}; } }catch(e){} }
+    if (!pt){
+      const el = ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`))
+                      : stage.querySelector(`.city[data-side="${ab.s}"] .bchip[data-b="${CSS.escape(ab.n)}"]`);
+      if (el){ const r = el.getBoundingClientRect(); if (r.width) pt = {x:r.left + r.width / 2 - sr.left, y:r.top + r.height / 2 - sr.top}; }
+    }
+    if (!pt) return;
+    const x1 = phone ? br.left + br.width / 2 - sr.left : ab.s === 0 ? br.right - sr.left : br.left - sr.left;
+    const y1 = phone ? br.bottom - sr.top : br.top + Math.min(22, br.height / 2) - sr.top;
+    const mx = phone ? x1 : (x1 + pt.x) / 2, my = phone ? (y1 + pt.y) / 2 : y1;
+    out += `<path class="abl s${ab.s}" d="M${x1},${y1} Q${mx},${my} ${pt.x},${pt.y}"/><circle class="abd s${ab.s}" cx="${pt.x}" cy="${pt.y}" r="3.5"/><circle class="abd s${ab.s}" cx="${x1}" cy="${y1}" r="2.5"/>`;
+  });
+  if (svg._last !== out){ svg.innerHTML = out; svg._last = out; }
 }
 function drawArrows(list, animate, rects){
   const stage = $('view-play').querySelector('.stage'); if (!stage) return;
@@ -5673,6 +5786,7 @@ function renderPlay(){
   const lw2 = $('view-play').querySelector('.linewrap'); if (lw2 && sx) lw2.scrollLeft = sx;
   if (ui.battle && lw2){
     drawArrows(stepArrows(), false);
+    mountAbWin();
     lw2.addEventListener('scroll', () => { if (!ui.animT) drawArrows(stepArrows(), 'quiet'); }, {passive:true});
   }
   if (ui.battle && ui.chronOpen){ const on = document.querySelector('.fr.on'); if (on) on.scrollIntoView({block:'nearest'}); }
@@ -5947,7 +6061,8 @@ $('view-play').addEventListener('click', e => {
     case 't-off': { sfx.soft(); const k = t.dataset.tok === 'arm' ? 'arm' : 'tr'; d[i][k] = Math.max(0, (d[i][k]||0) - 1); break; }
     case 'suggest': sfx.rustle(); ui.draft = draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH_HINT)) || []); break;
     case 'lock': lockDeck(); return;
-    case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); return; }
+    case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); mountAbWin(); return; }
+    case 'b-abwin': { sfx.soft(); LS.set('sow-abwin', !abOn()); t.setAttribute('aria-pressed', abOn() ? 'true' : 'false'); mountAbWin(); return; }
     case 'b-first': sfx.soft(); stopAuto(true); goFrame(0); return;
     case 'b-replay': sfx.soft(); stopAuto(true); goFrame(0); return;
     case 'b-prev': sfx.soft(); stopAuto(true); goFrame(Math.max(0, ui.frame - 1)); return;
