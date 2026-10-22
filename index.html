@@ -1090,11 +1090,13 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 }
 .mcard.cant>.zhw,.mirwrap>.mcard.cant>.zhw{opacity:.1}
 .fcards .zhw,.dgrid .zhw{--wm:84px}
-.mcard.peek .zhw{--wm:120px;top:50%}
+/* the pop-up card is taller than a market card (rules plus the keyword list), so its name chip sits in the flow
+   above the rules text instead of as a centered watermark that would land on top of the keyword definitions */
+.mcard.peek .zhw{position:relative;left:auto;top:auto;transform:none;opacity:.9;width:84px;height:84px;flex:none;align-self:center;margin:2px auto 4px;z-index:0}
 /* the phone sheet shows the chip at full strength above the rules */
 .sheet .mcard.peek .zhw{position:relative;left:auto;top:auto;transform:none;opacity:.9;width:88px;height:88px;flex:none;align-self:center;margin:2px auto 4px;z-index:0}
 .sheet .mcard.peek .zhw::after{inset:4px}
-.sheet .mcard.peek>.top,.sheet .mcard.peek>.curve{order:-1}
+.sheet .mcard.peek>.top,.sheet .mcard.peek>.curve,.mcard.peek>.top,.mcard.peek>.curve{order:-1}
 .stamps{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;display:flex;justify-content:center;gap:4px;pointer-events:none}
 .stamp{font-size:.7rem;font-weight:700;line-height:1.4;letter-spacing:.02em;padding:0 8px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;border:1px solid transparent}
 .stamp.st-need{color:var(--gules);border-color:var(--gules);background:var(--surface)}
@@ -5449,7 +5451,7 @@ function mountAbWin(){
   const col = (s, h) => gs.map((g, i) => [g, i]).filter(([g, i]) => g.ab.s === s && where[i] === h).map(([g, i]) => abNoteHTML(g, f, i)).join('');
   const win = document.createElement('div'); win.className = 'abwin';
   win.innerHTML = [0, 1].flatMap(s => ['L', 'R'].map(h => { const c = col(s, h); return c ? `<div class="abcol s${VS(s)} ${h}">${c}</div>` : ''; })).join('');
-  try{ kwDecorate(win); }catch(e){}
+  try{ kwDecorate(win, null, true); }catch(e){}   // no keyword list here, so each keyword explains itself on hover
   win.addEventListener('click', e => { const bx = e.target.closest('.abbox'); if (bx){ e.stopPropagation(); bx.classList.toggle('min'); } });
   stage.appendChild(win);
   const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'ablines'); svg.setAttribute('aria-hidden', 'true');
@@ -7857,8 +7859,9 @@ function kwScan(text, into){
   while ((m = KW_RE.exec(text))){ const i = m.slice(1).findIndex(Boolean); if (i >= 0) into.add(KW[i][0]); }
   return into;
 }
-// bold and capitalize every keyword inside an element's rules text (each with its tooltip); returns the ids found
-function kwDecorate(root, into){
+// bold and capitalize every keyword inside an element's rules text; returns the ids found. With tips, each keyword
+// also gets a hover tooltip (used where no keyword list is shown, like the battle's ability notes; never on pop-ups)
+function kwDecorate(root, into, tips){
   into = into || new Set();
   root.querySelectorAll('.tx, .mtx, .kwt').forEach(el => {
     const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [];
@@ -7871,7 +7874,7 @@ function kwDecorate(root, into){
         const i = m.slice(1).findIndex(Boolean), id = KW[i][0]; into.add(id);
         f.append(t.slice(last, m.index));
         const b = document.createElement('b'); b.className = 'kw'; b.textContent = kwTitle(m[0]);
-        const tip = kwTip(id); if (tip) b.dataset.tip = tip;
+        const tip = tips && kwTip(id); if (tip) b.dataset.tip = tip;
         f.append(b);
         last = m.index + m[0].length;
       }
