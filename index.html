@@ -9,17 +9,17 @@
    Play stacks market → your forces → enemy forces; the battle view reuses the sandbox's battle line. */
 :root{
   --bg:#ECEEF1; --surface:#F8F9FB; --sunk:#E2E6EB; --ink:#1B2130; --muted:#5B6474; --line:#CDD3DC;
-  --azure:#2B579C; --gules:#A33A2F; --or:#9A7522; --or-soft:#F3EAD3; --ok:#2E7A4F;
+  --azure:#2B579C; --gules:#A33A2F; --or:#C8950A; --or-soft:#FCF0C6; --ok:#2E7A4F;
   --f-display:"IM Fell English SC", "Iowan Old Style", Georgia, serif;
   --f-body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   --f-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#11151C; --surface:#181E27; --sunk:#0D1117; --ink:#E3E7ED; --muted:#97A0AE; --line:#2B3340;
-  --azure:#7FA6E4; --gules:#E58476; --or:#D8B45C; --or-soft:#352C17; --ok:#6CC495; color-scheme:dark }}
+  --azure:#7FA6E4; --gules:#E58476; --or:#EBC45C; --or-soft:#3A2F12; --ok:#6CC495; color-scheme:dark }}
 :root[data-theme="dark"]{
   --bg:#11151C; --surface:#181E27; --sunk:#0D1117; --ink:#E3E7ED; --muted:#97A0AE; --line:#2B3340;
-  --azure:#7FA6E4; --gules:#E58476; --or:#D8B45C; --or-soft:#352C17; --ok:#6CC495; color-scheme:dark }
+  --azure:#7FA6E4; --gules:#E58476; --or:#EBC45C; --or-soft:#3A2F12; --ok:#6CC495; color-scheme:dark }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
   padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));padding-block:20px 48px}
