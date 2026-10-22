@@ -575,6 +575,18 @@ button.big{font-size:1.05rem;padding:10px 22px}
 .dealdeck .cb,.dealback{background:var(--azure);background-image:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--bg) 22%,transparent) 5px 7px);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
 .dealdeck .cb{position:absolute;inset:0;border-radius:5px}
 .dealdeck .cb:nth-child(1){transform:translate(4px,4px)} .dealdeck .cb:nth-child(2){transform:translate(2px,2px)}
+.dealdeck.b .cb,.mcard.b .dealback{background-color:var(--or)}
+.mshead{display:flex;align-items:center;gap:8px;min-height:30px}
+.sdeck{display:inline-flex;align-items:center;gap:8px;padding:3px 6px 3px 4px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted)}
+.sdeck .dealdeck{width:26px;height:35px;margin-right:4px}
+.sdeck .dkn{font-family:var(--f-mono);font-size:.78rem;font-variant-numeric:tabular-nums}
+button.sdeck.bmready{border-color:var(--or);background:var(--or-soft);color:var(--ink)}
+button.sdeck.bmready:hover{border-color:var(--ink)}
+.sdeck.bmready .dealdeck{animation:pileglow 1.6s ease-in-out infinite;border-radius:6px}
+.bmtag{font-size:.8rem;font-weight:700;white-space:nowrap}
+.bmtag b{font-family:var(--f-mono);font-weight:600;font-size:.74rem;color:var(--or)}
+.peekhead.u{color:var(--azure)} .peekhead.b{color:var(--or)}
+@media (prefers-reduced-motion: reduce){ .sdeck.bmready .dealdeck{animation:none;filter:drop-shadow(0 0 3px var(--or))} }
 .mcard{position:relative}
 .dealback{position:absolute;inset:-1px;border-radius:8px;z-index:5;pointer-events:none}
 header{position:relative}
@@ -640,7 +652,7 @@ header{position:relative}
   .toast{bottom:calc(var(--dockh,100px) + 12px)}
   /* the bar says whose turn it is and carries the main buttons, so the in-page copies step aside */
   .turnrow .turn{display:none}
-  .turnrow:not(.hasbm){display:none}
+  .turnrow{display:none}
   .battlectl [data-act="b-first"],.battlectl [data-act="b-next"],.battlectl [data-act="b-prev"]{display:none}
   .dock.ph-battle .dbar button,.dock.ph-mobilize .dbar button.primary{flex:1 1 0}
   .dock.ph-mobilize .dbar .grow{display:none}
@@ -983,7 +995,11 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
   .mktp .mirwrap{--ms:15px}
   .mktp .mirback .mn{font-size:.72rem} .mktp .mirback .ms{font-size:.7rem}
   .mktp .mkthead h2{font-size:1.1rem}
-  .mktp .dealdeck{width:20px;height:27px;margin-right:2px}
+  .mktp .dealdeck{width:18px;height:24px;margin-right:2px}
+  .mktp .mshead{min-height:26px;gap:6px}
+  .mktp .sdeck{padding:2px 6px 2px 3px;gap:5px}
+  .mktp .bmtag{font-size:.72rem}
+  .mktp .msec>.mshead>.eyebrow{font-size:.6rem;line-height:1.1}
   .mktp .peekhint,.mktp .alwaysw .alab{display:none!important}
   .mktp .msec{gap:3px!important}
   .mktp .msec>.eyebrow{font-size:.6rem;line-height:1.1}
@@ -1244,6 +1260,7 @@ body.dsopen{overflow:hidden}
   .abbox{font-size:.72rem;padding:5px 7px;line-height:1.3}
   .abbox .abn{font-size:.8rem}
 }
+body.ingame #view-play{min-height:calc(100dvh - 16px)}
 </style>
 
 <div class="wrap">
@@ -4040,6 +4057,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
   if (b.dataset.tab === 'lab') renderLab();
   if (b.dataset.tab === 'train') renderTrain();
   if (b.dataset.tab === 'stats') renderStats();
+  if (b.dataset.tab === 'play') toGame();
 });
 
 /* ===================== BATTLE VIEW ===================== */
@@ -4368,7 +4386,7 @@ function marketSnap(){
     const n = el.querySelector('.nm'); const name = n && n.textContent.trim();
     if (name && !m.has(name)) m.set(name, {el, r:el.getBoundingClientRect()});
   }
-  const dk = $('view-play').querySelector('.dealdeck'); if (dk) m.set('__deck', {el:null, r:dk.getBoundingClientRect()});
+  for (const k of ['u','b']){ const dk = $('view-play').querySelector(`.sdeck[data-k="${k}"] .dealdeck`); if (dk) m.set('__deck_' + k, {el:null, r:dk.getBoundingClientRect()}); }
   return m;
 }
 function flyBuys(i, before, mk){
@@ -4377,7 +4395,7 @@ function flyBuys(i, before, mk){
   for (const [k, now] of [['u', p.hand], ['b', p.city]]) for (const n in now) if ((now[n] || 0) > (before[k][n] || 0)) got.push(n);
   got.forEach((n, j) => {
     const tos = $('view-play').querySelectorAll(`.dsheet.s${i} .fcard${side}[data-card="${CSS.escape(n)}"]`), to = tos[tos.length - 1];
-    const src = mk.get(n) || mk.get("Mason's Guild") || mk.get('__deck');
+    const src = mk.get(n) || mk.get("Mason's Guild") || mk.get('__deck_' + cardKind(n)) || mk.get('__deck_u');
     if (to && src) setTimeout(() => flyCard(src, to), j * 140);
     else { const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => db.animate([{transform:'scale(1)'}, {transform:'scale(1.07)', background:'var(--or-soft)'}, {transform:'none'}], {duration:520, easing:'ease-out'}), 380 + j * 140); }
   });
@@ -4632,7 +4650,7 @@ function netPump(){
   if (!changed && !NET.err) return;
   if (!NET.live) return;
   renderPlay();
-  if (NET.battleNew){ NET.battleNew = false; window.scrollTo({top:0}); startAuto(); }
+  if (NET.battleNew){ NET.battleNew = false; toGame(); startAuto(); }
   for (const f of flights) flyBuys(f.i, f.own0, f.mk);
   if (toasts.length) showToast(toasts.join(' '));
 }
@@ -5139,6 +5157,19 @@ function showToast(text){
   el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
   clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 3000);
 }
+/* Each market row has its own face-down deck: units (blue backs) and buildings (gold backs). New market cards,
+   Black Market peeks and Vision peeks are dealt out of the deck they really come from. With Black Market ready,
+   both decks glow and say so; tapping one looks at its top cards (one deck per shop). */
+function sdeckHTML(k, bmOk, bmN){
+  const deck = k === 'b' ? G.bDeck : G.uDeck, n = deck.length, lbl = k === 'b' ? 'Buildings' : 'Units', w = k === 'b' ? 'building' : 'unit';
+  const ready = bmOk && n > 0;
+  const tip = ready ? `Black Market: look at the top ${Math.min(bmN, n)} ${w}${bmN > 1 ? 's' : ''} (one deck per shop).` : `${lbl} deck: ${n} card${n === 1 ? '' : 's'} left, face down.`;
+  const stack = `<span class="dealdeck ${k}" aria-hidden="true"><span class="cb"></span><span class="cb"></span><span class="cb"></span></span>`;
+  const inner = `${stack}<span class="dkn mono">${n}</span>${ready ? `<span class="bmtag">Black Market <b>· top ${Math.min(bmN, n)}</b></span>` : ''}`;
+  return `<div class="mshead"><span class="eyebrow">${lbl}</span><span class="grow"></span>${ready
+    ? `<button type="button" class="sdeck ${k} bmready" data-k="${k}" data-act="bm-${k}" title="${esc(tip)}" aria-label="${esc(tip)}">${inner}</button>`
+    : `<span class="sdeck ${k}" data-k="${k}" title="${esc(tip)}" aria-label="${esc(tip)}">${inner}</span>`}</div>`;
+}
 function shopHTML(){
   const S = seat(), O = 1 - S, me = G.players[S], b = G.buys[S], myTurn = cur(G) === S;
   const carp = bVal(me, "Carpenter's Guild");
@@ -5146,23 +5177,22 @@ function shopHTML(){
   const turnTxt = G.net ? (G.passed[S] ? `You passed. ${esc(nm(O))} is finishing their shopping.` : myTurn ? 'Your turn: buy one card or pass.' : `${esc(nm(O))} is shopping…`)
     : PP() ? `${esc(nm(S))}'s turn: buy one card or pass.${G.passed[O] ? ` ${esc(nm(O))} has passed.` : ''}`
     : G.passed[0] ? 'You passed. The AI is finishing its shopping.' : myTurn ? 'Your turn: buy one card or pass.' : 'The AI is thinking: it test-battles its options against your army…';
-  const bmBtns = bmOk ? `<span class="note">Black Market, pick one deck:</span><button type="button" data-act="bm-u" ${G.uDeck.length ? '' : 'disabled'}>Top ${bVal(me, 'Black Market')} units</button><button type="button" data-act="bm-b" ${G.bDeck.length ? '' : 'disabled'}>Top ${bVal(me, 'Black Market')} buildings</button>` : '';
+  const bmN = bVal(me, 'Black Market');
   return `${budgetHTML()}
-  <div class="row turnrow${bmOk ? ' hasbm' : ''}"><span class="turn ${myTurn ? '' : 'ai'}${PP() ? ` pp s${S}` : ''}">${turnTxt}</span>
+  <div class="row turnrow"><span class="turn ${myTurn ? '' : 'ai'}${PP() ? ` pp s${S}` : ''}">${turnTxt}</span>
     <span class="grow"></span>
-    ${bmBtns}
     <button type="button" class="primary passbtn" data-act="pass" ${myTurn ? '' : 'disabled'}>Pass</button></div>
   <div class="panel mktp show-${ui.mktTab === 'b' ? 'b' : 'u'}"><div class="mkthead"><h2>Market</h2><span class="grow"></span>${musterPileHTML()}
     <span class="mswitch seg" role="group" aria-label="Show market">${[['u','Units'],['b','Buildings']].map(([k, l]) => `<button type="button" data-act="mkt-tab" data-k="${k}" aria-pressed="${(ui.mktTab === 'b' ? 'b' : 'u') === k}">${l}</button>`).join('')}</span>
-    <span class="dealdeck" aria-hidden="true"><span class="cb"></span><span class="cb"></span><span class="cb"></span></span></div>
+</div>
     <p class="peekhint">Tap a card to read it${myTurn && !G.passed[S] ? ' and buy it' : ''}.</p>
     ${musterHTML()}
-    <div class="msec" data-k="u"><span class="eyebrow">Units</span>
+    <div class="msec" data-k="u">${sdeckHTML('u', bmOk, bmN)}
     <div class="market">${marketRow('u', 'du')}</div></div>
-    <div class="msec" data-k="b"><span class="eyebrow">Buildings</span>
+    <div class="msec" data-k="b">${sdeckHTML('b', bmOk, bmN)}
     <div class="market">${marketRow('b', 'db')}</div></div>
-    ${G.bm[S] ? `<span class="eyebrow">Black Market: ${G.bm[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}, $${bmOff(me)} off one card)</span><div class="market plain">${G.bm[S].cards.map((n, i) => marketCard(n, G.bm[S].k, 'bm', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
-    ${G.vis && G.vis[S] ? `<span class="eyebrow">Vision: ${G.vis[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}; buy one at normal price, the rest go to the bottom)</span><div class="market plain">${G.vis[S].cards.map((n, i) => marketCard(n, G.vis[S].k, 'vis', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
+    ${G.bm[S] ? `<span class="eyebrow peekhead ${G.bm[S].k === 'b' ? 'b' : 'u'}">Black Market: ${G.bm[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}, $${bmOff(me)} off one card)</span><div class="market plain peekrow" data-from="${G.bm[S].k === 'b' ? 'b' : 'u'}" data-key="${G.round}-${S}-bm-${G.bm[S].k}">${G.bm[S].cards.map((n, i) => marketCard(n, G.bm[S].k, 'bm', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
+    ${G.vis && G.vis[S] ? `<span class="eyebrow">Vision: ${G.vis[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}; buy one at normal price, the rest go to the bottom)</span><div class="market plain peekrow" data-from="${G.vis[S].k === 'b' ? 'b' : 'u'}" data-key="${G.round}-${S}-vis-${G.vis[S].k}">${G.vis[S].cards.map((n, i) => marketCard(n, G.vis[S].k, 'vis', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
   </div>
   <div class="panel logp"><span class="eyebrow">Recent moves</span>${logHTML()}</div>`;
 }
@@ -5702,7 +5732,7 @@ function shopLeftovers(){
   if (!names.length && !bm) return null;
   const items = [];
   if (names.length) items.push(`You still have <b>$${me.money}</b>, enough for ${names.length > 4 ? `${names.slice(0, 4).map(esc).join(', ')} and ${names.length - 4} more` : names.map(esc).join(', ').replace(/, ([^,]*)$/, ' or $1')}.`);
-  if (bm) items.push(`You haven't looked at your <b>Black Market</b> this shop.`);
+  if (bm) items.push(`You haven't looked at your <b>Black Market</b> this shop (tap the glowing unit or building deck).`);
   return items;
 }
 function mobilizeLeftovers(){
@@ -5783,12 +5813,19 @@ function turnFlash(big, small, kind, side, news){
   document.addEventListener('keydown', key, true);
   document.body.appendChild(el);
 }
+/* In a game, the page sits scrolled past the title banner so the scoreboard and board fill the screen (scroll up for the title and tabs). */
+var inGameView = false;
+function toGame(){
+  const v = $('view-play'); if (!v || v.hidden || !G || ui.start) return;
+  window.scrollTo({top: Math.max(0, v.getBoundingClientRect().top + window.scrollY - 8)});
+}
+function markGame(on){ const was = inGameView; inGameView = on; document.body.classList.toggle('ingame', on); if (on && !was) requestAnimationFrame(toGame); }
 function renderPlay(){
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(true); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale
-  if (NET && !NET.started && !ui.start){ $('view-play').innerHTML = netLobbyHTML(); return; }
-  if (!G || ui.start){ $('view-play').innerHTML = startHTML(); if (turnKey === null) turnKey = ''; return; }
-  if (ui.roll){ $('view-play').innerHTML = rollHTML(); if (turnKey === null) turnKey = ''; saveGame(); return; }
+  if (NET && !NET.started && !ui.start){ markGame(false); $('view-play').innerHTML = netLobbyHTML(); return; }
+  if (!G || ui.start){ markGame(false); $('view-play').innerHTML = startHTML(); if (turnKey === null) turnKey = ''; return; }
+  if (ui.roll){ markGame(false); $('view-play').innerHTML = rollHTML(); if (turnKey === null) turnKey = ''; saveGame(); return; }
   if (ui.battle && ui.frame >= ui.battle.frames.length - 1) ui.revealed = true;   // the result shows once the battle has played out (or been skipped)
   if (ui.sel && (G.phase !== 'mobilize' || ui.battle || !ui.draft || (ui.sel.zone === 'deck' && !ui.draft[ui.sel.i]) || (ui.sel.zone === 'bench' && !benchHas(ui.sel.name)))) ui.sel = null;
   const dealNow = !ui.battle && G.phase === 'shop' && ui.dealt !== G.round;
@@ -5820,6 +5857,8 @@ function renderPlay(){
   markMore();
   turnWatch();
   if (dealNow){ ui.dealt = G.round; dealMarket(); }
+  dealPeeks(dealNow);
+  markGame(true);
 }
 /* Save and resume: a game in progress (against the AI or pass and play) is kept in this browser after every change,
    so a phone that reloads the tab (switching apps, locking the screen) comes back to the same spot. Online games
@@ -5902,13 +5941,17 @@ function leaveToPile(rows){
    returning cards slide back in from the side; Recruit and Field just fade in. */
 function dealMarket(){
   if (reduceMotion()) return;
-  const deck = $('view-play').querySelector('.dealdeck'), rows = [...$('view-play').querySelectorAll('.mktp .market')].slice(0, 2);
-  if (!deck || !rows.length) return;
-  const dr = deck.getBoundingClientRect(), dcx = dr.left + dr.width / 2, dcy = dr.top + dr.height / 2;
+  const vp = $('view-play'), rows = ['u','b'].map(k => vp.querySelector(`.mktp .msec[data-k="${k}"] .market`));
+  const decks = {u:vp.querySelector('.sdeck[data-k="u"] .dealdeck'), b:vp.querySelector('.sdeck[data-k="b"] .dealdeck')};
+  if (!(decks.u || decks.b) || !rows.some(Boolean)) return;
+  const bobs = {u:0, b:0};
+  // every card is dealt from its own row's deck: units from the unit deck, buildings from the building deck
+  const from = el => { const k = (el.closest('.msec') || {}).dataset?.k === 'b' ? 'b' : 'u', d = decks[k] || decks.u || decks.b, r = d.getBoundingClientRect();
+    return {k, dr:r, dcx:r.left + r.width / 2, dcy:r.top + r.height / 2}; };
   // first, the cards that left the shop fly from their old slots into the Muster pile; then the deal starts
   const base = 120 + leaveToPile(rows);
   let n = 0, end = 0;
-  const cards = rows.flatMap(row => [...row.querySelectorAll('.mcard')]).filter(el => !el.classList.contains('ghost') && el.offsetParent);
+  const cards = rows.filter(Boolean).flatMap(row => [...row.querySelectorAll('.mcard')]).filter(el => !el.classList.contains('ghost') && el.offsetParent);
   // 1) returning cards slide back into their slots
   const returning = cards.filter(el => el.classList.contains('leaving') && !el.classList.contains('always'));
   let slideEnd = base;
@@ -5946,8 +5989,9 @@ function dealMarket(){
     const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
     const backsEl = wrapEl ? [...wrapEl.querySelectorAll('.mirback')].reverse() : [];
     if (el.classList.contains('leaving')) continue;   // already slid in above
+    const {k:dk, dr, dcx, dcy} = from(el);
     for (const b of backsEl){
-      const bd = dealBase + n++ * 85, br = b.getBoundingClientRect();
+      const bd = dealBase + n++ * 85, br = b.getBoundingClientRect(); bobs[dk]++;
       const bx = dcx - (br.left + br.width / 2), by = dcy - (br.top + br.height / 2), bs = Math.min(1, dr.width / br.width);
       sfx.flick(bd / 1000 + 0.05);
       b.animate([
@@ -5957,7 +6001,7 @@ function dealMarket(){
       ], {duration:520, delay:bd, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
       end = Math.max(end, bd + 520);
     }
-    const delay = dealBase + n++ * 85 + (backsEl.length ? 260 : 0);
+    const delay = dealBase + n++ * 85 + (backsEl.length ? 260 : 0); bobs[dk]++;
     const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
     sfx.flick(delay / 1000 + 0.05);
     const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
@@ -5972,7 +6016,33 @@ function dealMarket(){
     end = Math.max(end, delay + dur);
   }
   ui.dealUntil = performance.now() + end;
-  deck.animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:170, iterations:Math.max(1, n), delay:120});
+  for (const k of ['u','b']) if (decks[k] && bobs[k]) decks[k].animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:170, iterations:bobs[k], delay:120});
+}
+/* Black Market and Vision: the peeked cards come off the top of the deck they were taken from */
+const peekSeen = new Set();
+function dealPeeks(skip){
+  for (const row of $('view-play').querySelectorAll('.peekrow[data-key]')){
+    const key = row.dataset.key; if (peekSeen.has(key)) continue; peekSeen.add(key);
+    if (skip || reduceMotion()) continue;
+    const deck = $('view-play').querySelector(`.sdeck[data-k="${row.dataset.from}"] .dealdeck`); if (!deck) continue;
+    const dr = deck.getBoundingClientRect(), dcx = dr.left + dr.width / 2, dcy = dr.top + dr.height / 2;
+    let n = 0;
+    for (const el of row.querySelectorAll('.mcard')){
+      const r = el.getBoundingClientRect(); if (!r.width) continue;
+      const delay = 60 + n++ * 110, dur = 600;
+      const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
+      try{ sfx.flick(delay / 1000 + 0.05); }catch(e){}
+      const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
+      el.animate([
+        {transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0},
+        {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62},
+        {transform:'scaleX(0.04)', offset:.8},
+        {transform:'none', offset:1}
+      ], {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
+      back.animate([{opacity:1}, {opacity:1, offset:.8}, {opacity:0, offset:.801}, {opacity:0}], {duration:dur, delay, fill:'both'}).onfinish = () => back.remove();
+    }
+    if (n) deck.animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:150, iterations:n, delay:40});
+  }
 }
 // Lock in the deck being built at this screen (after a reminder about unused tokens, if any). Online it goes to the
 // room; pass-and-play hands the device to the second player, then fights; against the AI, the AI plans and fights.
@@ -5988,9 +6058,9 @@ function lockDeck(){
   if (G.net){ sfx.lock(); ui.err = ''; ui.pick = null; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => [netIx(u.name), u.arm || 0, u.tr || 0])]); return; }
   if (PP()){
     const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = ''; ui.pick = null;
-    if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); window.scrollTo({top:0}); return; }
+    if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); toGame(); return; }
     showBattle(playBattle(ui.drafts[0], ui.drafts[1])); ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
-    renderPlay(); window.scrollTo({top:0}); startAuto(); return;
+    renderPlay(); toGame(); startAuto(); return;
   }
   sfx.lock();
   ui.err = ''; ui.lastDraft = d; ui.planning = true; renderPlay();
@@ -6074,7 +6144,7 @@ $('view-play').addEventListener('click', e => {
     case 'mir-fav': doMove(['f']); return;
     case 'mir-peek': ui.mirOpen = ui.mirOpen === t.dataset.k ? null : t.dataset.k; renderPlay(); return;
     case 'sell-u': case 'sell-b': doMove(['s', act === 'sell-u' ? 'u' : 'b', t.dataset.name]); return;
-    case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); window.scrollTo({top:0}); return;
+    case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); toGame(); return;
     case 'd-add': d.push({name:t.dataset.name, arm:0, tr:0}); sfx.drop(); break;
     case 'd-rec': d.push({name:'Recruit', arm:0, tr:0}); sfx.drop(); break;
     case 'd-up': [d[i-1], d[i]] = [d[i], d[i-1]]; sfx.tick(); break;
@@ -6096,7 +6166,7 @@ $('view-play').addEventListener('click', e => {
     case 'b-last': sfx.soft(); goFrame(ui.battle.frames.length - 1); return;
     case 'fr': sfx.soft(); goFrame(+t.dataset.k); return;
     case 'banner-off': sfx.soft(); ui.bannerOff = true; renderPlay(); return;
-    case 'continue': if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); window.scrollTo({top:0}); return; }
+    case 'continue': if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
       sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
     case 'rec-copy': { sfx.soft(); const id = t.dataset.id; copyMatch(id ? (LS.get(MATCH_KEY) || []).find(r => String(r.id) === id) : G && G.rec); return; }
     case 'newgame': sfx.soft(); ui.start = true; ui.resignArm = false; renderPlay(); window.scrollTo({top:0}); return;
@@ -7698,58 +7768,84 @@ function markMore(){
 let press = null, peekEl = null, eatClick = false, peekReady = false;
 
 /* ===== Keywords on the large pop-up card =====
-   Every keyword in a card's (and its miracles') rules text is shown capitalized and bold. Under the text, a glossary
-   defines each keyword the card uses, plus every keyword those definitions need, and shows a mini card for each
-   token or card the text names. One shared list; the definitions mirror the Keywords tab of the SOW rules sheet. */
-const KW = [
-  // [id, shown as, pattern (case-insensitive), definition]  (no definition = bold only)
-  ['wrev', 'While Revealed', 'while revealed', 'Active as long as this unit is your **Revealed Unit**.'],
-  ['wchg', 'While Charging', 'while charging', 'Active as long as this unit is your **Charging Unit**.'],
-  ['death', 'On My Death', 'on my death', 'Triggers immediately when this unit **Dies**, before any units move.'],
-  ['bstart', 'Battle Start', 'battle start', 'Triggers once as the battle begins.'],
-  ['revu', 'Revealed Unit', 'revealed units?|revealed', 'The top card of your deck during battle.'],
-  ['chgu', 'Charging Unit', 'charging units?|charging', 'The unit in your charge zone. It fights the enemy **Charging Unit**.'],
-  ['charge', 'Charge', 'charges?(?! zones?)', 'Triggers when this unit moves into your charge zone.'],
-  ['reveal', 'Reveal', 'reveal', 'Triggers when this unit becomes the top card of your deck, including at the start of a battle.'],
-  ['mob', 'Mobilize', 'mobilize', 'Triggers during the Mobilize phase.'],
-  ['shop', 'Shop', 'shops?', 'Active during the Shop phase.'],
-  ['van', 'Vanguard', 'vanguard', 'The first unit in your deck’s **Mobilize** order, tokens included. A unit stays the Vanguard for the whole battle, even after it moves or **Dies**.'],
-  ['rear', 'Rearguard', 'rearguard', 'The last unit in your deck’s **Mobilize** order, tokens included. A unit stays the Rearguard for the whole battle, even after it moves or **Dies**.'],
-  ['ahead', 'Ahead of Me / Behind Me', 'ahead of me|behind me', 'Units form one line: your deck, your charge zone, the enemy’s charge zone, the enemy’s deck. “Ahead of me” is the next unit toward the enemy; “behind me” is the next unit toward the bottom of my deck. Empty zones are skipped. Graveyards don’t count.'],
-  ['grave', 'Graveyard', 'graveyards?', 'Where your units go when they **Die**, keeping their tokens. They return to your deck after each battle.'],
-  ['overrun', 'Overrun', 'overrun', 'If this damage kills its target, the leftover damage hits the next enemy unit behind the target.'],
-  ['stealth', 'Stealth', 'stealth', 'In a fight, I **Attack** the enemy **Revealed Unit** (if there is one) instead of the enemy **Charging Unit**. The enemy **Charging Unit** still attacks me.'],
-  ['level', 'Level', 'levels?', 'Values written X/X/X have one number per level. A card’s level equals its number of copies: 1 copy uses the first number, 2 copies the second, and so on. Copies beyond the highest level have no extra effect.'],
-  ['train', 'Train', 'train', '**Attach** a **Training** token to the unit.'],
-  ['token', 'Token', 'tokens?', 'A card or marker gained from an ability. Tokens don’t count toward the unique-unit limit and don’t combine.'],
-  ['attach', 'Attach', 'attach(?:es|ed)?', 'Place a token directly behind a unit. It stays with that unit, even in the **Graveyard**.'],
-  ['income', 'Income', 'income', 'Money you gain each shop, on top of $3.'],
-  ['city', 'City', 'city', 'Where your buildings go: 5 slots.'],
-  ['power', 'Power', 'power', ''],
-  ['attack', 'Attack', 'attacks?', ''],
-  ['dies', 'Dies', 'dies|die|died', ''],
-  // named tokens and cards: shown as mini cards
-  ['c:Armament', 'Armament', 'armaments?', ''],
-  ['c:Shield', 'Shield', 'shields?', ''],
-  ['c:Training', 'Training', 'training', ''],
-  ['c:Recruit', 'Recruit', 'recruits?', ''],
-  ['c:Field', 'Field', 'fields?', '']
-];
-const KW_BY = Object.fromEntries(KW.map(k => [k[0], k]));
-const KW_RE = new RegExp(`\\b(?:${KW.map(k => `(${k[2]})`).join('|')})\\b`, 'gi');
+   KEYWORDS below is the one dictionary for every keyword tooltip. To add a keyword, add a line; to change one,
+   edit its line. Everything else is built from it automatically: the matching (plurals like "charges" and
+   "graveyards" are found on their own), the bold keywords in card text, the hover tooltips on them, and the
+   Keywords list under a pop-up card. The pop-up lists only the keywords actually printed on that card.
+   Each entry is  'Name': 'definition'  or  'Name': {d:'definition', also:[other spellings], notBefore:[next words that mean it isn't this keyword]}.
+   A name written "A / B" matches either half. An empty definition just bolds the word. **Word** bolds inside a definition.
+   The definitions mirror the Keywords tab of the SOW rules sheet. */
+const KEYWORDS = {
+  'While Revealed': 'Active as long as this unit is your **Revealed Unit**.',
+  'While Charging': 'Active as long as this unit is your **Charging Unit**.',
+  'On My Death': 'Triggers immediately when this unit **Dies**, before any units move.',
+  'Battle Start': 'Triggers once as the battle begins.',
+  'Revealed Unit': {d:'The top card of your deck during battle.', also:['revealed']},
+  'Charging Unit': {d:'The unit in your charge zone. It fights the enemy **Charging Unit**.', also:['charging']},
+  'Charge': {d:'Triggers when this unit moves into your charge zone.', notBefore:['zone', 'zones']},
+  'Reveal': 'Triggers when this unit becomes the top card of your deck, including at the start of a battle.',
+  'Mobilize': 'Triggers during the Mobilize phase.',
+  'Shop': 'Active during the Shop phase.',
+  'Vanguard': 'The first unit in your deck’s **Mobilize** order, tokens included. A unit stays the Vanguard for the whole battle, even after it moves or **Dies**.',
+  'Rearguard': 'The last unit in your deck’s **Mobilize** order, tokens included. A unit stays the Rearguard for the whole battle, even after it moves or **Dies**.',
+  'Ahead of Me / Behind Me': 'Units form one line: your deck, your charge zone, the enemy’s charge zone, the enemy’s deck. “Ahead of me” is the next unit toward the enemy; “behind me” is the next unit toward the bottom of my deck. Empty zones are skipped. Graveyards don’t count.',
+  'Graveyard': 'Where your units go when they **Die**, keeping their tokens. They return to your deck after each battle.',
+  'Overrun': 'If this damage kills its target, the leftover damage hits the next enemy unit behind the target.',
+  'Stealth': 'In a fight, I **Attack** the enemy **Revealed Unit** (if there is one) instead of the enemy **Charging Unit**. The enemy **Charging Unit** still attacks me.',
+  'Level': 'Values written X/X/X have one number per level. A card’s level equals its number of copies: 1 copy uses the first number, 2 copies the second, and so on. Copies beyond the highest level have no extra effect.',
+  'Train': '**Attach** a **Training** token to the unit.',
+  'Token': 'A card or marker gained from an ability. Tokens don’t count toward the unique-unit limit and don’t combine.',
+  'Attach': {d:'Place a token directly behind a unit. It stays with that unit, even in the **Graveyard**.', also:['attached']},
+  'Income': 'Money you gain each shop, on top of $3.',
+  'City': 'Where your buildings go: 5 slots.',
+  'Power': '',
+  'Attack': '',
+  'Dies': {d:'', also:['die', 'died']}
+};
+// Tokens: shown as a mini card when a card names them. Add a token here and it is picked up the same way.
 const KW_TOKENS = {
   Armament:'**Token**. **Attach**ed to a unit, it gives that unit +1 **Power**.',
   Shield:'**Token**. **Attach**ed to a unit. If that unit would take damage, discard one Shield instead.',
-  Training:'**Token**. **Attach**ed to a unit, it counts as an extra copy of that unit for its **Level**. It can\u2019t raise a unit past its highest level.'
+  Training:'**Token**. **Attach**ed to a unit, it counts as an extra copy of that unit for its **Level**. It can’t raise a unit past its highest level.'
 };
-const kwTitle = t => t.replace(/\b[a-z]/g, c => c.toUpperCase()).replace(/ Of /g, ' of ');
+// Market cards that other cards name: shown as a mini card (their text comes from the card list itself)
+const KW_CARDS = ['Recruit', 'Field'];
+
+// ---- built automatically from the lists above: no need to edit below this line ----
+const KW = [];   // [id, shown as, pattern, definition]; minis use the id "c:Name"
+(function buildKW(){
+  const rx = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // one spelling -> a pattern: any spacing between words, and an optional plural ending on the last word
+  const pat = (sp, notBefore) => rx(sp.toLowerCase().trim()).replace(/\s+/g, '\\s+') + '(?:e?s)?' + (notBefore && notBefore.length ? `(?!\\s+(?:${notBefore.map(rx).join('|')})\\b)` : '');
+  const add = (id, shown, spellings, def, notBefore) => {
+    const uniq = [...new Set(spellings.map(x => x.trim()).filter(Boolean))];
+    KW.push([id, shown, uniq.map(sp => pat(sp, notBefore)).join('|'), def || '', Math.max(...uniq.map(x => x.length))]);
+  };
+  for (const [name, v] of Object.entries(KEYWORDS)){
+    const e = typeof v === 'string' ? {d:v} : (v || {});
+    add(name, name, [...name.split(' / '), ...(e.also || [])], e.d, e.notBefore);
+  }
+  for (const n of Object.keys(KW_TOKENS)) add('c:' + n, n, [n], '');
+  for (const n of KW_CARDS) add('c:' + n, n, [n], '');
+  // longer spellings first, so "revealed unit" wins over "revealed" and "reveal"
+  KW.sort((a, b) => b[4] - a[4]);
+})();
+const KW_BY = Object.fromEntries(KW.map(k => [k[0], k]));
+const KW_RE = new RegExp(`\\b(?:${KW.map(k => `(${k[2]})`).join('|')})\\b`, 'gi');
+const kwTitle = t => t.replace(/\s+/g, ' ').replace(/\b[a-z]/g, c => c.toUpperCase()).replace(/ Of /g, ' of ');
+const kwPlain = src => src.replace(/\*\*(.+?)\*\*/g, '$1');
+// the hover tooltip for a keyword: its definition, or a named token's / card's own text
+function kwTip(id){
+  if (id.startsWith('c:')){ const n = id.slice(2), t = kwMiniText(n); return t ? `${n}: ${kwPlain(t)}` : ''; }
+  const k = KW_BY[id]; return k && k[3] ? `${k[1]}: ${kwPlain(k[3])}` : '';
+}
 // find keyword ids in plain text, in order of first appearance
 function kwScan(text, into){
   KW_RE.lastIndex = 0; let m;
   while ((m = KW_RE.exec(text))){ const i = m.slice(1).findIndex(Boolean); if (i >= 0) into.add(KW[i][0]); }
   return into;
 }
-// bold and capitalize every keyword inside an element's rules text; returns the ids found
+// bold and capitalize every keyword inside an element's rules text (each with its tooltip); returns the ids found
 function kwDecorate(root, into){
   into = into || new Set();
   root.querySelectorAll('.tx, .mtx, .kwt').forEach(el => {
@@ -7760,9 +7856,11 @@ function kwDecorate(root, into){
       KW_RE.lastIndex = 0;
       const f = document.createDocumentFragment(); let last = 0, m;
       while ((m = KW_RE.exec(t))){
-        const i = m.slice(1).findIndex(Boolean); into.add(KW[i][0]);
+        const i = m.slice(1).findIndex(Boolean), id = KW[i][0]; into.add(id);
         f.append(t.slice(last, m.index));
-        const b = document.createElement('b'); b.className = 'kw'; b.textContent = kwTitle(m[0]); f.append(b);
+        const b = document.createElement('b'); b.className = 'kw'; b.textContent = kwTitle(m[0]);
+        const tip = kwTip(id); if (tip) b.dataset.tip = tip;
+        f.append(b);
         last = m.index + m[0].length;
       }
       f.append(t.slice(last)); n.replaceWith(f);
@@ -7775,28 +7873,15 @@ function kwText(src){
   const raw = esc(src).replace(/\*\*(.+?)\*\*/g, '$1');
   return raw.replace(KW_RE, m => `<b class="kw">${kwTitle(m)}</b>`);
 }
-const kwPlain = src => src.replace(/\*\*(.+?)\*\*/g, '$1');
 function kwMiniText(name){
   if (KW_TOKENS[name]) return KW_TOKENS[name];
   const d = DEFS[name] || BDEFS[name]; return d ? d.t : '';
 }
-// every keyword the card uses, then every keyword their definitions and mini cards use, until nothing new turns up
-function kwClosure(ids, self){
-  const out = new Set(ids); let grew = true;
-  while (grew){
-    grew = false;
-    for (const id of [...out]){
-      const k = KW_BY[id]; const txt = id.startsWith('c:') ? kwMiniText(id.slice(2)) : k[3];
-      const before = out.size; kwScan(kwPlain(txt || ''), out); if (out.size > before) grew = true;
-    }
-  }
-  if (self) out.delete('c:' + self);
-  return out;
-}
+// the Keywords list under a pop-up card: only what is printed on that card, in the order it appears
 function kwGlossHTML(ids, self){
-  const all = [...kwClosure(ids, self)];
+  const all = [...ids].filter(id => KW_BY[id] && id !== 'c:' + self);
   const defs = all.filter(id => !id.startsWith('c:') && KW_BY[id][3]);
-  const minis = all.filter(id => id.startsWith('c:'));
+  const minis = all.filter(id => id.startsWith('c:') && kwMiniText(id.slice(2)));
   if (!defs.length && !minis.length) return '';
   const tok = n => !!KW_TOKENS[n];
   const mini = id => { const n = id.slice(2), b = !!BDEFS[n] && !DEFS[n];
@@ -7811,8 +7896,7 @@ function openPeek(card, byTap){
   pk.querySelectorAll('.dealback, .mirpop').forEach(n => n.remove());
   pk.classList.add('peek'); pk.classList.remove('more', 'tapping', 'lifted', 'sel', 'cansel', 'target', 'notarget'); pk.removeAttribute('style'); pk.setAttribute('aria-hidden', 'true');
   try{
-    const kwIds = kwDecorate(pk), mw0 = card.parentElement && card.parentElement.classList.contains('mirwrap') ? card.parentElement.querySelector('.mirhover') : null;
-    if (mw0) kwDecorate(mw0.cloneNode(true), kwIds);
+    const kwIds = kwDecorate(pk);   // only the keywords printed on this card
     const self = (pk.querySelector('.nm') || {}).textContent;
     const gl = kwGlossHTML(kwIds, self && self.trim());
     if (gl) pk.insertAdjacentHTML('beforeend', gl);   // under the card's own buttons, so Buy and Sell stay at the top
