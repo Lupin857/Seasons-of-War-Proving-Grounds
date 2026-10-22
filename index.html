@@ -1238,6 +1238,19 @@ body.dsopen{overflow:hidden}
   .dock .dbar{gap:8px}
   .dock .dbar button{padding:12px 16px;font-size:1.02rem}
 }
+/* deck boxes in the footer: label on one line, the enemy's deck icon mirrored to its right; money text in gold */
+.lshort{display:none}
+.dstabs .lshort{display:none}
+@media (max-width:640px){
+  .dock .board.inDock .deckbtn{position:relative}
+  .dock .board.inDock .deckbtn .who{white-space:nowrap;overflow:visible}
+  .dock .board.inDock .deckbtn .lfull{display:none}
+  .dock .board.inDock .deckbtn .lshort{display:inline}
+  .dock .board.inDock .deckbtn.ai .who{flex-direction:row-reverse}
+  .dock .board.inDock .deckbtn .money{color:var(--or);font-weight:600}
+  .dock .purse .nx{color:var(--or)}
+  .dock .slotg .gold{color:var(--or)}
+}
 @media (max-width:370px){ .dock .slotg{font-size:.74rem} .dock .pip{width:18px;height:18px} .dock .purse .amt{font-size:1.8rem} }
 
 .turnflash.theirs{inset:0 0 auto 0;align-items:flex-start;background:none;padding-top:calc(10px + env(safe-area-inset-top,0px));pointer-events:none;animation:none}
@@ -4792,9 +4805,11 @@ function phaseLabel(){
   if (ui.battle) return G.over && !hideResult() ? 'Game over' : 'Battle';
   return {shop:'Shop', mobilize:'Mobilize', battle:'Battle', over:'Game over'}[G.phase];
 }
+// plain-text name for labels and attributes; deckLabel below is the visible (HTML) version
+function deckName(i){ if (PP() && !G.net) return `${nm(i)}'s deck`; return i === seat() ? 'Your deck' : "Opponent's deck"; }
 function deckLabel(i){
   if (PP() && !G.net) return `${esc(nm(i))}'s deck`;
-  return i === seat() ? 'Your deck' : "Opponent's deck";
+  return i === seat() ? 'Your deck' : `<span class="lfull">Opponent's deck</span><span class="lshort">Enemy's deck</span>`;
 }
 // Unique units against the deck cap, and city slots against the city cap, under each player's deck (shop and mobilize only).
 // Gold once a cap is reached: another unit type won't fit in the deck, or a new building needs a free slot.
@@ -4808,9 +4823,9 @@ function boardHTML(where){
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const turnChip = i => !shopping ? '' : G.passed[i] ? '<span class="tchip passed">Passed</span>' : cur(G) === i ? `<span class="tchip now">${PP() && !G.net ? 'Shopping' : i === seat() ? 'Your turn' : 'Their turn'}</span>` : '';
-  const deckBtn = i => `<button type="button" class="side ${VS(i) ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${deckLabel(i)}: view cards">
+  const deckBtn = i => `<button type="button" class="side ${VS(i) ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: view cards">
       <span class="who"><span class="dkic" aria-hidden="true"><i></i><i></i></span>${deckLabel(i)}<span class="dkgo" aria-hidden="true">›</span></span>
-      <span class="meta">$${B.money[i]} · income $${B.inc[i]}</span>
+      <span class="meta money">$${B.money[i]} · income $${B.inc[i]}</span>
       <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${capsHTML(i)}${turnChip(i)}</button>`;
   const L = VS(0), Rt = VS(1);   // you on the left
   return `<div class="board${where === 'dock' ? ' inDock' : ' topboard'}">
@@ -4829,7 +4844,7 @@ function deckSheetHTML(){
   const note = canSell ? '<p class="note">On your turn you can sell any card for $1, even one you just bought. Selling is free: it doesn\'t use a buy or end your turn.</p>'
     : !mine && G.phase === 'mobilize' && !ui.battle ? '<p class="note">Their deck order is secret.</p>' : '';
   const tabs = [VS(0), VS(1)].map(k => `<button type="button" role="tab" aria-selected="${k === i}" class="s${VS(k)}" data-act="deck-open" data-p="${k}">${deckLabel(k)}</button>`).join('');
-  return `<div class="decksheet" data-act="deck-close"><div class="dsheet s${VS(i)}" role="dialog" aria-modal="true" aria-label="${deckLabel(i)}">
+  return `<div class="decksheet" data-act="deck-close"><div class="dsheet s${VS(i)}" role="dialog" aria-modal="true" aria-label="${esc(deckName(i))}">
     <div class="dshead"><div class="dstabs" role="tablist">${tabs}</div><button type="button" class="dsclose" data-act="deck-close" aria-label="Close">✕</button></div>
     <div class="dsbody forces">${note}${body}</div></div></div>`;
 }
@@ -5086,7 +5101,7 @@ function slotsHTML(short){
   return `<div class="slots">
       ${group(short ? 'Units' : 'Unit buys', RULES.unitsPerShop, b.u)}
       ${group(short ? 'City' : 'City buys', RULES.bldgPerShop + carp, b.b + b.carp)}
-      ${group(short ? '+$1' : 'Extra buy +$1', 1, b.extra ? 1 : 0, 'x')}
+      ${group(short ? '<span class="gold">+$1</span>' : 'Extra buy +$1', 1, b.extra ? 1 : 0, 'x')}
       ${b.favN ? group(short ? 'Favor' : 'Divine Favor', b.favN, b.favN - b.fav, 'x') : ''}
     </div>`;
 }
