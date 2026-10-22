@@ -6025,6 +6025,7 @@ function turnWatch(){
   document.title = shop ? `● ${mine ? 'Your turn' : PP() && !G.net ? `${nm(who)}’s turn` : 'Opponent’s turn'} · ${turnBase}` : turnBase;
   const key = shop ? `${G.round}|${who}` : null;
   const first = turnKey === null; if (first) turnKey = '';
+  if (!shop) dismissTurnFlash();   // the shop is over (Mobilize, battle, game over): a leftover turn banner goes away
   if (!shop || key === turnKey) return;
   turnKey = key;
   if (first){ turnMarks = [G.log.length, G.log.length]; return; }   // a reload or a resumed game: no announcement
@@ -6045,6 +6046,7 @@ function turnWatch(){
   if (who === S || (PP() && !G.net)){ sfx.turnMine(); if (navigator.vibrate) try{ navigator.vibrate([18, 60, 18]); }catch(e){} }
   else sfx.turnTheirs();
 }
+function dismissTurnFlash(){ document.querySelectorAll('.turnflash:not(.out)').forEach(n => n._close ? n._close() : n.remove()); }
 function turnFlash(big, small, kind, side, news){
   document.querySelectorAll('.turnflash').forEach(n => n.remove());
   const el = document.createElement('div');
@@ -6052,6 +6054,7 @@ function turnFlash(big, small, kind, side, news){
   el.innerHTML = `<div class="tfbox"><b>${esc(big)}</b>${small ? `<span>${esc(small)}</span>` : ''}${news || ''}<em>${kind === 'theirs' ? 'Tap to hide' : 'Tap anywhere to continue'}</em></div>`;
   // stays up until tapped or clicked (anywhere); that tap only dismisses it, so it can't buy a card by accident
   const close = e => { if (e){ e.preventDefault(); e.stopPropagation(); } el.classList.add('out'); setTimeout(() => el.remove(), 160); document.removeEventListener('keydown', key, true); };
+  el._close = close;
   const key = e => { if (['Escape', 'Enter', ' '].includes(e.key) && el.isConnected){ close(e); } };
   (kind === 'theirs' ? el.querySelector('.tfbox') : el).addEventListener('click', close);
   document.addEventListener('keydown', key, true);
