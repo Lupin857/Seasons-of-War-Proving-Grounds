@@ -2012,7 +2012,7 @@ function cantAcquire(st, name, kind){
 function whyNot(info, p){
   if (info.price != null && p.money < info.price) return `Need $${info.price - p.money} more`;
   if (info.why === 'Unit buys used up') return 'No unit buys left this round';
-  if (info.why === 'Building buy used up') return 'No building buys left this round';
+  if (info.why === 'Building buy used up') return 'No city buys left this round';
   return info.why;
 }
 function buyInfo(g, i, name, kind, src, idx){ return buyQuote(g.players[i], g.buys[i], name, kind, src, mirSur(mirOf(g, {src, idx}))); }
@@ -5085,8 +5085,7 @@ function slotsHTML(short){
     Array.from({length:n}, (_, k) => `<i class="pip${cls ? ' ' + cls : ''}${k < used ? ' used' : ''}"></i>`).join('')}</span><span class="sr">${n - used} of ${n} left</span></span>`;
   return `<div class="slots">
       ${group(short ? 'Units' : 'Unit buys', RULES.unitsPerShop, b.u)}
-      ${group(short ? 'Bldg' : 'Building buy', RULES.bldgPerShop, b.b)}
-      ${carp ? group(short ? 'Carp' : 'Carpenter', carp, b.carp) : ''}
+      ${group(short ? 'City' : 'City buys', RULES.bldgPerShop + carp, b.b + b.carp)}
       ${group(short ? '+$1' : 'Extra buy +$1', 1, b.extra ? 1 : 0, 'x')}
       ${b.favN ? group(short ? 'Favor' : 'Divine Favor', b.favN, b.favN - b.fav, 'x') : ''}
     </div>`;
