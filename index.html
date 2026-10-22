@@ -5387,7 +5387,14 @@ function mountAbWin(){
   // each note goes to the corner nearest its card: your side along the bottom, the enemy's along the top,
   // and left or right by which half of the battlefield the card (or building chip) is in
   const sr = stage.getBoundingClientRect(), mid = sr.left + sr.width / 2;
-  const half = g => { const el = abSrcEl(stage, g.ab); if (!el) return g.ab.s === 0 ? 'L' : 'R'; const r = el.getBoundingClientRect(); return r.left + r.width / 2 < mid ? 'L' : 'R'; };
+  // a unit's corner follows its zone: your deck is on the left and your charge and graveyard on the right; the enemy's
+  // row is the mirror image. Buildings go by which half of the city row their chip is in.
+  const zoneOf = ab => { if (!ab.u) return null; const [o, id] = ab.u.split('-').map(Number), sd = f.snap[o];
+    if (sd.charge && sd.charge.uid === id) return 'charge'; if (sd.deck.some(u => u.uid === id)) return 'deck'; if (sd.grave.some(u => u.uid === id)) return 'grave'; return null; };
+  const half = g => {
+    const z = zoneOf(g.ab), s0 = g.ab.s === 0;
+    if (z) return z === 'deck' ? (s0 ? 'L' : 'R') : (s0 ? 'R' : 'L');
+    const el = abSrcEl(stage, g.ab); if (!el) return s0 ? 'L' : 'R'; const r = el.getBoundingClientRect(); return r.left + r.width / 2 < mid ? 'L' : 'R'; };
   const where = gs.map(half);
   const col = (s, h) => gs.map((g, i) => [g, i]).filter(([g, i]) => g.ab.s === s && where[i] === h).map(([g, i]) => abNoteHTML(g, f, i)).join('');
   const win = document.createElement('div'); win.className = 'abwin';
