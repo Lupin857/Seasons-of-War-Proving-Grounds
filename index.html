@@ -1183,16 +1183,32 @@ body.dsopen{overflow:hidden}
 @keyframes turnglow1{50%{box-shadow:0 0 0 2px var(--gules),0 0 14px 3px color-mix(in srgb,var(--gules) 55%,transparent)}}
 .turnflash{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:0 16px;background:rgba(10,14,20,.22);cursor:pointer;animation:peekbg .16s ease-out}
 .turnflash.out{opacity:0;transition:opacity .15s}
-.turnflash em{font-style:normal;font-size:.72rem;color:var(--muted);margin-top:6px;letter-spacing:.04em}
+.turnflash .tfbox>em{font-style:normal;font-size:.72rem;color:var(--muted);margin-top:6px;letter-spacing:.04em}
 .turnflash .tfbox{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 34px;border-radius:12px;background:var(--surface);border:2px solid currentColor;box-shadow:0 14px 40px rgba(0,0,0,.28);max-width:100%;text-align:center;
   animation:tfin .28s cubic-bezier(.2,.9,.3,1.1)}
 .turnflash.s0{color:var(--azure)} .turnflash.s1{color:var(--gules)}
-.turnflash b{font-family:var(--f-display);font-weight:400;font-size:clamp(1.9rem,7vw,2.8rem);line-height:1.1}
-.turnflash span{font-size:.92rem;color:var(--muted);font-weight:600}
+.turnflash .tfbox>b{font-family:var(--f-display);font-weight:400;font-size:clamp(1.9rem,7vw,2.8rem);line-height:1.1}
+.turnflash .tfbox>span{font-size:.92rem;color:var(--muted);font-weight:600}
 .turnflash.theirs .tfbox{box-shadow:0 10px 30px rgba(0,0,0,.18)}
 @keyframes tfin{from{opacity:0;transform:translateY(16px) scale(.92)}}
 @media (prefers-reduced-motion: reduce){ .turnflash,.turnflash .tfbox{animation:none} .board .deckbtn.active{animation:none} }
 @media (max-width:640px){ .board .deckbtn .tchip{font-size:.58rem;padding:0 6px} }
+
+.turnflash.theirs{inset:0 0 auto 0;align-items:flex-start;background:none;padding-top:calc(10px + env(safe-area-inset-top,0px));pointer-events:none;animation:none}
+.turnflash.theirs .tfbox{pointer-events:auto;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:4px 12px;padding:8px 18px}
+.turnflash.theirs .tfbox>b{font-size:1.35rem}
+.turnflash.theirs .tfbox>em{margin-top:0}
+.tfnews{display:flex;flex-direction:column;gap:6px;margin-top:10px;width:100%;max-width:440px;text-align:left}
+.tfnews .eyebrow{text-align:center}
+.tfcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;max-height:42vh;overflow:auto}
+.tfcard{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);box-shadow:inset 0 3px 0 var(--muted);color:var(--muted);font-size:.76rem;line-height:1.3}
+.tfcard.b{box-shadow:inset 0 3px 0 var(--or)}
+.tfcard.s1{border-color:color-mix(in srgb,var(--gules) 45%,var(--line))} .tfcard.s0{border-color:color-mix(in srgb,var(--azure) 45%,var(--line))}
+.tfcard .tfn{font-weight:700;color:var(--ink);font-size:.86rem}
+.tfcard .tfa{font-weight:700;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase}
+.tfcard.s1 .tfa{color:var(--gules)} .tfcard.s0 .tfa{color:var(--azure)}
+.tfcard.sell{opacity:.85;border-style:dashed}
+.tfcard b.kw{color:var(--ink)}
 </style>
 
 <div class="wrap">
@@ -1963,7 +1979,7 @@ function buy(g, i, src, idx, attach, writ){
   if (g.shopBought) g.shopBought[i].push(sc.name);
   const extra = (info.slot === 'extra' ? ' (extra buy, +$1)' : info.slot === 'carp' ? " (Carpenter's Guild)" : '') + (src === 'bm' ? ` (Black Market, $${bmOff(p)} off)` : '') + (src === 'mu' ? ' from the Muster pile' : '');
   const extraFull = extra + (info.slot === 'fav' ? ' (Divine Favor)' : '') + (src === 'vis' ? ' (Vision)' : '') + (info.disc ? ` (${info.disc}, $${MIRS[info.disc].disc} off)` : '');
-  g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''} for $${info.price}${extraFull}.`, side:i});
+  g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''} for $${info.price}${extraFull}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null}});
   const again = mir.length ? gainMiracles(g, i, mir, writ) : false;
   if (again) g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'take':'takes'} another shop turn (Muster Writ).`, side:i});
   else nextTurn(g);
@@ -2065,7 +2081,7 @@ function sell(g, i, kind, name){
   p.money += SELL_PRICE;
   g.sold = g.sold || [[], []]; g.sold[i].push(name);
   const you = g.labels[i] === 'You';
-  g.log.push({t:`${g.labels[i]} ${you ? 'sell' : 'sells'} ${name} for $${SELL_PRICE}${back !== 'Field' ? ` (${back !== name ? back + ' ' : ''}to the Muster pile)` : ''}.`, side:i});
+  g.log.push({t:`${g.labels[i]} ${you ? 'sell' : 'sells'} ${name} for $${SELL_PRICE}${back !== 'Field' ? ` (${back !== name ? back + ' ' : ''}to the Muster pile)` : ''}.`, side:i, ev:{a:'sell', n:name, k:kind}});
   return true;
 }
 // The hand an opponent believes a player has: real units plus the ones sold in secret (capped at max level)
@@ -5582,7 +5598,12 @@ function remindHTML(){
 /* Turn reminders: whenever the shop turn changes hands, a banner sweeps across the screen ("Your turn" in your
    color, "Opponent's turn" in theirs) with a chime, and the tab title says so too. The deck buttons on the scoreboard
    carry a standing "Your turn" / "Their turn" / "Passed" chip and the active player's button glows. */
-let turnKey = null, turnBase = null;
+let turnKey = null, turnBase = null, turnMarks = [null, null];
+function turnNewsCard(ev, side){
+  const d = ev.k === 'u' ? DEFS[ev.n] : BDEFS[ev.n]; if (!d) return '';
+  const what = ev.a === 'buy' ? `Bought · $${ev.price}` : 'Sold · $1';
+  return `<div class="tfcard ${ev.k} ${ev.a} s${side}"><span class="tfn">${esc(ev.n)}</span><span class="tfa">${what}${ev.on ? ` · leveled ${esc(ev.on)}` : ''}</span><span class="tft">${kwText(d.t.replace(/\{[^}]*\}/g, '…'))}</span></div>`;
+}
 function turnWatch(){
   if (turnBase === null) turnBase = document.title.replace(/^● [^·]+· /, '');
   const shop = G && !ui.start && !ui.roll && !ui.battle && !G.over && G.phase === 'shop';
@@ -5593,25 +5614,33 @@ function turnWatch(){
   const first = turnKey === null; if (first) turnKey = '';
   if (!shop || key === turnKey) return;
   turnKey = key;
-  if (first) return;                                 // a reload or a resumed game: no announcement
+  if (first){ turnMarks = [G.log.length, G.log.length]; return; }   // a reload or a resumed game: no announcement
   const otherPassed = G.passed[1 - who];
   let big, small = '', side = who;
   if (PP() && !G.net){ big = `${nm(who)}’s turn`; small = otherPassed ? `${nm(1 - who)} has passed` : 'Pass the device'; }
   else if (who === S){ big = 'Your turn'; small = otherPassed ? `${PP() ? nm(1 - S) : 'Opponent'} passed. Keep shopping or pass.` : 'Buy a card or pass'; }
   else { big = G.net ? `${nm(who)}’s turn` : 'Opponent’s turn'; small = G.passed[S] ? 'You passed. They’re finishing up.' : 'Wait for them to buy or pass'; }
-  turnFlash(big, small, side === S || (PP() && !G.net) ? 'mine' : 'theirs', side);
+  // what the other player bought and sold since this player last had the turn
+  let news = '';
+  if (who === S || (PP() && !G.net)){
+    const from = turnMarks[who] == null ? G.log.length : turnMarks[who];
+    const evs = G.log.slice(from).filter(l => l.ev && l.side === 1 - who);
+    turnMarks[who] = G.log.length;
+    if (evs.length) news = `<div class="tfnews"><span class="eyebrow">Since ${who === S && !(PP() && !G.net) ? 'your' : 'their'} last turn, ${esc(PP() || G.net ? nm(1 - who) : 'Opponent')}:</span><div class="tfcards">${evs.map(l => turnNewsCard(l.ev, 1 - who)).join('')}</div></div>`;
+  }
+  turnFlash(big, small, side === S || (PP() && !G.net) ? 'mine' : 'theirs', side, news);
   if (who === S || (PP() && !G.net)){ sfx.turnMine(); if (navigator.vibrate) try{ navigator.vibrate([18, 60, 18]); }catch(e){} }
   else sfx.turnTheirs();
 }
-function turnFlash(big, small, kind, side){
+function turnFlash(big, small, kind, side, news){
   document.querySelectorAll('.turnflash').forEach(n => n.remove());
   const el = document.createElement('div');
   el.className = `turnflash ${kind} s${side}`; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.tabIndex = -1;
-  el.innerHTML = `<div class="tfbox"><b>${esc(big)}</b>${small ? `<span>${esc(small)}</span>` : ''}<em>Tap anywhere to continue</em></div>`;
+  el.innerHTML = `<div class="tfbox"><b>${esc(big)}</b>${small ? `<span>${esc(small)}</span>` : ''}${news || ''}<em>${kind === 'theirs' ? 'Tap to hide' : 'Tap anywhere to continue'}</em></div>`;
   // stays up until tapped or clicked (anywhere); that tap only dismisses it, so it can't buy a card by accident
   const close = e => { if (e){ e.preventDefault(); e.stopPropagation(); } el.classList.add('out'); setTimeout(() => el.remove(), 160); document.removeEventListener('keydown', key, true); };
   const key = e => { if (['Escape', 'Enter', ' '].includes(e.key) && el.isConnected){ close(e); } };
-  el.addEventListener('click', close);
+  (kind === 'theirs' ? el.querySelector('.tfbox') : el).addEventListener('click', close);
   document.addEventListener('keydown', key, true);
   document.body.appendChild(el);
 }
