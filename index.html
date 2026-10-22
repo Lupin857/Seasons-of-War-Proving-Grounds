@@ -1141,6 +1141,9 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 .board .deckbtn .caps b{font-weight:600;color:var(--ink)}
 .board .deckbtn .caps b.full{color:var(--or);background:var(--or-soft);border-radius:3px;padding:0 3px}
 .board .deckbtn .caps{white-space:nowrap}
+.board .deckbtn .caprow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}
+.board .deckbtn .caprow .tchip{margin-top:0}
+.board .deckbtn.ai .caprow{flex-direction:row-reverse}
 .board .deckbtn .caps b{font-family:var(--f-mono)}
 @media (max-width:640px){ .board .deckbtn .caps{font-family:var(--f-body);font-size:.74rem;letter-spacing:-.01em} .board .deckbtn .caps b.full{padding:0 2px} }
 .board .deckbtn.you .m3{color:var(--azure)}
@@ -1251,6 +1254,12 @@ body.dsopen{overflow:hidden}
   .dock .purse .nx{color:var(--or)}
   .dock .slotg .gold{color:var(--or)}
 }
+@media (max-width:640px){
+  .dock .board.inDock .deckbtn .caprow{flex-wrap:nowrap;gap:6px}
+  .dock .board.inDock .deckbtn .caprow .tchip{font-size:.74rem;padding:1px 8px;letter-spacing:.04em}
+}
+@media (max-width:420px){ .dock .board.inDock .deckbtn .caprow .tw{display:none} }
+@media (max-width:370px){ .dock .board.inDock .deckbtn{padding-inline:5px} .dock .board.inDock .deckbtn .caprow .tchip{font-size:.68rem;padding:1px 6px} }
 @media (max-width:370px){ .dock .slotg{font-size:.74rem} .dock .pip{width:18px;height:18px} .dock .purse .amt{font-size:1.8rem} }
 
 .turnflash.theirs{inset:0 0 auto 0;align-items:flex-start;background:none;padding-top:calc(10px + env(safe-area-inset-top,0px));pointer-events:none;animation:none}
@@ -4813,20 +4822,22 @@ function deckLabel(i){
 }
 // Unique units against the deck cap, and city slots against the city cap, under each player's deck (shop and mobilize only).
 // Gold once a cap is reached: another unit type won't fit in the deck, or a new building needs a free slot.
-function capsHTML(i){
-  if (ui.battle || G.over || (G.phase !== 'shop' && G.phase !== 'mobilize')) return '';
+function capsHTML(i, chip){
+  chip = chip || '';
+  if (ui.battle || G.over || (G.phase !== 'shop' && G.phase !== 'mobilize')) return chip;
   const p = G.players[i], u = uniqueUnits(i === seat() ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots;
   const one = (n, c, w, t) => `<span class="meta caps" title="${t}"><b class="${n >= c ? 'full' : ''}">${n}/${c}</b> ${w}</span>`;
-  return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + one(b, bc, 'City', `City slots used; the city holds ${bc} (each Field takes a slot)`);
+  // the turn chip rides on the City line (to its right; mirrored to the left on the enemy's box) to save a line
+  return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + `<span class="caprow">${one(b, bc, 'City', `City slots used; the city holds ${bc} (each Field takes a slot)`)}${chip}</span>`;
 }
 function boardHTML(where){
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
-  const turnChip = i => !shopping ? '' : G.passed[i] ? '<span class="tchip passed">Passed</span>' : cur(G) === i ? `<span class="tchip now">${PP() && !G.net ? 'Shopping' : i === seat() ? 'Your turn' : 'Their turn'}</span>` : '';
+  const turnChip = i => !shopping ? '' : G.passed[i] ? '<span class="tchip passed">Passed</span>' : cur(G) === i ? `<span class="tchip now">${PP() && !G.net ? 'Shopping' : `<span class="tw">${i === seat() ? 'Your' : 'Their'} </span>turn`}</span>` : '';
   const deckBtn = i => `<button type="button" class="side ${VS(i) ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: view cards">
       <span class="who"><span class="dkic" aria-hidden="true"><i></i><i></i></span>${deckLabel(i)}<span class="dkgo" aria-hidden="true">›</span></span>
       <span class="meta money">$${B.money[i]} · income $${B.inc[i]}</span>
-      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${capsHTML(i)}${turnChip(i)}</button>`;
+      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${capsHTML(i, turnChip(i))}</button>`;
   const L = VS(0), Rt = VS(1);   // you on the left
   return `<div class="board${where === 'dock' ? ' inDock' : ' topboard'}">
     ${deckBtn(L)}
