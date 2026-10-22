@@ -1404,6 +1404,8 @@ html,body{overflow-x:clip}
 /* Recruit and Field: same card colors as the rest; the copies peeking out underneath are cards too */
 .astack>.mcard.u:not(.peek){box-shadow:inset 0 3px 0 var(--muted),3px 3px 0 -1px var(--card),3px 3px 0 0 var(--card-line),6px 6px 0 -1px var(--card),6px 6px 0 0 var(--card-line),var(--card-sh)}
 .astack>.mcard.b:not(.peek){box-shadow:inset 0 3px 0 var(--or),3px 3px 0 -1px var(--card),3px 3px 0 0 var(--card-line),6px 6px 0 -1px var(--card),6px 6px 0 0 var(--card-line),var(--card-sh)}
+/* Your deck / Enemy's deck buttons on the scoreboard: card-colored (white in light mode) so they stand out from the table */
+.board .deckbtn:not(.on){background:var(--card);border-color:var(--card-line)}
 /* the "Always available" label shows above them on every screen, phones included */
 .mktp .alwaysw .alab{display:block!important}
 @media (max-width:640px){ .mktp .alwaysw .alab{font-size:.56rem!important;letter-spacing:.02em!important;line-height:1.1} }
