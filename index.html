@@ -838,6 +838,41 @@ html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobi
 .mirwrap>.mcard.cant>*{opacity:.62}
 .battlectl .speedbtn{min-width:3.2em;font-family:var(--f-mono);font-weight:600}
 .battlectl .speedbtn[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or)}
+
+/* every screen: compact, squarish cards like the battle cards — name, cost and power at the top, short rules text along
+   the bottom. Click (or tap) a card to read it in full. Phones size them further down. */
+.mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.dgrid .mcard:not(.peek){padding:8px 9px 9px!important;gap:3px!important;cursor:pointer;justify-content:flex-start;min-height:0!important}
+.mktp .mcard:not(.peek):not(.masonpick) .tx,.fcards .mcard:not(.peek) .tx,.dgrid .mcard:not(.peek) .tx{display:none}
+.dgrid .mcard:not(.peek)>button,.dgrid .mcard:not(.peek) .dbtn{display:none}
+.mktp .mcard:not(.peek):not(.masonpick) .stx,.fcards .mcard:not(.peek) .stx,.dgrid .mcard:not(.peek) .stx{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;line-height:1.28;color:var(--ink);opacity:.85;margin-top:auto;padding-top:4px;flex-shrink:0}
+.mktp .mcard:not(.peek):not(.masonpick) .top,.fcards .mcard:not(.peek) .top,.dgrid .mcard:not(.peek) .top{flex-wrap:nowrap!important;align-items:flex-start;gap:4px!important}
+.mktp .mcard:not(.peek):not(.masonpick) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
+.mktp .mcard:not(.peek):not(.masonpick) .cost,.fcards .mcard:not(.peek) .cost,.dgrid .mcard:not(.peek) .cost{flex:none}
+.mktp .mcard:not(.peek):not(.masonpick) .curve,.fcards .mcard:not(.peek) .curve,.dgrid .mcard:not(.peek) .curve{white-space:nowrap}
+.mcard:not(.peek) .stx .lv{padding:0 1px}
+.mcard:not(.peek) .stx .gi{width:1.25em;height:1.25em;margin:0}
+.mktp .mcard .ctag{display:none}
+.mktp .mirwrap{height:auto!important}
+.market,.market.plain{align-items:end}
+@media (min-width:641px){
+  .mktp{--ch:150px}
+  .fcards,.dgrid,.deckwrap{--ch:140px;--chd:150px}
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.dgrid .mcard.bcard:not(.peek){height:var(--ch)!important}
+  .dgrid .mcard.drow:not(.peek){height:var(--chd)!important}
+  .mktp .mirwrap>.mcard:not(.peek){flex:none;height:var(--ch)!important}
+  .dslot,.dspacer{height:var(--chd)}
+  /* the shop's Buy button and a card's Sell button sit just under the card */
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek){overflow:visible!important}
+  .mktp .mcard:not(.peek):not(.masonpick)>button[data-act="buy"],.fcards .mcard:not(.peek)>button{position:absolute;left:0;right:0;top:calc(100% + 6px);margin:0;padding:4px 6px;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mktp .market{padding-bottom:40px;row-gap:48px!important}
+  .fcards{row-gap:46px!important;padding-bottom:36px}
+  .dgrid .mcard.bcard:not(.peek){overflow:visible!important}
+  .dgrid .mcard.bcard:not(.peek)>button{display:block!important;position:absolute;left:0;right:0;top:calc(100% + 6px);margin:0;padding:4px 6px;font-size:.82rem;white-space:nowrap}
+  #bench-list{row-gap:46px!important;padding-bottom:36px}
+  .mktp .mcard:not(.peek):not(.masonpick) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{font-size:.9rem}
+  .mktp .mcard:not(.peek) .curve,.fcards .mcard:not(.peek) .curve,.dgrid .mcard:not(.peek) .curve{font-size:.74rem}
+  .fcards .mcard:not(.peek) .stx,.dgrid .mcard:not(.peek) .stx{font-size:.74rem;-webkit-line-clamp:4}
+}
 @media (max-width:640px){
   /* compact cards: name, cost and power at a readable size; tap one for everything else */
   .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.dgrid .mcard:not(.peek){height:auto!important;min-height:66px!important;padding:7px 8px 8px!important;gap:3px!important;cursor:pointer;justify-content:flex-start}
@@ -943,6 +978,7 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
   box-shadow:0 2px 0 color-mix(in srgb, var(--ink) 60%, black),0 4px 10px rgba(0,0,0,.35)}
 .hgtok svg{width:14px;height:14px}
 .mcard.peek .hgtok{display:none}
+.mcard.leaving:not(.peek)>button[data-act="buy"]{transform:rotate(-1.5deg)}
 .mktp{position:relative}
 .mcard.lghost{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--muted)}
 .mcard.lghost.b{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--or)}
@@ -7225,8 +7261,9 @@ window.addEventListener('pointercancel', () => { if (peekEl && peekReady) return
 window.addEventListener('scroll', () => { if (press && !peekEl) endPress(); }, {passive:true});
 // phones: tapping a card in the market or in anyone's forces opens it as a sheet (Mobilize cards have their own taps)
 $('view-play').addEventListener('click', e => {
-  if (!compact() || !G || ui.start) return;
-  if (e.target.closest('button')) return;   // the card's own buttons (pressed for you from the sheet) act as usual
+  if (!G || ui.start) return;
+  if (e.target.closest('button')) return;
+  if (!compact() && (e.target.closest('.hgtok') || e.target.closest('.mcard.hasmir'))) return;   // desktop: a covered card's click shows its miracles   // the card's own buttons (pressed for you from the sheet) act as usual
   const card = e.target.closest('.mktp .mcard, .fcards .mcard'); if (!card || card.classList.contains('masonpick') || e.target.closest('.mirpop')) return;
   if (ui.pick && card.closest('#deck-list')) return;
   e.stopPropagation(); e.preventDefault(); openPeek(card, true);
