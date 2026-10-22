@@ -993,14 +993,13 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 }
 
 /* returning card: tilted a little and wearing an hourglass token on its corner */
-.mcard.leaving:not(.peek){transform:rotate(1.5deg)}
 .mcard.leaving,.mktp .mcard.leaving:not(.peek):not(.masonpick){overflow:visible!important}
 .hgtok{position:absolute;right:-9px;bottom:-9px;z-index:6;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--bg);
   display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);
   box-shadow:0 2px 0 color-mix(in srgb, var(--ink) 60%, black),0 4px 10px rgba(0,0,0,.35)}
 .hgtok svg{width:14px;height:14px}
 .mcard.peek .hgtok{display:none}
-.mcard.leaving:not(.peek)>button[data-act="buy"]{transform:rotate(-1.5deg)}
+
 .mktp{position:relative}
 .mcard.lghost{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--muted)}
 .mcard.lghost.b{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--or)}
@@ -5535,7 +5534,7 @@ function leaveToPile(rows){
       const dx = pcx - (r.left + r.width / 2), dy = pcy - (r.top + r.height / 2), sc = Math.min(1, pr.width / r.width);
       sfx.flick(delay / 1000 + 0.3);
       const a = gh.animate([
-        {transform:'rotate(1.5deg)', opacity:1, offset:0},
+        {transform:'none', opacity:1, offset:0},
         {transform:'translate(0,-10px) rotate(4deg) scale(1.03)', opacity:1, offset:.18},
         {transform:`translate(${dx}px,${dy}px) rotate(12deg) scale(${sc})`, opacity:1, offset:.92},
         {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${sc * .9})`, opacity:0, offset:1}
@@ -5557,8 +5556,35 @@ function dealMarket(){
   // first, the cards that left the shop fly from their old slots into the Muster pile; then the deal starts
   const base = 120 + leaveToPile(rows);
   let n = 0, end = 0;
-  for (const row of rows) for (const el of row.querySelectorAll('.mcard')){
-    if (el.classList.contains('ghost') || !el.offsetParent) continue;
+  const cards = rows.flatMap(row => [...row.querySelectorAll('.mcard')]).filter(el => !el.classList.contains('ghost') && el.offsetParent);
+  // 1) returning cards slide back into their slots
+  const returning = cards.filter(el => el.classList.contains('leaving') && !el.classList.contains('always'));
+  let slideEnd = base;
+  returning.forEach((el, i) => {
+    const delay = base + i * 85;
+    const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
+    for (const b of wrapEl ? wrapEl.querySelectorAll('.mirback') : []) b.animate([{opacity:0, transform:'translateX(-40px)'}, {opacity:1, transform:'none'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
+    el.animate([{opacity:0, transform:'translateX(-40px)'}, {opacity:1, transform:'none'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
+    slideEnd = Math.max(slideEnd, delay + 420);
+  });
+  // 2) then each one's hourglass token drops onto its corner like a stamp
+  let tokEnd = slideEnd;
+  returning.forEach((el, i) => {
+    const tok = el.querySelector('.hgtok'); if (!tok) return;
+    const delay = slideEnd + 120 + i * 200;
+    setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + 300);
+    tok.animate([
+      {transform:'translate(14px,-46px) scale(2.1) rotate(-25deg)', opacity:0, offset:0},
+      {transform:'translate(4px,-14px) scale(1.5) rotate(-8deg)', opacity:1, offset:.45},
+      {transform:'translate(0,0) scale(.82) rotate(0deg)', opacity:1, offset:.78},
+      {transform:'none', opacity:1, offset:1}
+    ], {duration:460, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'backwards'});
+    tokEnd = Math.max(tokEnd, delay + 460);
+  });
+  end = tokEnd;
+  // 3) the new cards are dealt once the tokens have landed
+  const dealBase = returning.length ? tokEnd + 160 : base;
+  for (const el of cards){
     const r = el.getBoundingClientRect();
     if (el.classList.contains('always')){
       el.animate([{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'none'}], {duration:300, easing:'ease-out', fill:'backwards'});
@@ -5567,14 +5593,9 @@ function dealMarket(){
     // miracles under this card: each is drawn and laid down first (farthest back first), then the card lands on top
     const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
     const backsEl = wrapEl ? [...wrapEl.querySelectorAll('.mirback')].reverse() : [];
-    if (el.classList.contains('leaving')){
-      const delay = base + n++ * 85;
-      for (const b of backsEl) b.animate([{opacity:0, transform:'translateX(-40px)'}, {opacity:1, transform:'none'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
-      el.animate([{opacity:0, transform:'translateX(-40px) rotate(1.5deg)'}, {opacity:1, transform:'rotate(1.5deg)'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
-      end = Math.max(end, delay + 420); continue;
-    }
+    if (el.classList.contains('leaving')) continue;   // already slid in above
     for (const b of backsEl){
-      const bd = base + n++ * 85, br = b.getBoundingClientRect();
+      const bd = dealBase + n++ * 85, br = b.getBoundingClientRect();
       const bx = dcx - (br.left + br.width / 2), by = dcy - (br.top + br.height / 2), bs = Math.min(1, dr.width / br.width);
       sfx.flick(bd / 1000 + 0.05);
       b.animate([
@@ -5584,7 +5605,7 @@ function dealMarket(){
       ], {duration:520, delay:bd, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
       end = Math.max(end, bd + 520);
     }
-    const delay = base + n++ * 85 + (backsEl.length ? 260 : 0);
+    const delay = dealBase + n++ * 85 + (backsEl.length ? 260 : 0);
     const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
     sfx.flick(delay / 1000 + 0.05);
     const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
