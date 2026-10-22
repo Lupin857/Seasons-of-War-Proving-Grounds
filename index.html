@@ -1216,28 +1216,29 @@ body.dsopen{overflow:hidden}
 @keyframes tfin{from{opacity:0;transform:translateY(16px) scale(.92)}}
 @media (prefers-reduced-motion: reduce){ .turnflash,.turnflash .tfbox{animation:none} .board .deckbtn.active{animation:none} }
 @media (max-width:640px){ .board .deckbtn .tchip{font-size:.58rem;padding:0 6px} }
-/* phone footer: larger text and buy pips so it reads at arm's length; numbers use the narrower body font so lines don't wrap */
+/* phone footer: large text and buy pips so it reads at arm's length; numbers use the narrower body font so lines don't wrap */
 @media (max-width:640px){
-  .dock .board.inDock .deckbtn .meta{font-family:var(--f-body);font-size:.92rem;white-space:nowrap;font-variant-numeric:tabular-nums}
-  .dock .board.inDock .deckbtn .caps{font-size:.9rem;letter-spacing:0}
+  .dock .board.inDock .deckbtn .meta{font-family:var(--f-body);font-size:1.02rem;white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.3}
+  .dock .board.inDock .deckbtn .caps{font-size:1.02rem;letter-spacing:0}
   .dock .board.inDock .deckbtn .caps b{font-family:var(--f-body);font-weight:700}
-  .dock .board.inDock .deckbtn .tchip{font-size:.72rem;padding:1px 8px}
-  .dock .board.inDock .deckbtn .who{font-size:1rem!important}
-  .dock .board.inDock .mid .rd{font-size:.74rem;max-width:84px;margin-inline:auto}
-  .dock .board.inDock .mid .sc{font-size:1.45rem}
-  .dock .dhint{font-size:1rem}
-  .dock .dphase{font-size:.74rem;padding:2px 8px}
+  .dock .board.inDock .deckbtn .tchip{font-size:.8rem;padding:2px 9px}
+  .dock .board.inDock .deckbtn .who{font-size:1.08rem!important}
+  .dock .board.inDock .mid .rd{font-size:.8rem;max-width:84px;margin-inline:auto}
+  .dock .board.inDock .mid .sc{font-size:1.6rem}
+  .dock .dhint{font-size:1.06rem}
+  .dock .dphase{font-size:.8rem;padding:2px 9px}
   .dock .purse{gap:6px}
-  .dock .purse .amt{font-size:1.85rem}
-  .dock .purse .nx{font-size:.8rem}
-  .dock .slots{gap:4px 9px}
-  .dock .slotg{font-size:.74rem;gap:4px;letter-spacing:.02em}
-  .dock .pip{width:17px;height:17px}
-  .dock .slotg .pips{gap:4px;margin-left:1px}
+  .dock .purse .amt{font-size:2.05rem}
+  .dock .purse .nx{font-size:.88rem}
+  .dock .slots{gap:6px 10px}
+  .dock .slotg{font-size:.82rem;gap:5px;letter-spacing:.02em}
+  .dock .pip{width:21px;height:21px;border-width:2.5px;border-radius:4px}
+  .dock .pip.x{border-radius:50%}
+  .dock .slotg .pips{gap:5px;margin-left:1px}
   .dock .dbar{gap:8px}
-  .dock .dbar button{padding:10px 14px}
+  .dock .dbar button{padding:12px 16px;font-size:1.02rem}
 }
-@media (max-width:370px){ .dock .slotg{font-size:.66rem} .dock .pip{width:15px;height:15px} }
+@media (max-width:370px){ .dock .slotg{font-size:.74rem} .dock .pip{width:18px;height:18px} .dock .purse .amt{font-size:1.8rem} }
 
 .turnflash.theirs{inset:0 0 auto 0;align-items:flex-start;background:none;padding-top:calc(10px + env(safe-area-inset-top,0px));pointer-events:none;animation:none}
 .turnflash.theirs .tfbox{pointer-events:auto;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:4px 12px;padding:8px 18px}
@@ -4801,7 +4802,7 @@ function capsHTML(i){
   if (ui.battle || G.over || (G.phase !== 'shop' && G.phase !== 'mobilize')) return '';
   const p = G.players[i], u = uniqueUnits(i === seat() ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots;
   const one = (n, c, w, t) => `<span class="meta caps" title="${t}"><b class="${n >= c ? 'full' : ''}">${n}/${c}</b> ${w}</span>`;
-  return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + one(b, bc, 'Bldgs', `City slots used; the city holds ${bc} (each Field takes a slot)`);
+  return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + one(b, bc, 'City', `City slots used; the city holds ${bc} (each Field takes a slot)`);
 }
 function boardHTML(where){
   const B = hideResult() ? ui.pre : boardSnap();
