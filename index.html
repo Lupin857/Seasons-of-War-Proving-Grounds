@@ -530,6 +530,25 @@ button.big{font-size:1.05rem;padding:10px 22px}
 
 /* market deal */
 .mkthead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* Muster pile: a face-up stack next to the shop deck */
+.mpile{position:relative;display:flex;align-items:center;gap:6px;padding:2px 4px 2px 2px;border:none;background:none;border-radius:8px;flex:none}
+.mpile:not(:disabled):hover{background:var(--sunk)}
+.mpile:disabled{opacity:1;cursor:default}
+.mpcards{position:relative;width:38px;height:46px;flex:none}
+.mpc{position:absolute;left:0;top:0;width:34px;height:46px;border-radius:5px;border:1px solid var(--muted);background:var(--surface);
+  transform:translate(calc(var(--k) * 2px), calc(var(--k) * 2px));overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.mpc.mpe{border-style:dashed;background:transparent;box-shadow:none}
+.mpface{position:absolute;left:0;top:0;width:34px;height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;pointer-events:none}
+.mplbl{font-size:.46rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;line-height:1}
+.mpcount{font-family:var(--f-mono);font-size:.95rem;line-height:1;color:var(--ink)}
+.mpile.empty .mpcount{color:var(--muted)}
+.mpile.glow .mpc{border-color:var(--or);background:var(--or-soft)}
+.mpile.glow .mpcards{animation:pileglow 1.6s ease-in-out infinite;border-radius:6px}
+@keyframes pileglow{0%,100%{filter:drop-shadow(0 0 1px var(--or))}50%{filter:drop-shadow(0 0 6px var(--or))}}
+@media (prefers-reduced-motion: reduce){ .mpile.glow .mpcards{animation:none;filter:drop-shadow(0 0 2px var(--or))} }
+.mphit{position:absolute;top:-4px;left:26px;min-width:16px;height:16px;border-radius:8px;padding:0 4px;background:var(--or);color:var(--surface);font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.mpile[aria-expanded="true"] .mpc{border-color:var(--ink)}
+.muster.open{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg)}
 .dealdeck{position:relative;width:34px;height:46px;flex:none;margin-right:6px}
 .dealdeck .cb,.dealback{background:var(--azure);background-image:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--bg) 22%,transparent) 5px 7px);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
 .dealdeck .cb{position:absolute;inset:0;border-radius:5px}
@@ -915,6 +934,21 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
   .mktp .musterbtn{padding:3px 10px;gap:8px;font-size:.85rem}
   .mktp .mstack{transform:scale(.75);margin:-3px -4px}
 }
+
+/* returning card: tilted a little and wearing an hourglass token on its corner */
+.mcard.leaving:not(.peek){transform:rotate(1.5deg)}
+.mcard.leaving,.mktp .mcard.leaving:not(.peek):not(.masonpick){overflow:visible!important}
+.hgtok{position:absolute;right:-9px;bottom:-9px;z-index:6;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--bg);
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);
+  box-shadow:0 2px 0 color-mix(in srgb, var(--ink) 60%, black),0 4px 10px rgba(0,0,0,.35)}
+.hgtok svg{width:14px;height:14px}
+.mcard.peek .hgtok{display:none}
+.mktp{position:relative}
+.mcard.lghost{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--muted)}
+.mcard.lghost.b{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--or)}
+@media (max-width:640px){ .hgtok{width:22px;height:22px;right:-7px;bottom:-7px} .hgtok svg{width:12px;height:12px} }
+
+@media (max-width:640px){ .mktp .mpcards{width:33px;height:40px} .mktp .mpc,.mktp .mpface{width:30px;height:40px} .mktp .mplbl{font-size:.4rem;letter-spacing:.02em} .mktp .mpcount{font-size:.82rem} .mphit{left:22px} }
 </style>
 
 <div class="wrap">
@@ -941,11 +975,11 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
       <h2>Rules this simulation uses</h2>
       <ul class="note" style="display:flex;flex-direction:column;gap:6px;padding-left:18px;margin:0">
         <li>Two players, first to 3, 4 or 5 points while leading (chosen when you start a game; each length has its own AI, card stats and ratings). Ties keep playing. Game stops after 20 rounds.</li>
-        <li>Each shop: $3 + income. Money carries over. Display of 5 units and 5 buildings; unbought cards go sideways and come back once. After that, units go face-up to the Muster pile and buildings are discarded.</li>
+        <li>Each shop: $3 + income. Money carries over. Display of 5 units and 5 buildings; unbought cards go sideways and come back once. After that, they go face-up to the Muster pile.</li>
         <li>Turn order: random in round 1; afterward the loser of the last battle shops first (draw: whoever shopped second).</li>
         <li>Per shop: 2 units and 1 building. Once per shop you may make one extra purchase for $1 more (not a Field). Carpenter's Guild adds extra building buys (Fields included) and makes buildings $1 cheaper (minimum $1).</li>
-        <li>Selling: on your shop turn you may sell any number of cards you didn't buy this shop, for $1 each. Selling doesn't use a buy or end your turn. A sold unit or building drops one level. A sold unit goes face-up to the Muster pile, so both players see which unit it was. A sold building goes to the bottom of the building deck (Fields return to the supply, and a level from Mason's Guild returns the Guild).</li>
-        <li>Muster pile: a returning unit that goes unbought again, or a unit someone sells, is laid face-up in the Muster pile. On your turn you may buy a copy of a unit you already own from the Muster pile, at its normal price, using a normal unit buy. Black Market cards you don't buy still go to the bottom of the deck.</li>
+        <li>Selling: on your shop turn you may sell any number of cards you didn't buy this shop, for $1 each. Selling doesn't use a buy or end your turn. A sold unit or building drops one level. A sold card goes face-up to the Muster pile, so both players see which card it was (Fields return to the supply, and a level from Mason's Guild puts the Guild in the Muster pile).</li>
+        <li>Muster pile: a returning card that goes unbought again, or a card someone sells, is laid face-up in the Muster pile. On your turn you may buy a copy of a unit or building you already own from the Muster pile, at its normal price, using a normal buy of that kind. Black Market cards you don't buy still go to the bottom of the deck.</li>
         <li>Fields ($1, +$1 income) and Recruits ($1, 1-power token) are always for sale. City holds 5 buildings; duplicates share a slot, Fields don't.</li>
         <li>Mobilize: up to 5 unique units (+Reserve Encampment); Mercenary and Recruits don't count. Smithy Armaments, Study Training and Barracks Recruits are placed here. Farmhand and Arsonist pay out if they're in your deck.</li>
         <li>Recruits and Mercenaries are discarded after the battle phase.</li>
@@ -953,7 +987,7 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
         <li>Battle: same engine as the Battle Sandbox (Charge before Reveal except Pigeon Hunter, which reveals before Charges; Vanguard reveals first, deaths after abilities, damage clears when hidden). A Reveal still resolves if Recruiter covers the unit, and triggers again when it is uncovered.</li>
         <li>Cathedral: +1 point while owned, but you can only win at the end of a battle phase in which you won the battle.</li>
         <li>Mason's Guild attaches to one of your buildings and counts as an extra copy of it. Black Market ($3) looks at the top 3/6/9 cards of either the unit deck or the building deck (your choice, not both) once per shop; you may buy one of them for $1/$2/$3 less (by its level) (it still uses your normal buys for that kind). Unbought cards go to the bottom.</li>
-        <li>Miracles (optional, set at the start of a game): 9 in the unit deck and 4 in the building deck. A miracle is never shown alone: the next card from its deck is laid on top of it (more miracles stack). That card costs its price plus each miracle's surcharge (discounts apply to the total), and its buyer gets every miracle under it. Money miracles pay at once, and Muster Writ is used at once (up to 1 other display unit goes to the Muster pile and is replaced from the unit deck, then you take another shop turn before your opponent); the others go to your hand, which both players can see, and are used later: Recruit, Armament and Training miracles at a Mobilize (place more than your own and they're used up), Divine Favor and Vision on a shop turn, and Patronage on your next buy. Unbought, a covered card goes sideways and leaves with its miracles. Black Market and Vision put a miracle they turn up on the bottom and look at one more card. Miracles can't be sold.</li>
+        <li>Miracles (optional, set at the start of a game): 9 in the unit deck and 4 in the building deck. A miracle is never shown alone: the next card from its deck is laid on top of it (more miracles stack). That card costs its price plus each miracle's surcharge (discounts apply to the total), and its buyer gets every miracle under it. Money miracles pay at once, and Muster Writ is used at once (up to 1 other display card goes to the Muster pile and is replaced from its deck, then you take another shop turn before your opponent); the others go to your hand, which both players can see, and are used later: Recruit, Armament and Training miracles at a Mobilize (place more than your own and they're used up), Divine Favor and Vision on a shop turn, and Patronage on your next buy. Unbought, a covered card goes sideways and leaves with its miracles. Black Market and Vision put a miracle they turn up on the bottom and look at one more card. Miracles can't be sold.</li>
         <li>Not in this version: Recruitment Office and Outpost (0 copies on the sheet).</li>
       </ul>
     </div>
@@ -1347,7 +1381,7 @@ const MIRS = {
   'Blessed Steel': {u:1, b:0, s:1, arm:2, sh:'hand: +2 Armaments at a Mobilize', t:"Goes to your hand. At a Mobilize, place 2 Armaments (on top of your Smithy's). Single use."},
   'Divine Favor':  {u:0, b:1, s:1, fav:1, sh:'hand: 1 extra buy on a shop turn', t:'Goes to your hand. On any shop turn, use it for one extra buy at normal price (Fields allowed). Single use.'},
   'Vision':        {u:0, b:1, s:0, vis:3, sh:'hand: look at 3, buy 1', t:'Goes to your hand. On any shop turn, look at the top 3 cards of either deck and buy one at normal price (uses a normal buy). Single use.'},
-  'Muster Writ':   {u:1, b:0, s:1, writ:1, sh:'now: up to 2 display units to the Muster pile', t:'Use it right away: move up to 2 other units from the display to the Muster pile (any miracles under them are discarded).'},
+  'Muster Writ':   {u:1, b:0, s:1, writ:1, sh:'now: up to 2 display cards to the Muster pile', t:'Use it right away: move up to 2 other cards from the display to the Muster pile (any miracles under them are discarded).'},
   'Patronage':     {u:1, b:1, s:1, disc:2, sh:'', t:''},
   'Sacred Lesson': {u:1, b:0, s:1, tr:1, sh:'hand: +1 Training token at a Mobilize', t:"Goes to your hand. At a Mobilize, place 1 Training token (on top of your Study's). Single use."},
 };
@@ -1359,7 +1393,7 @@ const MIR_TEXT = {
   rec: v => [`hand: +${v} Recruit${v === 1 ? '' : 's'} at a Mobilize`, `When you buy the card on top of this, put this card in your hand. You may discard this card at a Mobilize to add ${v} Recruit${v === 1 ? '' : 's'} to your deck.`],
   arm: v => [`hand: +${v} Armament${v === 1 ? '' : 's'} at a Mobilize`, `When you buy the card on top of this, put this card in your hand. You may discard this card at a Mobilize to place ${v} Armament${v === 1 ? '' : 's'} (on top of your Smithy's).`],
   tr:  v => [`hand: +${v} Training token${v === 1 ? '' : 's'} at a Mobilize`, `When you buy the card on top of this, put this card in your hand. You may discard this card at a Mobilize to place ${v} Training token${v === 1 ? '' : 's'} (on top of your Study's).`],
-  writ:v => [`now: ${v === 1 ? 'a display unit' : `up to ${v} display units`} to the Muster pile, then shop again`, `When you buy the card on top of this, move ${v === 1 ? 'up to 1 other unit' : `up to ${v} other units`} from the display to the Muster pile (any miracles under ${v === 1 ? 'it are' : 'them are'} discarded) and deal ${v === 1 ? 'a new card' : 'new cards'} from the unit deck to replace ${v === 1 ? 'it' : 'them'}. Then take another shop turn before your opponent.`],
+  writ:v => [`now: ${v === 1 ? 'a display card' : `up to ${v} display cards`} to the Muster pile, then shop again`, `When you buy the card on top of this, move ${v === 1 ? 'up to 1 other card' : `up to ${v} other cards`} from the display to the Muster pile (any miracles under ${v === 1 ? 'it are' : 'them are'} discarded) and deal ${v === 1 ? 'a new card' : 'new cards'} from the same deck to replace ${v === 1 ? 'it' : 'them'}. Then take another shop turn before your opponent.`],
   vis: v => [`hand: look at ${v}, buy 1`, `When you buy the card on top of this, put this card in your hand. You may discard this card on any shop turn to look at the top ${v} cards of either deck and buy one at normal price (uses a normal buy).`],
   disc:v => [`hand: next card you buy costs $${v} less`, `When you buy the card on top of this, put this card in your hand. The next card you buy, of any kind, costs $${v} less (minimum $0). Then discard this card.`],
   fav: v => [`hand: ${v === 1 ? '1 extra buy' : v + ' extra buys'} on a shop turn`, `When you buy the card on top of this, put this card in your hand. You may discard this card on any shop turn for ${v === 1 ? 'one Extra buy' : v + ' Extra buys'} at normal price.`],
@@ -1564,6 +1598,9 @@ function noteSeen(g, i){
   if (g.bm[i]) for (const n of g.bm[i].cards) g.seen[i].add(n);
   if (g.vis && g.vis[i]) for (const n of g.vis[i].cards) g.seen[i].add(n);
 }
+// Muster pile holds units and buildings by name; a card's kind and whether a player owns it
+const cardKind = n => DEFS[n] ? 'u' : 'b';
+const ownsCard = (st, n) => (cardKind(n) === 'u' ? st.hand[n] : st.city[n]) || 0;
 // Could this player hold one more of the card? Ignores money and buys. st is anything with {hand, city}:
 // a real player or a hypothetical one. Returns why not, or null if it can.
 function cantAcquire(st, name, kind){
@@ -1580,7 +1617,7 @@ function buyQuote(p, b, name, kind, src, sur){
   const Dd = kind === 'u' ? DEFS[name] : BDEFS[name];
   let price = Dd.c + (sur || 0);   // miracle surcharge: discounts below apply to the total
   const no = cantAcquire(p, name, kind); if (no) return {ok:false, why:no};
-  if (src === 'mu' && !((p.hand[name] || 0) > 0)) return {ok:false, why:'Own one to muster it'};
+  if (src === 'mu' && !(ownsCard(p, name) > 0)) return {ok:false, why:'Own one to muster it'};
   let slot;
   const baseOk = kind === 'u' ? b.u < RULES.unitsPerShop : b.b < RULES.bldgPerShop;
   if (baseOk) slot = 'base';
@@ -1604,7 +1641,7 @@ function sourceCard(g, i, src, idx){
   if (src === 'field') return {name:'Field', kind:'b'};
   if (src === 'recruit') return {name:'Recruit', kind:'u'};
   if (src === 'bm') return g.bm[i] && g.bm[i].cards[idx] && {name:g.bm[i].cards[idx], kind:g.bm[i].k};
-  if (src === 'mu') return g.muster && g.muster[idx] && {name:g.muster[idx], kind:'u'};
+  if (src === 'mu') return g.muster && g.muster[idx] && {name:g.muster[idx], kind:cardKind(g.muster[idx])};
   if (src === 'vis') return g.vis && g.vis[i] && g.vis[i].cards[idx] && {name:g.vis[i].cards[idx], kind:g.vis[i].k};
   return null;
 }
@@ -1654,9 +1691,10 @@ function useWrit(g, i, n, names){
   const pick = Array.isArray(names) ? names.slice(0, n) : asSeenBy(g, i, () => writPick(g, i, n).map(x => x.name));
   const moved = [];
   for (const nm of pick){
-    const k = g.disp.u.findIndex(c => c.name === nm); if (k < 0) continue;
-    g.disp.u.splice(k, 1); (g.muster || (g.muster = [])).push(nm); moved.push(nm);
-    const c = dealCard(g, 'u'); if (c) g.disp.u.splice(k, 0, c);   // a new card from the unit deck takes its place
+    const kd = g.disp.u.some(c => c.name === nm) ? 'u' : 'b', row = g.disp[kd];
+    const k = row.findIndex(c => c.name === nm); if (k < 0) continue;
+    row.splice(k, 1); (g.muster || (g.muster = [])).push(nm); moved.push(nm);
+    const c = dealCard(g, kd); if (c) row.splice(k, 0, c);   // a new card from its own deck takes its place
   }
   g.log.push({t:moved.length ? `${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} Muster Writ: ${moved.join(' and ')} ${moved.length > 1 ? 'go' : 'goes'} to the Muster pile.`
                              : `${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} Muster Writ and ${g.labels[i]==='You'?'move':'moves'} nothing.`, side:i});
@@ -1666,12 +1704,12 @@ function useWrit(g, i, n, names){
 // neither owns is lost to the AI too, so its own interest in it is subtracted. Units the opponent owns are left alone:
 // in the Muster pile they could still buy them. n null: rank them all.
 function writPick(g, i, n){
-  const me = g.players[i], oh = pubHand(g.players[1 - i]), out = [];
-  for (const c of g.disp.u){
+  const me = g.players[i], op = g.players[1 - i], oh = pubHand(op), out = [];
+  for (const c of g.disp.u.map(x => ({...x, kd:'u'})).concat(g.disp.b.map(x => ({...x, kd:'b'})))){
     if (out.some(x => x.name === c.name)) continue;
-    const mine = (me.hand[c.name] || 0) > 0, theirs = (oh[c.name] || 0) > 0;
+    const mine = ownsCard(me, c.name) > 0, theirs = (c.kd === 'u' ? oh[c.name] : op.city[c.name]) > 0;
     if (theirs) continue;
-    const myV = aiValue(g, i, c.name, 'u'), deny = 0.5 * Math.max(0, aiValue(g, 1 - i, c.name, 'u'));
+    const myV = aiValue(g, i, c.name, c.kd), deny = 0.5 * Math.max(0, aiValue(g, 1 - i, c.name, c.kd));
     // owned: saved for my level-up AND kept from them; not owned: kept from them, but I can't buy it either
     const v = mine ? myV + deny : deny - Math.max(0, myV);
     if (v > 0) out.push({name:c.name, v});
@@ -1738,13 +1776,12 @@ function sell(g, i, kind, name){
     if (p.mason && p.mason[name] > 0){ p.mason[name]--; back = "Mason's Guild"; }
     if (!--p.city[name]) delete p.city[name];
   }
-  // a sold unit goes face-up to the Muster pile; a sold building goes to the bottom of the building deck
-  if (kind === 'u'){ g.muster = g.muster || []; g.muster.push(back); }
-  else if (back !== 'Field') g.bDeck.unshift(back);
+  // a sold card goes face-up to the Muster pile (a sold Field returns to the supply)
+  if (back !== 'Field'){ g.muster = g.muster || []; g.muster.push(back); }
   p.money += SELL_PRICE;
   g.sold = g.sold || [[], []]; g.sold[i].push(name);
   const you = g.labels[i] === 'You';
-  g.log.push({t:`${g.labels[i]} ${you ? 'sell' : 'sells'} ${name} for $${SELL_PRICE}${kind === 'u' ? ' (to the Muster pile)' : ''}.`, side:i});
+  g.log.push({t:`${g.labels[i]} ${you ? 'sell' : 'sells'} ${name} for $${SELL_PRICE}${back !== 'Field' ? ` (${back !== name ? back + ' ' : ''}to the Muster pile)` : ''}.`, side:i});
   return true;
 }
 // The hand an opponent believes a player has: real units plus the ones sold in secret (capped at max level)
@@ -1815,9 +1852,11 @@ function endShop(g){
   }
   for (const i of [0,1]) if (g.bm[i]){ const deck = g.bm[i].k === 'u' ? g.uDeck : g.bDeck; for (const c of g.bm[i].cards) deck.unshift(c); g.bm[i] = null; }
   for (const i of [0,1]) if (g.vis && g.vis[i]){ const deck = g.vis[i].k === 'u' ? g.uDeck : g.bDeck; for (const c of g.vis[i].cards) deck.unshift(c); g.vis[i] = null; }
-  // Muster pile: a returning unit that goes unbought again is laid face-up there (its miracles are discarded)
+  // Muster pile: a returning card that goes unbought again is laid face-up there (its miracles are discarded)
   g.muster = g.muster || [];
-  for (const c of g.disp.u) if (c.side) g.muster.push(c.name);
+  for (const c of g.disp.u.concat(g.disp.b)) if (c.side) g.muster.push(c.name);
+  g.leaving = {u:[], b:[]};
+  for (const k of ['u','b']) g.disp[k].forEach((c, j) => { if (c.side) g.leaving[k].push({name:c.name, j}); });
   // unbought cards go sideways with their miracles; ones already sideways leave with theirs
   for (const k of ['u','b']) g.disp[k] = g.disp[k].filter(c => !c.side).map(c => ({name:c.name, side:true, mir:c.mir || []}));
   g.phase = 'mobilize'; g.decks = [null,null];
@@ -2175,8 +2214,8 @@ function aiShopOptions(g, i){
   g.disp.b.forEach((c, idx) => opts.push({src:'db', idx, name:c.name, kind:'b'}));
   opts.push({src:'field', name:'Field', kind:'b'}, {src:'recruit', name:'Recruit', kind:'u'});
   if (g.bm[i]) g.bm[i].cards.forEach((n, idx) => opts.push({src:'bm', idx, name:n, kind:g.bm[i].k}));
-  const hand = g.players[i].hand;
-  (g.muster || []).forEach((n, idx) => { if ((hand[n] || 0) > 0 && !opts.some(o => o.src === 'mu' && o.name === n)) opts.push({src:'mu', idx, name:n, kind:'u'}); });
+  const me = g.players[i];
+  (g.muster || []).forEach((n, idx) => { if (ownsCard(me, n) > 0 && !opts.some(o => o.src === 'mu' && o.name === n)) opts.push({src:'mu', idx, name:n, kind:cardKind(n)}); });
   if (g.vis && g.vis[i]) g.vis[i].cards.forEach((n, idx) => opts.push({src:'vis', idx, name:n, kind:g.vis[i].k}));
   return opts;
 }
@@ -2597,7 +2636,7 @@ function aiShopTurnSeen(g, i, depth){
     const c0 = {...o, price:info.price, v:aiValue(g, i, o.name, o.kind) - info.price * G.m * mE + mirValue(g, i, mirOf(g, o), G, mE)};
     // Muster patience: a Muster copy the opponent can't take (they own none) will still be there next shop, so it's
     // worth a little less than a display card that may be gone; fades out when few shops are left
-    if (o.src === 'mu' && !((g.players[1-i].hand[o.name] || 0) > 0)) c0.v -= (G.mpat ?? 0.5) * mE;
+    if (o.src === 'mu' && !(ownsCard(g.players[1-i], o.name) > 0)) c0.v -= (G.mpat ?? 0.5) * mE;
     cands.push(c0);
   }
   if (D && D.search){
@@ -2661,7 +2700,7 @@ function aiShopTurnSeen(g, i, depth){
         c.v += 8 * G.s * c.delta;
       }
       // denial: any display card, and a Muster card the opponent owns a copy of (only they could muster it)
-      if (deny > 0 && !c.denied && (c.src === 'du' || c.src === 'db' || (c.src === 'mu' && (opp.hand[c.name] || 0) > 0))){
+      if (deny > 0 && !c.denied && (c.src === 'du' || c.src === 'db' || (c.src === 'mu' && ownsCard(opp, c.name) > 0))){
         const ok = c.name !== "Mason's Guild" && !cantAcquire(opp, c.name, c.kind);
         const theirs = ok ? withCard(opp, c, null) : null;
         if (theirs){ c.denial = quickStrength(g, 1 - i, theirs, myGuesses, myCfgPub, null, 0, c.kind === 'u' ? c.name : null) - theirBase; c.v += 8 * G.s * deny * Math.max(0, c.denial); }
@@ -4478,6 +4517,9 @@ function shortHTML(name, kind, own, noNext){
   if (n > 1) h = h.replace(/\$?\d+(?:\/\$?\d+)+/g, m => m.split('/').map((v, k) => `<span class="lv${k === L-1 ? ' now' : k === nx-1 ? ' next' : ''}">${v}</span>`).join('/'));
   return `<span class="stx">${h.replace(/⟨(\w+)⟩/g, (m, k) => GI[k] || m)}</span>`;
 }
+const HG_SVG = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.5 1.5h9v1.2h-1v1.6c0 1.5-1 2.6-2.3 3.7 1.3 1.1 2.3 2.2 2.3 3.7v1.6h1v1.2h-9v-1.2h1v-1.6c0-1.5 1-2.6 2.3-3.7C5.5 6.9 4.5 5.8 4.5 4.3V2.7h-1zm2.2 1.2v1.6c0 1 .7 1.8 2.3 3.1 1.6-1.3 2.3-2.1 2.3-3.1V2.7zM8 9.2c-1.6 1.3-2.3 2.1-2.3 3.1v1h4.6v-1c0-1-.7-1.8-2.3-3.1z"/></svg>';
+// a returning card wears an hourglass token on its corner: unbought again this shop, it goes to the Muster pile
+const hgToken = () => `<span class="hgtok" role="img" title="Returning card: if nobody buys it this shop, it goes to the Muster pile" aria-label="Returning card: if nobody buys it this shop, it goes to the Muster pile">${HG_SVG}</span>`;
 function marketCard(name, kind, src, idx, side, always, mir){
   const S = seat(), me = G.players[S], myTurn = G.phase === 'shop' && cur(G) === S;
   const d = kind === 'u' ? DEFS[name] : BDEFS[name];
@@ -4499,13 +4541,14 @@ function marketCard(name, kind, src, idx, side, always, mir){
   // Muster Writ: Buy opens a picker of the other display units on the card itself
   const writN = (mir || []).reduce((s, m) => s + (MIRS[m].writ || 0), 0);
   if (writN && ui.writ && ui.writ.src === src && ui.writ.idx === (idx ?? 0) && info.ok && myTurn){
-    const others = G.disp.u.map((c, j) => ({name:c.name, j})).filter(x => !(src === 'du' && x.j === (idx ?? 0)));
+    const others = G.disp.u.map((c, j) => ({name:c.name, j:'u' + j})).filter(x => !(src === 'du' && x.j === 'u' + (idx ?? 0)))
+      .concat(G.disp.b.map((c, j) => ({name:c.name, j:'b' + j})).filter(x => !(src === 'db' && x.j === 'b' + (idx ?? 0))));
     const sel = ui.writ.sel;
     return `<div class="mcard ${kind} masonpick">
       <div class="top"><span class="nm">${esc(name)}</span><span class="cost">$${info.price}</span></div>
-      <span class="note">✶ Muster Writ: pick ${writN === 1 ? 'up to 1 other unit' : `up to ${writN} other units`} to send to the Muster pile (${sel.length}/${writN}). ${writN === 1 ? 'A new card from the unit deck replaces it' : 'New cards from the unit deck replace them'}, then you shop again. Only players who own one can buy it back.</span>
-      <div class="mlist">${others.length ? others.map(x => { const on = sel.includes(x.j), oo = G.players[1 - S].hand[x.name] ? ' · they own one' : (me.hand[x.name] ? ' · you own one' : '');
-        return `<button type="button" data-act="writ-tog" data-j="${x.j}" aria-pressed="${on}" ${!on && sel.length >= writN ? 'disabled' : ''}${on ? ' style="border-color:var(--or);background:var(--or-soft)"' : ''}>${on ? '✓ ' : ''}${esc(x.name)} <span class="mono">${oo}</span></button>`; }).join('') : '<span class="note">No other units on display.</span>'}</div>
+      <span class="note">✶ Muster Writ: pick ${writN === 1 ? 'up to 1 other card' : `up to ${writN} other cards`} to send to the Muster pile (${sel.length}/${writN}). ${writN === 1 ? 'A new card from the same deck replaces it' : 'New cards from the same decks replace them'}, then you shop again. Only players who own one can buy it back.</span>
+      <div class="mlist">${others.length ? others.map(x => { const on = sel.includes(x.j), oo = ownsCard(G.players[1 - S], x.name) ? ' · they own one' : (ownsCard(me, x.name) ? ' · you own one' : '');
+        return `<button type="button" data-act="writ-tog" data-j="${x.j}" aria-pressed="${on}" ${!on && sel.length >= writN ? 'disabled' : ''}${on ? ' style="border-color:var(--or);background:var(--or-soft)"' : ''}>${on ? '✓ ' : ''}${esc(x.name)} <span class="mono">${oo}</span></button>`; }).join('') : '<span class="note">No other cards on display.</span>'}</div>
       <div class="row"><button type="button" class="primary small" data-act="writ-go" data-src="${src}" data-idx="${idx ?? ''}">Buy $${info.price}</button><button type="button" class="small" data-act="writ-cancel">Cancel</button></div>
     </div>`;
   }
@@ -4513,9 +4556,8 @@ function marketCard(name, kind, src, idx, side, always, mir){
   const jump = info.ok || short ? jumpText(name, kind, own) : '';
   const label = info.ok ? `Buy $${info.price}${info.slot === 'extra' ? ' (extra buy)' : info.slot === 'carp' ? ' (Carpenter)' : info.slot === 'fav' ? ' (Divine Favor)' : ''}${src === 'bm' ? ` ($${bmOff(me)} off)` : ''}${info.disc ? ` (${esc(info.disc)})` : ''}` : esc(info.why);
   const sur = mirSur(mir), hasMir = !!(mir && mir.length), mkey = `${src}:${idx}:${name}`;
-  const card = `<div class="mcard ${kind}${short ? ' cant' : ''}${info.ok && myTurn ? ' canbuy' : ''}${jump ? ' lvup' : ''}${always ? ' always' : ''}${hasMir ? ' hasmir' : ''}"${hasMir ? ` data-act="mir-peek" data-k="${esc(mkey)}" title="${mir.length > 1 ? `${mir.length} miracles` : 'A miracle'} behind this card. Click to see." aria-label="${esc(name)}: ${mir.length > 1 ? `${mir.length} miracles` : 'a miracle'} behind it. Click to see." role="button" tabindex="0"` : ''}>
+  const card = `<div class="mcard ${kind}${short ? ' cant' : ''}${info.ok && myTurn ? ' canbuy' : ''}${jump ? ' lvup' : ''}${always ? ' always' : ''}${hasMir ? ' hasmir' : ''}${side ? ' leaving' : ''}"${hasMir ? ` data-act="mir-peek" data-k="${esc(mkey)}" title="${mir.length > 1 ? `${mir.length} miracles` : 'A miracle'} behind this card. Click to see." aria-label="${esc(name)}: ${mir.length > 1 ? `${mir.length} miracles` : 'a miracle'} behind it. Click to see." role="button" tabindex="0"` : ''}>
     <div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div>
-    ${side ? '<span class="side-tag">Returning card · last chance</span>' : ''}
 
     ${short ? `<span class="need">Need $${info.price - me.money} more</span>` : ''}
     <span class="curve">${curveText(name, kind, own)}</span>
@@ -4523,6 +4565,7 @@ function marketCard(name, kind, src, idx, side, always, mir){
     ${own || jump ? `<span class="ownrow">${own ? `<span class="own">${PP() && !G.net ? `${esc(nm(S))} owns` : 'You own'} ${kind === 'u' ? '×' + own : 'level ' + Math.min(own, BDEFS[name] ? BDEFS[name].lv.length : 3)}</span>` : ''}${jump ? `<span class="jump">${jump}</span>` : ''}</span>` : ''}
     ${extra}${info.ok && myTurn ? `<span class="ctag">Buy $${info.price}</span>` : ''}
     <button type="button" class="${info.ok && myTurn ? 'primary' : ''}" data-act="buy" data-src="${src}" data-idx="${idx ?? ''}" ${info.ok && myTurn ? '' : 'disabled'}>${label}</button>
+    ${side ? hgToken() : ''}
     ${hasMir && ui.mirOpen === mkey ? mirListHTML(name, mir, 'mirpop').replace('<div class="mirpop">', `<div class="mirpop" data-act="mir-peek" data-k="${esc(mkey)}">`).replace('.</span></div>', '. Click to close.</span></div>') : ''}
   </div>`;
   if (!hasMir) return card;
@@ -4662,17 +4705,19 @@ function mergedPos(kind, j){
 }
 // Muster pile: face-up units that went unbought or were sold. You can buy a copy of a unit you own from it (a normal unit buy).
 // The pile glows when it holds a copy of one of your units that could still level up.
-function musterMatch(n){ const me = G.players[seat()]; return (me.hand[n] || 0) > 0 && !exemptUnit(n) && uLvl(n, me.hand[n]) < uMax(n); }
+function musterMatch(n){ const me = G.players[seat()]; return ownsCard(me, n) > 0 && !(cardKind(n) === 'u' && exemptUnit(n)) && !cantAcquire(me, n, cardKind(n)); }
 function musterHTML(){
-  const pile = G.muster || [], open = !!ui.musterOpen, hits = pile.filter(musterMatch).length;
-  const btn = `<button type="button" class="musterbtn${hits ? ' glow' : ''}" data-act="muster" aria-expanded="${open}" ${pile.length ? '' : 'disabled'}>
-      <span class="mstack" aria-hidden="true"><span></span><span></span><span></span></span>
-      <span class="mlbl"><b>Muster pile</b> · ${pile.length ? `${pile.length} unit${pile.length > 1 ? 's' : ''} face-up` : 'empty'}${hits ? ` · <span class="mhit">${hits} cop${hits > 1 ? 'ies' : 'y'} of your units</span>` : ''}</span>
-      <span class="mchev" aria-hidden="true">${pile.length ? (open ? '▴' : '▾') : ''}</span></button>`;
-  if (!open || !pile.length) return `<div class="muster">${btn}</div>`;
+  const pile = G.muster || [], open = !!ui.musterOpen && pile.length > 0;
+  if (!open) return '';
   const cards = pile.map((n, i) => [n, i]).sort((a, b) => musterMatch(b[0]) - musterMatch(a[0]))
-    .map(([n, i]) => `<div class="mwrap${musterMatch(n) ? ' hit' : ''}">${marketCard(n, 'u', 'mu', i)}</div>`).join('');
-  return `<div class="muster open">${btn}<p class="note">Unbought and sold units land here face-up. You can buy a copy of a unit you already own (it uses a normal unit buy).</p><div class="market plain">${cards}</div></div>`;
+    .map(([n, i]) => `<div class="mwrap${musterMatch(n) ? ' hit' : ''}">${marketCard(n, cardKind(n), 'mu', i)}</div>`).join('');
+  return `<div class="muster open"><span class="eyebrow">Muster pile · ${pile.length} card${pile.length > 1 ? 's' : ''}</span><p class="note">Unbought and sold cards land here face-up. You can buy a copy of a unit or building you already own (it uses a normal buy of that kind).</p><div class="market plain">${cards}</div></div>`;
+}
+function musterPileHTML(){
+  const pile = G.muster || [], open = !!ui.musterOpen && pile.length > 0, hits = pile.filter(musterMatch).length, n = Math.min(3, pile.length);
+  const tip = pile.length ? `Muster pile: ${pile.length} card${pile.length > 1 ? 's' : ''} face-up${hits ? `, ${hits} cop${hits > 1 ? 'ies' : 'y'} of your cards` : ''}. Tap to ${open ? 'close' : 'look through it'}.` : 'Muster pile: empty. Unbought and sold cards land here face-up.';
+  return `<button type="button" class="mpile${hits ? ' glow' : ''}${pile.length ? '' : ' empty'}" id="muster-pile" data-act="muster" aria-expanded="${open}" ${pile.length ? '' : 'disabled'} title="${esc(tip)}" aria-label="${esc(tip)}">
+    <span class="mpcards" aria-hidden="true">${Array.from({length:Math.max(1, n)}, (_, k) => `<span class="mpc${pile.length ? '' : ' mpe'}" style="--k:${Math.max(1, n) - 1 - k}"></span>`).join('')}<span class="mpface"><span class="mplbl">Muster</span><b class="mpcount">${pile.length}</b></span></span>${hits ? `<span class="mphit" aria-hidden="true">${hits}</span>` : ''}</button>`;
 }
 function marketRow(kind, src){
   const cards = G.disp[kind].map((c, i) => marketCard(c.name, kind, src, i, c.side, false, c.mir));
@@ -4730,12 +4775,13 @@ function shopHTML(){
     <span class="grow"></span>
     ${bmBtns}
     <button type="button" class="primary passbtn" data-act="pass" ${myTurn ? '' : 'disabled'}>Pass</button></div>
-  <div class="panel mktp show-${ui.mktTab === 'b' ? 'b' : 'u'}"><div class="mkthead"><h2>Market</h2>
+  <div class="panel mktp show-${ui.mktTab === 'b' ? 'b' : 'u'}"><div class="mkthead"><h2>Market</h2><span class="grow"></span>${musterPileHTML()}
     <span class="mswitch seg" role="group" aria-label="Show market">${[['u','Units'],['b','Buildings']].map(([k, l]) => `<button type="button" data-act="mkt-tab" data-k="${k}" aria-pressed="${(ui.mktTab === 'b' ? 'b' : 'u') === k}">${l}</button>`).join('')}</span>
     <span class="dealdeck" aria-hidden="true"><span class="cb"></span><span class="cb"></span><span class="cb"></span></span></div>
     <p class="peekhint">Tap a card to read it${myTurn && !G.passed[S] ? ' and buy it' : ''}.</p>
+    ${musterHTML()}
     <div class="msec" data-k="u"><span class="eyebrow">Units</span>
-    <div class="market">${marketRow('u', 'du')}</div>${musterHTML()}</div>
+    <div class="market">${marketRow('u', 'du')}</div></div>
     <div class="msec" data-k="b"><span class="eyebrow">Buildings</span>
     <div class="market">${marketRow('b', 'db')}</div></div>
     ${G.bm[S] ? `<span class="eyebrow">Black Market: ${G.bm[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}, $${bmOff(me)} off one card)</span><div class="market plain">${G.bm[S].cards.map((n, i) => marketCard(n, G.bm[S].k, 'bm', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
@@ -5249,6 +5295,46 @@ function loadSave(){
 window.addEventListener('pagehide', () => { if (saveT) saveNow(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && saveT) saveNow(); });
 
+/* Cards that left the display at the end of the last shop (unbought returning cards) fly from the slot they sat in to
+   the Muster pile, the reverse of a deal. Returns how long that takes (ms), so the deal can start after it. */
+function leaveToPile(rows){
+  const L = G.leaving, pile = $('muster-pile'), mktp = $('view-play').querySelector('.mktp');
+  if (!L || !pile || !mktp || !(L.u.length + L.b.length)) return 0;
+  const pr = pile.querySelector('.mpcards').getBoundingClientRect(), pcx = pr.left + pr.width / 2, pcy = pr.top + pr.height / 2;
+  const cnt = pile.querySelector('.mpcount'), total = (G.muster || []).length, arriving = L.u.length + L.b.length;
+  let landed = 0; if (cnt) cnt.textContent = Math.max(0, total - arriving);
+  let k = 0, end = 0;
+  [['u', rows[0]], ['b', rows[1]]].forEach(([kind, row]) => {
+    if (!row) return;
+    const slots = [...row.children].filter(c => !c.classList.contains('alwaysw') && !c.classList.contains('mdiv'));
+    for (const {name, j} of L[kind]){
+      const slot = slots[j] || slots[slots.length - 1]; if (!slot) continue;
+      const card = slot.classList.contains('mcard') ? slot : slot.querySelector('.mcard') || slot;
+      const r = card.getBoundingClientRect(); if (!r.width) continue;
+      const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) continue;
+      const gh = document.createElement('div');
+      gh.className = `mcard ${kind} leaving lghost`; gh.setAttribute('aria-hidden', 'true');
+      gh.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div><span class="curve">${curveText(name, kind, 0)}</span><span class="tx">${cardTx(name, kind, 0)}</span>${shortHTML(name, kind, 0)}${hgToken()}`;
+      const mr = mktp.getBoundingClientRect();   // placed inside the Market panel, so scrolling mid-flight keeps it lined up
+      Object.assign(gh.style, {position:'absolute', left:(r.left - mr.left - mktp.clientLeft) + 'px', top:(r.top - mr.top - mktp.clientTop) + 'px', width:r.width + 'px', margin:'0', zIndex:'40', pointerEvents:'none'});
+      gh.style.setProperty('height', r.height + 'px', 'important');
+      mktp.appendChild(gh);
+      const delay = 80 + k++ * 110, dur = 560;
+      const dx = pcx - (r.left + r.width / 2), dy = pcy - (r.top + r.height / 2), sc = Math.min(1, pr.width / r.width);
+      sfx.flick(delay / 1000 + 0.3);
+      const a = gh.animate([
+        {transform:'rotate(1.5deg)', opacity:1, offset:0},
+        {transform:'translate(0,-10px) rotate(4deg) scale(1.03)', opacity:1, offset:.18},
+        {transform:`translate(${dx}px,${dy}px) rotate(12deg) scale(${sc})`, opacity:1, offset:.92},
+        {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${sc * .9})`, opacity:0, offset:1}
+      ], {duration:dur, delay, easing:'cubic-bezier(.45,.05,.4,1)', fill:'both'});
+      a.onfinish = () => { gh.remove(); landed++; if (cnt) cnt.textContent = Math.max(0, total - arriving + landed);
+        pile.querySelector('.mpcards').animate([{transform:'scale(1.12)'}, {transform:'none'}], {duration:220, easing:'ease-out'}); };
+      end = Math.max(end, delay + dur);
+    }
+  });
+  return end ? end + 120 : 0;
+}
 /* Deal the market at the start of each shop: new cards fly face down out of the deck and flip over;
    returning cards slide back in from the side; Recruit and Field just fade in. */
 function dealMarket(){
@@ -5256,6 +5342,8 @@ function dealMarket(){
   const deck = $('view-play').querySelector('.dealdeck'), rows = [...$('view-play').querySelectorAll('.mktp .market')].slice(0, 2);
   if (!deck || !rows.length) return;
   const dr = deck.getBoundingClientRect(), dcx = dr.left + dr.width / 2, dcy = dr.top + dr.height / 2;
+  // first, the cards that left the shop fly from their old slots into the Muster pile; then the deal starts
+  const base = 120 + leaveToPile(rows);
   let n = 0, end = 0;
   for (const row of rows) for (const el of row.querySelectorAll('.mcard')){
     if (el.classList.contains('ghost') || !el.offsetParent) continue;
@@ -5267,14 +5355,14 @@ function dealMarket(){
     // miracles under this card: each is drawn and laid down first (farthest back first), then the card lands on top
     const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
     const backsEl = wrapEl ? [...wrapEl.querySelectorAll('.mirback')].reverse() : [];
-    if (/Returning/.test(el.textContent)){
-      const delay = 120 + n++ * 85;
+    if (el.classList.contains('leaving')){
+      const delay = base + n++ * 85;
       for (const b of backsEl) b.animate([{opacity:0, transform:'translateX(-40px)'}, {opacity:1, transform:'none'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
-      el.animate([{opacity:0, transform:'translateX(-40px)'}, {opacity:1, transform:'none'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
+      el.animate([{opacity:0, transform:'translateX(-40px) rotate(1.5deg)'}, {opacity:1, transform:'rotate(1.5deg)'}], {duration:420, delay, easing:'cubic-bezier(.22,.9,.3,1)', fill:'backwards'});
       end = Math.max(end, delay + 420); continue;
     }
     for (const b of backsEl){
-      const bd = 120 + n++ * 85, br = b.getBoundingClientRect();
+      const bd = base + n++ * 85, br = b.getBoundingClientRect();
       const bx = dcx - (br.left + br.width / 2), by = dcy - (br.top + br.height / 2), bs = Math.min(1, dr.width / br.width);
       sfx.flick(bd / 1000 + 0.05);
       b.animate([
@@ -5284,7 +5372,7 @@ function dealMarket(){
       ], {duration:520, delay:bd, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
       end = Math.max(end, bd + 520);
     }
-    const delay = 120 + n++ * 85 + (backsEl.length ? 260 : 0);
+    const delay = base + n++ * 85 + (backsEl.length ? 260 : 0);
     const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
     sfx.flick(delay / 1000 + 0.05);
     const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
@@ -5369,8 +5457,8 @@ $('view-play').addEventListener('click', e => {
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
     case 'mason-cancel': sfx.soft(); ui.mason = null; renderPlay(); return;
     case 'writ-cancel': sfx.soft(); ui.writ = null; renderPlay(); return;
-    case 'writ-tog': { if (!ui.writ) return; const j = +t.dataset.j, k = ui.writ.sel.indexOf(j); if (k >= 0) ui.writ.sel.splice(k, 1); else ui.writ.sel.push(j); sfx.soft(); renderPlay(); return; }
-    case 'writ-go': { if (!ui.writ) return; const w = ui.writ; ui.writ = null; const names = w.sel.map(j => G.disp.u[j] && G.disp.u[j].name).filter(Boolean);
+    case 'writ-tog': { if (!ui.writ) return; const j = t.dataset.j, k = ui.writ.sel.indexOf(j); if (k >= 0) ui.writ.sel.splice(k, 1); else ui.writ.sel.push(j); sfx.soft(); renderPlay(); return; }
+    case 'writ-go': { if (!ui.writ) return; const w = ui.writ; ui.writ = null; const names = w.sel.map(j => { const c = G.disp[j[0] === 'b' ? 'b' : 'u'][+j.slice(1)]; return c && c.name; }).filter(Boolean);
       doMove(['b', w.src, w.idx, null, names]); return; }
     case 'mason-to':
     case 'buy': {
