@@ -795,13 +795,7 @@ header{position:relative}
 .table .city.s0{flex-direction:column-reverse;margin-top:6px}
 .table .city.s1{margin-bottom:6px}
 .table .city .zl{font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.bchips{display:flex;flex-wrap:wrap;justify-content:center;gap:5px}
-.bchip{display:inline-flex;align-items:baseline;gap:5px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);font-size:.74rem;box-shadow:inset 0 2px 0 var(--muted);white-space:nowrap}
-.bchip b{font-weight:700}
-.bchip i{font-style:normal;font-family:var(--f-mono);font-size:.68rem;color:var(--muted)}
-.bchip.battle{box-shadow:inset 0 2px 0 var(--or);border-color:color-mix(in srgb, var(--or) 45%, var(--line))}
 .arw.tok.t-ret{stroke:var(--ok)} .aht.t-ret,.arl.tok.t-ret{fill:var(--ok)}
-@media (max-width:640px){ .bchip{font-size:.68rem;padding:2px 6px} }
 
 /* pass and play */
 .ppnames{gap:10px 16px}
@@ -1569,6 +1563,54 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
 /* the "Always available" label shows above them on every screen, phones included */
 .mktp .alwaysw .alab{display:block!important}
 @media (max-width:640px){ .mktp .alwaysw .alab{font-size:.56rem!important;letter-spacing:.02em!important;line-height:1.1} }
+
+/* ===== battle table: every card is a square =====
+   One size for the revealed card, the charging card, empty slots and the deck strips' width; the charge box is sized
+   from it. Cards never shrink: tokens tucked behind a card hang out past its box instead of squeezing it. */
+:root{--bcw:122px;--bch:122px}
+@media (max-width:640px){ :root{--bcw:98px;--bch:98px} }
+.table .card:not(.mini){width:var(--bcw)!important;height:var(--bch)!important;min-height:0;flex:none;padding:6px 7px 7px;gap:2px;overflow:visible}
+.table .card.mini{width:var(--bcw)!important;flex:none}
+.table .slot{width:var(--bcw);height:var(--bch)}
+.table .card:not(.mini) .ctop .cn{min-height:0;-webkit-line-clamp:2;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
+.table .card:not(.mini) .zh{--chip:52px;margin:auto}
+@media (max-width:640px){
+  .table .card:not(.mini){padding:4px 5px 5px}
+  .table .card:not(.mini) .zh{--chip:38px}
+  .table .card:not(.mini) .ctop .cn{font-size:.68rem}
+  .table .card .cpw b{font-size:.95rem}
+  .table .card .hpn{font-size:.6rem}
+}
+/* the charge box keeps its size; the card inside sits centred and keeps its full size (no token margin inside the box) */
+.table .charge{width:calc(var(--bcw) + 20px)!important;height:calc(var(--bch) + 20px)!important;overflow:visible}
+.table .charge>.card{margin:0!important}
+@media (max-width:640px){ .table .charge{width:calc(var(--bcw) + 8px)!important;height:calc(var(--bch) + 8px)!important} }
+
+/* each city: its buildings as battle-size cards (the same square as the units), extra copies tucked behind */
+.table .citycards{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:14px 18px;padding:10px 6px 4px}
+.table .city.s1 .citycards{align-items:flex-start}
+.table .card.citycard .ctop .cn{min-height:0}
+.table .card.citycard .cpw i{font-size:.66rem}
+.table .card.citycard .zh{--chip:58px;margin:auto}
+.table .card.citycard:focus-visible{outline:2px solid var(--or);outline-offset:3px}
+@media (max-width:640px){ .table .citycards{gap:12px 12px} .table .card.citycard .zh{--chip:44px} }
+
+/* desktop: ability notes sit between the two cities, beside the battle rows */
+@media (min-width:641px){
+  .abcol.s1{top:calc(var(--abT,0px) + 6px)}
+  .abcol.s0{bottom:calc(var(--abB,0px) + 6px)}
+  .abcol{max-height:calc(50% - (var(--abT,0px) + var(--abB,0px)) / 2 - 12px);overflow:auto}
+}
+
+/* a Shield breaking when you move past the step it blocked */
+.shbreak{position:fixed;z-index:9;pointer-events:none}
+.shpiece{position:absolute;inset:0;border:1px solid var(--muted);background:color-mix(in srgb, var(--muted) 22%, var(--surface))}
+.shicon{position:absolute;display:flex;align-items:center;justify-content:center;font-size:8px;line-height:1;color:var(--muted)}
+.shicon svg{width:100%;height:100%}
+.shflash{position:absolute;width:26px;height:26px;border-radius:50%;border:2px solid var(--muted)}
+/* the shield a hit is aimed at: ringed so the arrow's end is easy to see */
+.card > .pk.shhit{filter:drop-shadow(0 0 2px var(--surface)) drop-shadow(0 0 3px var(--muted))}
+.abbox.shnote .abn{color:var(--muted)!important}
 </style>
 <script>/* PeerJS 1.5.5 (MIT) */
 (()=>{function e(e,t,n,r){Object.defineProperty(e,t,{get:n,set:r,enumerable:!0,configurable:!0})}function t(e){return e&&e.__esModule?e.default:e}class n{constructor(){this.chunkedMTU=16300,this._dataCount=1,this.chunk=e=>{let t=[],n=e.byteLength,r=Math.ceil(n/this.chunkedMTU),i=0,s=0;for(;s<n;){let o=Math.min(n,s+this.chunkedMTU),a=e.slice(s,o),c={__peerData:this._dataCount,n:i,data:a,total:r};t.push(c),s=o,i++}return this._dataCount++,t}}}class r{append_buffer(e){this.flush(),this._parts.push(e)}append(e){this._pieces.push(e)}flush(){if(this._pieces.length>0){let e=new Uint8Array(this._pieces);this._parts.push(e),this._pieces=[]}}toArrayBuffer(){let e=[];for(let t of this._parts)e.push(t);return function(e){let t=0;for(let n of e)t+=n.byteLength;let n=new Uint8Array(t),r=0;for(let t of e){let e=new Uint8Array(t.buffer,t.byteOffset,t.byteLength);n.set(e,r),r+=t.byteLength}return n}(e).buffer}constructor(){this.encoder=new TextEncoder,this._pieces=[],this._parts=[]}}function i(e){return new o(e).unpack()}function s(e){let t=new a,n=t.pack(e);return n instanceof Promise?n.then(()=>t.getBuffer()):t.getBuffer()}class o{unpack(){let e,t=this.unpack_uint8();if(t<128)return t;if((224^t)<32)return(224^t)-32;if((e=160^t)<=15)return this.unpack_raw(e);if((e=176^t)<=15)return this.unpack_string(e);if((e=144^t)<=15)return this.unpack_array(e);if((e=128^t)<=15)return this.unpack_map(e);switch(t){case 192:return null;case 193:case 212:case 213:case 214:case 215:return;case 194:return!1;case 195:return!0;case 202:return this.unpack_float();case 203:return this.unpack_double();case 204:return this.unpack_uint8();case 205:return this.unpack_uint16();case 206:return this.unpack_uint32();case 207:return this.unpack_uint64();case 208:return this.unpack_int8();case 209:return this.unpack_int16();case 210:return this.unpack_int32();case 211:return this.unpack_int64();case 216:return e=this.unpack_uint16(),this.unpack_string(e);case 217:return e=this.unpack_uint32(),this.unpack_string(e);case 218:return e=this.unpack_uint16(),this.unpack_raw(e);case 219:return e=this.unpack_uint32(),this.unpack_raw(e);case 220:return e=this.unpack_uint16(),this.unpack_array(e);case 221:return e=this.unpack_uint32(),this.unpack_array(e);case 222:return e=this.unpack_uint16(),this.unpack_map(e);case 223:return e=this.unpack_uint32(),this.unpack_map(e)}}unpack_uint8(){let e=255&this.dataView[this.index];return this.index++,e}unpack_uint16(){let e=this.read(2),t=(255&e[0])*256+(255&e[1]);return this.index+=2,t}unpack_uint32(){let e=this.read(4),t=((256*e[0]+e[1])*256+e[2])*256+e[3];return this.index+=4,t}unpack_uint64(){let e=this.read(8),t=((((((256*e[0]+e[1])*256+e[2])*256+e[3])*256+e[4])*256+e[5])*256+e[6])*256+e[7];return this.index+=8,t}unpack_int8(){let e=this.unpack_uint8();return e<128?e:e-256}unpack_int16(){let e=this.unpack_uint16();return e<32768?e:e-65536}unpack_int32(){let e=this.unpack_uint32();return e<0x80000000?e:e-0x100000000}unpack_int64(){let e=this.unpack_uint64();return e<0x8000000000000000?e:e-0xffffffffffffffff}unpack_raw(e){if(this.length<this.index+e)throw Error(`BinaryPackFailure: index is out of range ${this.index} ${e} ${this.length}`);let t=this.dataBuffer.slice(this.index,this.index+e);return this.index+=e,t}unpack_string(e){let t,n,r=this.read(e),i=0,s="";for(;i<e;)(t=r[i])<160?(n=t,i++):(192^t)<32?(n=(31&t)<<6|63&r[i+1],i+=2):(224^t)<16?(n=(15&t)<<12|(63&r[i+1])<<6|63&r[i+2],i+=3):(n=(7&t)<<18|(63&r[i+1])<<12|(63&r[i+2])<<6|63&r[i+3],i+=4),s+=String.fromCodePoint(n);return this.index+=e,s}unpack_array(e){let t=Array(e);for(let n=0;n<e;n++)t[n]=this.unpack();return t}unpack_map(e){let t={};for(let n=0;n<e;n++)t[this.unpack()]=this.unpack();return t}unpack_float(){let e=this.unpack_uint32();return(0==e>>31?1:-1)*(8388607&e|8388608)*2**((e>>23&255)-127-23)}unpack_double(){let e=this.unpack_uint32(),t=this.unpack_uint32(),n=(e>>20&2047)-1023;return(0==e>>31?1:-1)*((1048575&e|1048576)*2**(n-20)+t*2**(n-52))}read(e){let t=this.index;if(t+e<=this.length)return this.dataView.subarray(t,t+e);throw Error("BinaryPackFailure: read index out of range")}constructor(e){this.index=0,this.dataBuffer=e,this.dataView=new Uint8Array(this.dataBuffer),this.length=this.dataBuffer.byteLength}}class a{getBuffer(){return this._bufferBuilder.toArrayBuffer()}pack(e){if("string"==typeof e)this.pack_string(e);else if("number"==typeof e)Math.floor(e)===e?this.pack_integer(e):this.pack_double(e);else if("boolean"==typeof e)!0===e?this._bufferBuilder.append(195):!1===e&&this._bufferBuilder.append(194);else if(void 0===e)this._bufferBuilder.append(192);else if("object"==typeof e)if(null===e)this._bufferBuilder.append(192);else{let t=e.constructor;if(e instanceof Array){let t=this.pack_array(e);if(t instanceof Promise)return t.then(()=>this._bufferBuilder.flush())}else if(e instanceof ArrayBuffer)this.pack_bin(new Uint8Array(e));else if("BYTES_PER_ELEMENT"in e)this.pack_bin(new Uint8Array(e.buffer,e.byteOffset,e.byteLength));else if(e instanceof Date)this.pack_string(e.toString());else if(e instanceof Blob)return e.arrayBuffer().then(e=>{this.pack_bin(new Uint8Array(e)),this._bufferBuilder.flush()});else if(t==Object||t.toString().startsWith("class")){let t=this.pack_object(e);if(t instanceof Promise)return t.then(()=>this._bufferBuilder.flush())}else throw Error(`Type "${t.toString()}" not yet supported`)}else throw Error(`Type "${typeof e}" not yet supported`);this._bufferBuilder.flush()}pack_bin(e){let t=e.length;if(t<=15)this.pack_uint8(160+t);else if(t<=65535)this._bufferBuilder.append(218),this.pack_uint16(t);else if(t<=0xffffffff)this._bufferBuilder.append(219),this.pack_uint32(t);else throw Error("Invalid length");this._bufferBuilder.append_buffer(e)}pack_string(e){let t=this._textEncoder.encode(e),n=t.length;if(n<=15)this.pack_uint8(176+n);else if(n<=65535)this._bufferBuilder.append(216),this.pack_uint16(n);else if(n<=0xffffffff)this._bufferBuilder.append(217),this.pack_uint32(n);else throw Error("Invalid length");this._bufferBuilder.append_buffer(t)}pack_array(e){let t=e.length;if(t<=15)this.pack_uint8(144+t);else if(t<=65535)this._bufferBuilder.append(220),this.pack_uint16(t);else if(t<=0xffffffff)this._bufferBuilder.append(221),this.pack_uint32(t);else throw Error("Invalid length");let n=r=>{if(r<t){let t=this.pack(e[r]);return t instanceof Promise?t.then(()=>n(r+1)):n(r+1)}};return n(0)}pack_integer(e){if(e>=-32&&e<=127)this._bufferBuilder.append(255&e);else if(e>=0&&e<=255)this._bufferBuilder.append(204),this.pack_uint8(e);else if(e>=-128&&e<=127)this._bufferBuilder.append(208),this.pack_int8(e);else if(e>=0&&e<=65535)this._bufferBuilder.append(205),this.pack_uint16(e);else if(e>=-32768&&e<=32767)this._bufferBuilder.append(209),this.pack_int16(e);else if(e>=0&&e<=0xffffffff)this._bufferBuilder.append(206),this.pack_uint32(e);else if(e>=-0x80000000&&e<=0x7fffffff)this._bufferBuilder.append(210),this.pack_int32(e);else if(e>=-0x8000000000000000&&e<=0x8000000000000000)this._bufferBuilder.append(211),this.pack_int64(e);else if(e>=0&&e<=0xffffffffffffffff)this._bufferBuilder.append(207),this.pack_uint64(e);else throw Error("Invalid integer")}pack_double(e){let t=0;e<0&&(t=1,e=-e);let n=Math.floor(Math.log(e)/Math.LN2),r=Math.floor((e/2**n-1)*0x10000000000000),i=t<<31|n+1023<<20|r/0x100000000&1048575;this._bufferBuilder.append(203),this.pack_int32(i),this.pack_int32(r%0x100000000)}pack_object(e){let t=Object.keys(e),n=t.length;if(n<=15)this.pack_uint8(128+n);else if(n<=65535)this._bufferBuilder.append(222),this.pack_uint16(n);else if(n<=0xffffffff)this._bufferBuilder.append(223),this.pack_uint32(n);else throw Error("Invalid length");let r=n=>{if(n<t.length){let i=t[n];if(e.hasOwnProperty(i)){this.pack(i);let t=this.pack(e[i]);if(t instanceof Promise)return t.then(()=>r(n+1))}return r(n+1)}};return r(0)}pack_uint8(e){this._bufferBuilder.append(e)}pack_uint16(e){this._bufferBuilder.append(e>>8),this._bufferBuilder.append(255&e)}pack_uint32(e){let t=0|e;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t)}pack_uint64(e){let t=e/0x100000000,n=e%0x100000000;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t),this._bufferBuilder.append((0xff000000&n)>>>24),this._bufferBuilder.append((0xff0000&n)>>>16),this._bufferBuilder.append((65280&n)>>>8),this._bufferBuilder.append(255&n)}pack_int8(e){this._bufferBuilder.append(255&e)}pack_int16(e){this._bufferBuilder.append((65280&e)>>8),this._bufferBuilder.append(255&e)}pack_int32(e){this._bufferBuilder.append(e>>>24&255),this._bufferBuilder.append((0xff0000&e)>>>16),this._bufferBuilder.append((65280&e)>>>8),this._bufferBuilder.append(255&e)}pack_int64(e){let t=Math.floor(e/0x100000000),n=e%0x100000000;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t),this._bufferBuilder.append((0xff000000&n)>>>24),this._bufferBuilder.append((0xff0000&n)>>>16),this._bufferBuilder.append((65280&n)>>>8),this._bufferBuilder.append(255&n)}constructor(){this._bufferBuilder=new r,this._textEncoder=new TextEncoder}}"use strict";let c=!0,p=!0;function d(e,t,n){let r=e.match(t);return r&&r.length>=n&&parseInt(r[n],10)}function l(e,t,n){if(!e.RTCPeerConnection)return;let r=e.RTCPeerConnection.prototype,i=r.addEventListener;r.addEventListener=function(e,r){if(e!==t)return i.apply(this,arguments);let s=e=>{let t=n(e);t&&(r.handleEvent?r.handleEvent(t):r(t))};return this._eventMap=this._eventMap||{},this._eventMap[t]||(this._eventMap[t]=new Map),this._eventMap[t].set(r,s),i.apply(this,[e,s])};let s=r.removeEventListener;r.removeEventListener=function(e,n){if(e!==t||!this._eventMap||!this._eventMap[t]||!this._eventMap[t].has(n))return s.apply(this,arguments);let r=this._eventMap[t].get(n);return this._eventMap[t].delete(n),0===this._eventMap[t].size&&delete this._eventMap[t],0===Object.keys(this._eventMap).length&&delete this._eventMap,s.apply(this,[e,r])},Object.defineProperty(r,"on"+t,{get(){return this["_on"+t]},set(e){this["_on"+t]&&(this.removeEventListener(t,this["_on"+t]),delete this["_on"+t]),e&&this.addEventListener(t,this["_on"+t]=e)},enumerable:!0,configurable:!0})}function h(e){return"boolean"!=typeof e?Error("Argument type: "+typeof e+". Please use a boolean."):(c=e,e?"adapter.js logging disabled":"adapter.js logging enabled")}function u(e){return"boolean"!=typeof e?Error("Argument type: "+typeof e+". Please use a boolean."):(p=!e,"adapter.js deprecation warnings "+(e?"disabled":"enabled"))}function f(){"object"==typeof window&&(c||"undefined"!=typeof console&&"function"==typeof console.log&&console.log.apply(console,arguments))}function m(e,t){p&&console.warn(e+" is deprecated, please use "+t+" instead.")}function _(e){return"[object Object]"===Object.prototype.toString.call(e)}function g(e,t,n){let r=n?"outbound-rtp":"inbound-rtp",i=new Map;if(null===t)return i;let s=[];return e.forEach(e=>{"track"===e.type&&e.trackIdentifier===t.id&&s.push(e)}),s.forEach(t=>{e.forEach(n=>{n.type===r&&n.trackId===t.id&&function e(t,n,r){!n||r.has(n.id)||(r.set(n.id,n),Object.keys(n).forEach(i=>{i.endsWith("Id")?e(t,t.get(n[i]),r):i.endsWith("Ids")&&n[i].forEach(n=>{e(t,t.get(n),r)})}))}(e,n,i)})}),i}"use strict";var y={};function C(e,t){let n=e&&e.navigator;if(!n.mediaDevices)return;let r=function(e){if("object"!=typeof e||e.mandatory||e.optional)return e;let t={};return Object.keys(e).forEach(n=>{if("require"===n||"advanced"===n||"mediaSource"===n)return;let r="object"==typeof e[n]?e[n]:{ideal:e[n]};void 0!==r.exact&&"number"==typeof r.exact&&(r.min=r.max=r.exact);let i=function(e,t){return e?e+t.charAt(0).toUpperCase()+t.slice(1):"deviceId"===t?"sourceId":t};if(void 0!==r.ideal){t.optional=t.optional||[];let e={};"number"==typeof r.ideal?(e[i("min",n)]=r.ideal,t.optional.push(e),(e={})[i("max",n)]=r.ideal):e[i("",n)]=r.ideal,t.optional.push(e)}void 0!==r.exact&&"number"!=typeof r.exact?(t.mandatory=t.mandatory||{},t.mandatory[i("",n)]=r.exact):["min","max"].forEach(e=>{void 0!==r[e]&&(t.mandatory=t.mandatory||{},t.mandatory[i(e,n)]=r[e])})}),e.advanced&&(t.optional=(t.optional||[]).concat(e.advanced)),t},i=function(e,i){if(t.version>=61)return i(e);if((e=JSON.parse(JSON.stringify(e)))&&"object"==typeof e.audio){let t=function(e,t,n){t in e&&!(n in e)&&(e[n]=e[t],delete e[t])};t((e=JSON.parse(JSON.stringify(e))).audio,"autoGainControl","googAutoGainControl"),t(e.audio,"noiseSuppression","googNoiseSuppression"),e.audio=r(e.audio)}if(e&&"object"==typeof e.video){let s=e.video.facingMode;s=s&&("object"==typeof s?s:{ideal:s});let o=t.version<66;if(s&&("user"===s.exact||"environment"===s.exact||"user"===s.ideal||"environment"===s.ideal)&&!(n.mediaDevices.getSupportedConstraints&&n.mediaDevices.getSupportedConstraints().facingMode&&!o)){let t;if(delete e.video.facingMode,"environment"===s.exact||"environment"===s.ideal?t=["back","rear"]:("user"===s.exact||"user"===s.ideal)&&(t=["front"]),t)return n.mediaDevices.enumerateDevices().then(n=>{let o=(n=n.filter(e=>"videoinput"===e.kind)).find(e=>t.some(t=>e.label.toLowerCase().includes(t)));return!o&&n.length&&t.includes("back")&&(o=n[n.length-1]),o&&(e.video.deviceId=s.exact?{exact:o.deviceId}:{ideal:o.deviceId}),e.video=r(e.video),f("chrome: "+JSON.stringify(e)),i(e)})}e.video=r(e.video)}return f("chrome: "+JSON.stringify(e)),i(e)},s=function(e){return t.version>=64?e:{name:({PermissionDeniedError:"NotAllowedError",PermissionDismissedError:"NotAllowedError",InvalidStateError:"NotAllowedError",DevicesNotFoundError:"NotFoundError",ConstraintNotSatisfiedError:"OverconstrainedError",TrackStartError:"NotReadableError",MediaDeviceFailedDueToShutdown:"NotAllowedError",MediaDeviceKillSwitchOn:"NotAllowedError",TabCaptureError:"AbortError",ScreenCaptureError:"AbortError",DeviceCaptureError:"AbortError"})[e.name]||e.name,message:e.message,constraint:e.constraint||e.constraintName,toString(){return this.name+(this.message&&": ")+this.message}}};if(n.getUserMedia=(function(e,t,r){i(e,e=>{n.webkitGetUserMedia(e,t,e=>{r&&r(s(e))})})}).bind(n),n.mediaDevices.getUserMedia){let e=n.mediaDevices.getUserMedia.bind(n.mediaDevices);n.mediaDevices.getUserMedia=function(t){return i(t,t=>e(t).then(e=>{if(t.audio&&!e.getAudioTracks().length||t.video&&!e.getVideoTracks().length)throw e.getTracks().forEach(e=>{e.stop()}),new DOMException("","NotFoundError");return e},e=>Promise.reject(s(e))))}}}"use strict";function v(e){e.MediaStream=e.MediaStream||e.webkitMediaStream}function b(e){if("object"!=typeof e||!e.RTCPeerConnection||"ontrack"in e.RTCPeerConnection.prototype)l(e,"track",e=>(e.transceiver||Object.defineProperty(e,"transceiver",{value:{receiver:e.receiver}}),e));else{Object.defineProperty(e.RTCPeerConnection.prototype,"ontrack",{get(){return this._ontrack},set(e){this._ontrack&&this.removeEventListener("track",this._ontrack),this.addEventListener("track",this._ontrack=e)},enumerable:!0,configurable:!0});let t=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){return this._ontrackpoly||(this._ontrackpoly=t=>{t.stream.addEventListener("addtrack",n=>{let r;r=e.RTCPeerConnection.prototype.getReceivers?this.getReceivers().find(e=>e.track&&e.track.id===n.track.id):{track:n.track};let i=new Event("track");i.track=n.track,i.receiver=r,i.transceiver={receiver:r},i.streams=[t.stream],this.dispatchEvent(i)}),t.stream.getTracks().forEach(n=>{let r;r=e.RTCPeerConnection.prototype.getReceivers?this.getReceivers().find(e=>e.track&&e.track.id===n.id):{track:n};let i=new Event("track");i.track=n,i.receiver=r,i.transceiver={receiver:r},i.streams=[t.stream],this.dispatchEvent(i)})},this.addEventListener("addstream",this._ontrackpoly)),t.apply(this,arguments)}}}function T(e){if("object"==typeof e&&e.RTCPeerConnection&&!("getSenders"in e.RTCPeerConnection.prototype)&&"createDTMFSender"in e.RTCPeerConnection.prototype){let t=function(e,t){return{track:t,get dtmf(){return void 0===this._dtmf&&("audio"===t.kind?this._dtmf=e.createDTMFSender(t):this._dtmf=null),this._dtmf},_pc:e}};if(!e.RTCPeerConnection.prototype.getSenders){e.RTCPeerConnection.prototype.getSenders=function(){return this._senders=this._senders||[],this._senders.slice()};let n=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addTrack=function(e,r){let i=n.apply(this,arguments);return i||(i=t(this,e),this._senders.push(i)),i};let r=e.RTCPeerConnection.prototype.removeTrack;e.RTCPeerConnection.prototype.removeTrack=function(e){r.apply(this,arguments);let t=this._senders.indexOf(e);-1!==t&&this._senders.splice(t,1)}}let n=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(e){this._senders=this._senders||[],n.apply(this,[e]),e.getTracks().forEach(e=>{this._senders.push(t(this,e))})};let r=e.RTCPeerConnection.prototype.removeStream;e.RTCPeerConnection.prototype.removeStream=function(e){this._senders=this._senders||[],r.apply(this,[e]),e.getTracks().forEach(e=>{let t=this._senders.find(t=>t.track===e);t&&this._senders.splice(this._senders.indexOf(t),1)})}}else if("object"==typeof e&&e.RTCPeerConnection&&"getSenders"in e.RTCPeerConnection.prototype&&"createDTMFSender"in e.RTCPeerConnection.prototype&&e.RTCRtpSender&&!("dtmf"in e.RTCRtpSender.prototype)){let t=e.RTCPeerConnection.prototype.getSenders;e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e},Object.defineProperty(e.RTCRtpSender.prototype,"dtmf",{get(){return void 0===this._dtmf&&("audio"===this.track.kind?this._dtmf=this._pc.createDTMFSender(this.track):this._dtmf=null),this._dtmf}})}}function S(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender&&e.RTCRtpReceiver))return;if(!("getStats"in e.RTCRtpSender.prototype)){let t=e.RTCPeerConnection.prototype.getSenders;t&&(e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e});let n=e.RTCPeerConnection.prototype.addTrack;n&&(e.RTCPeerConnection.prototype.addTrack=function(){let e=n.apply(this,arguments);return e._pc=this,e}),e.RTCRtpSender.prototype.getStats=function(){let e=this;return this._pc.getStats().then(t=>g(t,e.track,!0))}}if(!("getStats"in e.RTCRtpReceiver.prototype)){let t=e.RTCPeerConnection.prototype.getReceivers;t&&(e.RTCPeerConnection.prototype.getReceivers=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e}),l(e,"track",e=>(e.receiver._pc=e.srcElement,e)),e.RTCRtpReceiver.prototype.getStats=function(){let e=this;return this._pc.getStats().then(t=>g(t,e.track,!1))}}if(!("getStats"in e.RTCRtpSender.prototype&&"getStats"in e.RTCRtpReceiver.prototype))return;let t=e.RTCPeerConnection.prototype.getStats;e.RTCPeerConnection.prototype.getStats=function(){if(arguments.length>0&&arguments[0]instanceof e.MediaStreamTrack){let e,t,n,r=arguments[0];return(this.getSenders().forEach(t=>{t.track===r&&(e?n=!0:e=t)}),this.getReceivers().forEach(e=>(e.track===r&&(t?n=!0:t=e),e.track===r)),n||e&&t)?Promise.reject(new DOMException("There are more than one sender or receiver for the track.","InvalidAccessError")):e?e.getStats():t?t.getStats():Promise.reject(new DOMException("There is no sender or receiver for the track.","InvalidAccessError"))}return t.apply(this,arguments)}}function k(e){e.RTCPeerConnection.prototype.getLocalStreams=function(){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},Object.keys(this._shimmedLocalStreams).map(e=>this._shimmedLocalStreams[e][0])};let t=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addTrack=function(e,n){if(!n)return t.apply(this,arguments);this._shimmedLocalStreams=this._shimmedLocalStreams||{};let r=t.apply(this,arguments);return this._shimmedLocalStreams[n.id]?-1===this._shimmedLocalStreams[n.id].indexOf(r)&&this._shimmedLocalStreams[n.id].push(r):this._shimmedLocalStreams[n.id]=[n,r],r};let n=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(e){this._shimmedLocalStreams=this._shimmedLocalStreams||{},e.getTracks().forEach(e=>{if(this.getSenders().find(t=>t.track===e))throw new DOMException("Track already exists.","InvalidAccessError")});let t=this.getSenders();n.apply(this,arguments);let r=this.getSenders().filter(e=>-1===t.indexOf(e));this._shimmedLocalStreams[e.id]=[e].concat(r)};let r=e.RTCPeerConnection.prototype.removeStream;e.RTCPeerConnection.prototype.removeStream=function(e){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},delete this._shimmedLocalStreams[e.id],r.apply(this,arguments)};let i=e.RTCPeerConnection.prototype.removeTrack;e.RTCPeerConnection.prototype.removeTrack=function(e){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},e&&Object.keys(this._shimmedLocalStreams).forEach(t=>{let n=this._shimmedLocalStreams[t].indexOf(e);-1!==n&&this._shimmedLocalStreams[t].splice(n,1),1===this._shimmedLocalStreams[t].length&&delete this._shimmedLocalStreams[t]}),i.apply(this,arguments)}}function R(e,t){if(!e.RTCPeerConnection)return;if(e.RTCPeerConnection.prototype.addTrack&&t.version>=65)return k(e);let n=e.RTCPeerConnection.prototype.getLocalStreams;e.RTCPeerConnection.prototype.getLocalStreams=function(){let e=n.apply(this);return this._reverseStreams=this._reverseStreams||{},e.map(e=>this._reverseStreams[e.id])};let r=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(t){if(this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{},t.getTracks().forEach(e=>{if(this.getSenders().find(t=>t.track===e))throw new DOMException("Track already exists.","InvalidAccessError")}),!this._reverseStreams[t.id]){let n=new e.MediaStream(t.getTracks());this._streams[t.id]=n,this._reverseStreams[n.id]=t,t=n}r.apply(this,[t])};let i=e.RTCPeerConnection.prototype.removeStream;function s(e,t){let n=t.sdp;return Object.keys(e._reverseStreams||[]).forEach(t=>{let r=e._reverseStreams[t],i=e._streams[r.id];n=n.replace(RegExp(i.id,"g"),r.id)}),new RTCSessionDescription({type:t.type,sdp:n})}e.RTCPeerConnection.prototype.removeStream=function(e){this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{},i.apply(this,[this._streams[e.id]||e]),delete this._reverseStreams[this._streams[e.id]?this._streams[e.id].id:e.id],delete this._streams[e.id]},e.RTCPeerConnection.prototype.addTrack=function(t,n){if("closed"===this.signalingState)throw new DOMException("The RTCPeerConnection's signalingState is 'closed'.","InvalidStateError");let r=[].slice.call(arguments,1);if(1!==r.length||!r[0].getTracks().find(e=>e===t))throw new DOMException("The adapter.js addTrack polyfill only supports a single  stream which is associated with the specified track.","NotSupportedError");if(this.getSenders().find(e=>e.track===t))throw new DOMException("Track already exists.","InvalidAccessError");this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{};let i=this._streams[n.id];if(i)i.addTrack(t),Promise.resolve().then(()=>{this.dispatchEvent(new Event("negotiationneeded"))});else{let r=new e.MediaStream([t]);this._streams[n.id]=r,this._reverseStreams[r.id]=n,this.addStream(r)}return this.getSenders().find(e=>e.track===t)},["createOffer","createAnswer"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){let e=arguments,t=arguments.length&&"function"==typeof arguments[0];return t?n.apply(this,[t=>{let n=s(this,t);e[0].apply(null,[n])},t=>{e[1]&&e[1].apply(null,t)},arguments[2]]):n.apply(this,arguments).then(e=>s(this,e))}})[t]});let o=e.RTCPeerConnection.prototype.setLocalDescription;e.RTCPeerConnection.prototype.setLocalDescription=function(){var e,t;let n;return arguments.length&&arguments[0].type?(arguments[0]=(e=this,t=arguments[0],n=t.sdp,Object.keys(e._reverseStreams||[]).forEach(t=>{let r=e._reverseStreams[t],i=e._streams[r.id];n=n.replace(RegExp(r.id,"g"),i.id)}),new RTCSessionDescription({type:t.type,sdp:n})),o.apply(this,arguments)):o.apply(this,arguments)};let a=Object.getOwnPropertyDescriptor(e.RTCPeerConnection.prototype,"localDescription");Object.defineProperty(e.RTCPeerConnection.prototype,"localDescription",{get(){let e=a.get.apply(this);return""===e.type?e:s(this,e)}}),e.RTCPeerConnection.prototype.removeTrack=function(e){let t;if("closed"===this.signalingState)throw new DOMException("The RTCPeerConnection's signalingState is 'closed'.","InvalidStateError");if(!e._pc)throw new DOMException("Argument 1 of RTCPeerConnection.removeTrack does not implement interface RTCRtpSender.","TypeError");if(e._pc!==this)throw new DOMException("Sender was not created by this connection.","InvalidAccessError");this._streams=this._streams||{},Object.keys(this._streams).forEach(n=>{this._streams[n].getTracks().find(t=>e.track===t)&&(t=this._streams[n])}),t&&(1===t.getTracks().length?this.removeStream(this._reverseStreams[t.id]):t.removeTrack(e.track),this.dispatchEvent(new Event("negotiationneeded")))}}function P(e,t){!e.RTCPeerConnection&&e.webkitRTCPeerConnection&&(e.RTCPeerConnection=e.webkitRTCPeerConnection),e.RTCPeerConnection&&t.version<53&&["setLocalDescription","setRemoteDescription","addIceCandidate"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){return arguments[0]=new("addIceCandidate"===t?e.RTCIceCandidate:e.RTCSessionDescription)(arguments[0]),n.apply(this,arguments)}})[t]})}function w(e,t){l(e,"negotiationneeded",e=>{let n=e.target;if(!(t.version<72)&&(!n.getConfiguration||"plan-b"!==n.getConfiguration().sdpSemantics)||"stable"===n.signalingState)return e})}"use strict";e(y,"shimMediaStream",()=>v),e(y,"shimOnTrack",()=>b),e(y,"shimGetSendersWithDtmf",()=>T),e(y,"shimSenderReceiverGetStats",()=>S),e(y,"shimAddTrackRemoveTrackWithNative",()=>k),e(y,"shimAddTrackRemoveTrack",()=>R),e(y,"shimPeerConnection",()=>P),e(y,"fixNegotiationNeeded",()=>w),e(y,"shimGetUserMedia",()=>C);var E={};function x(e,t){let n=e&&e.navigator,r=e&&e.MediaStreamTrack;if(n.getUserMedia=function(e,t,r){m("navigator.getUserMedia","navigator.mediaDevices.getUserMedia"),n.mediaDevices.getUserMedia(e).then(t,r)},!(t.version>55&&"autoGainControl"in n.mediaDevices.getSupportedConstraints())){let e=function(e,t,n){t in e&&!(n in e)&&(e[n]=e[t],delete e[t])},t=n.mediaDevices.getUserMedia.bind(n.mediaDevices);if(n.mediaDevices.getUserMedia=function(n){return"object"==typeof n&&"object"==typeof n.audio&&(e((n=JSON.parse(JSON.stringify(n))).audio,"autoGainControl","mozAutoGainControl"),e(n.audio,"noiseSuppression","mozNoiseSuppression")),t(n)},r&&r.prototype.getSettings){let t=r.prototype.getSettings;r.prototype.getSettings=function(){let n=t.apply(this,arguments);return e(n,"mozAutoGainControl","autoGainControl"),e(n,"mozNoiseSuppression","noiseSuppression"),n}}if(r&&r.prototype.applyConstraints){let t=r.prototype.applyConstraints;r.prototype.applyConstraints=function(n){return"audio"===this.kind&&"object"==typeof n&&(e(n=JSON.parse(JSON.stringify(n)),"autoGainControl","mozAutoGainControl"),e(n,"noiseSuppression","mozNoiseSuppression")),t.apply(this,[n])}}}}"use strict";function D(e,t){e.navigator.mediaDevices&&"getDisplayMedia"in e.navigator.mediaDevices||e.navigator.mediaDevices&&(e.navigator.mediaDevices.getDisplayMedia=function(n){if(!(n&&n.video)){let e=new DOMException("getDisplayMedia without video constraints is undefined");return e.name="NotFoundError",e.code=8,Promise.reject(e)}return!0===n.video?n.video={mediaSource:t}:n.video.mediaSource=t,e.navigator.mediaDevices.getUserMedia(n)})}"use strict";function I(e){"object"==typeof e&&e.RTCTrackEvent&&"receiver"in e.RTCTrackEvent.prototype&&!("transceiver"in e.RTCTrackEvent.prototype)&&Object.defineProperty(e.RTCTrackEvent.prototype,"transceiver",{get(){return{receiver:this.receiver}}})}function M(e,t){if("object"!=typeof e||!(e.RTCPeerConnection||e.mozRTCPeerConnection))return;!e.RTCPeerConnection&&e.mozRTCPeerConnection&&(e.RTCPeerConnection=e.mozRTCPeerConnection),t.version<53&&["setLocalDescription","setRemoteDescription","addIceCandidate"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){return arguments[0]=new("addIceCandidate"===t?e.RTCIceCandidate:e.RTCSessionDescription)(arguments[0]),n.apply(this,arguments)}})[t]});let n={inboundrtp:"inbound-rtp",outboundrtp:"outbound-rtp",candidatepair:"candidate-pair",localcandidate:"local-candidate",remotecandidate:"remote-candidate"},r=e.RTCPeerConnection.prototype.getStats;e.RTCPeerConnection.prototype.getStats=function(){let[e,i,s]=arguments;return r.apply(this,[e||null]).then(e=>{if(t.version<53&&!i)try{e.forEach(e=>{e.type=n[e.type]||e.type})}catch(t){if("TypeError"!==t.name)throw t;e.forEach((t,r)=>{e.set(r,Object.assign({},t,{type:n[t.type]||t.type}))})}return e}).then(i,s)}}function O(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender)||e.RTCRtpSender&&"getStats"in e.RTCRtpSender.prototype)return;let t=e.RTCPeerConnection.prototype.getSenders;t&&(e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e});let n=e.RTCPeerConnection.prototype.addTrack;n&&(e.RTCPeerConnection.prototype.addTrack=function(){let e=n.apply(this,arguments);return e._pc=this,e}),e.RTCRtpSender.prototype.getStats=function(){return this.track?this._pc.getStats(this.track):Promise.resolve(new Map)}}function L(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender)||e.RTCRtpSender&&"getStats"in e.RTCRtpReceiver.prototype)return;let t=e.RTCPeerConnection.prototype.getReceivers;t&&(e.RTCPeerConnection.prototype.getReceivers=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e}),l(e,"track",e=>(e.receiver._pc=e.srcElement,e)),e.RTCRtpReceiver.prototype.getStats=function(){return this._pc.getStats(this.track)}}function A(e){!e.RTCPeerConnection||"removeStream"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.removeStream=function(e){m("removeStream","removeTrack"),this.getSenders().forEach(t=>{t.track&&e.getTracks().includes(t.track)&&this.removeTrack(t)})})}function j(e){e.DataChannel&&!e.RTCDataChannel&&(e.RTCDataChannel=e.DataChannel)}function B(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.addTransceiver;t&&(e.RTCPeerConnection.prototype.addTransceiver=function(){this.setParametersPromises=[];let e=arguments[1]&&arguments[1].sendEncodings;void 0===e&&(e=[]);let n=(e=[...e]).length>0;n&&e.forEach(e=>{if("rid"in e&&!/^[a-z0-9]{0,16}$/i.test(e.rid))throw TypeError("Invalid RID value provided.");if("scaleResolutionDownBy"in e&&!(parseFloat(e.scaleResolutionDownBy)>=1))throw RangeError("scale_resolution_down_by must be >= 1.0");if("maxFramerate"in e&&!(parseFloat(e.maxFramerate)>=0))throw RangeError("max_framerate must be >= 0.0")});let r=t.apply(this,arguments);if(n){let{sender:t}=r,n=t.getParameters();"encodings"in n&&(1!==n.encodings.length||0!==Object.keys(n.encodings[0]).length)||(n.encodings=e,t.sendEncodings=e,this.setParametersPromises.push(t.setParameters(n).then(()=>{delete t.sendEncodings}).catch(()=>{delete t.sendEncodings})))}return r})}function U(e){if(!("object"==typeof e&&e.RTCRtpSender))return;let t=e.RTCRtpSender.prototype.getParameters;t&&(e.RTCRtpSender.prototype.getParameters=function(){let e=t.apply(this,arguments);return"encodings"in e||(e.encodings=[].concat(this.sendEncodings||[{}])),e})}function F(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.createOffer;e.RTCPeerConnection.prototype.createOffer=function(){return this.setParametersPromises&&this.setParametersPromises.length?Promise.all(this.setParametersPromises).then(()=>t.apply(this,arguments)).finally(()=>{this.setParametersPromises=[]}):t.apply(this,arguments)}}function N(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.createAnswer;e.RTCPeerConnection.prototype.createAnswer=function(){return this.setParametersPromises&&this.setParametersPromises.length?Promise.all(this.setParametersPromises).then(()=>t.apply(this,arguments)).finally(()=>{this.setParametersPromises=[]}):t.apply(this,arguments)}}"use strict";e(E,"shimOnTrack",()=>I),e(E,"shimPeerConnection",()=>M),e(E,"shimSenderGetStats",()=>O),e(E,"shimReceiverGetStats",()=>L),e(E,"shimRemoveStream",()=>A),e(E,"shimRTCDataChannel",()=>j),e(E,"shimAddTransceiver",()=>B),e(E,"shimGetParameters",()=>U),e(E,"shimCreateOffer",()=>F),e(E,"shimCreateAnswer",()=>N),e(E,"shimGetUserMedia",()=>x),e(E,"shimGetDisplayMedia",()=>D);var z={};function $(e){if("object"==typeof e&&e.RTCPeerConnection){if("getLocalStreams"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.getLocalStreams=function(){return this._localStreams||(this._localStreams=[]),this._localStreams}),!("addStream"in e.RTCPeerConnection.prototype)){let t=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addStream=function(e){this._localStreams||(this._localStreams=[]),this._localStreams.includes(e)||this._localStreams.push(e),e.getAudioTracks().forEach(n=>t.call(this,n,e)),e.getVideoTracks().forEach(n=>t.call(this,n,e))},e.RTCPeerConnection.prototype.addTrack=function(e,...n){return n&&n.forEach(e=>{this._localStreams?this._localStreams.includes(e)||this._localStreams.push(e):this._localStreams=[e]}),t.apply(this,arguments)}}"removeStream"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.removeStream=function(e){this._localStreams||(this._localStreams=[]);let t=this._localStreams.indexOf(e);if(-1===t)return;this._localStreams.splice(t,1);let n=e.getTracks();this.getSenders().forEach(e=>{n.includes(e.track)&&this.removeTrack(e)})})}}function V(e){if("object"==typeof e&&e.RTCPeerConnection&&("getRemoteStreams"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.getRemoteStreams=function(){return this._remoteStreams?this._remoteStreams:[]}),!("onaddstream"in e.RTCPeerConnection.prototype))){Object.defineProperty(e.RTCPeerConnection.prototype,"onaddstream",{get(){return this._onaddstream},set(e){this._onaddstream&&(this.removeEventListener("addstream",this._onaddstream),this.removeEventListener("track",this._onaddstreampoly)),this.addEventListener("addstream",this._onaddstream=e),this.addEventListener("track",this._onaddstreampoly=e=>{e.streams.forEach(e=>{if(this._remoteStreams||(this._remoteStreams=[]),this._remoteStreams.includes(e))return;this._remoteStreams.push(e);let t=new Event("addstream");t.stream=e,this.dispatchEvent(t)})})}});let t=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){let e=this;return this._onaddstreampoly||this.addEventListener("track",this._onaddstreampoly=function(t){t.streams.forEach(t=>{if(e._remoteStreams||(e._remoteStreams=[]),e._remoteStreams.indexOf(t)>=0)return;e._remoteStreams.push(t);let n=new Event("addstream");n.stream=t,e.dispatchEvent(n)})}),t.apply(e,arguments)}}}function G(e){if("object"!=typeof e||!e.RTCPeerConnection)return;let t=e.RTCPeerConnection.prototype,n=t.createOffer,r=t.createAnswer,i=t.setLocalDescription,s=t.setRemoteDescription,o=t.addIceCandidate;t.createOffer=function(e,t){let r=arguments.length>=2?arguments[2]:arguments[0],i=n.apply(this,[r]);return t?(i.then(e,t),Promise.resolve()):i},t.createAnswer=function(e,t){let n=arguments.length>=2?arguments[2]:arguments[0],i=r.apply(this,[n]);return t?(i.then(e,t),Promise.resolve()):i};let a=function(e,t,n){let r=i.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r};t.setLocalDescription=a,t.setRemoteDescription=a=function(e,t,n){let r=s.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r},t.addIceCandidate=function(e,t,n){let r=o.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r}}function J(e){let t=e&&e.navigator;if(t.mediaDevices&&t.mediaDevices.getUserMedia){let e=t.mediaDevices,n=e.getUserMedia.bind(e);t.mediaDevices.getUserMedia=e=>n(W(e))}!t.getUserMedia&&t.mediaDevices&&t.mediaDevices.getUserMedia&&(t.getUserMedia=(function(e,n,r){t.mediaDevices.getUserMedia(e).then(n,r)}).bind(t))}function W(e){return e&&void 0!==e.video?Object.assign({},e,{video:function e(t){return _(t)?Object.keys(t).reduce(function(n,r){let i=_(t[r]),s=i?e(t[r]):t[r],o=i&&!Object.keys(s).length;return void 0===s||o?n:Object.assign(n,{[r]:s})},{}):t}(e.video)}):e}function Y(e){if(!e.RTCPeerConnection)return;let t=e.RTCPeerConnection;e.RTCPeerConnection=function(e,n){if(e&&e.iceServers){let t=[];for(let n=0;n<e.iceServers.length;n++){let r=e.iceServers[n];void 0===r.urls&&r.url?(m("RTCIceServer.url","RTCIceServer.urls"),(r=JSON.parse(JSON.stringify(r))).urls=r.url,delete r.url,t.push(r)):t.push(e.iceServers[n])}e.iceServers=t}return new t(e,n)},e.RTCPeerConnection.prototype=t.prototype,"generateCertificate"in t&&Object.defineProperty(e.RTCPeerConnection,"generateCertificate",{get:()=>t.generateCertificate})}function H(e){"object"==typeof e&&e.RTCTrackEvent&&"receiver"in e.RTCTrackEvent.prototype&&!("transceiver"in e.RTCTrackEvent.prototype)&&Object.defineProperty(e.RTCTrackEvent.prototype,"transceiver",{get(){return{receiver:this.receiver}}})}function K(e){let t=e.RTCPeerConnection.prototype.createOffer;e.RTCPeerConnection.prototype.createOffer=function(e){if(e){void 0!==e.offerToReceiveAudio&&(e.offerToReceiveAudio=!!e.offerToReceiveAudio);let t=this.getTransceivers().find(e=>"audio"===e.receiver.track.kind);!1===e.offerToReceiveAudio&&t?"sendrecv"===t.direction?t.setDirection?t.setDirection("sendonly"):t.direction="sendonly":"recvonly"===t.direction&&(t.setDirection?t.setDirection("inactive"):t.direction="inactive"):!0!==e.offerToReceiveAudio||t||this.addTransceiver("audio",{direction:"recvonly"}),void 0!==e.offerToReceiveVideo&&(e.offerToReceiveVideo=!!e.offerToReceiveVideo);let n=this.getTransceivers().find(e=>"video"===e.receiver.track.kind);!1===e.offerToReceiveVideo&&n?"sendrecv"===n.direction?n.setDirection?n.setDirection("sendonly"):n.direction="sendonly":"recvonly"===n.direction&&(n.setDirection?n.setDirection("inactive"):n.direction="inactive"):!0!==e.offerToReceiveVideo||n||this.addTransceiver("video",{direction:"recvonly"})}return t.apply(this,arguments)}}function X(e){"object"!=typeof e||e.AudioContext||(e.AudioContext=e.webkitAudioContext)}e(z,"shimLocalStreamsAPI",()=>$),e(z,"shimRemoteStreamsAPI",()=>V),e(z,"shimCallbacksAPI",()=>G),e(z,"shimGetUserMedia",()=>J),e(z,"shimConstraints",()=>W),e(z,"shimRTCIceServerUrls",()=>Y),e(z,"shimTrackEventTransceiver",()=>H),e(z,"shimCreateOfferLegacy",()=>K),e(z,"shimAudioContext",()=>X);var Q={};"use strict";e(Q,"shimRTCIceCandidate",()=>ee),e(Q,"shimRTCIceCandidateRelayProtocol",()=>et),e(Q,"shimMaxMessageSize",()=>en),e(Q,"shimSendThrowTypeError",()=>er),e(Q,"shimConnectionState",()=>ei),e(Q,"removeExtmapAllowMixed",()=>es),e(Q,"shimAddIceCandidateNullOrEmpty",()=>eo),e(Q,"shimParameterlessSetLocalDescription",()=>ea);var q={};"use strict";let Z={};function ee(e){if(!e.RTCIceCandidate||e.RTCIceCandidate&&"foundation"in e.RTCIceCandidate.prototype)return;let n=e.RTCIceCandidate;e.RTCIceCandidate=function(e){if("object"==typeof e&&e.candidate&&0===e.candidate.indexOf("a=")&&((e=JSON.parse(JSON.stringify(e))).candidate=e.candidate.substring(2)),e.candidate&&e.candidate.length){let r=new n(e),i=t(q).parseCandidate(e.candidate);for(let e in i)e in r||Object.defineProperty(r,e,{value:i[e]});return r.toJSON=function(){return{candidate:r.candidate,sdpMid:r.sdpMid,sdpMLineIndex:r.sdpMLineIndex,usernameFragment:r.usernameFragment}},r}return new n(e)},e.RTCIceCandidate.prototype=n.prototype,l(e,"icecandidate",t=>(t.candidate&&Object.defineProperty(t,"candidate",{value:new e.RTCIceCandidate(t.candidate),writable:"false"}),t))}function et(e){!e.RTCIceCandidate||e.RTCIceCandidate&&"relayProtocol"in e.RTCIceCandidate.prototype||l(e,"icecandidate",e=>{if(e.candidate){let n=t(q).parseCandidate(e.candidate.candidate);"relay"===n.type&&(e.candidate.relayProtocol=({0:"tls",1:"tcp",2:"udp"})[n.priority>>24])}return e})}function en(e,n){if(!e.RTCPeerConnection)return;"sctp"in e.RTCPeerConnection.prototype||Object.defineProperty(e.RTCPeerConnection.prototype,"sctp",{get(){return void 0===this._sctp?null:this._sctp}});let r=function(e){if(!e||!e.sdp)return!1;let n=t(q).splitSections(e.sdp);return n.shift(),n.some(e=>{let n=t(q).parseMLine(e);return n&&"application"===n.kind&&-1!==n.protocol.indexOf("SCTP")})},i=function(e){let t=e.sdp.match(/mozilla...THIS_IS_SDPARTA-(\d+)/);if(null===t||t.length<2)return -1;let n=parseInt(t[1],10);return n!=n?-1:n},s=function(e){let t=65536;return"firefox"===n.browser&&(t=n.version<57?-1===e?16384:0x7ffffff5:n.version<60?57===n.version?65535:65536:0x7ffffff5),t},o=function(e,r){let i=65536;"firefox"===n.browser&&57===n.version&&(i=65535);let s=t(q).matchPrefix(e.sdp,"a=max-message-size:");return s.length>0?i=parseInt(s[0].substring(19),10):"firefox"===n.browser&&-1!==r&&(i=0x7ffffff5),i},a=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){if(this._sctp=null,"chrome"===n.browser&&n.version>=76){let{sdpSemantics:e}=this.getConfiguration();"plan-b"===e&&Object.defineProperty(this,"sctp",{get(){return void 0===this._sctp?null:this._sctp},enumerable:!0,configurable:!0})}if(r(arguments[0])){let e,t=i(arguments[0]),n=s(t),r=o(arguments[0],t);e=0===n&&0===r?Number.POSITIVE_INFINITY:0===n||0===r?Math.max(n,r):Math.min(n,r);let a={};Object.defineProperty(a,"maxMessageSize",{get:()=>e}),this._sctp=a}return a.apply(this,arguments)}}function er(e){if(!(e.RTCPeerConnection&&"createDataChannel"in e.RTCPeerConnection.prototype))return;function t(e,t){let n=e.send;e.send=function(){let r=arguments[0],i=r.length||r.size||r.byteLength;if("open"===e.readyState&&t.sctp&&i>t.sctp.maxMessageSize)throw TypeError("Message too large (can send a maximum of "+t.sctp.maxMessageSize+" bytes)");return n.apply(e,arguments)}}let n=e.RTCPeerConnection.prototype.createDataChannel;e.RTCPeerConnection.prototype.createDataChannel=function(){let e=n.apply(this,arguments);return t(e,this),e},l(e,"datachannel",e=>(t(e.channel,e.target),e))}function ei(e){if(!e.RTCPeerConnection||"connectionState"in e.RTCPeerConnection.prototype)return;let t=e.RTCPeerConnection.prototype;Object.defineProperty(t,"connectionState",{get(){return({completed:"connected",checking:"connecting"})[this.iceConnectionState]||this.iceConnectionState},enumerable:!0,configurable:!0}),Object.defineProperty(t,"onconnectionstatechange",{get(){return this._onconnectionstatechange||null},set(e){this._onconnectionstatechange&&(this.removeEventListener("connectionstatechange",this._onconnectionstatechange),delete this._onconnectionstatechange),e&&this.addEventListener("connectionstatechange",this._onconnectionstatechange=e)},enumerable:!0,configurable:!0}),["setLocalDescription","setRemoteDescription"].forEach(e=>{let n=t[e];t[e]=function(){return this._connectionstatechangepoly||(this._connectionstatechangepoly=e=>{let t=e.target;if(t._lastConnectionState!==t.connectionState){t._lastConnectionState=t.connectionState;let n=new Event("connectionstatechange",e);t.dispatchEvent(n)}return e},this.addEventListener("iceconnectionstatechange",this._connectionstatechangepoly)),n.apply(this,arguments)}})}function es(e,t){if(!e.RTCPeerConnection||"chrome"===t.browser&&t.version>=71||"safari"===t.browser&&t.version>=605)return;let n=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(t){if(t&&t.sdp&&-1!==t.sdp.indexOf("\na=extmap-allow-mixed")){let n=t.sdp.split("\n").filter(e=>"a=extmap-allow-mixed"!==e.trim()).join("\n");e.RTCSessionDescription&&t instanceof e.RTCSessionDescription?arguments[0]=new e.RTCSessionDescription({type:t.type,sdp:n}):t.sdp=n}return n.apply(this,arguments)}}function eo(e,t){if(!(e.RTCPeerConnection&&e.RTCPeerConnection.prototype))return;let n=e.RTCPeerConnection.prototype.addIceCandidate;n&&0!==n.length&&(e.RTCPeerConnection.prototype.addIceCandidate=function(){return arguments[0]?("chrome"===t.browser&&t.version<78||"firefox"===t.browser&&t.version<68||"safari"===t.browser)&&arguments[0]&&""===arguments[0].candidate?Promise.resolve():n.apply(this,arguments):(arguments[1]&&arguments[1].apply(null),Promise.resolve())})}function ea(e,t){if(!(e.RTCPeerConnection&&e.RTCPeerConnection.prototype))return;let n=e.RTCPeerConnection.prototype.setLocalDescription;n&&0!==n.length&&(e.RTCPeerConnection.prototype.setLocalDescription=function(){let e=arguments[0]||{};if("object"!=typeof e||e.type&&e.sdp)return n.apply(this,arguments);if(!(e={type:e.type,sdp:e.sdp}).type)switch(this.signalingState){case"stable":case"have-local-offer":case"have-remote-pranswer":e.type="offer";break;default:e.type="answer"}return e.sdp||"offer"!==e.type&&"answer"!==e.type?n.apply(this,[e]):("offer"===e.type?this.createOffer:this.createAnswer).apply(this).then(e=>n.apply(this,[e]))})}"use strict";Z.generateIdentifier=function(){return Math.random().toString(36).substring(2,12)},Z.localCName=Z.generateIdentifier(),Z.splitLines=function(e){return e.trim().split("\n").map(e=>e.trim())},Z.splitSections=function(e){return e.split("\nm=").map((e,t)=>(t>0?"m="+e:e).trim()+"\r\n")},Z.getDescription=function(e){let t=Z.splitSections(e);return t&&t[0]},Z.getMediaSections=function(e){let t=Z.splitSections(e);return t.shift(),t},Z.matchPrefix=function(e,t){return Z.splitLines(e).filter(e=>0===e.indexOf(t))},Z.parseCandidate=function(e){let t,n={foundation:(t=0===e.indexOf("a=candidate:")?e.substring(12).split(" "):e.substring(10).split(" "))[0],component:{1:"rtp",2:"rtcp"}[t[1]]||t[1],protocol:t[2].toLowerCase(),priority:parseInt(t[3],10),ip:t[4],address:t[4],port:parseInt(t[5],10),type:t[7]};for(let e=8;e<t.length;e+=2)switch(t[e]){case"raddr":n.relatedAddress=t[e+1];break;case"rport":n.relatedPort=parseInt(t[e+1],10);break;case"tcptype":n.tcpType=t[e+1];break;case"ufrag":n.ufrag=t[e+1],n.usernameFragment=t[e+1];break;default:void 0===n[t[e]]&&(n[t[e]]=t[e+1])}return n},Z.writeCandidate=function(e){let t=[];t.push(e.foundation);let n=e.component;"rtp"===n?t.push(1):"rtcp"===n?t.push(2):t.push(n),t.push(e.protocol.toUpperCase()),t.push(e.priority),t.push(e.address||e.ip),t.push(e.port);let r=e.type;return t.push("typ"),t.push(r),"host"!==r&&e.relatedAddress&&e.relatedPort&&(t.push("raddr"),t.push(e.relatedAddress),t.push("rport"),t.push(e.relatedPort)),e.tcpType&&"tcp"===e.protocol.toLowerCase()&&(t.push("tcptype"),t.push(e.tcpType)),(e.usernameFragment||e.ufrag)&&(t.push("ufrag"),t.push(e.usernameFragment||e.ufrag)),"candidate:"+t.join(" ")},Z.parseIceOptions=function(e){return e.substring(14).split(" ")},Z.parseRtpMap=function(e){let t=e.substring(9).split(" "),n={payloadType:parseInt(t.shift(),10)};return n.name=(t=t[0].split("/"))[0],n.clockRate=parseInt(t[1],10),n.channels=3===t.length?parseInt(t[2],10):1,n.numChannels=n.channels,n},Z.writeRtpMap=function(e){let t=e.payloadType;void 0!==e.preferredPayloadType&&(t=e.preferredPayloadType);let n=e.channels||e.numChannels||1;return"a=rtpmap:"+t+" "+e.name+"/"+e.clockRate+(1!==n?"/"+n:"")+"\r\n"},Z.parseExtmap=function(e){let t=e.substring(9).split(" ");return{id:parseInt(t[0],10),direction:t[0].indexOf("/")>0?t[0].split("/")[1]:"sendrecv",uri:t[1],attributes:t.slice(2).join(" ")}},Z.writeExtmap=function(e){return"a=extmap:"+(e.id||e.preferredId)+(e.direction&&"sendrecv"!==e.direction?"/"+e.direction:"")+" "+e.uri+(e.attributes?" "+e.attributes:"")+"\r\n"},Z.parseFmtp=function(e){let t,n={},r=e.substring(e.indexOf(" ")+1).split(";");for(let e=0;e<r.length;e++)n[(t=r[e].trim().split("="))[0].trim()]=t[1];return n},Z.writeFmtp=function(e){let t="",n=e.payloadType;if(void 0!==e.preferredPayloadType&&(n=e.preferredPayloadType),e.parameters&&Object.keys(e.parameters).length){let r=[];Object.keys(e.parameters).forEach(t=>{void 0!==e.parameters[t]?r.push(t+"="+e.parameters[t]):r.push(t)}),t+="a=fmtp:"+n+" "+r.join(";")+"\r\n"}return t},Z.parseRtcpFb=function(e){let t=e.substring(e.indexOf(" ")+1).split(" ");return{type:t.shift(),parameter:t.join(" ")}},Z.writeRtcpFb=function(e){let t="",n=e.payloadType;return void 0!==e.preferredPayloadType&&(n=e.preferredPayloadType),e.rtcpFeedback&&e.rtcpFeedback.length&&e.rtcpFeedback.forEach(e=>{t+="a=rtcp-fb:"+n+" "+e.type+(e.parameter&&e.parameter.length?" "+e.parameter:"")+"\r\n"}),t},Z.parseSsrcMedia=function(e){let t=e.indexOf(" "),n={ssrc:parseInt(e.substring(7,t),10)},r=e.indexOf(":",t);return r>-1?(n.attribute=e.substring(t+1,r),n.value=e.substring(r+1)):n.attribute=e.substring(t+1),n},Z.parseSsrcGroup=function(e){let t=e.substring(13).split(" ");return{semantics:t.shift(),ssrcs:t.map(e=>parseInt(e,10))}},Z.getMid=function(e){let t=Z.matchPrefix(e,"a=mid:")[0];if(t)return t.substring(6)},Z.parseFingerprint=function(e){let t=e.substring(14).split(" ");return{algorithm:t[0].toLowerCase(),value:t[1].toUpperCase()}},Z.getDtlsParameters=function(e,t){return{role:"auto",fingerprints:Z.matchPrefix(e+t,"a=fingerprint:").map(Z.parseFingerprint)}},Z.writeDtlsParameters=function(e,t){let n="a=setup:"+t+"\r\n";return e.fingerprints.forEach(e=>{n+="a=fingerprint:"+e.algorithm+" "+e.value+"\r\n"}),n},Z.parseCryptoLine=function(e){let t=e.substring(9).split(" ");return{tag:parseInt(t[0],10),cryptoSuite:t[1],keyParams:t[2],sessionParams:t.slice(3)}},Z.writeCryptoLine=function(e){return"a=crypto:"+e.tag+" "+e.cryptoSuite+" "+("object"==typeof e.keyParams?Z.writeCryptoKeyParams(e.keyParams):e.keyParams)+(e.sessionParams?" "+e.sessionParams.join(" "):"")+"\r\n"},Z.parseCryptoKeyParams=function(e){if(0!==e.indexOf("inline:"))return null;let t=e.substring(7).split("|");return{keyMethod:"inline",keySalt:t[0],lifeTime:t[1],mkiValue:t[2]?t[2].split(":")[0]:void 0,mkiLength:t[2]?t[2].split(":")[1]:void 0}},Z.writeCryptoKeyParams=function(e){return e.keyMethod+":"+e.keySalt+(e.lifeTime?"|"+e.lifeTime:"")+(e.mkiValue&&e.mkiLength?"|"+e.mkiValue+":"+e.mkiLength:"")},Z.getCryptoParameters=function(e,t){return Z.matchPrefix(e+t,"a=crypto:").map(Z.parseCryptoLine)},Z.getIceParameters=function(e,t){let n=Z.matchPrefix(e+t,"a=ice-ufrag:")[0],r=Z.matchPrefix(e+t,"a=ice-pwd:")[0];return n&&r?{usernameFragment:n.substring(12),password:r.substring(10)}:null},Z.writeIceParameters=function(e){let t="a=ice-ufrag:"+e.usernameFragment+"\r\na=ice-pwd:"+e.password+"\r\n";return e.iceLite&&(t+="a=ice-lite\r\n"),t},Z.parseRtpParameters=function(e){let t={codecs:[],headerExtensions:[],fecMechanisms:[],rtcp:[]},n=Z.splitLines(e)[0].split(" ");t.profile=n[2];for(let r=3;r<n.length;r++){let i=n[r],s=Z.matchPrefix(e,"a=rtpmap:"+i+" ")[0];if(s){let n=Z.parseRtpMap(s),r=Z.matchPrefix(e,"a=fmtp:"+i+" ");switch(n.parameters=r.length?Z.parseFmtp(r[0]):{},n.rtcpFeedback=Z.matchPrefix(e,"a=rtcp-fb:"+i+" ").map(Z.parseRtcpFb),t.codecs.push(n),n.name.toUpperCase()){case"RED":case"ULPFEC":t.fecMechanisms.push(n.name.toUpperCase())}}}Z.matchPrefix(e,"a=extmap:").forEach(e=>{t.headerExtensions.push(Z.parseExtmap(e))});let r=Z.matchPrefix(e,"a=rtcp-fb:* ").map(Z.parseRtcpFb);return t.codecs.forEach(e=>{r.forEach(t=>{e.rtcpFeedback.find(e=>e.type===t.type&&e.parameter===t.parameter)||e.rtcpFeedback.push(t)})}),t},Z.writeRtpDescription=function(e,t){let n="";n+="m="+e+" ",n+=t.codecs.length>0?"9":"0",n+=" "+(t.profile||"UDP/TLS/RTP/SAVPF")+" ",n+=t.codecs.map(e=>void 0!==e.preferredPayloadType?e.preferredPayloadType:e.payloadType).join(" ")+"\r\n",n+="c=IN IP4 0.0.0.0\r\n",n+="a=rtcp:9 IN IP4 0.0.0.0\r\n",t.codecs.forEach(e=>{n+=Z.writeRtpMap(e),n+=Z.writeFmtp(e),n+=Z.writeRtcpFb(e)});let r=0;return t.codecs.forEach(e=>{e.maxptime>r&&(r=e.maxptime)}),r>0&&(n+="a=maxptime:"+r+"\r\n"),t.headerExtensions&&t.headerExtensions.forEach(e=>{n+=Z.writeExtmap(e)}),n},Z.parseRtpEncodingParameters=function(e){let t,n=[],r=Z.parseRtpParameters(e),i=-1!==r.fecMechanisms.indexOf("RED"),s=-1!==r.fecMechanisms.indexOf("ULPFEC"),o=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"cname"===e.attribute),a=o.length>0&&o[0].ssrc,c=Z.matchPrefix(e,"a=ssrc-group:FID").map(e=>e.substring(17).split(" ").map(e=>parseInt(e,10)));c.length>0&&c[0].length>1&&c[0][0]===a&&(t=c[0][1]),r.codecs.forEach(e=>{if("RTX"===e.name.toUpperCase()&&e.parameters.apt){let r={ssrc:a,codecPayloadType:parseInt(e.parameters.apt,10)};a&&t&&(r.rtx={ssrc:t}),n.push(r),i&&((r=JSON.parse(JSON.stringify(r))).fec={ssrc:a,mechanism:s?"red+ulpfec":"red"},n.push(r))}}),0===n.length&&a&&n.push({ssrc:a});let p=Z.matchPrefix(e,"b=");return p.length&&(p=0===p[0].indexOf("b=TIAS:")?parseInt(p[0].substring(7),10):0===p[0].indexOf("b=AS:")?950*parseInt(p[0].substring(5),10)-16e3:void 0,n.forEach(e=>{e.maxBitrate=p})),n},Z.parseRtcpParameters=function(e){let t={},n=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"cname"===e.attribute)[0];n&&(t.cname=n.value,t.ssrc=n.ssrc);let r=Z.matchPrefix(e,"a=rtcp-rsize");return t.reducedSize=r.length>0,t.compound=0===r.length,t.mux=Z.matchPrefix(e,"a=rtcp-mux").length>0,t},Z.writeRtcpParameters=function(e){let t="";return e.reducedSize&&(t+="a=rtcp-rsize\r\n"),e.mux&&(t+="a=rtcp-mux\r\n"),void 0!==e.ssrc&&e.cname&&(t+="a=ssrc:"+e.ssrc+" cname:"+e.cname+"\r\n"),t},Z.parseMsid=function(e){let t,n=Z.matchPrefix(e,"a=msid:");if(1===n.length)return{stream:(t=n[0].substring(7).split(" "))[0],track:t[1]};let r=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"msid"===e.attribute);if(r.length>0)return{stream:(t=r[0].value.split(" "))[0],track:t[1]}},Z.parseSctpDescription=function(e){let t,n=Z.parseMLine(e),r=Z.matchPrefix(e,"a=max-message-size:");r.length>0&&(t=parseInt(r[0].substring(19),10)),isNaN(t)&&(t=65536);let i=Z.matchPrefix(e,"a=sctp-port:");if(i.length>0)return{port:parseInt(i[0].substring(12),10),protocol:n.fmt,maxMessageSize:t};let s=Z.matchPrefix(e,"a=sctpmap:");if(s.length>0){let e=s[0].substring(10).split(" ");return{port:parseInt(e[0],10),protocol:e[1],maxMessageSize:t}}},Z.writeSctpDescription=function(e,t){let n=[];return n="DTLS/SCTP"!==e.protocol?["m="+e.kind+" 9 "+e.protocol+" "+t.protocol+"\r\n","c=IN IP4 0.0.0.0\r\n","a=sctp-port:"+t.port+"\r\n"]:["m="+e.kind+" 9 "+e.protocol+" "+t.port+"\r\n","c=IN IP4 0.0.0.0\r\n","a=sctpmap:"+t.port+" "+t.protocol+" 65535\r\n"],void 0!==t.maxMessageSize&&n.push("a=max-message-size:"+t.maxMessageSize+"\r\n"),n.join("")},Z.generateSessionId=function(){return Math.random().toString().substr(2,22)},Z.writeSessionBoilerplate=function(e,t,n){return"v=0\r\no="+(n||"thisisadapterortc")+" "+(e||Z.generateSessionId())+" "+(void 0!==t?t:2)+" IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"},Z.getDirection=function(e,t){let n=Z.splitLines(e);for(let e=0;e<n.length;e++)switch(n[e]){case"a=sendrecv":case"a=sendonly":case"a=recvonly":case"a=inactive":return n[e].substring(2)}return t?Z.getDirection(t):"sendrecv"},Z.getKind=function(e){return Z.splitLines(e)[0].split(" ")[0].substring(2)},Z.isRejected=function(e){return"0"===e.split(" ",2)[1]},Z.parseMLine=function(e){let t=Z.splitLines(e)[0].substring(2).split(" ");return{kind:t[0],port:parseInt(t[1],10),protocol:t[2],fmt:t.slice(3).join(" ")}},Z.parseOLine=function(e){let t=Z.matchPrefix(e,"o=")[0].substring(2).split(" ");return{username:t[0],sessionId:t[1],sessionVersion:parseInt(t[2],10),netType:t[3],addressType:t[4],address:t[5]}},Z.isValidSDP=function(e){if("string"!=typeof e||0===e.length)return!1;let t=Z.splitLines(e);for(let e=0;e<t.length;e++)if(t[e].length<2||"="!==t[e].charAt(1))return!1;return!0},q=Z;let ec=function({window:e}={},t={shimChrome:!0,shimFirefox:!0,shimSafari:!0}){let n=function(e){let t={browser:null,version:null};if(void 0===e||!e.navigator||!e.navigator.userAgent)return t.browser="Not a browser.",t;let{navigator:n}=e;if(n.userAgentData&&n.userAgentData.brands){let e=n.userAgentData.brands.find(e=>"Chromium"===e.brand);if(e)return{browser:"chrome",version:parseInt(e.version,10)}}return n.mozGetUserMedia?(t.browser="firefox",t.version=d(n.userAgent,/Firefox\/(\d+)\./,1)):n.webkitGetUserMedia||!1===e.isSecureContext&&e.webkitRTCPeerConnection?(t.browser="chrome",t.version=d(n.userAgent,/Chrom(e|ium)\/(\d+)\./,2)):e.RTCPeerConnection&&n.userAgent.match(/AppleWebKit\/(\d+)\./)?(t.browser="safari",t.version=d(n.userAgent,/AppleWebKit\/(\d+)\./,1),t.supportsUnifiedPlan=e.RTCRtpTransceiver&&"currentDirection"in e.RTCRtpTransceiver.prototype):t.browser="Not a supported browser.",t}(e),r={browserDetails:n,commonShim:Q,extractVersion:d,disableLog:h,disableWarnings:u,sdp:q};switch(n.browser){case"chrome":if(!y||!y.shimPeerConnection||!t.shimChrome){f("Chrome shim is not included in this adapter release.");break}if(null===n.version){f("Chrome shim can not determine version, not shimming.");break}f("adapter.js shimming chrome."),r.browserShim=y,eo(e,n),ea(e,n),y.shimGetUserMedia(e,n),y.shimMediaStream(e,n),y.shimPeerConnection(e,n),y.shimOnTrack(e,n),y.shimAddTrackRemoveTrack(e,n),y.shimGetSendersWithDtmf(e,n),y.shimSenderReceiverGetStats(e,n),y.fixNegotiationNeeded(e,n),ee(e,n),et(e,n),ei(e,n),en(e,n),er(e,n),es(e,n);break;case"firefox":if(!E||!E.shimPeerConnection||!t.shimFirefox){f("Firefox shim is not included in this adapter release.");break}f("adapter.js shimming firefox."),r.browserShim=E,eo(e,n),ea(e,n),E.shimGetUserMedia(e,n),E.shimPeerConnection(e,n),E.shimOnTrack(e,n),E.shimRemoveStream(e,n),E.shimSenderGetStats(e,n),E.shimReceiverGetStats(e,n),E.shimRTCDataChannel(e,n),E.shimAddTransceiver(e,n),E.shimGetParameters(e,n),E.shimCreateOffer(e,n),E.shimCreateAnswer(e,n),ee(e,n),ei(e,n),en(e,n),er(e,n);break;case"safari":if(!z||!t.shimSafari){f("Safari shim is not included in this adapter release.");break}f("adapter.js shimming safari."),r.browserShim=z,eo(e,n),ea(e,n),z.shimRTCIceServerUrls(e,n),z.shimCreateOfferLegacy(e,n),z.shimCallbacksAPI(e,n),z.shimLocalStreamsAPI(e,n),z.shimRemoteStreamsAPI(e,n),z.shimTrackEventTransceiver(e,n),z.shimGetUserMedia(e,n),z.shimAudioContext(e,n),ee(e,n),et(e,n),en(e,n),er(e,n),es(e,n);break;default:f("Unsupported browser!")}return r}({window:"undefined"==typeof window?void 0:window}),ep=ec.default||ec,ed=new class{isWebRTCSupported(){return"undefined"!=typeof RTCPeerConnection}isBrowserSupported(){let e=this.getBrowser(),t=this.getVersion();return!!this.supportedBrowsers.includes(e)&&("chrome"===e?t>=this.minChromeVersion:"firefox"===e?t>=this.minFirefoxVersion:"safari"===e&&!this.isIOS&&t>=this.minSafariVersion)}getBrowser(){return ep.browserDetails.browser}getVersion(){return ep.browserDetails.version||0}isUnifiedPlanSupported(){let e,t=this.getBrowser(),n=ep.browserDetails.version||0;if("chrome"===t&&n<this.minChromeVersion)return!1;if("firefox"===t&&n>=this.minFirefoxVersion)return!0;if(!window.RTCRtpTransceiver||!("currentDirection"in RTCRtpTransceiver.prototype))return!1;let r=!1;try{(e=new RTCPeerConnection).addTransceiver("audio"),r=!0}catch(e){}finally{e&&e.close()}return r}toString(){return`Supports:
@@ -2452,6 +2494,7 @@ function asSeenBy(g, i, fn){
 }
 // AI: peek at whichever deck it expects to find more in (ties and empty decks fall back to units)
 function aiBMKind(g, i){
+  if (g._po) return g.uDeck.length ? 'u' : 'b';
   const n = bVal(g.players[i], 'Black Market');
   if (!g.bDeck.length) return 'u';
   if (!g.uDeck.length) return 'b';
@@ -2610,30 +2653,62 @@ const OPINION_KEYS = ALL_CARDS.concat(Object.keys(MIRS));   // cards and miracle
 function baseGenome(){ return {kp:0.15, shr:0.6, tie:0.12, rob:0.25, s:1, e:1, m:1, thresh:0, slot:0.7, pair:0.5, cath:0.5, read:0.4, deny:0.3, combo:1, save:0.3, hb:1, bmk:1, lu2:0.35, omk:1.5, mir:1, mu:0.06, mpat:0.5, bias:{}}; }
 // How hard the AI thinks. 'play' is used against you; 'train' is a lighter version of the same reasoning for self-play.
 const DEPTH = {
-  fast:  null,
-  train: {search:{evals:40, ms:0, minDepth:2, maxDepth:2, width:5, inner:2, P:6, K:3, settle:0.02, drop:0.08}, guesses:5, top:2, stageA:5, perms:24, shopPerms:8, shopCands:3, shopGuesses:4, predictK:6, predictDeep:{guesses:3, top:1, stageA:3, perms:12, predictK:4}},
-  play:  {search:{evals:700, ms:2500, minDepth:3, maxDepth:5, width:7, inner:3, P:10, K:4, settle:0.015, drop:0.08}, mix:6, guesses:12, top:3, stageA:12, perms:'all', shopPerms:16, shopCands:6, shopGuesses:8, predictK:16, predictDeep:{guesses:6, top:1, stageA:6, perms:24, predictK:8}},
-  master:{search:{evals:4000, ms:8000, minDepth:4, maxDepth:7, width:9, inner:3, P:12, K:5, settle:0.01, drop:0.06}, mix:8, guesses:18, top:4, stageA:16, perms:'all', shopPerms:24, shopCands:8, shopGuesses:12, predictK:24, predictDeep:{guesses:8, top:2, stageA:8, perms:48, predictK:12}},
+  fast:  {search:{evals:20, ms:0, minDepth:1, maxDepth:1, width:99, inner:1, P:4, K:2, settle:0.03, drop:0.1, po:2}, guesses:3, top:1, stageA:3, perms:12, shopPerms:4, shopCands:2, shopGuesses:3, predictK:4},
+  train: {search:{evals:40, ms:0, minDepth:2, maxDepth:2, width:5, inner:2, P:6, K:3, settle:0.02, drop:0.08, po:3}, guesses:5, top:2, stageA:5, perms:24, shopPerms:8, shopCands:3, shopGuesses:4, predictK:6, predictDeep:{guesses:3, top:1, stageA:3, perms:12, predictK:4}},
+  play:  {search:{evals:700, ms:2500, minDepth:3, maxDepth:5, width:7, inner:3, P:10, K:4, settle:0.015, drop:0.08, po:8}, mix:6, guesses:12, top:3, stageA:12, perms:'all', shopPerms:16, shopCands:6, shopGuesses:8, predictK:16, predictDeep:{guesses:6, top:1, stageA:6, perms:24, predictK:8}},
+  master:{search:{evals:4000, ms:8000, minDepth:4, maxDepth:7, width:9, inner:3, P:12, K:5, settle:0.01, drop:0.06, po:16}, mix:8, guesses:18, top:4, stageA:16, perms:'all', shopPerms:24, shopCands:8, shopGuesses:12, predictK:24, predictDeep:{guesses:8, top:2, stageA:8, perms:48, predictK:12}},
+  // Ladder-only levels (weaker than 'fast'): short-sighted ones judge only this battle's stakes (no playouts) and blur
+  // their estimates a little; the 'glimpse' level plays out once. t2 sits between training and 'play'.
+  s1:    {search:{evals:12, ms:0, minDepth:1, maxDepth:1, width:99, inner:1, P:2, K:1, settle:0.03, drop:0.12, po:0, myopic:true, blur:0.10}, guesses:2, top:1, stageA:2, perms:6, shopPerms:2, shopCands:1, shopGuesses:2, predictK:2},
+  s2:    {search:{evals:16, ms:0, minDepth:1, maxDepth:1, width:99, inner:1, P:3, K:2, settle:0.03, drop:0.1, po:0, myopic:true, blur:0.05}, guesses:3, top:1, stageA:3, perms:10, shopPerms:3, shopCands:2, shopGuesses:3, predictK:3},
+  g1:    {search:{evals:16, ms:0, minDepth:1, maxDepth:1, width:99, inner:1, P:3, K:2, settle:0.03, drop:0.1, po:1, blur:0.02}, guesses:3, top:1, stageA:3, perms:12, shopPerms:4, shopCands:2, shopGuesses:3, predictK:4},
+  t2:    {search:{evals:200, ms:1500, minDepth:2, maxDepth:3, width:7, inner:2, P:8, K:3, settle:0.015, drop:0.08, po:5}, mix:4, guesses:8, top:2, stageA:8, perms:48, shopPerms:12, shopCands:4, shopGuesses:6, predictK:10, predictDeep:{guesses:4, top:1, stageA:4, perms:16, predictK:6}},
 };
 /* ---------- Rated strength ladder ----------
-   Each rung is a way of playing: how deeply it thinks (a DEPTH key) and how sharp its picks are
-   (1 = always its best option; lower = sometimes a worse option, and costly mistakes much less often than small ones). Rung 0 buys and orders at random.
-   A rating between two rungs mixes them: each decision uses the higher rung with probability t. */
+   Each rung is a thinking budget (a DEPTH key): how far ahead it looks (this battle only, or the rest of the game
+   played out), how many playouts and test battles it runs, and how far it looks ahead in the shop. Weaker rungs see
+   less, so their mistakes are misjudged close calls and short-sightedness, never deliberately thrown choices. The two
+   short-sighted rungs also blur their estimates a little. Rung 0 buys at random: it only anchors the ratings at 400
+   and isn't offered as an opponent. A rating between two rungs plays with a budget part-way between them. */
 const RUNGS = [
   {id:'random', label:'Random buyer', random:true},
-  {id:'f30',  label:'Quick, careless', depth:'fast',  sharp:0.1},
-  {id:'f65',  label:'Quick, loose',    depth:'fast',  sharp:0.35},
-  {id:'f100', label:'Quick',           depth:'fast',  sharp:1},
-  {id:'t70',  label:'Thinks, loose',   depth:'train', sharp:0.4},
-  {id:'t100', label:'Thinks',          depth:'train', sharp:1},
-  {id:'p100', label:'Thinks deeply',   depth:'play',  sharp:1},
-  {id:'m100', label:'Thinks deepest',  depth:'master',sharp:1},
+  {id:'s1',   label:'Short-sighted, hasty', depth:'s1'},
+  {id:'s2',   label:'Short-sighted',        depth:'s2'},
+  {id:'g1',   label:'Glimpses ahead',       depth:'g1'},
+  {id:'f100', label:'Quick',                depth:'fast'},
+  {id:'t100', label:'Thinks',               depth:'train'},
+  {id:'t2',   label:'Thinks harder',        depth:'t2'},
+  {id:'p100', label:'Thinks deeply',        depth:'play'},
+  {id:'m100', label:'Thinks deepest',       depth:'master'},
 ];
+// a budget part-way between two levels: counts are interpolated and rounded, blur and time limits are interpolated
+function blendDepth(A, B, t){
+  if (!A || !B) return A || B;
+  if (t <= 0) return A; if (t >= 1) return B;
+  const lerp = (x, y) => x + (y - x) * t;
+  const mix = (x, y) => {
+    const o = {};
+    for (const k of new Set(Object.keys(x).concat(Object.keys(y)))){
+      const u = x[k], v = y[k];
+      if (k === 'ms' && (!u || !v)) o[k] = u || v;   // 0 means no time limit: keep the other level's limit
+      else if (typeof u === 'number' && typeof v === 'number') o[k] = Number.isInteger(u) && Number.isInteger(v) ? Math.round(lerp(u, v)) : lerp(u, v);
+      else if (u && v && typeof u === 'object') o[k] = mix(u, v);
+      else o[k] = t < 0.5 ? (u ?? v) : (v ?? u);
+    }
+    return o;
+  };
+  const S = mix({blur:0, po:0, ...A.search}, {blur:0, po:0, ...B.search});
+  S.myopic = !(S.po > 0); if (!S.myopic) delete S.myopic;
+  if (!(S.blur > 0.001)) delete S.blur;
+  return {...mix(A, B), search:S};
+}
 function rungFor(g, i){
   const s = g.players[i].skill; if (!s) return null;
-  return (s.hi && g.rnd() < (s.t || 0)) ? s.hi : s.lo;
+  if (!s.hi || !(s.t > 0)) return s.lo;
+  if (s.lo.random || s.hi.random) return g.rnd() < s.t ? s.hi : s.lo;   // never offered, but keep it well defined
+  return {id:s.lo.id + '>' + s.hi.id, label:`between ${s.lo.label} and ${s.hi.label}`, cfg:blendDepth(DEPTH[s.lo.depth], DEPTH[s.hi.depth], s.t)};
 }
-const rungDepth = r => r.depth === 'fast' ? null : DEPTH[r.depth];
+const rungDepth = r => r.cfg || DEPTH[r.depth] || null;
 // pick among options ranked best-first: k-th best with weight (1 - sharp)^k
 function sharpPick(list, sharp, rnd){
   if (!list.length || sharp >= 1) return list[0];
@@ -2667,6 +2742,7 @@ function brawlerKillShare(g, i, L){
 // At 0-0 in a first-to-3 game that's at least 2 more shops (if one side sweeps), more if it's close;
 // it shrinks as either side nears the target, and shrinks faster when one army is clearly stronger.
 function expShops(g, i){
+  if (g._po){ const m = g._esPo || (g._esPo = {}); if (m[i] == null){ g._po = false; try{ m[i] = expShops(g, i); } finally { g._po = true; } } return m[i]; }
   const T = g.target, a0 = total(g.players[i]), b0 = total(g.players[1-i]), cap = Math.max(0, RULES.maxRounds - g.round);
   const q0 = Math.round(battleOdds(g, i) * 50) / 50, G = g.players[i].genome || {};
   // this round's battle is fought with today's armies; after that the other side rebuilds, so later battles lean back toward even
@@ -2696,7 +2772,8 @@ function bmPeekGain(g, i, k, kind){
   const U = kind !== 'b';
   const p = g.players[i], G = p.genome || baseGenome(), deck = (U ? g.uDeck : g.bDeck).filter(n => !isMir(n));
   if (!deck.length) return 0;
-  const key = `${U ? 'u' : 'b'}|${i}|${g.round}|${g.turnIdx}|${k}|${deck.length}|${p.money}|${JSON.stringify(U ? p.hand : p.city)}`;
+  const key = g._po ? `${U ? 'u' : 'b'}|${i}|${g.round}|${k}`
+    : `${U ? 'u' : 'b'}|${i}|${g.round}|${g.turnIdx}|${k}|${deck.length}|${p.money}|${JSON.stringify(U ? p.hand : p.city)}`;
   g._bmg = g._bmg || {}; if (g._bmg[key] != null) return g._bmg[key];
   // valuing a building peek values Black Market itself, which would peek again: count nested peeks as nothing
   if (g._bmIn) return 0;
@@ -2729,7 +2806,7 @@ function bmPeekCalc(g, i, k, U, p, G, deck){
     return best;
   };
   const base = bestSet(disp);
-  const S = 120, take = Math.min(k, deck.length), idx = deck.map((_, j) => j); let tot = 0;
+  const S = g._po ? 12 : 120, take = Math.min(k, deck.length), idx = deck.map((_, j) => j); let tot = 0;
   for (let t = 0; t < S; t++){
     const peek = [];
     for (let j = 0; j < take; j++){   // a random k-card peek
@@ -2741,6 +2818,17 @@ function bmPeekCalc(g, i, k, U, p, G, deck){
     tot += best - base;
   }
   return tot / S;
+}
+// Mercenary in the quick formula: chance of winning the game it adds through this round's battle alone.
+// Battle odds come from army power (as battleOdds), the stakes from the game-win math the search uses.
+const MERC_K = 20;
+function mercSwing(g, i, G, held, gain){
+  const a = armyPower(g.players[i]) + held, b = armyPower(g.players[1 - i]);
+  const od = x => x + b <= 0 ? 0.5 : Math.max(0.1, Math.min(0.9, x * x / (x * x + b * b)));
+  const q0 = od(a), dq = od(a + gain) - q0;
+  if (dq <= 0) return 0;
+  const V = roundValues(g, i, G, logit(q0), logit(battleOdds(g, i)));
+  return dq * Math.max(0, V.w - V.l);
 }
 function roundsLeft(g){ const lead = Math.max(total(g.players[0]), total(g.players[1])); return Math.max(1, Math.min(6, (g.target - lead) * 1.6 + 0.5)); }
 
@@ -2758,7 +2846,9 @@ function aiValue(g, i, name, kind){
       const ab = x => x > 0 ? ABIL.Brawler[Math.min(x, ABIL.Brawler.length) - 1] * abilScale('Brawler', x) : 0;
       gain -= (1 - brawlerKillShare(g, i, L)) * ab(L) - (1 - brawlerKillShare(g, i, c)) * ab(c);
     }
-    if (name === 'Mercenary') return G.s * gain * 0.6 + bias;
+    // Mercenary fights one battle and is discarded: it's worth what it adds to this battle's chances, times what
+    // this battle's point is worth at the current score (little at 0-0, everything at match point)
+    if (name === 'Mercenary') return G.s * MERC_K * mercSwing(g, i, G, strengthU(name, c), gain) + bias;
     if (c === 0){
       const cap = deckCap(p);
       if (uniqueUnits(p) >= cap){
@@ -2862,7 +2952,7 @@ function mirValue(g, i, list, G, mE){
     if (m.tr) v += m.tr * G.s * 1.0;   // a level is worth about two Armaments
     if (m.writ) v += writPick(g, i, null).reduce((s, x) => s + x.v, 0) * 0.5 + 0.8 * G.m * Math.max(0.5, mE);   // + shopping again before the opponent
     if (m.fav) v += m.fav * 1.2 * G.m * Math.max(0.5, mE);
-    if (m.vis) v += Math.max(bmPeekGain(g, i, m.vis, 'u'), bmPeekGain(g, i, m.vis, 'b'));
+    if (m.vis && !g._po) v += Math.max(bmPeekGain(g, i, m.vis, 'u'), bmPeekGain(g, i, m.vis, 'b'));
   }
   let op = 0; for (const n of list) op += (G.bias && G.bias[n]) || 0;   // learned opinion of each miracle
   return v * (G.mir ?? 1) + op;
@@ -3132,12 +3222,15 @@ const logit = q => { q = Math.max(0.1, Math.min(0.9, q)); return Math.log(q / (1
 const projIncome = p => Math.max(0, income(p)) + (p.city["Carpenter's Guild"] ? 0.8 : 0);
 // Chance that player i wins the game after this round's battle ends in a win, a tie or a loss for i.
 // s0: i's edge in this battle (log-odds); later battles use the faded edge plus the money gap.
-function roundValues(g, i, G, s0){
+// sF: the edge that carries into later battles, measured without this round's Mercenaries and bought Recruits
+// (they are discarded after the battle, so they must not count as lasting strength). Defaults to s0.
+function roundValues(g, i, G, s0, sF){
+  if (sF == null) sF = s0;
   const me = g.players[i], op = g.players[1 - i], T = g.target;
   const ca = me.city.Cathedral ? 1 : 0, cb = op.city.Cathedral ? 1 : 0;
   const kp = G.kp ?? 0.15, shr = G.shr ?? 0.6, tie = G.tie ?? 0.12;
   const m0 = me.money - op.money, dI = projIncome(me) - projIncome(op), maxK = Math.min(8, Math.max(1, RULES.maxRounds - g.round));
-  const pk = k => { const q = sig(s0 * Math.pow(shr, k) + kp * (m0 + k * dI)); return [(1 - tie) * q, tie, (1 - tie) * (1 - q)]; };
+  const pk = k => { const q = sig(sF * Math.pow(shr, k) + kp * (m0 + k * dI)); return [(1 - tie) * q, tie, (1 - tie) * (1 - q)]; };
   const P = []; for (let k = 1; k <= maxK; k++) P.push(pk(k));
   const memo = new Map();
   // after a battle with result o (0 win, 1 tie, 2 loss for i) the score is (a, b): is the game over?
@@ -3174,22 +3267,106 @@ function goodDecks(g, j, P, K, vs, cfgJ, cfgO){
   return out.slice(0, K).map(x => x.d);
 }
 const plainDeck = p => { const a = buildArmy(p); return (!a.core.length && !a.recs) ? [] : assemble(a.core, a.recs, a.arm, true, false); };
-// Chance player i wins the game from this position (the shop is over, or treated as over)
-function evalState(g, i, G, S, cache, stats){
+/* ---------- Playouts: the rest of the game ----------
+   After this round's battle, what is my chance of winning the game? Play the rest of it out many times and count.
+   Each playout starts from this position after a win, a tie or a loss, shuffles the cards nobody has seen yet (the
+   AI doesn't know the deck order), and plays every later round to the end with a fast imagined player on both sides
+   (the quick shop formula and a light Mobilize). That imagined player is only the AI's picture of how the game might
+   go; every real decision is a comparison of these game-win chances. The same random seeds are used for every option
+   in one decision, so options are compared on the same imagined futures and the differences aren't luck. */
+const PO_SKIP = new Set(['offers', 'states', 'mirDecide', 'mixInfo', 'omPending']);
+function poClone(g){
+  const o = {};
+  for (const k in g){ if (SEARCH_SKIP.has(k) || PO_SKIP.has(k)) continue; const v = g[k]; o[k] = typeof v === 'function' ? v : dcopy(v); }
+  o.log = []; o._po = true; return o;
+}
+// battle bookkeeping without fighting it (the same steps doBattle takes after a result)
+function applyOutcome(c, w){
+  c.lastBattle = {w};
+  c.players.forEach((p, k) => { p.wonLast = w === k; });
+  if (w >= 0) c.players[w].score++;
+  for (const k of [0,1]) if (c.decks && c.decks[k]) c.players[k].prevDeck = c.decks[k].map(u => ({...u}));
+  for (const p of c.players){ delete p.hand.Recruit; delete p.hand.Mercenary; }
+  const t = c.players.map(total), mx = Math.max(t[0], t[1]);
+  if (mx >= c.target && t[0] !== t[1]){ const L = t[0] > t[1] ? 0 : 1; if (!c.players[L].city.Cathedral || c.players[L].wonLast){ c.winner = L; c.over = true; } }
+  if (!c.over && c.round >= RULES.maxRounds){ c.over = true; c.winner = t[0] === t[1] ? -1 : (t[0] > t[1] ? 0 : 1); }
+  c.phase = c.over ? 'over' : 'shop';
+}
+function poRound(c){
+  startShop(c);
+  for (let guard = 0; c.phase === 'shop' && guard < 40; guard++){ c._esPo = null; aiShopTurn(c, cur(c), null); }
+  if (c.phase === 'shop'){ c.passed = [true, true]; endShop(c); }
+  for (const i of [0,1]) setDeck(c, i, plainDeck(c.players[i]));
+  finishMobilize(c);
+  doBattle(c, false);
+}
+// [win, tie, loss] for player i: chance of winning the game after this round's battle goes each way.
+// g: the shop is over. decks (optional): the orders expected in this battle, so Farmhand/Arsonist money is counted.
+// need (optional): which of win/tie/loss can actually happen; the others aren't played out (their value is never used)
+function outcomeValues(g, i, n, decks, need){
+  const base = poClone(g);
+  if (decks){ base.decks = decks.map(d => (d || []).map(u => ({...u}))); finishMobilize(base); }
+  else if (!base.decks || !base.decks[0]) base.decks = [[], []];
+  const seed = g._poSeed != null ? g._poSeed : 0x5eed, out = [0, 0, 0];
+  for (let o = 0; o < 3; o++){
+    if (need && !need[o]){ out[o] = NaN; continue; }
+    const w = o === 0 ? i : o === 1 ? -1 : 1 - i;
+    for (let k = 0; k < n; k++){
+      const c = poClone(base); c.rnd = mulberry32(seed + 7919 * k);
+      c.uDeck = shuffle(c.uDeck, c.rnd); c.bDeck = shuffle(c.bDeck, c.rnd);
+      applyOutcome(c, w);
+      for (let r = 0; !c.over && r < 40; r++) poRound(c);
+      out[o] += c.over ? scoreFor(c.winner, i) : 0.5;
+    }
+  }
+  // A handful of playouts is a noisy count (one playout is a 0 or a 1), so each estimate starts from the short-sighted
+  // view (later battles even, money ignored) worth PO_PRIOR playouts, and the playouts pull it toward what they found.
+  const M = myopicValues(g, i, g.players[i].genome), sh = x => (x + PO_PRIOR * x0) / (n + PO_PRIOR);
+  let x0;
+  x0 = M.w; const w = sh(out[0]); x0 = M.t; const t = sh(out[1]); x0 = M.l; const l = sh(out[2]);
+  return {w, t, l};
+}
+const PO_PRIOR = 2;
+// Short-sighted levels: what a win, tie or loss here is worth if every later battle were a coin flip and money
+// didn't matter (only the score math: first to the target, ties score nothing, a Cathedral needs a win)
+function myopicValues(g, i, G){ return roundValues(g, i, {kp:0, shr:0, tie:(G && G.tie) ?? 0.12}, 0, 0); }
+// Mercenaries and bought Recruits last one battle (Barracks Recruits come back every round, so they stay)
+const hasTemps = p => !!(p.hand.Mercenary || p.hand.Recruit);
+function withoutTemps(g, fn){
+  const h0 = g.players.map(p => p.hand);
+  for (const p of g.players){ if (!hasTemps(p)) continue; const h = {...p.hand}; delete h.Mercenary; delete h.Recruit; p.hand = h; }
+  try{ return fn(); } finally { g.players.forEach((p, k) => { p.hand = h0[k]; }); }
+}
+// Both sides' good orders fought against each other; q is my best order's average result (a tie counts half)
+function edgeRes(g, i, S, cI, cO){
   const me = g.players[i], op = g.players[1 - i];
-  const key = JSON.stringify([me.hand, me.city, me.money, me.score, op.hand, op.city, op.money, op.score]);
-  if (cache.has(key)) return cache.get(key);
-  stats.evals++;
-  const cI = battleCfgOf(me), cO = battleCfgOf(op);
   const mine = goodDecks(g, i, S.P, S.K, plainDeck(op), cI, cO), theirs = goodDecks(g, 1 - i, S.P, S.K, plainDeck(me), cO, cI);
   const res = mine.map(d => theirs.map(od => {
     const cfgs = [{...cI, units:d}, {...cO, units:od}]; if (i === 1) cfgs.reverse();
     const r = runBattle(cfgs, false), w = r.result.w;
     return {o:w === i ? 0 : w < 0 ? 1 : 2, m:r.left[i] - r.left[1 - i]};
   }));
-  // this battle's edge: my best order's average result against their good orders
   let q = 0; for (const row of res){ const s = row.reduce((a, c) => a + (c.o === 0 ? 1 : c.o === 1 ? 0.5 : 0), 0) / row.length; if (s > q) q = s; }
-  const V = roundValues(g, i, G, logit(q)), rob = G.rob ?? 0.25, vv = [V.w, V.t, V.l];
+  return {res, q, mine, theirs};
+}
+// Chance player i wins the game from this position (the shop is over, or treated as over)
+function evalState(g, i, G, S, cache, stats){
+  const me = g.players[i], op = g.players[1 - i];
+  // everything the result depends on: both sides' cards, money, score and miracles, what's left on display and in
+  // Salvage (the next shop starts from them), the playout budget and seed, and whose judgment imagines the future
+  const key = JSON.stringify([i, S.po || 0, g._poSeed, genomeKey(G), g.round, me.hand, me.city, me.money, me.score, me.mir, op.hand, op.city, op.money, op.score, op.mir,
+    g.disp.u.map(c => c.name + (c.side ? '*' : '')), g.disp.b.map(c => c.name + (c.side ? '*' : '')), g.muster]);
+  if (cache.has(key)) return cache.get(key);
+  stats.evals++;
+  const cI = battleCfgOf(me), cO = battleCfgOf(op);
+  const {res, q, mine, theirs} = edgeRes(g, i, S, cI, cO);
+  // the edge that lasts: the same test without either side's Mercenaries and bought Recruits, which are discarded
+  // after this battle. Only worth the extra battles when someone is holding one.
+  const qF = S.po ? q : (hasTemps(me) || hasTemps(op)) ? withoutTemps(g, () => edgeRes(g, i, S, cI, cO).q) : q;
+  // what a win, tie or loss in this battle is worth for the whole game: played out (or the quick projection without a budget)
+  const need = [0, 1, 2].map(o => res.some(row => row.some(c => c.o === o)));   // only the results these battles can produce
+  const V = S.myopic ? myopicValues(g, i, G) : S.po ? outcomeValues(g, i, S.po, i === 0 ? [mine[0], theirs[0]] : [theirs[0], mine[0]], need) : roundValues(g, i, G, logit(q), logit(qF));
+  const rob = G.rob ?? 0.25, vv = [V.w, V.t, V.l];
   let best = -1, bestRow = null;
   for (const row of res){
     let sum = 0, mn = 1, mg = 0; for (const c of row){ const x = vv[c.o]; sum += x; if (x < mn) mn = x; mg += c.m; }
@@ -3203,6 +3380,22 @@ function evalState(g, i, G, S, cache, stats){
 const ECON_CARDS = new Set(['Field', 'Windmill', "Carpenter's Guild"]);
 function shopMoves(g, j, G, width, econ){
   const p = g.players[j], mE = Math.min(1, expShops(g, j)), out = [];
+  // the deciding player's own options (econ = root): every legal buy and sale is judged by game-win chance, so none is cut here
+  if (econ){
+    const list = [], seen = new Set();
+    for (const o of aiShopOptions(g, j)){
+      const info = buyInfo(g, j, o.name, o.kind, o.src, o.idx); if (!info.ok) continue;
+      if (o.name === "Mason's Guild" && !aiMasonTarget(g, j)) continue;
+      const k = o.name + '|' + (o.src === 'du' || o.src === 'db' ? 'd' : o.src); if (seen.has(k)) continue; seen.add(k);
+      list.push({act:'buy', src:o.src, idx:o.idx, name:o.name, kind:o.kind, price:info.price});
+    }
+    if (!(g.sold && g.sold[j] && g.sold[j].length >= 2)){
+      for (const n in p.hand) if (canSell(g, j, 'u', n)) list.push({act:'sell', kind:'u', name:n, price:-SELL_PRICE});
+      for (const n in p.city) if (canSell(g, j, 'b', n)) list.push({act:'sell', kind:'b', name:n, price:-SELL_PRICE});
+    }
+    list.push({act:'pass', name:'pass'});
+    return list;
+  }
   for (const o of aiShopOptions(g, j)){
     const info = buyInfo(g, j, o.name, o.kind, o.src, o.idx); if (!info.ok) continue;
     if (o.name === "Mason's Guild" && !aiMasonTarget(g, j)) continue;
@@ -3220,6 +3413,7 @@ function shopMoves(g, j, G, width, econ){
   return list;
 }
 function doMove(g, j, m){
+  if (m.act === 'sell'){ sell(g, j, m.kind, m.name); return; }
   if (m.act === 'buy' && buy(g, j, m.src, m.idx, m.name === "Mason's Guild" ? aiMasonTarget(g, j) : undefined)) return;
   if (g.phase === 'shop' && cur(g) === j) pass(g, j);
 }
@@ -3243,14 +3437,35 @@ function searchVal(g, i, G, S, depth, cache, stats){
   return best;
 }
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+// Results kept across shop turns: on my next turn many of the positions I'd judge are ones I already played out
+// (their actual reply was in my look-ahead). Cleared when it grows large.
+const EVC = new Map();
+const _gk = new WeakMap();
+function genomeKey(G){ if (!G || typeof G !== 'object') return ''; let k = _gk.get(G); if (k == null){ k = JSON.stringify(G); _gk.set(G, k); } return k; }
+// One seed per player per shop, from public facts only, so every turn of a shop uses the same imagined futures
+function shopSeed(g, i){
+  const s = `${g.round}|${g.first1}|${g.target}|${g.players[0].score}|${g.players[1].score}|${g.uDeck.length}|${g.bDeck.length}|${i}`;
+  let x = 2166136261; for (let k = 0; k < s.length; k++){ x ^= s.charCodeAt(k); x = Math.imul(x, 16777619); }
+  return x >>> 0;
+}
 function planShop(g, i, G, S){
-  const t0 = nowMs(), cache = new Map(), stats = {evals:0, iters:0};
+  if (EVC.size > 4000) EVC.clear();
+  const t0 = nowMs(), cache = EVC, stats = {evals:0, iters:0};
   const root = simClone(g); root.players[1 - i].genome = G;   // I model the opponent with my own judgment
+  root._poSeed = shopSeed(g, i);   // every option (and every turn of this shop) is played out on the same imagined futures
   let opts = shopMoves(root, i, G, S.width, true), why = 'deepest search allowed', lastIter = 0, prevBest = null, stable = 0;
   for (let d = 1; d <= S.maxDepth; d++){
     const ti = nowMs();
-    for (const o of opts){ const c = simClone(root); doMove(c, i, o); o.v = searchVal(c, i, G, S, d - 1, cache, stats); }
+    // a deeper step that runs past the time budget stops part-way: options it didn't reach keep their last value
+    let cut = false;
+    // early, wide steps play out each option a few times to drop the clear losers; from minDepth on, the full budget
+    const Sd = S.po && d < S.minDepth ? {...S, po:Math.max(1, Math.ceil(S.po / 2))} : S;
+    for (const o of opts){
+      if (d > 1 && S.ms && nowMs() - t0 > S.ms){ cut = true; break; }
+      const c = simClone(root); doMove(c, i, o); o.v = searchVal(c, i, G, Sd, d - 1, cache, stats);
+    }
     opts.sort((a, b) => b.v - a.v); stats.iters = d; lastIter = nowMs() - ti;
+    if (cut){ why = 'time budget'; break; }
     const top = opts[0], gap = opts.length > 1 ? top.v - opts[1].v : 1;
     if (prevBest === top) stable++; else stable = 0; prevBest = top;
     if (opts.length === 1){ why = 'only one sensible option'; break; }
@@ -3263,17 +3478,23 @@ function planShop(g, i, G, S){
     if (stats.evals * (S.inner + 0.5) > S.evals){ why = 'work budget'; break; }
     if (S.ms && nowMs() - t0 + lastIter * (S.inner + 0.5) > S.ms){ why = 'time budget'; break; }
   }
+  if (S.blur){ for (const o of opts) o.v += S.blur * gauss(g.rnd); opts.sort((a, b) => b.v - a.v); }
   if (opts.length > 1 && opts[0].v < opts[1].v) opts.sort((a, b) => b.v - a.v);
   return {opts, stats:{...stats, ms:Math.round(nowMs() - t0)}, why};
 }
 // battle results as game values while choosing a Mobilize order: [player 0's {w,t,l}, player 1's]
 let BATTLE_VM = null;
-function mobilizeValues(g, G){
+function mobilizeValues(g, G, D){
+  if (D && D.search && D.search.myopic){ const v = [0, 1].map(j => myopicValues(g, j, g.players[j].genome || G)); v.myopic = true; return v; }
+  if (D && D.search && D.search.po){
+    if (g._poSeed == null) g._poSeed = Math.floor(g.rnd() * 2147483647);
+    try{ const v = [0, 1].map(j => outcomeValues(g, j, D.search.po, null)); v.po = D.search.po; return v; } finally { delete g._poSeed; }
+  }
   return [0, 1].map(j => { const Gj = g.players[j].genome || G; return roundValues(g, j, Gj, logit(battleOdds(g, j))); });
 }
 function aiShopTurn(g, i, depth){ return asSeenBy(g, i, () => aiShopTurnSeen(g, i, depth)); }
 function aiShopTurnSeen(g, i, depth){
-  const rung = rungFor(g, i);
+  const rung = g._po ? null : rungFor(g, i);
   if (rung && rung.random){
     // random buyer: any affordable card, or pass, with equal chance
     const opts = aiShopOptions(g, i).filter(o => buyInfo(g, i, o.name, o.kind, o.src, o.idx).ok);
@@ -3308,8 +3529,9 @@ function aiShopTurnSeen(g, i, depth){
     let pick = R.opts[0];
     if (rung && rung.sharp < 1) pick = softPick(R.opts.map(o => ({o, s:o.v ?? 0})), rung.sharp, 0.08, g.rnd).o;
     if (g.rec) g._why = {level:rung ? rung.label : 'full search', search:{steps:R.stats.iters, positionsJudged:R.stats.evals, ms:R.stats.ms, stopped:R.why},
-      options:R.opts.slice(0, 8).map(o => ({move:o.act === 'pass' ? 'pass' : o.name + (o.src === 'mu' ? ' (Salvage)' : o.src === 'bm' ? ' (Black Market)' : o.src === 'vis' ? ' (Vision)' : ''), price:o.price, winChance:+(o.v ?? 0).toFixed(3)})),
-      chose:pick.act === 'pass' ? 'pass' : pick.name};
+      options:R.opts.slice(0, 8).map(o => ({move:o.act === 'pass' ? 'pass' : o.act === 'sell' ? 'sell ' + o.name : o.name + (o.src === 'mu' ? ' (Salvage)' : o.src === 'bm' ? ' (Black Market)' : o.src === 'vis' ? ' (Vision)' : ''), price:o.price, winChance:+(o.v ?? 0).toFixed(3)})),
+      chose:pick.act === 'pass' ? 'pass' : pick.act === 'sell' ? 'sell ' + pick.name : pick.name};
+    if (pick.act === 'sell' && sell(g, i, pick.kind, pick.name)) return aiShopTurnSeen(g, i, depth);   // a sale is free: then shop on
     if (pick.act === 'buy' && buy(g, i, pick.src, pick.idx, pick.name === "Mason's Guild" ? aiMasonTarget(g, i) : undefined)) return pick.name;
     pass(g, i); return null;
   }
@@ -3383,7 +3605,7 @@ function aiShopTurnSeen(g, i, depth){
   if (rung && rung.sharp < 1 && best && best.v > TH)
     best = softPick(cands.filter(c => c.v > TH).sort((a, b) => b.v - a.v).slice(0, 4).map(c => ({c, s:c.v})), rung.sharp, 4, g.rnd).c;
   // Selling: would selling one card (for $1, or to free a city slot) let me buy something worth more than my best plain buy?
-  const sp = aiSellPlan(g, i, G, mE, deepCtx, best && best.v > TH ? best.v : TH);
+  const sp = g._po ? null : aiSellPlan(g, i, G, mE, deepCtx, best && best.v > TH ? best.v : TH);
   if (sp && g._why) g._why.plan = `sell ${sp.s.name} to buy ${sp.o.name}`;
   if (sp){
     sell(g, i, sp.s.kind, sp.s.name);
@@ -3421,7 +3643,7 @@ function aiUseMiracles(g, i, G, mE, TH){
   const p = g.players[i], b = g.buys[i], mir = p.mir || [];
   if (!mir.length || g.passed[i]) return;
   if (!p.discArm && mirDisc(p)) useDisc(g, i, true);
-  if (mir.includes('Vision') && !(g.vis && g.vis[i]) && p.money >= 1 && (b.u < RULES.unitsPerShop || b.b < RULES.bldgPerShop)){
+  if (!g._po && mir.includes('Vision') && !(g.vis && g.vis[i]) && p.money >= 1 && (b.u < RULES.unitsPerShop || b.b < RULES.bldgPerShop)){
     const gu = g.uDeck.some(n => !isMir(n)) ? bmPeekGain(g, i, MIRS.Vision.vis, 'u') : -1;
     const gb = g.bDeck.some(n => !isMir(n)) ? bmPeekGain(g, i, MIRS.Vision.vis, 'b') : -1;
     if (Math.max(gu, gb) > 0.3) useVision(g, i, gb > gu ? 'b' : 'u');
@@ -3558,7 +3780,7 @@ const deckKey = d => d.map(u => u.name + (u.copies > 1 ? '*' + u.copies : '') + 
 // ahead, or little when a win is needed), instead of counting a tie as half a win.
 function deepMobilize(g, i, D){
   if (BATTLE_VM || !D.search) return deepMobilize0(g, i, D);
-  BATTLE_VM = mobilizeValues(g, g.players[i].genome || baseGenome());
+  BATTLE_VM = mobilizeValues(g, g.players[i].genome || baseGenome(), D);
   try{ return deepMobilize0(g, i, D); } finally { BATTLE_VM = null; }
 }
 function deepMobilize0(g, i, D){
@@ -3574,6 +3796,11 @@ function deepMobilize0(g, i, D){
       top:cands.map((c, k) => ({order:dk(c.d), score:+c.s.toFixed(3), mixWeight:x ? +x[k].toFixed(2) : undefined}))};
     return pick;
   };
+  if (cands.length > 1 && D.search && D.search.blur){   // a weaker level misjudges close orders
+    let best = null, bs = -Infinity;
+    for (const c of cands){ const s = c.s + D.search.blur * gauss(g.rnd); if (s > bs){ bs = s; best = c; } }
+    return note(best.d, 'best order as it judged it (blurred)');
+  }
   if (cands.length < 2 || !ctx.oppCands.length) return note(cands[0].d, 'best order (no mix)');
   const cols = [], seen = new Set();
   for (const d of ctx.oppCands.concat(ctx.guesses)){ const k = deckKey(d); if (!seen.has(k)){ seen.add(k); cols.push(d); } }
@@ -3651,7 +3878,7 @@ function softPick(list, sharp, scale, rnd){
 function rankedMobilize(g, i, K, D){
   if (D){
     const own = !BATTLE_VM && D.search;
-    if (own) BATTLE_VM = mobilizeValues(g, g.players[i].genome || baseGenome());
+    if (own) BATTLE_VM = mobilizeValues(g, g.players[i].genome || baseGenome(), D);
     try{ const r = mobilizeSearch(g, i, D, 4); return r ? r.cands.map(c => ({deck:c.d, s:c.s})) : []; } finally { if (own) BATTLE_VM = null; }
   }
   const p = g.players[i], a = buildArmy(p);
@@ -3666,7 +3893,7 @@ function rankedMobilize(g, i, K, D){
   return [...seen.values()].sort((x, y) => y.s - x.s).slice(0, 4);
 }
 function aiMobilizeSeen(g, i, K, depth){
-  const rung = rungFor(g, i);
+  const rung = g._po ? null : rungFor(g, i);
   if (rung){
     if (rung.random){
       const a = buildArmy(g.players[i]); if (!a.core.length && !a.recs) return [];
@@ -3684,6 +3911,7 @@ function aiMobilizeSeen(g, i, K, depth){
 // when the gain in this battle's win chance, times how much this battle decides the game, beats G.mu (learned in
 // training). So it saves them for battles it would otherwise lose and that matter: a match point, a must-win.
 function battleStakes(g, i){
+  if (BATTLE_VM && BATTLE_VM[i]) return Math.max(0, BATTLE_VM[i].w - BATTLE_VM[i].l);   // played out
   const p = g.players[i], o = g.players[1-i], q = battleOdds(g, i), cath = !!p.city.Cathedral;
   return Math.max(0, gameWinChance(p.score + 1, total(o), cath, q, g.target) - gameWinChance(p.score, total(o) + 1, cath, q, g.target));
 }
@@ -3697,14 +3925,43 @@ function mobilizeWithMiracles(g, i, plan){
   const G = p.genome || baseGenome(), opp = g.players[1-i];
   const guesses = oppGuesses(g, i), myCfg = battleCfgOf(p), oppCfg = battleCfgOf(opp);
   if (!guesses.length) return without;
+  // played out: spending and keeping are each judged by the game-win chance that follows, with the miracles used up
+  // in the first case and still in hand in the second, so a miracle is saved exactly when keeping it is worth more
+  if (BATTLE_VM && (BATTLE_VM.po || BATTLE_VM.myopic)){
+    const seed0 = g._poSeed; g._poSeed = Math.floor(g.rnd() * 2147483647);
+    try{
+      const evp = d => {
+        const V = BATTLE_VM.myopic ? BATTLE_VM[i] : outcomeValues(g, i, BATTLE_VM.po, i === 0 ? [d, guesses[0]] : [guesses[0], d]);
+        let s = 0;
+        for (const gd of guesses){
+          const cfgs = [{...myCfg, units:d}, {...oppCfg, units:gd}]; if (i === 1) cfgs.reverse();
+          const w = runBattle(cfgs, false).result.w; s += w === i ? V.w : w < 0 ? V.t : V.l;
+        }
+        return s / guesses.length;
+      };
+      const a = evp(withM), b = evp(without);
+      g.mirDecide = g.mirDecide || [];
+      g.mirDecide.push({i, round:g.round, withMiracles:+a.toFixed(3), keepingThem:+b.toFixed(3), spend:a > b});
+      return a > b ? withM : without;
+    } finally { if (seed0 == null) delete g._poSeed; else g._poSeed = seed0; }
+  }
   const ev = d => { let sum = 0; for (const gd of guesses) for (let k = 0; k < 3; k++) sum += battleScore(d, gd, i, myCfg, oppCfg); return sum / (guesses.length * 3); };
   const gain = ev(withM) - ev(without), stakes = battleStakes(g, i);
-  const spend = gain * stakes > (G.mu ?? 0.06);
+  // with played-out values, ev() is already game-win chance (and keeping a miracle has worth in later rounds, which
+  // the playouts don't see yet), so the bar G.mu stays as the price of using it up
+  const spend = (BATTLE_VM ? gain : gain * stakes) > (G.mu ?? 0.06);
   g.mirDecide = g.mirDecide || [];
   g.mirDecide.push({i, round:g.round, gain:+gain.toFixed(3), stakes:+stakes.toFixed(3), spend});
   return spend ? withM : without;
 }
-function aiMobilizeAt(g, i, K, depth){ return mobilizeWithMiracles(g, i, () => aiMobilizePlan(g, i, K, depth)); }
+function aiMobilizeAt(g, i, K, depth){
+  const D = typeof depth === 'object' && depth ? depth : (depth ? DEPTH.play : null);
+  if (D && D.search && (D.search.po || D.search.myopic) && !BATTLE_VM){
+    BATTLE_VM = mobilizeValues(g, g.players[i].genome || baseGenome(), D);
+    try{ return mobilizeWithMiracles(g, i, () => aiMobilizePlan(g, i, K, depth)); } finally { BATTLE_VM = null; }
+  }
+  return mobilizeWithMiracles(g, i, () => aiMobilizePlan(g, i, K, depth));
+}
 function aiMobilizePlan(g, i, K, depth){
   const D = typeof depth === 'object' && depth ? depth : (depth ? DEPTH.play : null);
   if (D) return deepMobilize(g, i, D);
@@ -3809,14 +4066,14 @@ function comboBonus(p, name){
   // In a line a unit has one neighbour in front and one behind, so it can use at most two pairings, with different
   // partners: the best "partner in front of me" plus the best "me in front of partner". Bad pairings are left out,
   // since Mobilize can keep those units apart.
-  const ps = Object.keys(p.hand).filter(y => y !== name && !exemptUnit(y));
-  let best = 0;
-  for (const a of [null, ...ps]) for (const b of [null, ...ps]){
-    if (a && a === b) continue;
-    const s = (a ? Math.max(0, SYN[a + '>' + name] || 0) : 0) + (b ? Math.max(0, SYN[name + '>' + b] || 0) : 0);
-    if (s > best) best = s;
+  let i1 = 0, i1n = null, i2 = 0, o1 = 0, o1n = null, o2 = 0;   // top two partners on each side
+  for (const y in p.hand){
+    if (y === name || exemptUnit(y)) continue;
+    const a = Math.max(0, SYN[y + '>' + name] || 0), b = Math.max(0, SYN[name + '>' + y] || 0);
+    if (a > i1){ i2 = i1; i1 = a; i1n = y; } else if (a > i2) i2 = a;
+    if (b > o1){ o2 = o1; o1 = b; o1n = y; } else if (b > o2) o2 = b;
   }
-  return best;
+  return i1n !== null && i1n === o1n ? Math.max(i1 + o2, i2 + o1) : i1 + o1;
 }
 
 /* ===================== LEARNING ===================== */
@@ -3835,7 +4092,13 @@ function mutate(G, rnd, strength){
 /* ===================== TRAINING: evolution strategies ===================== */
 // The trainer tunes the AI's weights as one vector, each weight scaled to 0..1 by its range in GKEYS, so a single
 // step size fits them all. Card opinions (bias) are learned separately, from the games' card stats (biasStep).
-const TKEYS = Object.keys(GKEYS).filter(k => !['deny', 'save', 'mpat'].includes(k));   // only the quick, non-searching levels read these
+// Weights trained. With thinking AIs every real decision is a game-win comparison, and only three weights take part:
+// rob (average vs worst case over their orders), read and omk (trust in, and learning of, the read of their order).
+// The rest only shape the imagined players in playouts, where a game result says little about them, and several
+// share one scale (strength, economy, money, the pass bar and card opinions can all double without changing a choice).
+const TKEYS_ALL = Object.keys(GKEYS).filter(k => !['deny', 'save', 'mpat'].includes(k));   // the formula levels
+const TKEYS_SEARCH = ['rob', 'read', 'omk'];
+let TKEYS = TKEYS_ALL;
 function toVec(G){ G = foldHK(G); return TKEYS.map(k => { const [lo, hi] = GKEYS[k]; const v = G[k] ?? baseGenome()[k]; return Math.max(0, Math.min(1, (v - lo) / (hi - lo))); }); }
 function fromVec(x, like){
   like = foldHK(like);
@@ -4354,7 +4617,12 @@ function forgetPairings(names){
   saveBrain(); return n;
 }
 function forgetOpinions(names){ const b = brain.champ && brain.champ.bias; if (!b) return; let n = 0; for (const k of names) if (k in b){ delete b[k]; n++; } if (n) saveBrain(); return n; }
-const saveStats = () => { if (!isPlayer()) LS.set(lenKey('sow-stats-v1', statsLen), stats); };
+let statsSaveFailed = false;
+const saveStats = () => {
+  if (isPlayer()) return;
+  const k = lenKey('sow-stats-v1', statsLen);
+  try{ localStorage.setItem(k, JSON.stringify(stats)); statsSaveFailed = false; }catch(e){ statsSaveFailed = true; }
+};
 
 document.querySelector('.tabs').addEventListener('click', e => {
   const b = e.target.closest('button[data-tab]'); if (!b) return;
@@ -4373,19 +4641,20 @@ const TOKS = {cp:{c:'--muted', i:'', n:'extra copy', fill:'var(--bg)'}, arm:{c:'
 const POKE = {x:9, y:7, mx:6};
 function tokenList(u){ return [...Array(Math.min(3, u.cp || 0)).fill('cp'), ...Array(u.arm || 0).fill('arm'), ...Array(u.tr || 0).fill('tr'), ...Array(u.sh || 0).fill('sh')]; }
 const pokeCap = () => (window.matchMedia && matchMedia('(max-width:640px)').matches) ? 3 : POKE.mx;
-function pokeParts(t, side){
+function pokeParts(t, side, hit){
+  const shAt = t.map((k, j) => k === 'sh' ? j : -1).filter(j => j >= 0), hitSet = new Set(hit ? shAt.slice(-hit) : []);
   const sgn = side === 1 ? -1 : 1, sh = [`inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})`];
   t.forEach((k, j) => { const dx = `calc(var(--px) * ${sgn * (j + 1)})`, dy = `calc(var(--py) * ${-sgn * (j + 1)})`, c = `var(${TOKS[k].c})`;
     sh.push(`${dx} ${dy} 0 -1px ${TOKS[k].fill || `color-mix(in srgb, ${c} 22%, var(--surface))`}`, `${dx} ${dy} 0 0 ${c}`); });
   const n = t.length, mx = `calc(var(--px) * ${n})`, my = `calc(var(--py) * ${n})`;
   const room = side === 1 ? {marginLeft:mx, marginBottom:my} : {marginRight:mx, marginTop:my};
-  const html = t.map((k, j) => `<span class="pk" style="--j:${j};color:var(${TOKS[k].c})" aria-hidden="true">${tokIcon(k)}</span>`).join('');
+  const html = t.map((k, j) => `<span class="pk${hitSet.has(j) ? ' shhit' : ''}" data-k="${k}" style="--j:${j};color:var(${TOKS[k].c})" aria-hidden="true">${tokIcon(k)}</span>`).join('');
   return {shadow:sh.join(','), room, html};
 }
-function pokeStyle(u, side){
+function pokeStyle(u, side, hit){
   const t = tokenList(u).slice(0, pokeCap());
   if (!t.length) return {style:'', html:'', title:''};
-  const pp = pokeParts(t, side), n = t.length;
+  const pp = pokeParts(t, side, hit), n = t.length;
   const room = side === 1 ? `margin-left:calc(var(--px) * ${n});margin-bottom:calc(var(--py) * ${n})` : `margin-right:calc(var(--px) * ${n});margin-top:calc(var(--py) * ${n})`;
   const html = pp.html, sh = [pp.shadow];
   const all = tokenList(u), cnt = k => all.filter(x => x === k).length;
@@ -4395,7 +4664,9 @@ function pokeStyle(u, side){
 function cardHTML(u, side, mode){
   if (!u) return '';
   const hp = Math.max(0, Math.min(100, (u.pow - u.dmg) / Math.max(1, u.pow) * 100));
-  const pk = pokeStyle(u, VS(side));
+  const hit = SHHIT ? SHHIT.get(`${side}-${u.uid}`) || 0 : 0;
+  if (hit) u = {...u, sh:(u.sh || 0) + hit};
+  const pk = pokeStyle(u, VS(side), hit);
   const vr = [u.van ? 'V' : '', u.rear ? 'R' : ''].filter(Boolean).join(' ');
   return `<div class="card ${mode}${pk.html ? ' poked' : ''}" data-side="${VS(side)}" data-uid="${side}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${pk.style}"${pk.title ? ` title="${esc(pk.title)}"` : ''}>${pk.html}
     <span class="ctop"><span class="cn">${esc(u.name)}</span><span class="cpw"><b title="Power">${u.pow}</b><i>Lv ${u.lvl}${vr ? ' · ' + vr : ''}</i></span></span>
@@ -4417,7 +4688,19 @@ function miniHTML(u, rside, k){
 }
 // The table: the AI sits across from you (its row is rotated: graveyard, charge, then its deck on the far side),
 // you sit at the bottom (your deck, charge, graveyard). Charges meet in the middle.
+// Shields used up in a step: the frame's snapshot no longer has them, but the step still draws them (the blocked arrow
+// points at the shield), and they break when you move to the next step. Keyed by unit id, the count blocked.
+let SHHIT = null;
+function shieldHits(f){
+  const m = new Map();
+  for (const l of (f && f.lines) || []) if (l.to && !l.tok && l.amt === 0) m.set(l.to, (m.get(l.to) || 0) + 1);
+  return m;
+}
 function lineHTML(f, names){
+  SHHIT = shieldHits(f);
+  try{ return lineHTML0(f, names); } finally { SHHIT = null; }
+}
+function lineHTML0(f, names){
   const [a, b] = f.snap;
   const deckZone = (sd, side) => {
     const rev = sd.deck[0], rest = sd.deck.slice(1);
@@ -4431,9 +4714,18 @@ function lineHTML(f, names){
     const pl = G && G.players && G.players[side]; if (!pl) return '';
     const fire = new Set(['Armory', 'Trebuchet', 'Training Yard', 'Infirmary']);
     const items = Object.keys(pl.city).filter(n => pl.city[n] > 0 && BDEFS[n]).sort((a, b) => (fire.has(b) - fire.has(a)) || (a === 'Field') - (b === 'Field'));
-    const chip = n => { const lv = n === 'Field' ? '' : BDEFS[n].lv.length > 1 ? `Lv ${bLvl(pl, n)}` : '';
-      return `<span class="bchip${fire.has(n) ? ' battle' : ''}" data-b="${esc(n)}" title="${esc(n)}: ${esc(BDEFS[n].t || '')}"><b>${esc(n)}</b>${lv ? `<i>${lv}</i>` : ''}</span>`; };
-    return `<div class="city s${VS(side)}" data-side="${VS(side)}"><span class="zl">${names[side]} city</span><div class="bchips">${items.flatMap(n => n === 'Field' ? Array(pl.city[n]).fill(n) : [n]).map(chip).join('') || '<span class="note">No buildings</span>'}</div></div>`;
+    // each building is drawn like the battle's unit cards (same square, name and level, then its chip), with extra
+    // copies for its level tucked behind it the way a unit's copies are; each Field is its own card. Tap one to read it.
+    const card = ([n, c]) => {
+      const lvN = BDEFS[n].lv.length, lv = Math.min(c, lvN), extra = extraCopies(n, 'b', c);
+      const t = Array(Math.min(3, extra)).fill('cp'), pp = t.length ? pokeParts(t, VS(side)) : null;
+      const room = !pp ? '' : VS(side) === 1 ? `margin-left:calc(var(--px) * ${t.length});margin-bottom:calc(var(--py) * ${t.length})` : `margin-right:calc(var(--px) * ${t.length});margin-top:calc(var(--py) * ${t.length})`;
+      return `<div class="card citycard${pp ? ' poked' : ''}" data-side="${VS(side)}" data-kind="b" data-b="${esc(n)}" data-name="${esc(n)}" data-lvl="${lv}" role="button" tabindex="0" title="${esc(n)}${extra ? ` · ${extra} extra cop${extra > 1 ? 'ies' : 'y'}` : ''}"${pp ? ` style="box-shadow:${pp.shadow};${room}"` : ''}>${pp ? pp.html : ''}
+        <span class="ctop"><span class="cn">${esc(n)}</span><span class="cpw">${lvN > 1 ? `<i>Lv ${lv}</i>` : ''}</span></span>
+        ${zhChip(n)}</div>`;
+    };
+    const cards = asCards(items.map(n => [n, pl.city[n]]), 'b').map(card).join('');
+    return `<div class="city s${VS(side)}" data-side="${VS(side)}"><span class="zl">${names[side]} city</span><div class="citycards">${cards || '<span class="note">No buildings</span>'}</div></div>`;
   };
   const T = VS(1), M = VS(0), sn = [a, b];   // T: the side drawn across the top; M: the side drawn along the bottom
   return `<div class="linewrap"><div class="line table">
@@ -4491,7 +4783,7 @@ function recStart(g, opp){
   const sk = g.players[1].skill;
   g.rec = {format:'SOW match record v1', id:Date.now(), started:new Date().toISOString(), firstTo:g.target,
     opponent:opp ? `rated opponent ${opp.rating}` : 'full-strength AI (unrated)',
-    aiLevel:sk ? (sk.hi ? `${sk.lo.label} / ${sk.hi.label} (the stronger one ${Math.round((sk.t || 0) * 100)}% of the time)` : sk.lo.label) : 'Thinks deepest (full strength, unrated)',
+    aiLevel:sk ? (sk.hi ? `budget ${Math.round((sk.t || 0) * 100)}% of the way from ${sk.lo.label} to ${sk.hi.label}` : sk.lo.label) : 'Thinks deepest (full strength, unrated)',
     cards:{units:clone(DEFS), buildings:clone(BDEFS)}, events:[], battles:[]};
 }
 function recSave(g){
@@ -5900,7 +6192,9 @@ function placeArrow(path, stage, sr){
   const A = path._arw; if (!A) return;
   const find = id => id && (stage.querySelector(`.card[data-uid="${id}"]`) || stage.querySelector(`.grave [data-uid="${id}"]`));
   const te = find(A.to); if (!te) return;
-  const tr = te.getBoundingClientRect();
+  // a blocked hit points at the Shield it breaks (the outermost one on that card), not the card
+  const she = A.shield ? (te.querySelector(':scope > .pk.shhit') || [...te.querySelectorAll(':scope > .pk[data-k="sh"]')].pop()) : null;
+  const tr = (she || te).getBoundingClientRect();
   const lbl = A.lbl;
   if (A.self){
     // a unit buffing itself: a small curl over its own top corner
@@ -5912,24 +6206,93 @@ function placeArrow(path, stage, sr){
   }
   const fe = A.from ? find(A.from) : A.chip ? stage.querySelector(A.chip) : null;
   if (A.from && !fe) return;
-  const cxOf = r => r.left + r.width / 2 - sr.left, cyOf = r => r.top + r.height / 2 - sr.top;
-  let x1, y1, x2 = cxOf(tr), y2;
-  if (fe){
-    const fr = fe.getBoundingClientRect(); x1 = cxOf(fr);
-    const down = cyOf(tr) > cyOf(fr);
-    y1 = down ? fr.bottom - sr.top - 6 : fr.top - sr.top + 6;
-    y2 = down ? tr.top - sr.top + 6 : tr.bottom - sr.top - 6;
-    if (Math.abs(cyOf(tr) - cyOf(fr)) < 20){ y1 = fr.top - sr.top + 6; y2 = tr.top - sr.top + 6; }   // same row: arc over
-  } else {   // a building without a chip on screen: from that player's edge of the table
-    x1 = x2; y1 = A.by === 0 ? sr.height - 4 : 4;
-    y2 = A.by === 0 ? tr.bottom - sr.top - 6 : tr.top - sr.top + 6;
+  let P;
+  if (fe) P = sideLink(fe.getBoundingClientRect(), tr, sr, 4);
+  else {   // a building with no card on screen: from that player's edge of the table
+    const t = sideMids(tr, sr)[A.by === 0 ? 2 : 0], y1 = A.by === 0 ? sr.height - 4 : 4;
+    P = {a:{x:t.x, y:y1, nx:0, ny:A.by === 0 ? -1 : 1}, b:{x:t.x + t.nx * 4, y:t.y + t.ny * 4, nx:t.nx, ny:t.ny}};
   }
-  const sideways = (A.by === 0 ? 1 : -1) * (22 + A.n * 16) + (x2 - x1) * 0.1;
-  const cx = (x1 + x2) / 2 + sideways, cy = (y1 + y2) / 2 + (Math.abs(y2 - y1) < 30 ? -34 : 0);
-  path.setAttribute('d', `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`);
-  lbl.setAttribute('x', (x1 + 2 * cx + x2) / 4 + (A.by === 0 ? 6 : -6)); lbl.setAttribute('y', (y1 + 2 * cy + y2) / 4 + 4);
-  lbl.style.textAnchor = A.by === 0 ? 'start' : 'end';   // yours label to the right of its arc, the AI's to the left
+  const lane = (A.n % 4) * 9 * (A.by === 0 ? 1 : -1);   // several arrows between the same cards fan apart
+  // a buff to a neighbouring unit on the same side: both ends on the faces toward that unit's player (yours along the
+  // bottom, the AI's along the top), joined by a loop out past them, so a short hop is still easy to read
+  let C = null;
+  if (fe && A.tok && A.from && A.from.split('-')[0] === String(A.to).split('-')[0] && Math.hypot(P.b.x - P.a.x, P.b.y - P.a.y) < 60){
+    const f = VS(+A.from.split('-')[0]) === 0 ? 2 : 0, pa = sideMids(fe.getBoundingClientRect(), sr)[f], pb = sideMids(tr, sr)[f];
+    P = {a:pa, b:{x:pb.x + pb.nx * 4, y:pb.y + pb.ny * 4, nx:pb.nx, ny:pb.ny}};
+    C = linkCurve(P.a, P.b, 0, 30 + (A.n % 3) * 10);
+  }
+  if (!C && !A.tok && fe){   // damage: a round elbow, square to both cards (or straight across when they line up)
+    const E = elbowLink(fe.getBoundingClientRect(), tr, sr, 4, A.n);
+    P = E.P; C = E.C;
+  }
+  if (!C) C = linkCurve(P.a, P.b, lane);
+  path.setAttribute('d', C.d);
+  if (C.nx != null){   // an arc: the label sits just outside its bow
+    lbl.setAttribute('x', C.mx + C.nx * 8); lbl.setAttribute('y', C.my + C.ny * 8 + 4);
+    lbl.style.textAnchor = Math.abs(C.nx) < 0.3 ? 'middle' : C.nx > 0 ? 'start' : 'end';
+  } else {
+    const right = A.by === 0;
+    lbl.setAttribute('x', C.mx + (right ? 6 : -6)); lbl.setAttribute('y', C.my + 4);
+    lbl.style.textAnchor = right ? 'start' : 'end';   // yours label to the right of its curve, the AI's to the left
+  }
   placeTokIcon(lbl);
+}
+// The midpoints of a box's four sides (relative to the stage), each with the way that side faces.
+function sideMids(r, sr){
+  const L = r.left - sr.left, T = r.top - sr.top, W = r.width, H = r.height;
+  return [{x:L + W / 2, y:T, nx:0, ny:-1}, {x:L + W, y:T + H / 2, nx:1, ny:0}, {x:L + W / 2, y:T + H, nx:0, ny:1}, {x:L, y:T + H / 2, nx:-1, ny:0}];
+}
+// Join two boxes from the midpoint of the side of one nearest the other to the midpoint of the side of the other
+// nearest the first. Sides that face each other win; gap pulls the end point off the target's edge (for an arrowhead).
+function sideLink(ra, rb, sr, gap){
+  const A = sideMids(ra, sr), B = sideMids(rb, sr);
+  let best = null, bd = Infinity;
+  for (const p of A) for (const q of B){
+    const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+    const facing = (dx * p.nx + dy * p.ny) >= 0 && (-dx * q.nx - dy * q.ny) >= 0;
+    const score = d + (facing ? 0 : 1e4);
+    if (score < bd){ bd = score; best = [p, q]; }
+  }
+  const [p, q] = best, g = gap || 0;
+  return {a:p, b:{x:q.x + q.nx * g, y:q.y + q.ny * g, nx:q.nx, ny:q.ny}};
+}
+// Damage arrows: leave the attacker's top or bottom face square to it, then bend round (a quarter ellipse) into the
+// target's left or right side, square to that. When the cards are lined up one above the other (or side by side), it
+// runs straight between the facing sides instead. n: extra arrows in the same step bend a little wider.
+function elbowLink(ra, rb, sr, gap, n){
+  const A = sideMids(ra, sr), B = sideMids(rb, sr), g = gap || 0;
+  const ca = {x:A[0].x, y:A[1].y}, cb = {x:B[0].x, y:B[1].y}, dx = cb.x - ca.x, dy = cb.y - ca.y;
+  const end = q => ({x:q.x + q.nx * g, y:q.y + q.ny * g, nx:q.nx, ny:q.ny});
+  const a = A[dy < 0 ? 0 : 2], b = B[dx > 0 ? 3 : 1];
+  const tall = (b.y - a.y) * a.ny, wide = (b.x - a.x) * -b.nx;   // the target's side must lie ahead of both turns
+  if (tall > 12 && wide > 12){
+    const e = end(b), w = 1 + (n % 3) * 0.12, k1 = Math.abs(e.y - a.y) * 0.55 * w, k2 = Math.abs(e.x - a.x) * 0.55 * w;
+    const c1x = a.x, c1y = a.y + a.ny * k1, c2x = e.x + e.nx * k2, c2y = e.y;
+    const mx = (a.x + 3 * c1x + 3 * c2x + e.x) / 8, my = (a.y + 3 * c1y + 3 * c2y + e.y) / 8;
+    const ox = mx - a.x, oy = my - e.y, ol = Math.hypot(ox, oy) || 1;   // away from the elbow's inside corner
+    return {P:{a, b:e}, C:{d:`M${a.x},${a.y} C${c1x},${c1y} ${c2x},${c2y} ${e.x},${e.y}`, mx, my, nx:ox / ol, ny:oy / ol}};
+  }
+  // lined up: facing sides, straight (above/below) or across (same row)
+  const vert = Math.abs(dy) >= Math.abs(dx);
+  const p = vert ? A[dy < 0 ? 0 : 2] : A[dx > 0 ? 1 : 3], q = vert ? B[dy < 0 ? 2 : 0] : B[dx > 0 ? 3 : 1];
+  const P = {a:p, b:end(q)}, C = linkCurve(P.a, P.b, (n % 4) * 9);
+  return {P, C:{...C, nx:vert ? 1 : 0, ny:vert ? 0 : -1}};
+}
+// Damage arrows: a circular arc between the two side midpoints, always bowing the same way (to the right of travel),
+// a little rounder for each extra arrow in the same step so they don't sit on top of each other.
+function arcCurve(a, b, n){
+  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+  const R = Math.max(d / 2 + 0.5, d * (0.78 - (n % 3) * 0.1));
+  const sag = R - Math.sqrt(Math.max(0, R * R - d * d / 4));
+  const nx = -dy / d, ny = dx / d;   // right of travel on screen (y runs down), the side a sweep-0 arc bows toward
+  return {d:`M${a.x},${a.y} A${R},${R} 0 0 0 ${b.x},${b.y}`, mx:(a.x + b.x) / 2 + nx * sag, my:(a.y + b.y) / 2 + ny * sag, nx, ny};
+}
+// A gentle curve that leaves one side square to it and arrives square to the other; lane nudges it sideways.
+function linkCurve(a, b, lane, minK){
+  const dist = Math.hypot(b.x - a.x, b.y - a.y), k = Math.max(minK || 14, Math.min(70, dist * 0.38));
+  const ux = dist ? (b.x - a.x) / dist : 0, uy = dist ? (b.y - a.y) / dist : 0, px = -uy * (lane || 0), py = ux * (lane || 0);
+  const c1x = a.x + a.nx * k + px, c1y = a.y + a.ny * k + py, c2x = b.x + b.nx * k + px, c2y = b.y + b.ny * k + py;
+  return {d:`M${a.x},${a.y} C${c1x},${c1y} ${c2x},${c2y} ${b.x},${b.y}`, mx:(a.x + 3 * c1x + 3 * c2x + b.x) / 8, my:(a.y + 3 * c1y + 3 * c2y + b.y) / 8};
 }
 // While the battle shows arrows, re-aim them every frame so their ends stay fixed to the cards as the cards move.
 let arrowRaf = 0;
@@ -5960,10 +6323,19 @@ let abRaf = 0;
 function abGroups(f){
   const groups = new Map();
   for (const l of f.lines){ if (!l.ab) continue; const k = l.ab.u || `b:${l.ab.s}:${l.ab.n}`; if (!groups.has(k)) groups.set(k, {ab:l.ab, lines:[]}); groups.get(k).lines.push(l); }
+  // a Shield that blocks a hit gets its own note, joined to the shield on that card
+  for (const l of f.lines) if (l.to && !l.tok && l.amt === 0){
+    const k = 'sh:' + l.to; if (groups.has(k)) continue;
+    groups.set(k, {ab:{n:'Shield', u:l.to, s:+String(l.to).split('-')[0], sh:true}, lines:[]});
+  }
   return [...groups.values()];
 }
 function abNoteHTML(g, f, i){
   const ab = g.ab, units = unitsOf(f, ['charge', 'deck', 'grave']);
+  if (ab.sh){
+    const u = units.get(ab.u), body = esc(KW_TOKENS.Shield.replace(/\*\*/g, ''));
+    return `<div class="abbox shnote s${VS(ab.s)}" data-abi="${i}"><b class="abn">Shield</b><span class="abt"><span class="kwt">${body}</span>${u ? ` <span class="abtg">(${esc(u.name.replace(/^Jester → /, 'Jester as '))})</span>` : ''}</span></div>`;
+  }
   const src = ab.u ? units.get(ab.u) : null, lvl = src ? src.lvl || 1 : 1;
   let title, body;
   if (ab.b){ const pl = G && G.players && G.players[ab.s]; title = ab.n; body = BDEFS[ab.n] ? cardTx(ab.n, 'b', pl ? bLvl(pl, ab.n) : 1, true) : ''; }
@@ -6004,27 +6376,29 @@ function mountAbWin(){
   tick();
 }
 function abSrcEl(stage, ab){
+  if (ab.sh){ const c = stage.querySelector(`.card[data-uid="${ab.u}"]`); return c ? (c.querySelector(':scope > .pk.shhit') || c) : null; }
   return ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`) || stage.querySelector(`[data-uid="${ab.u}"]`))
-              : stage.querySelector(`.city[data-side="${VS(ab.s)}"] .bchip[data-b="${CSS.escape(ab.n)}"]`);
+              : stage.querySelector(`.city[data-side="${VS(ab.s)}"] .citycard[data-b="${CSS.escape(ab.n)}"]`);
 }
 function placeAbLines(stage, svg, gs){
   const sr = stage.getBoundingClientRect(), phone = compact();
   if (phone){ const bc = $('view-play').querySelector('.battlectl'); const t = bc ? Math.max(8, bc.getBoundingClientRect().bottom + 6) : 8;
     if (stage._abtop !== t){ stage._abtop = t; document.documentElement.style.setProperty('--abtop', t + 'px'); } }
+  if (!phone){   // notes sit between the two cities, beside the battle rows, so they never cover a city card
+    const cT = stage.querySelector('.city.s1'), cB = stage.querySelector('.city.s0');
+    const t = cT ? Math.max(0, Math.round(cT.getBoundingClientRect().bottom - sr.top)) : 0, b = cB ? Math.max(0, Math.round(sr.bottom - cB.getBoundingClientRect().top)) : 0;
+    if (stage._abtb !== t + ':' + b){ stage._abtb = t + ':' + b; stage.style.setProperty('--abT', t + 'px'); stage.style.setProperty('--abB', b + 'px'); }
+  }
   svg.setAttribute('width', Math.round(sr.width)); svg.setAttribute('height', Math.round(sr.height));
   let out = '';
   gs.forEach((g, i) => {
     const box = stage.querySelector(`.abbox[data-abi="${i}"]`); if (!box) return;
     const ab = g.ab, br = box.getBoundingClientRect();
-    // from the card whose ability it is (a building: its chip in the city row), so it never sits on top of an arrow
-    let pt = null;
-    const el = abSrcEl(stage, ab);
-    if (el){ const r = el.getBoundingClientRect(); if (r.width){
-      pt = {x:r.left + r.width / 2 - sr.left, y:(VS(ab.s) === 0 ? r.bottom - 4 : r.top + 4) - sr.top}; } }   // the card edge facing its note
-    if (!pt) return;
-    const x1 = br.left + br.width / 2 - sr.left, y1 = (VS(ab.s) === 0 ? br.top : br.bottom) - sr.top;
-    const mx = x1, my = (y1 + pt.y) / 2;
-    out += `<path class="abl s${VS(ab.s)}" d="M${x1},${y1} Q${mx},${my} ${pt.x},${pt.y}"/><circle class="abd s${VS(ab.s)}" cx="${pt.x}" cy="${pt.y}" r="3.5"/><circle class="abd s${VS(ab.s)}" cx="${x1}" cy="${y1}" r="2.5"/>`;
+    // from the midpoint of the card's side nearest its note to the midpoint of the note's side nearest the card
+    const el = abSrcEl(stage, ab); if (!el) return;
+    const r = el.getBoundingClientRect(); if (!r.width) return;
+    const P = sideLink(r, br, sr, 0), C = linkCurve(P.a, P.b, 0);
+    out += `<path class="abl s${VS(ab.s)}" d="${C.d}"/><circle class="abd s${VS(ab.s)}" cx="${P.a.x}" cy="${P.a.y}" r="3.5"/><circle class="abd s${VS(ab.s)}" cx="${P.b.x}" cy="${P.b.y}" r="2.5"/>`;
   });
   if (svg._last !== out){ svg.innerHTML = out; svg._last = out; }
 }
@@ -6049,11 +6423,11 @@ function drawArrows(list, animate, rects){
     let chipSel = null;
     if (!h.from){   // a building: point from its chip in that player's city row
       const bn = ['Training Yard', 'Trebuchet', 'Armory', 'Infirmary'].find(b => (h.t || '').includes(b));
-      chipSel = bn ? `.city[data-side="${VS(h.by)}"] .bchip[data-b="${bn}"]` : null;
+      chipSel = bn ? `.city[data-side="${VS(h.by)}"] .citycard[data-b="${bn}"]` : null;
     }
     const n = lane[h.by]++;
     const chip = chipSel && stage.querySelector(chipSel);
-    if (chip && animate === true && chip.animate) chip.animate([{boxShadow:'0 0 0 0 transparent'}, {boxShadow:'0 0 0 4px color-mix(in srgb, var(--or) 45%, transparent)', offset:.3}, {boxShadow:'0 0 0 0 transparent'}], {duration:700, delay:n * 90});
+    if (chip && animate === true && chip.animate) chip.animate([{outline:'0px solid transparent'}, {outline:'4px solid color-mix(in srgb, var(--or) 55%, transparent)', offset:.3}, {outline:'0px solid transparent'}], {duration:700, delay:n * 90});
     const cls = h.tok ? `arw tok t-${h.tok}` : `arw s${VS(h.by)}`, mk = h.tok ? `aht-${h.tok}` : `ah${VS(h.by)}`;
     const text = h.tok === 'ret' ? 'returns' : h.tok ? `+${h.amt}${TOKLBL[h.tok]}` : (h.amt ? `${h.amt}` : 'blocked');
     const path = document.createElementNS(NS, 'path');
@@ -6067,7 +6441,7 @@ function drawArrows(list, animate, rects){
     const ic = h.tok && h.tok !== 'ret' ? tokIconSvg(h.tok) : null;
     if (ic){ if (animate === true) ic.style.animationDelay = (n * 90 + 200) + 'ms'; svg.appendChild(ic); lbl._ic = ic; }
     // each arrow remembers what it joins, so it can be re-aimed at the cards wherever they are drawn on screen
-    path._arw = {from:h.from, to:h.to, chip:chipSel, by:VS(h.by), n, self:!!(h.tok && h.from === h.to && h.tok !== 'ret'), lbl};
+    path._arw = {from:h.from, to:h.to, chip:chipSel, by:VS(h.by), n, tok:h.tok || null, shield:!h.tok && !h.amt, self:!!(h.tok && h.from === h.to && h.tok !== 'ret'), lbl};
     placeArrow(path, stage, sr);
   }
   svg.dataset.full = drawn >= pairs.size ? '1' : '0';   // an arrow to a unit that doesn't exist yet (a new Recruit) is missing
@@ -6133,8 +6507,10 @@ function goFrame(k, glide){
   const prevSvg = $('view-play').querySelector('.stage .arrows:not(.out)');
   const oldSvg = glide && k === ui.arrowsFor && prevSvg && prevSvg.dataset.full !== '0' ? prevSvg : null;   // incomplete: let the fresh drawing (which can see new units) take over
   const prevF = glide && ui.battle ? ui.battle.frames[ui.frame] : null;
+  const broken = ui.battle && k === ui.frame + 1 ? shieldsToBreak() : [];   // shields that blocked a hit this step
   ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay(); reserveRows();
   if (prevF && ui.battle) animateTokens(prevF, ui.battle.frames[k]); else clearTimeout(ui.tokT);
+  if (broken.length) breakShields(broken);
   if (prevSvg && !oldSvg) fadeArrows(prevSvg, $('view-play').querySelector('.stage'));
   if (ui.battle && k === ui.battle.frames.length - 1 && !ui.battle.chimed){
     ui.battle.chimed = true;
@@ -6230,11 +6606,74 @@ function animateTokens(prevF, curF){
   const next = () => { if (i >= queue.length) return; queue[i++](); try{ sfx.tick(); }catch(e){} ui.tokT = setTimeout(next, 240); };
   if (queue.length) ui.tokT = setTimeout(next, 140);
 }
+// Moving on from a step where a Shield blocked a hit: the shield (its token card peeking out behind the unit, and its
+// icon) cracks, splits and falls away. Measured from the board before it is redrawn without that shield.
+function shieldsToBreak(){
+  const out = [];
+  for (const pk of $('view-play').querySelectorAll('.stage .card > .pk.shhit')){
+    const card = pk.parentElement, cr = card.getBoundingClientRect(), pr = pk.getBoundingClientRect(); if (!cr.width) continue;
+    const cs = getComputedStyle(card), px = parseFloat(cs.getPropertyValue('--px')) || 12, py = parseFloat(cs.getPropertyValue('--py')) || 8;
+    const j = +pk.style.getPropertyValue('--j') || 0, side = +card.dataset.side, sg = side === 1 ? -1 : 1;
+    out.push({cr, pr, dx:sg * px * (j + 1), dy:-sg * py * (j + 1), sx:sg * px, sy:-sg * py, side, icon:pk.innerHTML, rad:cs.borderRadius});
+  }
+  return out;
+}
+function breakShields(list){
+  if (reduceMotion()) return;
+  try{ sfx.tick(); }catch(e){}
+  for (const b of list){
+    const {cr, dx, dy, sx, sy} = b, W = cr.width, H = cr.height;
+    // the visible sliver of the shield's token card: the one-token-wide edge that sticks out past the card (or token)
+    // just inside it, an L shape
+    const L = sx > 0 ? [[0,0],[W,0],[W,H],[W-sx,H],[W-sx,-sy],[0,-sy]] : [[0,0],[-sx,0],[-sx,H-sy],[W,H-sy],[W,H],[0,H]];
+    const wrap = document.createElement('div'); wrap.className = 'shbreak'; wrap.setAttribute('aria-hidden', 'true');
+    wrap.style.cssText = `left:${cr.left + dx}px;top:${cr.top + dy}px;width:${W}px;height:${H}px`;
+    // the sliver splits along a crack into two pieces that fall away
+    const mid = W / 2, cut = H / 2;
+    const half = (keepLeft) => L.map(([x, y]) => [keepLeft ? Math.min(x, mid + (y < cut ? 6 : -6)) : Math.max(x, mid + (y < cut ? 6 : -6)), y]);
+    for (const [keepLeft, rot, tx] of [[true, -14, -16], [false, 12, 16]]){
+      const pc = document.createElement('div'); pc.className = 'shpiece s' + b.side; pc.style.borderRadius = b.rad;
+      pc.style.clipPath = `polygon(${half(keepLeft).map(([x, y]) => `${x}px ${y}px`).join(',')})`;
+      wrap.appendChild(pc);
+      pc.animate([{transform:'none', opacity:1}, {transform:'translateX(0) rotate(0)', opacity:1, offset:.25},
+                  {transform:`translate(${tx}px, 34px) rotate(${rot}deg)`, opacity:0}], {duration:620, delay:120, easing:'cubic-bezier(.5,0,.75,.4)', fill:'forwards'});
+    }
+    // the icon cracks: a jolt, then its two halves fly apart
+    const ic = b.pr, iw = ic.width, ih = ic.height;
+    for (const [clip, tx, rot] of [[`polygon(0 0,55% 0,40% 45%,58% 60%,45% 100%,0 100%)`, -10, -30], [`polygon(55% 0,100% 0,100% 100%,45% 100%,58% 60%,40% 45%)`, 10, 30]]){
+      const h = document.createElement('span'); h.className = 'shicon'; h.innerHTML = b.icon;
+      h.style.cssText = `left:${ic.left - cr.left - dx}px;top:${ic.top - cr.top - dy}px;width:${iw}px;height:${ih}px;clip-path:${clip}`;
+      wrap.appendChild(h);
+      h.animate([{transform:'scale(1)', opacity:1}, {transform:'scale(1.35)', opacity:1, offset:.18}, {transform:'scale(1.2)', opacity:1, offset:.3},
+                 {transform:`translate(${tx}px, 22px) rotate(${rot}deg) scale(1)`, opacity:0}], {duration:640, easing:'ease-in', fill:'forwards'});
+    }
+    const crack = document.createElement('span'); crack.className = 'shflash';
+    crack.style.cssText = `left:${ic.left - cr.left - dx + iw / 2}px;top:${ic.top - cr.top - dy + ih / 2}px`;
+    wrap.appendChild(crack);
+    crack.animate([{transform:'translate(-50%,-50%) scale(.2)', opacity:.9}, {transform:'translate(-50%,-50%) scale(1.6)', opacity:0}], {duration:360, easing:'ease-out', fill:'forwards'});
+    document.body.appendChild(wrap);
+    setTimeout(() => wrap.remove(), 900);
+  }
+}
+// break the shields now and redraw those cards without them (the next step's arrows then aim at the board as it is)
+function breakShieldsNow(){
+  const list = shieldsToBreak(); if (!list.length) return;
+  breakShields(list);
+  const units = unitsOf(ui.battle.frames[ui.frame], ['charge', 'deck']);
+  for (const card of new Set([...$('view-play').querySelectorAll('.stage .card > .pk.shhit')].map(x => x.parentElement))){
+    const u = units.get(card.dataset.uid), side = +card.dataset.side; if (!u) continue;
+    const t = tokenList(u).slice(0, pokeCap()), pp = pokeParts(t, side);
+    card.style.boxShadow = t.length ? pp.shadow : '';
+    for (const x of card.querySelectorAll(':scope > .pk')) x.remove();
+    card.insertAdjacentHTML('afterbegin', pp.html);
+  }
+}
 function stepForward(){
   if (!ui.battle) return;
   const last = ui.battle.frames.length - 1;
   if (ui.animT){ goFrame(ui.pendingFrame); return; }   // a second click finishes the current animation
   if (ui.frame >= last) return;
+  breakShieldsNow();   // a shield that blocked a hit in the step on screen breaks as soon as you move on
   const prev = ui.battle.frames[ui.frame], next = ui.battle.frames[ui.frame + 1], to = ui.frame + 1;
   if (reduceMotion()){ goFrame(to, true); return; }
   const before = unitsOf(prev, ['charge', 'deck']), after = unitsOf(next, ['charge', 'deck']), grave = unitsOf(next, ['grave']);
@@ -7194,7 +7633,7 @@ function paintProg(){
   });
 }
 // how long a calibration game between two levels takes, roughly (in units of a quick game)
-const RUNG_COST = r => r.random ? 0.5 : r.depth === 'fast' ? 1 : r.depth === 'train' ? 6 : r.depth === 'play' ? 20 : 60;
+const RUNG_COST = r => r.random ? 0.5 : ({s1:1, s2:1.5, g1:3, fast:6, train:12, t2:20, play:40, master:120})[r.depth] || 10;
 function calProgHTML(){
   if (!calState.busy || !calState.plan) return '';
   const P = calState.plan, W = P.reduce((s, x) => s + x.w * x.batches, 0), D = P.reduce((s, x) => s + x.w * x.done, 0);
@@ -7208,7 +7647,7 @@ function calProgHTML(){
     ${poolErr ? `<p class="note err">${poolErr.n} game${poolErr.n === 1 ? '' : 's'} hit an error and ${poolErr.n === 1 ? 'was' : 'were'} skipped. Copy this to Claude: ${esc(String(poolErr.msg).split('\n').slice(0, 3).join(' | '))}</p>` : ''}
   </div>`;
 }
-const thinkDepth = () => brain.deep === false ? null : DEPTH.train;
+const thinkDepth = () => DEPTH.train;   // training and stat games always use the thinking AI
 function refreshViews(){ if (!$('view-train').hidden) renderTrain(); if (!$('view-stats').hidden) renderStats(); if (!$('view-lab').hidden) renderLab(); }
 // Training (evolution strategies). Each step tests ES.dirs random directions: the AI nudged one way plays the AI
 // nudged the opposite way on seeded, seat-swapped game pairs, and the weights move toward whichever side did better,
@@ -7241,6 +7680,7 @@ async function startTrain(steps){
   if (job || isPlayer()) return;
   ensurePool();
   job = {kind:'train', total:steps, done:0, stop:false, depth:thinkDepth(), win:{}, t0:performance.now(), phase:'learn', gd:0, learnMs:[], chkMs:[], sprt:{}};
+  TKEYS = job.depth ? TKEYS_SEARCH : TKEYS_ALL;
   job.onGames = (n, learning) => { if (learning) job.gd += n; else if (job.progN != null) job.progN += n; paintProg(); };
   refreshViews();
   let G = brain.champ, x = toVec(G), mom = (brain.mom && brain.mom.length === x.length) ? brain.mom : x.map(() => 0);
@@ -7335,25 +7775,28 @@ function sparkSVG(hist){
   </svg>
   <p class="note">Faint line: each check. Bold line: the trend, averaging recent checks.${hist.some(h => !h.n) ? ` Checks ${hist.some(h => h.n) ? `before step ${hist.find(h => h.n).g}` : 'so far'} used only 48 games, so that part is noisier.` : ''}</p>`;
 }
-const WEIGHT_LABELS = {mpat:'Salvage patience: waits on Salvage upgrades the opponent can\'t take', combo:'Combo seeking (values units that pair with ones it owns)', read:'Trust in its read of the opponent (0–1)', deny:'Denial: buying cards the opponent wants', thresh:'Spending threshold (higher saves more)', s:'Value of army strength', e:'Value of income (counts the shops likely left)', m:'Price sensitivity', pair:'Bonus for pairing copies', slot:'Penalty for a new unit when the deck is full', cath:'Cathedral appetite (weight on the win chance it adds)', save:'Saving up for a better card next round', hb:"Weight on Hired Blade's income drawback", bmk:'Black Market: weight on what its peek is expected to find', lu2:'Combo value of leveling up a unit that pairs well', omk:'Reading the opponent: how much more it trusts a guess that keeps coming true', mir:'Miracles: how much it values the miracles behind a card', mu:'Miracles: how big a gain in a battle that matters it needs before spending a Recruit or Armament miracle (higher saves them longer)'};
+const WEIGHT_LABELS = {
+  rob:'Caution: how much the worst case counts against the average over the opponent\'s possible orders (0–0.6)',
+  read:'Trust in its read of the opponent\'s Mobilize order (0–1)',
+  omk:'Learning the opponent: how much more it trusts a read that keeps coming true',
+};
 function renderTrain(){
   const c = brain.champ, last = brain.history[brain.history.length - 1];
   const biases = Object.entries(c.bias || {}).filter(([k,v]) => Math.abs(v) > 0.05).sort((a,b) => b[1] - a[1]);
   const likes = biases.slice(0, 6), dislikes = biases.slice(-6).reverse().filter(b => b[1] < 0);
   const busy = !!job;
   $('view-train').innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">
-    <div class="panel"><h2>How the AI learns</h2>
-      <p class="note">The AI decides with a set of weights: how much it values strength, income and saving, how much it trusts its read of the opponent, how hard it denies cards, plus a like-or-dislike score for every card. Your games always use the current AI. It is saved on the server, so every device and browser you open this page on plays the same AI and picks up training done anywhere else.</p>
+    <div class="panel"><h2>How the AI decides</h2>
+      <p class="note">Every decision comes down to one question: does this raise or lower my chance of winning the whole game? For each option (every buy, every sale, passing, and every Mobilize order) it test-battles the armies that would meet in this round's battle, then plays the rest of the game out many times from after a win, a tie and a loss and counts how often it goes on to win. Cards nobody has seen are reshuffled for those playouts, and every option is played out on the same imagined futures, so the comparison is fair. A Mercenary or a Recruit only counts for the battle it fights in, money and income count through what they buy later, and a point at match point is worth far more than one at 0-0. While shopping it also looks ahead at the opponent's likely replies. None of this needs training: an untrained AI already plays this way. Your games always use the current AI, saved on the server, so every device and browser plays the same one.</p>
+    </div>
+    <div class="panel"><h2>What training changes</h2>
       <ul class="note" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px">
-        <li><b>Weights</b> (evolution strategies): each step tries ${ES.dirs} random nudges. For each one, the AI nudged one way plays the AI nudged the opposite way on ${ES.pairs} pairs of games; each pair uses the same shuffled decks with seats swapped, so card luck cancels out. The weights move toward whichever sides won, averaged over every nudge, so every game played counts.</li>
-        <li><b>Card opinions</b> come from evidence: every ${ES.every} steps, each card bought often enough in those games is compared with players in the same position who didn't buy it, and its opinion moves toward that result. Opinions fade slowly toward 0, so a card the AI stopped buying gets another look.</li>
-        <li><b>Situational opinions</b>: each card's opinion is also corrected for the moment it's bought in (early, mid or late game; behind, tied or ahead; money on hand; whose income is higher), so the same card can be a good buy in one situation and a bad one in another. See the Card stats tab.</li>
-        <li><b>Learned pairings</b>: opinions about a card given a unit you own or a unit the opponent is known to own (Recruiter with your Cannon, Cannon against their Man-at-arms). One only forms after ${CTX_RULE.minN}+ purchases show a clear gap; see the Card stats tab.</li>
-        <li><b>Safety check</b> (SPRT, the test Stockfish uses): every ${ES.every} steps the AI plays its last checkpoint in batches of game pairs and stops as soon as the result is clear, from ${SPRT.minPairs} pairs for an obvious result up to ${SPRT.maxPairs} for a close call. If it is clearly scoring around ${Math.round(SPRT.mu0 * 100)}% rather than ${Math.round(SPRT.mu1 * 100)}%, it rolls back to the checkpoint. Wrong calls either way happen about ${Math.round(SPRT.alpha * 100)}% of the time.</li>
-        <li><b>Hall of fame</b>: every ${HOF.every} steps a passing AI is saved (the last ${HOF.keep} are kept), and each safety check also plays one of them in turn the same way. Clearly losing to an older champion rolls back too, so the AI can't improve only against its latest self while forgetting how to beat older styles. If the same older champion wins ${HOF.strikes} checks in a row, it comes back as the champion.</li>
+        <li><b>Three judgment weights</b> (evolution strategies), the only learned numbers in its own decisions: its caution against the opponent's best order, how far it trusts its read of their order, and how fast that trust grows when its reads come true. Each step tries ${ES.dirs} random nudges; for each one, the AI nudged one way plays the AI nudged the opposite way on ${ES.pairs} pairs of games with the same shuffled decks and seats swapped, so card luck cancels out, and the weights move toward whichever sides won. Self-play can't teach the last one much (its opponent has no habits to learn); against you it learns your habits game to game.</li>
+        <li><b>Card opinions</b> shape the imagined players in its playouts: how they shop, and so how the AI pictures the rest of the game. They don't decide its own buys. Every ${ES.every} steps, each card bought often enough is compared with players in the same position who didn't buy it, and its opinion moves toward that result.</li>
+        <li><b>Safety check</b> (SPRT, the test Stockfish uses): every ${ES.every} steps the AI plays its last checkpoint and stops as soon as the result is clear, from ${SPRT.minPairs} to ${SPRT.maxPairs} game pairs. If it is clearly scoring around ${Math.round(SPRT.mu0 * 100)}% rather than ${Math.round(SPRT.mu1 * 100)}%, it rolls back. Wrong calls either way happen about ${Math.round(SPRT.alpha * 100)}% of the time.</li>
+        <li><b>Hall of fame</b>: every ${HOF.every} steps a passing AI is saved (the last ${HOF.keep} are kept), and each safety check also plays one of them. Clearly losing to an older champion rolls back too. If the same older champion wins ${HOF.strikes} checks in a row, it comes back as the champion.</li>
+        <li><b>Card stats</b>: every training game is recorded for the Card stats tab.</li>
       </ul>
-      <p class="note">Every AI thinks ahead. While shopping it predicts what its opponent will still buy this shop, then test-battles its options against the army the opponent will have at the battle; taking a card the opponent wanted counts as denying it. At Mobilize it predicts the order its opponent will field by running a lighter copy of the opponent's own search, and test-battles its orders against that and a spread of other possible orders. It also learns how each opponent orders their army: after every battle it checks which of its guesses came true (its prediction, strongest first, or the same order as last time), then leans on the best one and trusts it more the more often it's right. Against you it remembers your habits from game to game. Against you it searches harder (every order, more guesses) than in training.</p>
-      <div class="row"><input type="checkbox" id="deepTrain" ${brain.deep === false ? '' : 'checked'} ${job ? 'disabled' : ''}><label for="deepTrain" style="color:var(--ink)">Think ahead during training (about 10× slower, much stronger play)</label></div>
     </div>
     <div class="panel">${lenSegHTML()}<p class="note">Each game length has its own AI, trained on games of that length. ${brain.seededFrom && !brain.gens ? `This one starts as a copy of the first-to-${brain.seededFrom} AI; training adapts it to longer games.` : `You're training the first-to-${LEN} AI.`}</p></div>
     <div class="kpis">
@@ -7365,24 +7808,24 @@ function renderTrain(){
     </div>
     <div class="panel">
       <div class="row"><button type="button" class="primary" data-act="t10" ${busy?'disabled':''}>Train 10 steps</button><button type="button" data-act="t50" ${busy?'disabled':''}>Train 50</button><button type="button" data-act="t200" ${busy?'disabled':''}>Train 200</button><button type="button" data-act="stop" ${busy?'':'disabled'}>Stop</button>
-        ${''}<span class="note">${busy ? (job.kind === 'train' ? (job.stop ? 'Stopping after the current matches…' : `Training… step ${job.done} of ${job.total}`) : `Running stat games… ${job.done} of ${job.total}`) : `Using ${POOL_SIZE} background ${plural(POOL_SIZE, 'worker')}. Each step plays ${ES.dirs * ES.pairs * 2} games${brain.deep === false ? ' (a few seconds)' : ' (roughly 30–90 seconds with thinking on)'}, and every ${ES.every}th step adds safety checks that stop as soon as they're sure (and every ${ES.progEvery}th, ${ES.progPairs * 2} games against the starting AI for the chart)${brain.deep === false ? '' : ' (several minutes)'}. You can keep playing while it trains.`}</span></div>
+        ${''}<span class="note">${busy ? (job.kind === 'train' ? (job.stop ? 'Stopping after the current matches…' : `Training… step ${job.done} of ${job.total}`) : `Running stat games… ${job.done} of ${job.total}`) : `Using ${POOL_SIZE} background ${plural(POOL_SIZE, 'worker')}. Each step plays ${ES.dirs * ES.pairs * 2} games (roughly 1–3 minutes), and every ${ES.every}th step adds safety checks that stop as soon as they're sure (and every ${ES.progEvery}th, ${ES.progPairs * 2} games against the starting AI for the chart) (several minutes). You can keep playing while it trains.`}</span></div>
       <div id="trainprog">${trainProgHTML()}</div>
       ${sparkSVG(brain.history)}
       ${aiSyncHTML()}
       ${syncBarHTML()}
     </div>
     <div class="forces">
-      <div class="panel"><h2>Current weights</h2>
+      <div class="panel"><h2>Judgment weights</h2>
         <div class="weights">${Object.keys(WEIGHT_LABELS).map(k => `<div><span>${WEIGHT_LABELS[k]}</span><b>${(c[k] ?? 0).toFixed(2)}</b></div>`).join('')}</div>
       </div>
-      <div class="panel"><h2>What it has learned about cards</h2>
-        <p class="note">Learned from the card stats of its own training games. Positive means it buys the card more than its numbers alone suggest; negative means it avoids it. <b>Forget</b> sets a card back to 0 so the AI judges it from its numbers again and relearns it; everything else the AI has learned stays. Editing a card in the Balance lab forgets its opinion automatically.</p>
+      <div class="panel"><h2>Card opinions (imagined players)</h2>
+        <p class="note">Learned from the card stats of its own training games, and used by the imagined players in its playouts. Positive means they buy the card more than its numbers alone suggest; negative means they avoid it. <b>Forget</b> sets a card back to 0 so the AI judges it from its numbers again and relearns it; everything else the AI has learned stays. Editing a card in the Balance lab forgets its opinion automatically.</p>
         <div class="opinions">${biases.map(([k,v]) => `<div><span>${esc(k)}</span><b style="color:${v > 0 ? 'var(--ok)' : 'var(--gules)'}">${v > 0 ? '+' : ''}${v.toFixed(2)}</b><button type="button" class="small" data-act="forget" data-name="${esc(k)}" ${busy?'disabled':''} aria-label="Forget the AI's opinion of ${esc(k)}">Forget</button></div>`).join('') || '<p class="note">No opinions yet.</p>'}</div>
         <div class="row"><span class="grow"></span><button type="button" data-act="forgetall" ${busy || !biases.length ? 'disabled' : ''}>Forget all card opinions</button></div>
       </div>
     </div>
     <div class="panel"><h2>Save or share the AI</h2>
-      <p class="note">Copy the champion's weights to keep them somewhere else, or paste weights to load them.</p>
+      <p class="note">Copy the champion's settings (its judgment weights, card opinions and the imagined players' shopping settings) to keep them somewhere else, or paste settings to load them.</p>
       <textarea id="brainio" aria-label="AI weights as JSON">${esc(JSON.stringify(brain.champ))}</textarea>
       <div class="row"><button type="button" data-act="copy">Copy weights</button><button type="button" data-act="load">Load pasted weights</button><span class="grow"></span><button type="button" data-act="reset" ${busy?'disabled':''}>Reset AI to untrained</button></div>
       ${brain.legacy ? `<p class="note">The AI from the old trainer (${brain.legacy.gens} generations) is kept as a backup. <button type="button" class="small" data-act="legacy" ${busy?'disabled':''}>Restore it</button></p>` : ''}
@@ -7390,7 +7833,6 @@ function renderTrain(){
     </div></div>`;
 }
 $('view-train').addEventListener('change', e => {
-  if (e.target.id === 'deepTrain'){ brain.deep = e.target.checked; saveBrain(); renderTrain(); }
 });
 $('view-train').addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
@@ -7532,35 +7974,6 @@ function statPickerHTML(){
       <button type="button" class="small" data-act="sc-all" ${hidden ? '' : 'disabled'}>Show all</button></div></details>`;
 }
 const saveStatHide = () => LS.set('sow-stat-hide', statHide);
-function ctxHTML(){
-  const R = CTX_RULE, E = ctxEdges(brain.ctxEv || {}), have = (brain.champ && brain.champ.ctx) || {};
-  const pair = (c, y, vs, sit) => sit ? `${esc(c)} <span class="dim">${esc(SIT_LABEL[y] || y)}</span>` : `${esc(c)} <span class="dim">${vs ? 'against their' : 'with your'}</span> ${esc(y)}`;
-  const parse = k => { const m = /^(.+?)([+~@])(.+)$/.exec(k); return m ? {c:m[1], y:m[3], vs:m[2] === '~', sit:m[2] === '@'} : null; };
-  const formed = Object.entries(have).map(([k, v]) => ({k, v, ...(parse(k) || {}), e:E[k]})).filter(r => r.c).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
-  const all = Object.entries(E), enough = all.filter(([k, e]) => e.n >= R.minN);
-  const unclear = enough.filter(([k, e]) => Math.abs(e.z) < R.z).length;
-  const near = all.filter(([k, e]) => !(k in have)).sort((a, b) => b[1].n - a[1].n).slice(0, 8);
-  const pp = x => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(1)}`;
-  const busy = !!job;
-  return `<div class="panel"><h2>Learned situations and pairings</h2>
-    <p class="note"><b>Situations:</b> a card's opinion is also adjusted for the moment it's bought in: early, mid or late game; behind, tied or ahead on points; how much money is on hand; and whose income is higher. These form on a little less evidence than pairings (${SIT_RULE.minN}+ purchases, ${SIT_RULE.z} standard errors) because there are far fewer of them.</p>
-    <p class="note">Opinions about buying a card given a unit already in play: one the buyer owns (synergy) or one the opponent is known to own (counter). The AI adds them to a card's value in the shop. Each compares how those buyers finished with what the card alone and the unit alone would predict from the same score position, so a strong unit doesn't make every card next to it look good.</p>
-    <p class="note"><b>Formed only on substantial evidence:</b> at least ${R.minN} purchases in that pairing <i>and</i> a gap of at least ${R.z} standard errors (about a 1-in-370 chance of a fluke). Evidence comes from training and stat games and fades by ${Math.round(R.decay * 100)}% every ${ES.every} training steps so it follows the AI as it improves. Opinions update every ${ES.every} training steps. If later evidence stops backing one up, it backs off. Placement at Mobilize doesn't use these; it test-battles orders against the opponent's known units directly.</p>
-    <div class="kpis">
-      <div class="kpi"><div class="v">${formed.length}</div><div class="l">Pairings formed</div></div>
-      <div class="kpi"><div class="v">${enough.length}</div><div class="l">With ${R.minN}+ purchases</div></div>
-      <div class="kpi"><div class="v">${unclear}</div><div class="l">Enough games, no clear gap</div></div>
-      <div class="kpi"><div class="v">${all.length.toLocaleString()}</div><div class="l">Pairings being tracked</div></div>
-    </div>
-    ${formed.length ? `<div class="tablewrap"><table><thead><tr><th scope="col">Buying</th><th scope="col" class="num">Opinion</th><th scope="col" class="num">Edge (pts)</th><th scope="col" class="num">Purchases</th><th scope="col" class="num">Std. errors</th></tr></thead><tbody>
-      ${formed.map(r => `<tr><td>${pair(r.c, r.y, r.vs, r.sit)}</td><td class="num"><span class="${r.v > 0 ? 'up' : 'down'}">${r.v > 0 ? '+' : ''}${r.v.toFixed(2)}</span></td><td class="num">${r.e ? pp(r.e.edge) : '—'}</td><td class="num">${r.e ? Math.round(r.e.n).toLocaleString() : '—'}</td><td class="num">${r.e ? Math.abs(r.e.z).toFixed(1) : '—'}</td></tr>`).join('')}
-    </tbody></table></div>` : `<p class="note">No pairings formed yet. Train the AI or run stat games to build evidence.</p>`}
-    ${near.length ? `<h3>Closest to forming</h3><div class="tablewrap"><table><thead><tr><th scope="col">Buying</th><th scope="col" class="num">Purchases</th><th scope="col" class="num">Edge so far (pts)</th><th scope="col" class="num">Std. errors</th></tr></thead><tbody>
-      ${near.map(([k, e]) => `<tr><td>${pair(e.c, e.y, e.vs, e.sit)}</td><td class="num">${Math.round(e.n).toLocaleString()} <span class="dim">/ ${R.minN}</span></td><td class="num">${pp(e.edge)}</td><td class="num">${Math.abs(e.z).toFixed(1)} <span class="dim">/ ${R.z}</span></td></tr>`).join('')}
-    </tbody></table></div>` : ''}
-    <div class="row" ${isPlayer() ? 'hidden' : ''}><span class="grow"></span><button type="button" data-act="ctxforget" ${busy || (!formed.length && !all.length) ? 'disabled' : ''}>Forget all pairings and evidence</button></div>
-  </div>`;
-}
 function mirStatsHTML(){
   const M = stats.__mir || {}, games = M.__games || 0;
   if (!games) return `<div class="panel"><h2>Miracles</h2><p class="note">No games with miracles recorded yet at this length.</p></div>`;
@@ -7595,6 +8008,7 @@ function renderStats(){
   const TIPS = {"c": "The card. Its type is shown under the name.", "n": "How many armies bought this card at least once. Each game has two armies.", "pick": "Share of all armies that bought this card at least once. Shows how popular it is, not how good.", "take": "Of the shop phases where a player could have bought this card on their turn, how often they did. Low means it is usually passed over.", "cost": "Shop price.", "wr": "How often a player who bought this card went on to win the game. 50% is neutral. Biased by who buys it: cards the leader buys (like Cathedral) look strong, comeback cards look weak.", "pwr": "How often players who could have bought this card, but took something else, went on to win. The comparison point for Impact.", "imp": "Win % bought minus Win % passed, in percentage points. The best single measure of what taking this card actually does. Positive = taking it helps. Needs 20+ purchases and 20+ passes.", "adj": "Adjusted edge: how buyers did compared with players who were in the same position (behind, tied or ahead) when they bought it, in percentage points. Removes the effect of leaders buying it. Positive = the card itself helps.", "sold": "Copies sold back for $1, and (in brackets) roughly what share of purchases that is. A card sold often is one players regret or only want for a short time. Bought and win-rate numbers still count sold copies: they measure the decision to buy it.", "press": "Pressure: Adj. edge × Taken. How much the card swings games across every game it shows up in. A situational card that is strong but rarely taken stays low; a popular card that is also strong scores high. Flagged 'Too strong' (for how popular it is) at 2.5+ with an edge of +5 or more, and 'Trap' when taken 40%+ of the time but its edge is −4 or worse. Needs 50+ purchases."};
   const th = (key, label, num) => `<th class="${num?'num':''}" data-sort="${key}" scope="col" data-tip="${esc(TIPS[key] || '')}" tabindex="0">${label}<span class="tipmark" aria-hidden="true">?</span>${statSort.k===key ? (statSort.dir>0?' ↑':' ↓') : ''}</th>`;
   $('view-stats').innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">
+    ${statsSaveFailed && !isPlayer() ? `<div class="panel"><p class="err">This browser refused to save the card stats (its storage for this page is full). They are still backed up on the server after each run, and the page restores them from there when it opens.</p></div>` : ''}
     <div class="panel">${lenSegHTML()}<p class="note">Each game length keeps its own card stats; these are from first-to-${LEN} games.</p></div>
     <div class="panel"><h2>Card win rates · first to ${LEN}</h2>
       <p class="note">Every AI game adds to these numbers: training games (many different strategies) and stat games (the champion playing itself). 50% is neutral throughout. Treat cards with fewer than about 50 purchases as noise.</p>
@@ -7673,7 +8087,7 @@ $('view-stats').addEventListener('click', e => {
   if (a === 'stop') stopJob();
   if (a === 'clear'){
     if (t.dataset.confirm !== '1'){ t.dataset.confirm = '1'; t.textContent = 'Click again to clear'; return; }
-    stats = {}; saveStats(); renderStats();
+    stats = {}; saveStats(); LS.set(lenKey('sow-stats-cleared', statsLen), Date.now()); renderStats();
   }
 });
 
@@ -7897,7 +8311,7 @@ $('view-lab').addEventListener('click', e => {
   if (a === 'fresh'){
     if (t.dataset.confirm !== '1'){ t.dataset.confirm = '1'; t.textContent = 'Click again to reset the AI and clear all stats'; return; }
     brain = {champ:baseGenome(), gens:0, games:0, history:[], deep:brain.deep, algo:'es1', legacy:brain.legacy}; saveBrain();
-    stats = {}; saveStats();
+    stats = {}; saveStats(); LS.set(lenKey('sow-stats-cleared', statsLen), Date.now());
     t.dataset.confirm = ''; renderLab();
     const m = document.createElement('p'); m.className = 'note'; m.textContent = 'Done. The AI is untrained and all card, pair and counter stats are cleared. Train it again on the Train tab.';
     t.closest('.panel').appendChild(m);
@@ -7949,7 +8363,7 @@ let dbns = null, syncState = {ready:false, last:LS.get('sow-sync-last'), busy:fa
   let admin = false;
   try{ const u = window.claude && typeof window.claude.use === 'function' ? await window.claude.use('user') : null; admin = !!(u && u.canEdit()); }catch(e){ admin = false; }
   if (admin !== canAdmin){ LS.set('sow-admin', admin); if (!admin) LS.set('sow-preview', false); location.reload(); return; }
-  if (isPlayer()) await loadPlayerStats();
+  if (isPlayer()) await loadPlayerStats(); else await restoreOwnerStats();
   syncState.ready = true; watchFinal(); watchCal(); refreshViews(); refreshStart(); startAiSync();
 })();
 function syncBarHTML(){
@@ -7963,6 +8377,13 @@ async function shareWithClaude(){
   if (!dbns || syncState.busy || isPlayer()) return;
   syncState.busy = true; syncState.err = null; refreshViews();
   try{
+    // the server copy is the backup: a browser with fewer games (empty storage, another device) doesn't overwrite it
+    let skipStats = false;
+    try{
+      const m = await dbns.doc(syncPath('meta', LEN)).get(), theirs = m.exists ? (m.data().games || 0) : 0, mine = stats.__games || 0;
+      const cleared = LS.get(lenKey('sow-stats-cleared', LEN)) || 0;
+      if (mine < theirs && !(cleared > ((m.exists && m.data().at) || 0))) skipStats = true;
+    }catch(e){}
     const base = {}; for (const k in stats) if (!['__pairs','__adj','__vs'].includes(k)) base[k] = stats[k];
     const parts = {
       stats: base, pairs: stats.__pairs || {}, adj: stats.__adj || {}, vs: stats.__vs || {},
@@ -7970,12 +8391,13 @@ async function shareWithClaude(){
       ctx: Object.fromEntries(Object.entries(ctxEdges(brain.ctxEv || {})).filter(([k, e]) => e.n >= 50).map(([k, e]) => [k, [Math.round(e.n), +e.edge.toFixed(4), +e.z.toFixed(2)]])),
       balance: {overrides:OV, changes:describeOverrides(OV), labResults, comboTableStale:synStale()},
     };
+    if (skipStats) for (const k of ['stats', 'pairs', 'adj', 'vs']) delete parts[k];
     for (const [k, v] of Object.entries(parts)){
       const json = JSON.stringify(v);
       if (json.length > 240000){ syncState.err = `the ${k} data is too large to share`; continue; }
       await dbns.doc(syncPath(k, LEN)).set({json, at:Date.now()});
     }
-    await dbns.doc(syncPath('meta', LEN)).set({at:Date.now(), games:stats.__games || 0, gens:brain.gens, length:LEN, page:'SOW Proving Grounds'});
+    if (!skipStats) await dbns.doc(syncPath('meta', LEN)).set({at:Date.now(), games:stats.__games || 0, gens:brain.gens, length:LEN, page:'SOW Proving Grounds'});
     syncState.last = Date.now(); LS.set('sow-sync-last', syncState.last);
   }catch(e){ syncState.err = (e && e.code) ? e.code.replace(/_/g, ' ') : 'unknown error'; }
   syncState.busy = false; refreshViews();
@@ -8101,9 +8523,9 @@ function setLen(L){
   // this length's card stats, rating ladder and your rating
   stats = isPlayer() ? (L === 3 && SNAP && SNAP.stats ? clone(SNAP.stats) : {}) : (LS.get(lenKey('sow-stats-v1', L)) || {}); statsLen = L;
   CAL = LS.get(lenKey('sow-cal-v1', L)) || (L === 3 && SNAP && SNAP.cal) || null;
-  ME = LS.get(lenKey('sow-elo-v1', L)) || newMe(); meLen = L; oppPick = null;
+  ME = LS.get(lenKey('sow-elo-v2', L)) || newMe(); meLen = L; oppPick = null;
   if (calUnsub){ try{ calUnsub(); }catch(e){} calUnsub = null; }
-  if (syncState.ready){ watchCal(); startAiSync(); if (isPlayer()) loadPlayerStats(); }
+  if (syncState.ready){ watchCal(); startAiSync(); if (isPlayer()) loadPlayerStats(); else restoreOwnerStats(); }
   if (!G || ui.start) renderPlay();
   refreshViews();
 }
@@ -8127,6 +8549,29 @@ async function loadPlayerStats(){
     stats = out;
     if (!$('view-stats').hidden) renderStats();
   }catch(e){}
+}
+// The owner's stats live in this browser. If it has fewer games than the server's backup or the copy built into the
+// page (storage cleared, another device, a save the browser refused), take the bigger one.
+async function restoreOwnerStats(){
+  const L = LEN, mine = stats.__games || 0;
+  let best = null, bestN = mine;
+  try{
+    if (dbns){
+      const meta = await dbns.doc(syncPath('meta', L)).get(), n = meta.exists ? (meta.data().games || 0) : 0;
+      if (n > bestN){
+        const [s, pr, ad, vs] = await Promise.all(['stats','pairs','adj','vs'].map(k => dbns.doc(syncPath(k, L)).get()));
+        if (s.exists){ const out = jparse(s.data().json); if ((out.__games || 0) > bestN){
+          if (pr.exists) out.__pairs = jparse(pr.data().json); if (ad.exists) out.__adj = jparse(ad.data().json); if (vs.exists) out.__vs = jparse(vs.data().json);
+          best = out; bestN = out.__games || 0; } }
+      }
+    }
+  }catch(e){}
+  const cleared = LS.get(lenKey('sow-stats-cleared', L)) || 0;
+  if (L === 3 && SNAP && SNAP.stats && (SNAP.stats.__games || 0) > bestN && !(cleared > (SNAP.statsAt || 0))){ best = clone(SNAP.stats); bestN = best.__games || 0; }
+  if (!best || L !== LEN) return;
+  stats = best; saveStats();
+  showToast(`Card stats restored: ${bestN.toLocaleString()} games (this browser had ${mine.toLocaleString()}).`);
+  if (!$('view-stats').hidden) renderStats();
 }
 function applyRole(){
   const player = isPlayer();
@@ -8210,14 +8655,19 @@ if (LEN === 3 && SNAP && SNAP.cal && (!CAL || (SNAP.cal.at || 0) > (CAL.at || 0)
 let calState = {busy:false, done:0, total:0, err:null};
 const BRACKETS = ['Beginner', 'Intermediate', 'Hard', 'Expert', 'Master'];
 const newMe = () => ({rating:null, placement:[], games:0, history:[]});
-let ME = LS.get(lenKey('sow-elo-v1', LEN)) || newMe(), meLen = LEN;
-const saveMe = () => LS.set(lenKey('sow-elo-v1', meLen), ME);
+// v2: ratings started over when the ladder changed from deliberate mistakes to thinking budgets
+let ME = LS.get(lenKey('sow-elo-v2', LEN)) || newMe(), meLen = LEN;
+const saveMe = () => LS.set(lenKey('sow-elo-v2', meLen), ME);
 const PLACEMENT_GAMES = 3;
 // rungs in rating order (a rung that measured weaker than the one before it is skipped)
 function ladder(){
-  if (!CAL) return [];
+  if (!CAL || !Array.isArray(CAL.rungs)) return [];
   const out = [];
-  CAL.rungs.forEach((r, k) => { if (Number.isFinite(r.elo) && (!out.length || r.elo > out[out.length - 1].elo)) out.push({...r, k}); });
+  CAL.rungs.forEach(r => {
+    const k = RUNGS.findIndex(x => x.id === r.id);
+    if (k <= 0 || !Number.isFinite(r.elo)) return;   // the random buyer anchors the ratings but isn't an opponent
+    if (!out.length || r.elo > out[out.length - 1].elo) out.push({...r, k, label:RUNGS[k].label});
+  });
   // the deepest level isn't in older calibrations: put it on top with an estimated rating until the ladder is recalibrated
   const mk = RUNGS.findIndex(r => r.id === 'm100');
   if (mk >= 0 && !CAL.rungs.some(r => r.id === 'm100') && out.length >= 2){
@@ -8238,7 +8688,7 @@ function levelText(R){
   const L = ladder(), top = L[L.length - 1], est = top && top.provisional && (s.lo === RUNGS[top.k] || s.hi === RUNGS[top.k]) ? ' (its rating is an estimate until the ladder is recalibrated)' : '';
   if (!s.hi || s.t >= 0.995) return `Plays as: ${(s.hi && s.t >= 0.995 ? s.hi : s.lo).label}${est}`;
   if (s.t <= 0.005) return `Plays as: ${s.lo.label}${est}`;
-  return `Plays as: ${s.hi.label} for ${Math.round(s.t * 100)}% of its decisions, ${s.lo.label} for the rest${est}`;
+  return `Thinks with a budget ${Math.round(s.t * 100)}% of the way from ${s.lo.label} to ${s.hi.label}${est}`;
 }
 function skillFor(R){
   const L = ladder(); if (!L.length) return null;
@@ -8293,7 +8743,7 @@ function startHTML(){
     : calStale() ? `<div class="finalbox"><p><b>Your card numbers changed since the ladder was calibrated</b> (${esc(fmtWhen(CAL.at))}), so the AI ratings may be a little off.</p>${calBtn('Recalibrate')}</div>` : '';
   const strip = L.length ? `<div class="brackets">${BRACKETS.map((name, k) => {
       const w = (hi - lo) / 5, a = Math.round(lo + k * w), b = Math.round(lo + (k + 1) * w), mid = (a + b) / 2;
-      const below = k ? `${pct(expected(mid, mid - w))} vs ${BRACKETS[k - 1]}` : `${pct(expected(mid, lo))} vs random buyer`;
+      const below = k ? `${pct(expected(mid, mid - w))} vs ${BRACKETS[k - 1]}` : `${pct(expected(mid, 400))} vs random buyer`;
       return `<div class="bk${k === br.k ? ' on' : ''}"><b>${name}</b><span class="mono">${a}–${b}</span><span class="note">wins ${below}</span>${myBr && myBr.k === k ? '<span class="you">You</span>' : ''}</div>`;
     }).join('')}</div>` : '';
   return `<div style="display:flex;flex-direction:column;gap:14px">
@@ -8310,7 +8760,7 @@ function startHTML(){
           <span class="note" id="st-lvl">${esc(levelText(R))}</span>
           <div class="row"><span class="pickr">${R}</span><span class="pickn">${br.name}</span>${!placing ? `<span class="note" id="st-exp">${pct(expected(mine, R))} expected win chance for you</span>` : ''}</div>
           <input type="range" id="st-r" min="${lo}" max="${lo + Math.ceil((hi - lo) / 10) * 10}" step="10" value="${R}" ${calState.busy ? 'disabled' : ''} aria-describedby="st-help">
-          <span class="note" id="st-help">${placing ? `Slide from ${lo} (buys at random) to ${hi} (today's full-strength AI). Beating a stronger AI places you higher.` : `Slide from ${lo} (buys at random) to ${hi} (today's full-strength AI). A 400-point gap means the stronger side wins about 10 to 1.`}</span>
+          <span class="note" id="st-help">${placing ? `Slide from ${lo} (${esc(L[0].label)}) to ${hi} (today's full-strength AI). Beating a stronger AI places you higher.` : `Slide from ${lo} (${esc(L[0].label)}) to ${hi} (today's full-strength AI). A 400-point gap means the stronger side wins about 10 to 1.`}</span>
         </div>
         ${strip}` : ''}
       ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
@@ -8329,16 +8779,23 @@ function startHTML(){
       </div>
       <div class="row"><button type="button" class="primary" data-act="st-pp">${resign && ui.resignArm === 'pp' ? 'Click again to resign and start' : `Start pass-and-play game (first to ${LEN})`}</button></div>
       ${CAL ? `<details><summary class="note">How the ladder was measured</summary>
-        <p class="note">Each rung is a way of playing: how deeply the AI thinks and how often it takes its 2nd or 3rd best option. Rungs played each other ${CAL.games.toLocaleString()} games${CAL.at ? ` (${esc(fmtWhen(CAL.at))})` : ''}; ratings come from those results, with the random buyer pinned at 400. Rated games use the AI brain from that run, so training it further won't move these numbers.</p>
-        <div class="tablewrap"><table><thead><tr><th>Rung</th><th class="num">Rating</th></tr></thead><tbody>${CAL.rungs.map(r => `<tr><td>${esc(r.label)}</td><td class="num">${r.elo}</td></tr>`).join('')}</tbody></table></div>
-        <div class="tablewrap"><table><thead><tr><th>Match-up</th><th class="num">Games</th><th class="num">Score</th></tr></thead><tbody>${CAL.results.filter(x => CAL.rungs[x.a] && CAL.rungs[x.b]).map(x => `<tr><td>${esc(CAL.rungs[x.a].label)} vs ${esc(CAL.rungs[x.b].label)}</td><td class="num">${x.wa + x.wb + x.d}</td><td class="num">${x.wa}–${x.wb}${x.d ? `–${x.d}` : ''}</td></tr>`).join('')}</tbody></table></div>
+        <p class="note">Each rung is a thinking budget: whether it looks past this battle, how many times it plays out the rest of the game, how many test battles it runs, and how far ahead it looks in the shop. Weaker rungs see less; the short-sighted ones also blur their estimates a little. A rating between rungs plays with a budget part-way between them. Rungs played each other ${calGames(CAL).toLocaleString()} games${CAL.at ? ` (${esc(fmtWhen(CAL.at))})` : ''}${CAL.quick ? ', a quick calibration, so the ratings are rough until a full run' : ''}; ratings come from those results, with the random buyer pinned at 400. Rated games use the AI brain from that run, so training it further won't move these numbers.</p>
+        <div class="tablewrap"><table><thead><tr><th>Rung</th><th class="num">Rating</th></tr></thead><tbody>${(CAL.rungs || []).map(r => `<tr><td>${esc(r.label)}</td><td class="num">${Number.isFinite(r.elo) ? r.elo : '—'}</td></tr>`).join('')}</tbody></table></div>
+        <div class="tablewrap"><table><thead><tr><th>Match-up</th><th class="num">Games</th><th class="num">Score</th></tr></thead><tbody>${(CAL.results || []).filter(x => CAL.rungs && CAL.rungs[x.a] && CAL.rungs[x.b]).map(x => `<tr><td>${esc(CAL.rungs[x.a].label)} vs ${esc(CAL.rungs[x.b].label)}</td><td class="num">${(x.wa || 0) + (x.wb || 0) + (x.d || 0)}</td><td class="num">${x.wa || 0}–${x.wb || 0}${x.d ? `–${x.d}` : ''}</td></tr>`).join('')}</tbody></table></div>
         ${!calState.busy ? `<div class="row"><span class="grow"></span>${calBtn('Recalibrate')}</div>` : ''}
       </details>` : ''}
       ${matchesHTML()}
       ${!placing && ME.history.length ? `<details><summary class="note">Your recent games</summary><div class="list" style="margin-top:6px">${ME.history.slice(0, 12).map(h => `<div class="li"><span class="nm" style="font-weight:400">${h.s === 1 ? 'Win' : h.s === 0 ? (h.forfeit ? 'Resigned' : 'Loss') : 'Draw'} vs ${h.opp}</span><span class="mono">${h.placement ? 'placement' : `${h.before} → ${h.after}`}</span></div>`).join('')}</div></details>` : ''}
     </div></div>`;
 }
-const calBtn = label => isPlayer() ? '<span class="note">Ratings are set up by the game\'s designer.</span>' : calState.err ? `<p class="err">Calibration stopped: ${esc(calState.err)}.</p>` : (dbns || !syncState.ready ? `<button type="button" data-act="st-cal" ${calState.busy || job ? 'disabled' : ''}>${label} (takes about 15 minutes)</button>` : '<span class="note">Calibrating needs the page open in claude.ai while signed in.</span>');
+// games in a calibration (older or interrupted saves may not have the total)
+const calGames = C => Number.isFinite(C && C.games) ? C.games : ((C && C.results) || []).reduce((s, x) => s + (x.wa || 0) + (x.wb || 0) + (x.d || 0), 0);
+const calBtn = label => {
+  if (isPlayer()) return '<span class="note">Ratings are set up by the game\'s designer.</span>';
+  if (!(dbns || !syncState.ready)) return '<span class="note">Calibrating needs the page open in claude.ai while signed in.</span>';
+  const off = calState.busy || job ? 'disabled' : '';
+  return `${calState.err ? `<p class="err">Calibration stopped: ${esc(calState.err)}.</p>` : ''}<div class="row"><button type="button" data-act="st-cal" ${off}>${label} (takes several hours)</button><button type="button" data-act="st-calq" ${off}>Quick ${label.toLowerCase()} (about a fifth of the games: rougher ratings)</button></div>`;
+};
 // while sliding, update the readouts in place (re-rendering would drop the slider mid-drag)
 $('view-play').addEventListener('input', e => {
   if (e.target.id !== 'st-r') return;
@@ -8357,6 +8814,7 @@ $('view-play').addEventListener('click', e => {
   const a = t.dataset.act, resign = G && !G.over && G.opp && G.opp.rated && !G.ratedDone;
   if (a === 'st-back'){ ui.start = false; renderPlay(); return; }
   if (a === 'st-cal'){ runCalibration(); return; }
+  if (a === 'st-calq'){ runCalibration(true); return; }
   if (a.startsWith('st-net')){ netStartClick(a, resign); return; }
   if (a === 'st-pp'){
     if (resign && ui.resignArm !== 'pp'){ ui.resignArm = 'pp'; renderPlay(); return; }
@@ -8380,14 +8838,16 @@ $('view-play').addEventListener('click', e => {
 let oppPick = null;   // the AI rating you chose on the slider (saved per game length)
 function bracketPick(){ const [lo, hi] = ratingRange(); return Math.max(lo, Math.min(hi, oppPick ?? ME.rating ?? placementOpp())); }
 // the ladder: neighbours and next-but-one neighbours play each other
-async function runCalibration(){
+async function runCalibration(quick){
   if (calState.busy || job) return;
   ensurePool();
   const n = RUNGS.length, pairs = [];   // every level, including the deepest (it plays fewer calibration games: it's slow)
   for (let a = 0; a < n; a++) for (const st of [1, 2]) if (a + st < n) pairs.push([a, a + st]);
   const genome = clone(brain.champ), L = LEN;
   // games per request: the deepest level's games are slow, so they go out 2 at a time and every worker shares them
-  const plan = pairs.map(([a, b]) => { const per = b === n - 1 ? 2 : 10; return {a, b, per, batches:(a === 0 ? 120 : b === n - 1 ? 60 : 200) / per}; });
+  // quick: about a fifth of the games, for a rough ladder now (a full run later tightens it)
+  const games = (a, b) => quick ? (a === 0 ? 24 : b === n - 1 ? 12 : 40) : (a === 0 ? 120 : b === n - 1 ? 60 : 200);
+  const plan = pairs.map(([a, b]) => { const per = b === n - 1 ? 2 : 10; return {a, b, per, batches:Math.ceil(games(a, b) / per)}; });
   poolErr = null;
   for (const x of plan){ x.w = RUNG_COST(RUNGS[x.a]) + RUNG_COST(RUNGS[x.b]); x.done = 0; }
   calState = {busy:true, done:0, total:plan.reduce((s, x) => s + x.batches, 0), err:null, plan, t0:performance.now()};
@@ -8397,15 +8857,15 @@ async function runCalibration(){
       const rs = await Promise.all(Array.from({length:x.batches}, (_, k) => task({cmd:'ladder', a:x.a, b:x.b, n:x.per, seed:100000 * (x.a * 10 + x.b) + k * x.per, genome}, ovLen(effOV(), L)).then(r => { calState.done++; x.done++; paintProg(); return r || {wa:0, wb:0, d:0}; })));
       return rs.reduce((s, r) => ({a:x.a, b:x.b, wa:s.wa + r.wa, wb:s.wb + r.wb, d:s.d + r.d}), {a:x.a, b:x.b, wa:0, wb:0, d:0});
     }));
-    await saveCalibration(results, genome, stableKey(effOV()), L);
+    await saveCalibration(results, genome, stableKey(effOV()), L, !!quick);
   }catch(e){ calState.err = (e && e.code) ? e.code.replace(/_/g, ' ') : 'something went wrong'; }
   calState.busy = false; refreshStart();
 }
-async function saveCalibration(results, genome, balanceKey, L = LEN){
+async function saveCalibration(results, genome, balanceKey, L = LEN, quick = false){
   // every level that played (the deepest included); a level missing from the results would break the ratings
   const n = Math.max(RUNGS.length - 1, ...results.map(x => Math.max(x.a, x.b))) + 1, elo = fitElo(results, n);
   const cal = {rungs:RUNGS.slice(0, n).map((r, k) => ({id:r.id, label:r.label, elo:elo[k]})), results, genome, balanceKey, at:Date.now(),
-    games:results.reduce((s, x) => s + x.wa + x.wb + x.d, 0)};
+    games:results.reduce((s, x) => s + (x.wa || 0) + (x.wb || 0) + (x.d || 0), 0), quick};
   if (dbns && !isPlayer()) await dbns.doc(calPath(L)).set({json:JSON.stringify(cal), at:cal.at, length:L});
   applyCal(cal, L);
 }
@@ -8658,13 +9118,14 @@ function wirePeek(card, wrap){
 // Battle cards: click (or tap) one to read its full rules as a shop-style card, at its level in this battle.
 let rulesSrc = null;
 function openRules(el){
-  const n = el.dataset.name, lv = +el.dataset.lvl || 1; if (!n || !DEFS[n]) return;
+  const n = el.dataset.name, lv = +el.dataset.lvl || 1, k = el.dataset.kind === 'b' ? 'b' : 'u';
+  if (!n || !(k === 'b' ? BDEFS[n] : DEFS[n])) return;
   if (rulesSrc) rulesSrc.remove();
   const r = el.getBoundingClientRect();
   const src = rulesSrc = document.createElement('div');
-  src.className = 'mcard fcard u' + (el.dataset.side === '1' ? ' ai' : ''); src.setAttribute('aria-hidden', 'true');
+  src.className = `mcard fcard ${k}` + (el.dataset.side === '1' ? ' ai' : ''); src.setAttribute('aria-hidden', 'true');
   src.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;visibility:hidden;pointer-events:none`;
-  src.innerHTML = cardFace(n, 'u', lv, true);
+  src.innerHTML = cardFace(n, k, lv, true);
   document.body.appendChild(src);
   openPeek(src, true);
 }
@@ -8695,7 +9156,7 @@ window.addEventListener('pointermove', e => { if (press && !peekEl && Math.hypot
 window.addEventListener('pointerup', e => { if (peekEl && peekReady) return; endPress(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && peekEl) closePeek(); });
 // a card with miracles behind it opens its panel from the keyboard too
-$('view-play').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mcard.hasmir')){ e.preventDefault(); e.target.click(); } });
+$('view-play').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mcard.hasmir, .stage .card.citycard')){ e.preventDefault(); e.target.click(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.remind){ ui.remind = null; renderPlay(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.deckView != null && !peekEl){ ui.deckView = null; renderPlay(); } });
 $('view-play').addEventListener('click', e => { if (ui.remind && e.target.classList && e.target.classList.contains('remind')){ ui.remind = null; renderPlay(); } });

@@ -45,6 +45,7 @@ async function playGame(browser, kind, seed){
     try { localStorage.clear(); localStorage.setItem('sow-autoplay', 'false'); localStorage.setItem('sow-snd', 'false'); } catch (e) {}
   }, seed);
   await page.goto(pathToFileURL(HTML).href);
+  await page.addStyleTag({content: ".turnflash{pointer-events:none!important}"});   // the turn banner would otherwise catch the scripted clicks
   await page.waitForFunction(() => typeof renderPlay === 'function');
   if (kind === 'net') await page.evaluate(async seed => {
     // a fake room: our presence goes nowhere, and the "friend" is whatever the test puts in __friend
