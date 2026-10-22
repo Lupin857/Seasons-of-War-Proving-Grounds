@@ -4089,16 +4089,17 @@ function pokeStyle(u, side){
 function cardHTML(u, side, mode){
   if (!u) return '';
   const hp = Math.max(0, Math.min(100, (u.pow - u.dmg) / Math.max(1, u.pow) * 100));
-  const pk = pokeStyle(u, side);
+  const pk = pokeStyle(u, VS(side));
   const vr = [u.van ? 'V' : '', u.rear ? 'R' : ''].filter(Boolean).join(' ');
-  return `<div class="card ${mode}${pk.html ? ' poked' : ''}" data-side="${side}" data-uid="${side}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${pk.style}"${pk.title ? ` title="${esc(pk.title)}"` : ''}>${pk.html}
+  return `<div class="card ${mode}${pk.html ? ' poked' : ''}" data-side="${VS(side)}" data-uid="${side}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${pk.style}"${pk.title ? ` title="${esc(pk.title)}"` : ''}>${pk.html}
     <span class="ctop"><span class="cn">${esc(u.name)}</span><span class="cpw"><b title="Power">${u.pow}</b><i>Lv ${u.lvl}${vr ? ' · ' + vr : ''}</i></span></span>
     ${zhChip(u.name)}
     <span class="hprow"><span class="hp"><i style="width:${hp}%"></i></span><span class="hpn${u.dmg ? ' hurt' : ''}"><b>${Math.max(0, u.pow - u.dmg)}</b>/${u.pow} hp</span></span></div>`;
 }
 const graveHTML = (g, side) => `<div class="grave">${g.length ? g.map(u => `<b data-uid="${side}-${u.uid}">${esc(u.name)}</b>`).join('') : 'Empty'}</div>`;
 // the rest of a deck, as a slightly splayed stack of name strips (the next card up sits nearest the revealed one)
-function miniHTML(u, side, k){
+function miniHTML(u, rside, k){
+  const side = VS(rside);
   const tk = (u.arm ? ` +${u.arm} Arm` : '') + (u.tr ? ` +${u.tr} Train` : '') + (u.sh ? ` ${u.sh} Shield` : '');
   // tokens show as thin card edges sticking out past the strip
   const t = tokenList(u).slice(0, 4), sgn = side === 1 ? -1 : 1;
@@ -4106,7 +4107,7 @@ function miniHTML(u, side, k){
   const edges = t.map((x, j) => { const dx = sgn * 6 * (j + 1), c = `var(${TOKS[x].c})`;
     return `${dx}px ${-sgn * 2 * (j + 1)}px 0 -1px ${TOKS[x].fill || `color-mix(in srgb, ${c} 25%, var(--surface))`},${dx}px ${-sgn * 2 * (j + 1)}px 0 0 ${c}`; }).join(',');
   const st = `--k:${k}` + (edges ? `;box-shadow:inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'}),${edges};margin-${side === 1 ? 'left' : 'right'}:${6 * t.length}px` : '');
-  return `<div class="card mini" data-side="${side}" data-uid="${side}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${st}" title="${esc(u.name)} · ${u.pow} power · Lv ${u.lvl}${tk}"><span class="cn">${esc(u.name)}</span><span class="mp">${u.pow}</span></div>`;
+  return `<div class="card mini" data-side="${side}" data-uid="${rside}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${st}" title="${esc(u.name)} · ${u.pow} power · Lv ${u.lvl}${tk}"><span class="cn">${esc(u.name)}</span><span class="mp">${u.pow}</span></div>`;
 }
 // The table: the AI sits across from you (its row is rotated: graveyard, charge, then its deck on the far side),
 // you sit at the bottom (your deck, charge, graveyard). Charges meet in the middle.
@@ -4114,9 +4115,9 @@ function lineHTML(f, names){
   const [a, b] = f.snap;
   const deckZone = (sd, side) => {
     const rev = sd.deck[0], rest = sd.deck.slice(1);
-    const stack = rest.length ? `<div class="stack">${(side === 1 ? rest.slice().reverse() : rest).map((u, k) => miniHTML(u, side, side === 1 ? rest.length - 1 - k : k)).join('')}</div>` : '';
+    const stack = rest.length ? `<div class="stack">${(VS(side) === 1 ? rest.slice().reverse() : rest).map((u, k) => miniHTML(u, side, VS(side) === 1 ? rest.length - 1 - k : k)).join('')}</div>` : '';
     const top = rev ? cardHTML(rev, side, 'revealed') : '<div class="slot">Deck empty</div>';
-    return `<div class="tz deckz"><span class="zl">${names[side]} revealed · ${sd.deck.length} in deck</span><div class="tzc">${side === 1 ? stack + top : top + stack}</div></div>`;
+    return `<div class="tz deckz"><span class="zl">${names[side]} revealed · ${sd.deck.length} in deck</span><div class="tzc">${VS(side) === 1 ? stack + top : top + stack}</div></div>`;
   };
   const chargeZone = (sd, side) => `<div class="tz chz"><span class="zl">${names[side]} charge</span><div class="tzc"><div class="charge">${cardHTML(sd.charge, side, 'charging') || '<span class="note">Empty</span>'}</div></div></div>`;
   const graveZone = (sd, side) => `<div class="tz grz"><span class="zl">${names[side]} graveyard</span><div class="tzc">${graveHTML(sd.grave, side)}</div></div>`;
@@ -4126,19 +4127,20 @@ function lineHTML(f, names){
     const items = Object.keys(pl.city).filter(n => pl.city[n] > 0 && BDEFS[n]).sort((a, b) => (fire.has(b) - fire.has(a)) || (a === 'Field') - (b === 'Field'));
     const chip = n => { const lv = n === 'Field' ? '' : BDEFS[n].lv.length > 1 ? `Lv ${bLvl(pl, n)}` : '';
       return `<span class="bchip${fire.has(n) ? ' battle' : ''}" data-b="${esc(n)}" title="${esc(n)}: ${esc(BDEFS[n].t || '')}"><b>${esc(n)}</b>${lv ? `<i>${lv}</i>` : ''}</span>`; };
-    return `<div class="city s${side}" data-side="${side}"><span class="zl">${names[side]} city</span><div class="bchips">${items.flatMap(n => n === 'Field' ? Array(pl.city[n]).fill(n) : [n]).map(chip).join('') || '<span class="note">No buildings</span>'}</div></div>`;
+    return `<div class="city s${VS(side)}" data-side="${VS(side)}"><span class="zl">${names[side]} city</span><div class="bchips">${items.flatMap(n => n === 'Field' ? Array(pl.city[n]).fill(n) : [n]).map(chip).join('') || '<span class="note">No buildings</span>'}</div></div>`;
   };
+  const T = VS(1), M = VS(0), sn = [a, b];   // T: the side drawn across the top; M: the side drawn along the bottom
   return `<div class="linewrap"><div class="line table">
-    ${cityRow(1)}
-    <div class="trow s1">${graveZone(b, 1)}${chargeZone(b, 1)}${deckZone(b, 1)}</div>
+    ${cityRow(T)}
+    <div class="trow s1">${graveZone(sn[T], T)}${chargeZone(sn[T], T)}${deckZone(sn[T], T)}</div>
     <div class="clash" aria-hidden="true">⚔</div>
-    <div class="trow s0">${deckZone(a, 0)}${chargeZone(a, 0)}${graveZone(a, 0)}</div>
-    ${cityRow(0)}
+    <div class="trow s0">${deckZone(sn[M], M)}${chargeZone(sn[M], M)}${graveZone(sn[M], M)}</div>
+    ${cityRow(M)}
   </div></div>`;
 }
 function chronHTML(frames, at){
   return `<div class="chron">${frames.map((f, k) => [f, k]).filter(([, k]) => k <= at).reverse().map(([f, k]) => `<div class="fr ${k===at?'on':''} ${k>at?'future':''}" data-act="fr" data-k="${k}" tabindex="0"><h3>${esc(f.label)}</h3><ul>${
-    f.lines.map(l => `<li class="${l.side===0?'a':l.side===1?'b':''}">${esc(l.t)}</li>`).join('') || '<li>Nothing happens.</li>'}</ul></div>`).join('')}</div>`;
+    f.lines.map(l => `<li class="${VS(l.side)===0?'a':VS(l.side)===1?'b':''}">${esc(l.t)}</li>`).join('') || '<li>Nothing happens.</li>'}</ul></div>`).join('')}</div>`;
 }
 
 /* ===================== PLAY ===================== */
@@ -4148,6 +4150,9 @@ let aiTimer = null;
 /* Pass and play: two people share one device. The Play screen shows the game from one player's seat:
    in the shop, whoever's turn it is; in Mobilize, each player in turn behind a hand-off screen so deck orders stay secret. */
 const PP = () => !!(G && G.pp);
+// Online, each player sees the game from their own seat: you are always drawn in blue along the bottom (the left of the
+// scoreboard), even when you joined second. VS maps a real side (0 host, 1 guest) to the side it is drawn as.
+const VS = s => (G && G.net && NET && NET.seat === 1 && (s === 0 || s === 1)) ? 1 - s : s;
 function seat(){ if (G && G.net && NET) return NET.seat; if (!PP()) return 0; if (G.phase === 'shop') return cur(G); if (G.phase === 'mobilize') return ui.mobSeat || 0; return 0; }
 const nm = i => G.labels[i];
 const poss = i => PP() ? `${esc(nm(i))}'s` : i === 0 ? 'Your' : 'AI';
@@ -4394,7 +4399,7 @@ function flyBuys(i, before, mk){
   const p = G.players[i], side = i === seat() ? ':not(.ai)' : '.ai', got = [];
   for (const [k, now] of [['u', p.hand], ['b', p.city]]) for (const n in now) if ((now[n] || 0) > (before[k][n] || 0)) got.push(n);
   got.forEach((n, j) => {
-    const tos = $('view-play').querySelectorAll(`.dsheet.s${i} .fcard${side}[data-card="${CSS.escape(n)}"]`), to = tos[tos.length - 1];
+    const tos = $('view-play').querySelectorAll(`.dsheet.s${VS(i)} .fcard${side}[data-card="${CSS.escape(n)}"]`), to = tos[tos.length - 1];
     const src = mk.get(n) || mk.get("Mason's Guild") || mk.get('__deck_' + cardKind(n)) || mk.get('__deck_u');
     if (to && src) setTimeout(() => flyCard(src, to), j * 140);
     else { const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => db.animate([{transform:'scale(1)'}, {transform:'scale(1.07)', background:'var(--or-soft)'}, {transform:'none'}], {duration:520, easing:'ease-out'}), 380 + j * 140); }
@@ -4758,14 +4763,15 @@ function boardHTML(where){
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const turnChip = i => !shopping ? '' : G.passed[i] ? '<span class="tchip passed">Passed</span>' : cur(G) === i ? `<span class="tchip now">${PP() && !G.net ? 'Shopping' : i === seat() ? 'Your turn' : 'Their turn'}</span>` : '';
-  const deckBtn = i => `<button type="button" class="side ${i ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${deckLabel(i)}: view cards">
+  const deckBtn = i => `<button type="button" class="side ${VS(i) ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${deckLabel(i)}: view cards">
       <span class="who"><span class="dkic" aria-hidden="true"><i></i><i></i></span>${deckLabel(i)}<span class="dkgo" aria-hidden="true">›</span></span>
       <span class="meta">$${B.money[i]} · income $${B.inc[i]}</span>
-      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : i === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${turnChip(i)}</button>`;
+      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${turnChip(i)}</button>`;
+  const L = VS(0), Rt = VS(1);   // you on the left
   return `<div class="board${where === 'dock' ? ' inDock' : ' topboard'}">
-    ${deckBtn(0)}
-    <div class="mid"><div class="sc">${B.tot[0]} – ${B.tot[1]}</div><div class="rd">Round ${G.round} · ${phaseLabel()} · first to ${G.target}</div></div>
-    ${deckBtn(1)}
+    ${deckBtn(L)}
+    <div class="mid"><div class="sc">${B.tot[L]} – ${B.tot[Rt]}</div><div class="rd">Round ${G.round} · ${phaseLabel()} · first to ${G.target}</div></div>
+    ${deckBtn(Rt)}
   </div>`;
 }
 // the cards each player owns (formerly "forces"), opened from the deck buttons on the scoreboard
@@ -4777,8 +4783,8 @@ function deckSheetHTML(){
                     : forcesHTML({...p, hand:pubHand(p)}, false, aiFresh(), true);
   const note = canSell ? '<p class="note">On your turn you can sell any card for $1, even one you just bought. Selling is free: it doesn\'t use a buy or end your turn.</p>'
     : !mine && G.phase === 'mobilize' && !ui.battle ? '<p class="note">Their deck order is secret.</p>' : '';
-  const tabs = [0, 1].map(k => `<button type="button" role="tab" aria-selected="${k === i}" class="s${k}" data-act="deck-open" data-p="${k}">${deckLabel(k)}</button>`).join('');
-  return `<div class="decksheet" data-act="deck-close"><div class="dsheet s${i}" role="dialog" aria-modal="true" aria-label="${deckLabel(i)}">
+  const tabs = [VS(0), VS(1)].map(k => `<button type="button" role="tab" aria-selected="${k === i}" class="s${VS(k)}" data-act="deck-open" data-p="${k}">${deckLabel(k)}</button>`).join('');
+  return `<div class="decksheet" data-act="deck-close"><div class="dsheet s${VS(i)}" role="dialog" aria-modal="true" aria-label="${deckLabel(i)}">
     <div class="dshead"><div class="dstabs" role="tablist">${tabs}</div><button type="button" class="dsclose" data-act="deck-close" aria-label="Close">✕</button></div>
     <div class="dsbody forces">${note}${body}</div></div></div>`;
 }
@@ -4988,7 +4994,7 @@ function forceCard(n, c, kind, canSell, isNew, ai){
   const sell = canSell && !(kind === 'u' && n === 'Recruit')
     ? `<button type="button" data-act="sell-${kind}" data-name="${esc(n)}" title="${kind === 'u' ? 'Sell one copy' : 'Sell one level'} for $1">Sell $1</button>` : '';
   const oside = ai ? 1 - seat() : seat();   // whose card this is: blue for seat 0, red for seat 1
-  return `<div class="mcard fcard ${kind}${ai ? ' ai' : ''} so${oside}${isNew ? ' isnew hasst' : ''}" data-card="${esc(n)}"${copyStyle(extraCopies(n, kind, c), kind)}>
+  return `<div class="mcard fcard ${kind}${ai ? ' ai' : ''} so${VS(oside)}${isNew ? ' isnew hasst' : ''}" data-card="${esc(n)}"${copyStyle(extraCopies(n, kind, c), kind)}>
     ${cardFace(n, kind, c)}
     ${stampsHTML([isNew ? ['st-new', 'NEW'] : null])}
     ${sell}
@@ -5020,7 +5026,7 @@ function mirHandHTML(p, myTurn, ai){
 }
 const aiFresh = () => new Set((G.shopBought && G.shopBought[1 - seat()]) || []);
 function logHTML(){
-  return `<div class="log">${G.log.slice(-16).reverse().map(l => `<span class="${l.side===0?'a':l.side===1?'b':''}">${esc(l.t)}</span>`).join('')}</div>`;
+  return `<div class="log">${G.log.slice(-16).reverse().map(l => `<span class="${VS(l.side)===0?'a':VS(l.side)===1?'b':''}">${esc(l.t)}</span>`).join('')}</div>`;
 }
 function budgetHTML(){
   const me = G.players[seat()];
@@ -5179,7 +5185,7 @@ function shopHTML(){
     : G.passed[0] ? 'You passed. The AI is finishing its shopping.' : myTurn ? 'Your turn: buy one card or pass.' : 'The AI is thinking: it test-battles its options against your army…';
   const bmN = bVal(me, 'Black Market');
   return `${budgetHTML()}
-  <div class="row turnrow"><span class="turn ${myTurn ? '' : 'ai'}${PP() ? ` pp s${S}` : ''}">${turnTxt}</span>
+  <div class="row turnrow"><span class="turn ${myTurn ? '' : 'ai'}${PP() ? ` pp s${VS(S)}` : ''}">${turnTxt}</span>
     <span class="grow"></span>
     <button type="button" class="primary passbtn" data-act="pass" ${myTurn ? '' : 'disabled'}>Pass</button></div>
   <div class="panel mktp show-${ui.mktTab === 'b' ? 'b' : 'u'}"><div class="mkthead"><h2>Market</h2><span class="grow"></span>${musterPileHTML()}
@@ -5247,7 +5253,7 @@ function placeTok(kind, to, from){
 }
 function handoffHTML(){
   const S = ui.handoff, O = 1 - S;
-  return `<div class="panel handoff s${S}">
+  return `<div class="panel handoff s${VS(S)}">
     <span class="eyebrow">Round ${G.round} · Mobilize</span>
     <h2>Pass the device to ${esc(nm(S))}</h2>
     <p class="note">${S === 0 ? `${esc(nm(O))}, look away: ${esc(nm(S))} sets a secret deck order first.` : `${esc(nm(0))} has locked in. ${esc(nm(O))}, look away while ${esc(nm(S))} sets theirs.`}</p>
@@ -5255,7 +5261,7 @@ function handoffHTML(){
   </div>`;
 }
 function mobilizeHTML(){
-  if (G.net && NET && NET.acts.length > NET.applied[NET.seat]) return `<div class="panel handoff s${NET.seat}"><span class="eyebrow">Round ${G.round} · Mobilize</span><h2>Deck locked in</h2><p class="note">Waiting for ${esc(nm(1 - NET.seat))} to set their deck order. The battle starts as soon as they lock in.</p></div>`;
+  if (G.net && NET && NET.acts.length > NET.applied[NET.seat]) return `<div class="panel handoff s${VS(NET.seat)}"><span class="eyebrow">Round ${G.round} · Mobilize</span><h2>Deck locked in</h2><p class="note">Waiting for ${esc(nm(1 - NET.seat))} to set their deck order. The battle starts as soon as they lock in.</p></div>`;
   if (G.net && !ui.draft) ui.draft = netClone(defaultDraft);
   if (PP() && ui.handoff != null) return handoffHTML();
   const S = seat(), O = 1 - S, me = G.players[S], d = ui.draft || [];
@@ -5312,12 +5318,12 @@ function mobilizeHTML(){
 }
 function battleHTML(){
   const res = ui.battle, f = res.frames[ui.frame], w = res.result.w, last = res.frames.length - 1, atEnd = ui.frame === last;
-  const wc = w===0 ? 'a' : w===1 ? 'b' : 'd';
+  const wc = VS(w)===0 ? 'a' : VS(w)===1 ? 'b' : 'd';
   let tail;
   if (!atEnd) tail = '';
   else if (G.over){
     const msg = G.winner < 0 ? 'The game ends in a draw.' : PP() ? `${esc(nm(G.winner))} wins the game.` : G.winner === 0 ? 'You win the game.' : 'The AI wins the game.';
-    tail = `<div class="row"><span class="verdict ${G.winner===0?'a':G.winner===1?'b':'d'}">${msg}</span><span class="note">${esc(res.result.why)}</span>${ratingNoteHTML()}<span class="grow"></span>${G.rec ? '<button type="button" data-act="rec-copy">Copy match for Claude</button>' : ''}<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button></div>`;
+    tail = `<div class="row"><span class="verdict ${VS(G.winner)===0?'a':VS(G.winner)===1?'b':'d'}">${msg}</span><span class="note">${esc(res.result.why)}</span>${ratingNoteHTML()}<span class="grow"></span>${G.rec ? '<button type="button" data-act="rec-copy">Copy match for Claude</button>' : ''}<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button></div>`;
   } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
   return `<div class="panel">
@@ -5420,7 +5426,7 @@ function abNoteHTML(g, f, i){
   if (ab.b){ const pl = G && G.players && G.players[ab.s]; title = ab.n; body = BDEFS[ab.n] ? cardTx(ab.n, 'b', pl ? bLvl(pl, ab.n) : 1, true) : ''; }
   else { const nm0 = ab.as || ab.n; title = ab.as ? `${ab.n} (as ${ab.as})` : ab.n; body = DEFS[nm0] ? cardTx(nm0, 'u', lvl, true) : ''; }
   const tg = [...new Set(g.lines.map(l => l.to).filter(x => x && x !== ab.u).map(x => { const u = units.get(x); return u ? u.name.replace(/^Jester → /, 'Jester as ') : null; }).filter(Boolean))];
-  return `<div class="abbox s${ab.s}" data-abi="${i}"><b class="abn">${esc(title)}</b><span class="abt"><span class="kwt">${body}</span>${tg.length ? ` <span class="abtg">(${tg.map(esc).join(', ')})</span>` : ''}</span></div>`;
+  return `<div class="abbox s${VS(ab.s)}" data-abi="${i}"><b class="abn">${esc(title)}</b><span class="abt"><span class="kwt">${body}</span>${tg.length ? ` <span class="abtg">(${tg.map(esc).join(', ')})</span>` : ''}</span></div>`;
 }
 function mountAbWin(){
   const stage = $('view-play').querySelector('.stage'); if (!stage) return;
@@ -5436,13 +5442,13 @@ function mountAbWin(){
   const zoneOf = ab => { if (!ab.u) return null; const [o, id] = ab.u.split('-').map(Number), sd = f.snap[o];
     if (sd.charge && sd.charge.uid === id) return 'charge'; if (sd.deck.some(u => u.uid === id)) return 'deck'; if (sd.grave.some(u => u.uid === id)) return 'grave'; return null; };
   const half = g => {
-    const z = zoneOf(g.ab), s0 = g.ab.s === 0;
+    const z = zoneOf(g.ab), s0 = VS(g.ab.s) === 0;
     if (z) return z === 'deck' ? (s0 ? 'L' : 'R') : (s0 ? 'R' : 'L');
     const el = abSrcEl(stage, g.ab); if (!el) return s0 ? 'L' : 'R'; const r = el.getBoundingClientRect(); return r.left + r.width / 2 < mid ? 'L' : 'R'; };
   const where = gs.map(half);
   const col = (s, h) => gs.map((g, i) => [g, i]).filter(([g, i]) => g.ab.s === s && where[i] === h).map(([g, i]) => abNoteHTML(g, f, i)).join('');
   const win = document.createElement('div'); win.className = 'abwin';
-  win.innerHTML = [0, 1].flatMap(s => ['L', 'R'].map(h => { const c = col(s, h); return c ? `<div class="abcol s${s} ${h}">${c}</div>` : ''; })).join('');
+  win.innerHTML = [0, 1].flatMap(s => ['L', 'R'].map(h => { const c = col(s, h); return c ? `<div class="abcol s${VS(s)} ${h}">${c}</div>` : ''; })).join('');
   try{ kwDecorate(win); }catch(e){}
   win.addEventListener('click', e => { const bx = e.target.closest('.abbox'); if (bx){ e.stopPropagation(); bx.classList.toggle('min'); } });
   stage.appendChild(win);
@@ -5456,7 +5462,7 @@ function mountAbWin(){
 }
 function abSrcEl(stage, ab){
   return ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`) || stage.querySelector(`[data-uid="${ab.u}"]`))
-              : stage.querySelector(`.city[data-side="${ab.s}"] .bchip[data-b="${CSS.escape(ab.n)}"]`);
+              : stage.querySelector(`.city[data-side="${VS(ab.s)}"] .bchip[data-b="${CSS.escape(ab.n)}"]`);
 }
 function placeAbLines(stage, svg, gs){
   const sr = stage.getBoundingClientRect(), phone = compact();
@@ -5471,11 +5477,11 @@ function placeAbLines(stage, svg, gs){
     let pt = null;
     const el = abSrcEl(stage, ab);
     if (el){ const r = el.getBoundingClientRect(); if (r.width){
-      pt = {x:r.left + r.width / 2 - sr.left, y:(ab.s === 0 ? r.bottom - 4 : r.top + 4) - sr.top}; } }   // the card edge facing its note
+      pt = {x:r.left + r.width / 2 - sr.left, y:(VS(ab.s) === 0 ? r.bottom - 4 : r.top + 4) - sr.top}; } }   // the card edge facing its note
     if (!pt) return;
-    const x1 = br.left + br.width / 2 - sr.left, y1 = (ab.s === 0 ? br.top : br.bottom) - sr.top;
+    const x1 = br.left + br.width / 2 - sr.left, y1 = (VS(ab.s) === 0 ? br.top : br.bottom) - sr.top;
     const mx = x1, my = (y1 + pt.y) / 2;
-    out += `<path class="abl s${ab.s}" d="M${x1},${y1} Q${mx},${my} ${pt.x},${pt.y}"/><circle class="abd s${ab.s}" cx="${pt.x}" cy="${pt.y}" r="3.5"/><circle class="abd s${ab.s}" cx="${x1}" cy="${y1}" r="2.5"/>`;
+    out += `<path class="abl s${VS(ab.s)}" d="M${x1},${y1} Q${mx},${my} ${pt.x},${pt.y}"/><circle class="abd s${VS(ab.s)}" cx="${pt.x}" cy="${pt.y}" r="3.5"/><circle class="abd s${VS(ab.s)}" cx="${x1}" cy="${y1}" r="2.5"/>`;
   });
   if (svg._last !== out){ svg.innerHTML = out; svg._last = out; }
 }
@@ -5500,23 +5506,23 @@ function drawArrows(list, animate, rects){
     let chipSel = null;
     if (!h.from){   // a building: point from its chip in that player's city row
       const bn = ['Training Yard', 'Trebuchet', 'Armory', 'Infirmary'].find(b => (h.t || '').includes(b));
-      chipSel = bn ? `.city[data-side="${h.by}"] .bchip[data-b="${bn}"]` : null;
+      chipSel = bn ? `.city[data-side="${VS(h.by)}"] .bchip[data-b="${bn}"]` : null;
     }
     const n = lane[h.by]++;
     const chip = chipSel && stage.querySelector(chipSel);
     if (chip && animate === true && chip.animate) chip.animate([{boxShadow:'0 0 0 0 transparent'}, {boxShadow:'0 0 0 4px color-mix(in srgb, var(--or) 45%, transparent)', offset:.3}, {boxShadow:'0 0 0 0 transparent'}], {duration:700, delay:n * 90});
-    const cls = h.tok ? `arw tok t-${h.tok}` : `arw s${h.by}`, mk = h.tok ? `aht-${h.tok}` : `ah${h.by}`;
+    const cls = h.tok ? `arw tok t-${h.tok}` : `arw s${VS(h.by)}`, mk = h.tok ? `aht-${h.tok}` : `ah${VS(h.by)}`;
     const text = h.tok === 'ret' ? 'returns' : h.tok ? `+${h.amt}${h.tok === 'rec' && h.amt > 1 ? ' Recruits' : TOKLBL[h.tok]}` : (h.amt ? `${h.amt}` : 'blocked');
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('class', cls); path.setAttribute('marker-end', `url(#${mk})`);
     if (animate === true) path.style.animationDelay = (n * 90) + 'ms';
     svg.appendChild(path);
     const lbl = document.createElementNS(NS, 'text');
-    lbl.setAttribute('class', h.tok ? `arl tok t-${h.tok}` : `arl s${h.by}`); lbl.textContent = text;
+    lbl.setAttribute('class', h.tok ? `arl tok t-${h.tok}` : `arl s${VS(h.by)}`); lbl.textContent = text;
     if (animate === true) lbl.style.animationDelay = (n * 90 + 200) + 'ms';
     svg.appendChild(lbl);
     // each arrow remembers what it joins, so it can be re-aimed at the cards wherever they are drawn on screen
-    path._arw = {from:h.from, to:h.to, chip:chipSel, by:h.by, n, self:!!(h.tok && h.from === h.to && h.tok !== 'ret'), lbl};
+    path._arw = {from:h.from, to:h.to, chip:chipSel, by:VS(h.by), n, self:!!(h.tok && h.from === h.to && h.tok !== 'ret'), lbl};
     placeArrow(path, stage, sr);
   }
   svg.dataset.full = drawn >= pairs.size ? '1' : '0';   // an arrow to a unit that doesn't exist yet (a new Recruit) is missing
@@ -5664,7 +5670,7 @@ function animateTokens(prevF, curF){
       const order = tokenList(kept).concat(added).slice(0, pokeCap()), start = Math.min(tokenList(kept).length, order.length);
       if (start >= order.length) continue;
       const set = (n, pop) => {
-        const pp = pokeParts(order.slice(0, n), side);
+        const pp = pokeParts(order.slice(0, n), VS(side));
         el.style.boxShadow = pp.shadow; Object.assign(el.style, {marginLeft:'', marginRight:'', marginTop:'', marginBottom:''}, n ? pp.room : {});
         for (const x of el.querySelectorAll(':scope > .pk')) x.remove();
         el.insertAdjacentHTML('afterbegin', pp.html);
@@ -5771,7 +5777,7 @@ let turnKey = null, turnBase = null, turnMarks = [null, null];
 function turnNewsCard(ev, side){
   const d = ev.k === 'u' ? DEFS[ev.n] : BDEFS[ev.n]; if (!d) return '';
   const what = ev.a === 'buy' ? `Bought · $${ev.price}` : 'Sold · $1';
-  return `<div class="tfcard ${ev.k} ${ev.a} s${side}"><span class="tfn">${esc(ev.n)}</span><span class="tfa">${what}${ev.on ? ` · leveled ${esc(ev.on)}` : ''}</span><span class="tft">${kwText(d.t.replace(/\{[^}]*\}/g, '…'))}</span></div>`;
+  return `<div class="tfcard ${ev.k} ${ev.a} s${VS(side)}"><span class="tfn">${esc(ev.n)}</span><span class="tfa">${what}${ev.on ? ` · leveled ${esc(ev.on)}` : ''}</span><span class="tft">${kwText(d.t.replace(/\{[^}]*\}/g, '…'))}</span></div>`;
 }
 function turnWatch(){
   if (turnBase === null) turnBase = document.title.replace(/^● [^·]+· /, '');
@@ -5804,7 +5810,7 @@ function turnWatch(){
 function turnFlash(big, small, kind, side, news){
   document.querySelectorAll('.turnflash').forEach(n => n.remove());
   const el = document.createElement('div');
-  el.className = `turnflash ${kind} s${side}`; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.tabIndex = -1;
+  el.className = `turnflash ${kind} s${VS(side)}`; el.setAttribute('role', 'alertdialog'); el.setAttribute('aria-live', 'assertive'); el.tabIndex = -1;
   el.innerHTML = `<div class="tfbox"><b>${esc(big)}</b>${small ? `<span>${esc(small)}</span>` : ''}${news || ''}<em>${kind === 'theirs' ? 'Tap to hide' : 'Tap anywhere to continue'}</em></div>`;
   // stays up until tapped or clicked (anywhere); that tap only dismisses it, so it can't buy a card by accident
   const close = e => { if (e){ e.preventDefault(); e.stopPropagation(); } el.classList.add('out'); setTimeout(() => el.remove(), 160); document.removeEventListener('keydown', key, true); };
