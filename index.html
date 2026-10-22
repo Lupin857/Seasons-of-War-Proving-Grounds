@@ -279,6 +279,39 @@ table.sticky .grp .g1,table.sticky .grp .g2,table.sticky .grp .g3{text-align:cen
 .mirhand{display:flex;flex-wrap:wrap;gap:6px}
 .mirhand .mirseal{min-width:170px;flex:1 1 170px;max-width:280px}
 .mirhand .row{gap:4px;margin-top:3px}
+.mirlive{white-space:nowrap;flex:none;font-family:var(--f-body);font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border-radius:999px;background:var(--or);color:var(--bg);vertical-align:1px}
+/* miracles in hand: the shop tab (bottom corner), its tray, the Mobilize panel and the big popup */
+.mircard{display:flex;flex-direction:column;gap:3px;text-align:left;padding:6px 7px;width:var(--card-sq);aspect-ratio:1/1;overflow:hidden;font:inherit;border-radius:8px;border:1px solid var(--or);background:var(--or-soft);box-shadow:inset 0 3px 0 var(--or);min-width:0;color:var(--ink)}
+.mircard .mtop{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.mircard b{color:var(--ink);font-family:var(--f-body);font-weight:700;font-size:.8rem;line-height:1.15;min-width:0}
+.mircard .mseal{position:relative;flex:none;align-self:center;width:40px;height:40px;margin:auto 0 2px;border-radius:50%;border:1.5px solid var(--or);color:var(--or);display:flex;align-items:center;justify-content:center;font-size:1.25rem;line-height:1}
+.mircard .mseal::after{content:"";position:absolute;inset:2.5px;border:1px solid var(--or);border-radius:50%}
+.mircard.plain{opacity:1!important}
+.mircard .mtx{font-size:.68rem;line-height:1.25;color:var(--muted);margin-top:auto;overflow:hidden}
+.mircard:not(.glow):not(.live):not(.big){opacity:.7}
+.mircard.live{border-width:2px}
+.mircard.glow,.mirtab.glow{animation:mirglow 1.6s ease-in-out infinite}
+@keyframes mirglow{0%,100%{box-shadow:inset 0 3px 0 var(--or),0 0 0 0 color-mix(in srgb, var(--or) 0%, transparent)}50%{box-shadow:inset 0 3px 0 var(--or),0 0 14px 3px color-mix(in srgb, var(--or) 70%, transparent)}}
+@media (prefers-reduced-motion: reduce){ .mircard.glow,.mirtab.glow{animation:none;box-shadow:inset 0 3px 0 var(--or),0 0 0 3px color-mix(in srgb, var(--or) 55%, transparent)} }
+.mirgrid{display:grid;grid-template-columns:repeat(auto-fill,var(--card-sq));gap:8px}
+.mirdock{position:fixed;right:max(16px, env(safe-area-inset-right,0px));bottom:max(16px, env(safe-area-inset-bottom,0px));z-index:60;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.mirdock > *{pointer-events:auto}
+.mirtab{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:999px;border:1px solid var(--or);background:var(--surface);font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+.mirtab .ms,.mobmirp .ms{color:var(--or);font-size:1.1rem;line-height:1}
+.mirtab .mc{font-family:var(--f-mono);font-size:.78rem;min-width:1.5em;padding:0 5px;border-radius:999px;background:var(--or);color:var(--bg);text-align:center}
+.mirdock.open .mirtab{background:var(--or-soft)}
+.mirtray{width:min(calc(var(--card-sq) * 3 + 46px), calc(100vw - 32px));max-height:min(60vh, 520px);overflow:auto;box-shadow:0 10px 32px rgba(0,0,0,.25)}
+.mobright{display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (max-width:640px){ .mirdock{bottom:calc(var(--dockh,0px) + 10px);right:10px} .mirtab{padding:7px 12px} }
+.mirmodal{position:fixed;inset:0;z-index:80;background:rgba(10,12,18,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.mirmbox{width:min(420px,100%);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 16px 48px rgba(0,0,0,.35)}
+.mircard.big{width:auto;aspect-ratio:auto;padding:18px 18px 20px;cursor:default;opacity:1}
+.mircard.big b{font-family:var(--f-display);font-weight:400;color:var(--or)}
+.mircard.big b{font-size:1.6rem}
+.mircard.big .mtx{font-size:1.05rem;line-height:1.45;color:var(--ink)}
+.mirmbox .row button{padding:9px 16px}
+@media (prefers-reduced-motion: no-preference){ .mirmbox{animation:mirpopin .16s ease-out} @keyframes mirpopin{from{transform:scale(.94);opacity:0}} }
+@media (max-width:640px){ .mircard .mseal{width:32px;height:32px;font-size:1rem} }
 .mirtog{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
 .mirtog input{margin:0}
 /* shop: budget bar, affordability, level jump, AI buys */
@@ -1468,7 +1501,7 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
         <li>Battle: same engine as the Battle Sandbox (Charge before Reveal except Pigeon Hunter, which reveals before Charges; Vanguard reveals first, deaths after abilities, damage clears when hidden). A Reveal still resolves if Recruiter covers the unit, and triggers again when it is uncovered.</li>
         <li>Cathedral: +1 point while owned, but you can only win at the end of a battle phase in which you won the battle.</li>
         <li>Mason's Guild attaches to one of your buildings and counts as an extra copy of it. Black Market ($3) looks at the top 3/6/9 cards of either the unit deck or the building deck (your choice, not both) once per shop; you may buy one of them for $1/$2/$3 less (by its level) (it still uses your normal buys for that kind). Unbought cards go to the bottom.</li>
-        <li>Miracles (optional, set at the start of a game): 9 in the unit deck and 4 in the building deck. A miracle is never shown alone: the next card from its deck is laid on top of it (more miracles stack). That card costs its price plus each miracle's surcharge (discounts apply to the total), and its buyer gets every miracle under it. Money miracles pay at once, and Salvage Writ is used at once (up to 1 other display card goes to the Salvage pile and is replaced from its deck, then you take another shop turn before your opponent); the others go to your hand, which both players can see, and are used later: Recruit, Armament and Training miracles at a Mobilize (place more than your own and they're used up), Divine Favor and Vision on a shop turn, and Patronage on your next buy. Unbought, a covered card goes sideways and leaves with its miracles. Black Market and Vision put a miracle they turn up on the bottom and look at one more card. Miracles can't be sold.</li>
+        <li>Miracles (optional, set at the start of a game): 9 in the unit deck and 4 in the building deck. A miracle is never shown alone: the next card from its deck is laid on top of it (more miracles stack). That card costs its price plus each miracle's surcharge (discounts apply to the total), and its buyer gets every miracle under it. Money miracles pay at once, and Salvage Writ is used at once (up to 1 other display card goes to the Salvage pile and is replaced from its deck, then you take another shop turn before your opponent); the others go to your hand, which both players can see, and are played later: Divine Favor, Vision and Patronage on your shop turn (from the ✶ Miracles tab; a played Patronage takes $2 off your next buy), and Recruit, Armament and Training miracles at a Mobilize (from the Miracles panel: their Recruits or tokens go on your bench, and the miracle is discarded once you lock in with them placed). Unbought, a covered card goes sideways and leaves with its miracles. Black Market and Vision put a miracle they turn up on the bottom and look at one more card. Miracles can't be sold.</li>
         <li>Not in this version: Recruitment Office and Outpost (0 copies on the sheet).</li>
       </ul>
     </div>
@@ -1990,7 +2023,7 @@ const MIR_TEXT = {
   tr:  v => [`hand: +${v} Training token${v === 1 ? '' : 's'} at a Mobilize`, `When you buy the card on top of this, put this card in your hand. You may discard this card at a Mobilize to place ${v} Training token${v === 1 ? '' : 's'} (on top of your Study's).`],
   writ:v => [`now: ${v === 1 ? 'a display card' : `up to ${v} display cards`} to the Salvage pile, then shop again`, `When you buy the card on top of this, move ${v === 1 ? 'up to 1 other card' : `up to ${v} other cards`} from the display to the Salvage pile (any miracles under ${v === 1 ? 'it are' : 'them are'} discarded) and deal ${v === 1 ? 'a new card' : 'new cards'} from the same deck to replace ${v === 1 ? 'it' : 'them'}. Then take another shop turn before your opponent.`],
   vis: v => [`hand: look at ${v}, buy 1`, `When you buy the card on top of this, put this card in your hand. You may discard this card on any shop turn to look at the top ${v} cards of either deck and buy one at normal price (uses a normal buy).`],
-  disc:v => [`hand: next card you buy costs $${v} less`, `When you buy the card on top of this, put this card in your hand. The next card you buy, of any kind, costs $${v} less (minimum $0). Then discard this card.`],
+  disc:v => [`hand: play it so your next buy costs $${v} less`, `When you buy the card on top of this, put this card in your hand. On your shop turn you may play it: the next card you buy, of any kind, costs $${v} less (minimum $0). Then discard this card.`],
   fav: v => [`hand: ${v === 1 ? '1 extra buy' : v + ' extra buys'} on a shop turn`, `When you buy the card on top of this, put this card in your hand. You may discard this card on any shop turn for ${v === 1 ? 'one Extra buy' : v + ' Extra buys'} at normal price.`],
 };
 function mirRetext(n){ const k = MIR_FX[n]; if (!k) return; const [sh, t] = MIR_TEXT[k](MIRS[n][k]); MIRS[n].sh = sh; MIRS[n].t = t; }
@@ -2233,7 +2266,7 @@ function buyQuote(p, b, name, kind, src, sur){
   else return {ok:false, why: kind === 'u' ? 'Unit buys used up' : 'Building buy used up'};
   if (kind === 'b' && bVal(p, "Carpenter's Guild")) price = Math.max(1, price - 1);   // Carpenter's Guild discount
   if (src === 'bm') price = Math.max(0, price - bmOff(p));   // Black Market discount: $1/$2/$3 by level
-  const disc = mirDisc(p); if (disc) price = Math.max(0, price - MIRS[disc].disc);   // Patronage: next card costs less
+  const disc = p.discArm ? mirDisc(p) : null; if (disc) price = Math.max(0, price - MIRS[disc].disc);   // Patronage (once played): next card costs less
   if (p.money < price) return {ok:false, price, slot, disc, why:`Needs $${price}`};
   return {ok:true, price, slot, disc};
 }
@@ -2260,7 +2293,7 @@ function buy(g, i, src, idx, attach, writ){
   // the situation at the moment of buying (before paying), for situational card opinions
   if (sc.name === "Mason's Guild"){ const ts = masonTargets(p); if (!ts.includes(attach)) attach = ts[0]; }
   p.money -= info.price;
-  if (info.disc){ const j = p.mir.indexOf(info.disc); if (j >= 0) p.mir.splice(j, 1); }   // the discount miracle is used up
+  if (info.disc){ const j = p.mir.indexOf(info.disc); if (j >= 0) p.mir.splice(j, 1); p.discArm = false; }   // the discount miracle is used up
   useSlot(b, sc.kind, info.slot);
   if (src === 'du') g.disp.u.splice(idx, 1);
   if (src === 'db') g.disp.b.splice(idx, 1);
@@ -2347,6 +2380,18 @@ function useFavor(g, i){
   const k = Math.max(1, MIRS['Divine Favor'].fav | 0);
   p.mir.splice(j, 1); g.buys[i].fav += k; g.buys[i].favN += k;
   g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} Divine Favor: one extra buy this shop.`, side:i});
+  return true;
+}
+// Patronage: played from hand on your shop turn; the next card you buy costs less, then it's discarded.
+// on false takes it back into hand unplayed (before buying anything with it).
+function useDisc(g, i, on){
+  const p = g.players[i];
+  if (g.phase !== 'shop' || cur(g) !== i || g.passed[i]) return false;
+  const n = mirDisc(p); if (!n) return false;
+  on = on !== false && on !== 0;
+  if (!!p.discArm === on) return false;
+  p.discArm = on;
+  g.log.push({t:on ? `${g.labels[i]} ${g.labels[i]==='You'?'play':'plays'} ${n}: the next card costs $${MIRS[n].disc} less.` : `${g.labels[i]} ${g.labels[i]==='You'?'take':'takes'} ${n} back into hand.`, side:i});
   return true;
 }
 // Vision: from hand on your shop turn, look at the top 3 of either deck and buy one (with a normal buy, normal price)
@@ -2491,9 +2536,23 @@ function finishMobilize(g){
   for (const i of [0,1]){
     const p = g.players[i], d = g.decks[i] || [];
     if (!p.mir || !p.mir.length) continue;
-    const rec = mirSpend(p, 'rec', d.filter(u => u.name === 'Recruit').length - recBase(p));
-    const arm = mirSpend(p, 'arm', d.reduce((s, u) => s + (u.arm || 0), 0) - bVal(p, 'Smithy'));
-    const trn = mirSpend(p, 'tr', d.reduce((s, u) => s + (u.tr || 0), 0) - bVal(p, 'Study'));
+    // a person's played miracles are spent first when they cover what was placed
+    const pref = p.mirPlay; delete p.mirPlay;
+    const spendP = (key, over) => {
+      if (over <= 0) return [];
+      if (pref && pref.length){
+        const left = pref.slice(), idx = [];
+        p.mir.forEach((n, j) => { const k = left.indexOf(n); if (k >= 0 && MIRS[n][key]){ left.splice(k, 1); idx.push(j); } });
+        if (idx.reduce((s, j) => s + MIRS[p.mir[j]][key], 0) >= over){
+          const sub = {mir:idx.map(j => p.mir[j])};
+          return mirSpend(sub, key, over).map(k => idx[k]);
+        }
+      }
+      return mirSpend(p, key, over);
+    };
+    const rec = spendP('rec', d.filter(u => u.name === 'Recruit').length - recBase(p));
+    const arm = spendP('arm', d.reduce((s, u) => s + (u.arm || 0), 0) - bVal(p, 'Smithy'));
+    const trn = spendP('tr', d.reduce((s, u) => s + (u.tr || 0), 0) - bVal(p, 'Study'));
     const used = rec.concat(arm, trn).sort((a, b) => b - a), names = used.map(j => p.mir[j]);
     for (const j of used) p.mir.splice(j, 1);
     if (names.length) g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'call':'calls'} on ${names.join(' and ')}.`, side:i});
@@ -3361,6 +3420,7 @@ function aiShopTurnSeen(g, i, depth){
 function aiUseMiracles(g, i, G, mE, TH){
   const p = g.players[i], b = g.buys[i], mir = p.mir || [];
   if (!mir.length || g.passed[i]) return;
+  if (!p.discArm && mirDisc(p)) useDisc(g, i, true);
   if (mir.includes('Vision') && !(g.vis && g.vis[i]) && p.money >= 1 && (b.u < RULES.unitsPerShop || b.b < RULES.bldgPerShop)){
     const gu = g.uDeck.some(n => !isMir(n)) ? bmPeekGain(g, i, MIRS.Vision.vis, 'u') : -1;
     const gb = g.bDeck.some(n => !isMir(n)) ? bmPeekGain(g, i, MIRS.Vision.vis, 'b') : -1;
@@ -4456,7 +4516,7 @@ function recBattle(g){
   recSave(g);
 }
 // wrap the shop actions so every action (yours and the AI's) is recorded with the board as it was just before
-for (const [nm, act] of [['buy','buy'], ['sell','sell'], ['pass','pass'], ['useBM','black market'], ['useFavor','divine favor'], ['useVision','vision'], ['useWrit','salvage writ']]){
+for (const [nm, act] of [['buy','buy'], ['sell','sell'], ['pass','pass'], ['useBM','black market'], ['useFavor','divine favor'], ['useVision','vision'], ['useDisc','patronage'], ['useWrit','salvage writ']]){
   const f = window[nm]; if (typeof f !== 'function') continue;
   window[nm] = function(g, i, ...a){
     if (!g || !g.rec) return f.call(this, g, i, ...a);
@@ -4573,7 +4633,7 @@ let aiW = null, aiWSeq = 0, aiBusy = false;
 const aiWPending = new Map();
 function aiWorkerMain(){
   let ROOT = null, LOG = null;
-  for (const nm of ['buy', 'sell', 'pass', 'useBM', 'useVision', 'useFavor', 'useWrit']){
+  for (const nm of ['buy', 'sell', 'pass', 'useBM', 'useVision', 'useFavor', 'useDisc', 'useWrit']){
     const f = self[nm]; if (typeof f !== 'function') continue;
     self[nm] = function(g, ...a){ if (g === ROOT && LOG) LOG.push({fn:nm, args:a, why:g._why || null}); return f.call(this, g, ...a); };
   }
@@ -4834,6 +4894,7 @@ function applyMove(i, a){
     case 'm': return useBM(G, i, a[1]);
     case 'v': return useVision(G, i, a[1]);
     case 'f': return useFavor(G, i);
+    case 'z': return useDisc(G, i, !!a[1]);
   }
   return false;
 }
@@ -4842,7 +4903,7 @@ function addGhost(k, idx, name, price, who){
   if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
   ui.ghosts[k].push({idx, name, price, who});
 }
-const MOVE_SOUND = {b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), v:() => sfx.rustle(), f:() => sfx.rustle(), p:() => sfx.wood()};
+const MOVE_SOUND = {b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), v:() => sfx.rustle(), f:() => sfx.rustle(), z:() => sfx.rustle(), p:() => sfx.wood()};
 // Make a shop move for player i, plus what the screen does around it: the ghost card and a sound.
 // vol: how loud a successful move sounds (null: silent); own: a failed move is this screen's player's, so it buzzes.
 function shopMove(i, a, vol, own){
@@ -5282,22 +5343,127 @@ function forcesHTML(p, canSell, fresh, ai){
   return `${mirHandHTML(p, canSell, ai)}<div class="list"><span class="eyebrow">Units · ${uniqueUnits(p)}/${deckCap(p)} unique</span>${units ? `<div class="fcards">${units}</div>` : '<p class="note">No units.</p>'}</div>
           <div class="list"><span class="eyebrow">City · ${slotsUsed(p)}/5 slots</span>${city ? `<div class="fcards">${city}</div>` : '<p class="note">No buildings.</p>'}</div>`;
 }
-// Miracles in hand. On your own shop turn, Divine Favor and Vision have Use buttons; Recruit, Armament and Training miracles
-// are used at Mobilize by placing them from the bench.
+// Miracles in hand, shown with each player's forces (both players can see them). They're played from the
+// Miracles tab in the shop and the Miracles panel at Mobilize.
 function mirHandHTML(p, myTurn, ai){
   const mir = p.mir || [];
   if (!mir.length) return '';
-  const S = seat(), visOpen = G.vis && G.vis[S];
-  const cards = mir.map(n => {
-    let use = '';
-    if (!ai && myTurn && G.phase === 'shop'){
-      if (n === 'Divine Favor') use = `<div class="row"><button type="button" class="small" data-act="mir-fav">Use: extra buy</button></div>`;
-      if (n === 'Vision' && !visOpen) use = `<div class="row"><button type="button" class="small" data-act="mir-vis-u" ${G.uDeck.some(x => !isMir(x)) ? '' : 'disabled'}>Look at units</button><button type="button" class="small" data-act="mir-vis-b" ${G.bDeck.some(x => !isMir(x)) ? '' : 'disabled'}>Look at buildings</button></div>`;
-    }
-    const m = MIRS[n];
-    return `<span class="mirseal"><span><b>✶ ${esc(n)}</b></span><span>${esc(m.t.replace(/^When you buy the card on top of this, put this card in your hand\. /, ''))}</span>${use}</span>`;
-  }).join('');
-  return `<div class="list"><span class="eyebrow">Miracles in hand · ${mir.length}</span><div class="mirhand">${cards}</div></div>`;
+  const cards = mir.map(n => `<span class="mircard plain" title="${esc(mirBody(n))}"><span class="mtop"><b>${esc(n)}</b>${MIRS[n].disc && p.discArm && n === mirDisc(p) ? '<span class="mirlive">played</span>' : ''}</span><span class="mseal" aria-hidden="true"><span>✶</span></span><span class="mtx">${esc(MIRS[n].sh.replace(/^hand: /, ''))}</span></span>`).join('');
+  return `<div class="list"><span class="eyebrow">Miracles in hand · ${mir.length}</span><div class="mirgrid">${cards}</div></div>`;
+}
+const mirBody = n => MIRS[n].t.replace(/^When you buy the card on top of this, put this card in your hand\. /, '');
+/* ===================== MIRACLES IN HAND: the shop tab and the Mobilize panel =====================
+   Shop: a tab in the bottom corner opens your hand; miracles you can play right now glow. Mobilize: a panel below
+   the bench. Tapping a miracle opens it large with a button to play it. */
+// can miracle j of my hand be played now? {ok, label, why, on} (on: it's already in play and the button takes it back)
+function mirPlayable(j, where){
+  const S = seat(), me = G.players[S], n = (me.mir || [])[j], m = n && MIRS[n]; if (!m) return {ok:false, why:''};
+  const myTurn = G.phase === 'shop' && cur(G) === S && !G.passed[S];
+  if (m.rec || m.arm || m.tr){
+    if (where !== 'mob') return {ok:false, why:'Play it at Mobilize: its tokens go on your bench.'};
+    const on = mobReady(me).includes(j);
+    const what = m.rec ? `${m.rec} Recruit${m.rec > 1 ? 's' : ''}` : m.arm ? `${m.arm} Armament${m.arm > 1 ? 's' : ''}` : `${m.tr} Training token${m.tr > 1 ? 's' : ''}`;
+    return on ? {ok:true, on:true, label:'Take it back', why:`In play: ${what} on your bench. It's discarded once you lock in with them placed.`}
+              : {ok:true, label:`Play: ${what} to your bench`};
+  }
+  if (where === 'mob') return {ok:false, why:'Play it on a shop turn.'};
+  if (!myTurn) return {ok:false, why:G.passed[S] ? 'You passed this shop.' : 'Wait for your turn.'};
+  if (m.fav) return {ok:true, label:`Play: ${m.fav > 1 ? m.fav + ' extra buys' : 'an extra buy'}`};
+  if (m.vis){
+    if (G.vis && G.vis[S]) return {ok:false, why:'You are already looking with a Vision.'};
+    return {ok:true, vis:true, label:'Look at'};
+  }
+  if (m.disc){
+    if (me.discArm) return n === mirDisc(me) && me.mir.indexOf(n) === j ? {ok:true, on:true, label:'Take it back', why:`In play: your next buy costs $${m.disc} less.`} : {ok:false, why:'Another Patronage is already in play.'};
+    return {ok:true, label:`Play: next buy $${m.disc} less`};
+  }
+  return {ok:false, why:'This one is used the moment you get it.'};
+}
+// miracles that play themselves on the spot (money, Salvage Writ) never reach the hand; everything else here waits to be played
+function mirCardHTML(n, j, where, big){
+  const pl = mirPlayable(j, where), m = MIRS[n];
+  return `<button type="button" class="mircard${pl.ok && !pl.on ? ' glow' : ''}${pl.on ? ' live' : ''}${big ? ' big' : ''}" ${big ? '' : `data-act="mirm-open" data-j="${j}" data-w="${where}"`} aria-label="${esc(n)}${pl.on ? ' (in play)' : pl.ok ? ' (can be played now)' : ''}">
+    <span class="mtop"><b>${esc(n)}</b>${pl.on ? '<span class="mirlive">in play</span>' : ''}</span>
+    ${big ? '' : '<span class="mseal" aria-hidden="true"><span>✶</span></span>'}
+    <span class="mtx">${esc(big ? mirBody(n) : m.sh.replace(/^hand: /, ''))}</span></button>`;
+}
+function mirTrayHTML(){
+  if (!G.miracles) return '';
+  const me = G.players[seat()], mir = me.mir || [];
+  const live = mir.some((_, j) => { const p = mirPlayable(j, 'shop'); return p.ok && !p.on; });
+  const open = !!ui.mirTray;
+  return `<div class="mirdock${open ? ' open' : ''}">
+    ${open ? `<div class="mirtray panel" role="dialog" aria-label="Miracles in hand"><div class="row"><h3>✶ Miracles in hand</h3><span class="grow"></span><button type="button" class="small" data-act="mir-tray">Close</button></div>
+      ${mir.length ? `<div class="mirgrid">${mir.map((n, j) => mirCardHTML(n, j, 'shop')).join('')}</div><p class="note">Glowing miracles can be played now. Tap one to read it and play it.</p>` : '<p class="note">No miracles in hand. Buy a card with miracles under it to get them.</p>'}</div>` : ''}
+    <button type="button" class="mirtab${live ? ' glow' : ''}" data-act="mir-tray" aria-expanded="${open}"><span class="ms" aria-hidden="true">✶</span> Miracles${mir.length ? ` <span class="mc">${mir.length}</span>` : ''}</button>
+  </div>`;
+}
+function mirModalHTML(){
+  const mm = ui.mirModal; if (!mm) return '';
+  const me = G.players[seat()], n = (me.mir || [])[mm.j];
+  if (!n){ ui.mirModal = null; return ''; }
+  const pl = mirPlayable(mm.j, mm.w);
+  let btn;
+  if (pl.vis) btn = `<button type="button" class="primary" data-act="mirm-vis" data-k="u" ${G.uDeck.some(x => !isMir(x)) ? '' : 'disabled'}>Look at 3 units</button><button type="button" class="primary" data-act="mirm-vis" data-k="b" ${G.bDeck.some(x => !isMir(x)) ? '' : 'disabled'}>Look at 3 buildings</button>`;
+  else if (pl.ok) btn = `<button type="button" class="${pl.on ? '' : 'primary'}" data-act="mirm-use">${esc(pl.label)}</button>`;
+  else btn = '';
+  return `<div class="mirmodal" data-act="mirm-close"><div class="mirmbox" role="dialog" aria-modal="true" aria-label="${esc(n)}">
+    ${mirCardHTML(n, mm.j, mm.w, true)}
+    ${pl.why ? `<p class="note">${esc(pl.why)}</p>` : ''}
+    ${ui.mirErr ? `<p class="err">${esc(ui.mirErr)}</p>` : ''}
+    <div class="row">${btn}<span class="grow"></span><button type="button" data-act="mirm-close">Close</button></div>
+  </div></div>`;
+}
+// Mobilize: the hand miracles you've played this Mobilize (indexes into your hand). A deck that needs more Recruits or
+// tokens than your own (a suggested deck, say) plays the miracles that cover them.
+function mobReady(me){
+  const key = `${G.round}-${seat()}-${(me.mir || []).join('|')}`;
+  if (!ui.mirRdy || ui.mirRdy.key !== key) ui.mirRdy = {key, idx:[]};
+  const d = ui.draft || [], need = mirSpend(me, 'rec', d.filter(u => u.name === 'Recruit').length - recBase(me))
+    .concat(mirSpend(me, 'arm', d.reduce((s, u) => s + (u.arm || 0), 0) - bVal(me, 'Smithy')), mirSpend(me, 'tr', d.reduce((s, u) => s + (u.tr || 0), 0) - bVal(me, 'Study')));
+  const rdy = ui.mirRdy.idx, have = k => rdy.reduce((s, j) => s + (MIRS[me.mir[j]][k] || 0), 0);
+  for (const j of need){
+    const k = ['rec','arm','tr'].find(x => MIRS[me.mir[j]][x]);
+    const used = k === 'rec' ? d.filter(u => u.name === 'Recruit').length - recBase(me) : d.reduce((s, u) => s + (u[k] || 0), 0) - bVal(me, k === 'arm' ? 'Smithy' : 'Study');
+    if (have(k) < used && !rdy.includes(j)) rdy.push(j);
+  }
+  return rdy;
+}
+const mobHeld = (me, k) => mobReady(me).reduce((s, j) => s + (MIRS[me.mir[j]][k] || 0), 0);
+const recUI = me => recBase(me) + mobHeld(me, 'rec');
+const armUI = me => bVal(me, 'Smithy') + mobHeld(me, 'arm');
+const trUI = me => bVal(me, 'Study') + mobHeld(me, 'tr');
+// the big miracle popup's play button
+function mirUse(){
+  const mm = ui.mirModal; if (!mm) return;
+  const S = seat(), me = G.players[S], n = (me.mir || [])[mm.j], pl = mirPlayable(mm.j, mm.w);
+  if (!n || !pl.ok){ sfx.err(); return; }
+  const m = MIRS[n];
+  if (m.rec || m.arm || m.tr){
+    const rdy = mobReady(me), d = ui.draft || [];
+    if (pl.on){
+      const k = m.rec ? 'rec' : m.arm ? 'arm' : 'tr';
+      const used = k === 'rec' ? d.filter(u => u.name === 'Recruit').length : d.reduce((s, u) => s + (u[k] || 0), 0);
+      const cap = (k === 'rec' ? recUI(me) : k === 'arm' ? armUI(me) : trUI(me)) - m[k];
+      if (used > cap){ ui.mirErr = `Take ${k === 'rec' ? 'its Recruits' : k === 'arm' ? 'its Armaments' : 'its Training tokens'} out of your deck first.`; sfx.err(); renderPlay(); return; }
+      rdy.splice(rdy.indexOf(mm.j), 1);
+    } else rdy.push(mm.j);
+    ui.mirModal = null; ui.mirErr = ''; sfx.rustle(); renderPlay(); return;
+  }
+  ui.mirModal = null;
+  if (m.fav){ ui.mirTray = false; doMove(['f']); return; }
+  if (m.disc){ doMove(['z', pl.on ? 0 : 1]); return; }
+  renderPlay();
+}
+function mobMirHTML(me){
+  if (!G.miracles) return '';
+  const mir = me.mir || [];
+  const list = mir.map((n, j) => [n, j]).filter(([n]) => MIRS[n].rec || MIRS[n].arm || MIRS[n].tr);
+  const other = mir.length - list.length;
+  return `<div class="panel mobmirp"><h2><span class="ms" aria-hidden="true">✶</span> Miracles</h2>
+    ${list.length ? `<div class="mirgrid">${list.map(([n, j]) => mirCardHTML(n, j, 'mob')).join('')}</div><p class="note">Play a glowing miracle to put its Recruits or tokens on your bench. It's discarded only if you lock in with them placed.</p>`
+                  : `<p class="note">No miracles to play at Mobilize.${other ? ` ${other === 1 ? 'Your other miracle is' : `Your other ${other} miracles are`} played in the shop.` : ''}</p>`}
+  </div>`;
 }
 const aiFresh = () => new Set((G.shopBought && G.shopBought[1 - seat()]) || []);
 function logHTML(){
@@ -5474,7 +5640,8 @@ function shopHTML(){
     ${G.bm[S] ? `<span class="eyebrow peekhead ${G.bm[S].k === 'b' ? 'b' : 'u'}">Black Market: ${G.bm[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}, $${bmOff(me)} off one card)</span><div class="market plain peekrow" data-from="${G.bm[S].k === 'b' ? 'b' : 'u'}" data-key="${G.round}-${S}-bm-${G.bm[S].k}">${G.bm[S].cards.map((n, i) => marketCard(n, G.bm[S].k, 'bm', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
     ${G.vis && G.vis[S] ? `<span class="eyebrow">Vision: ${G.vis[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}; buy one at normal price, the rest go to the bottom)</span><div class="market plain peekrow" data-from="${G.vis[S].k === 'b' ? 'b' : 'u'}" data-key="${G.round}-${S}-vis-${G.vis[S].k}">${G.vis[S].cards.map((n, i) => marketCard(n, G.vis[S].k, 'vis', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
   </div>
-  <div class="panel logp"><span class="eyebrow">Recent moves</span>${logHTML()}</div>`;
+  <div class="panel logp"><span class="eyebrow">Recent moves</span>${logHTML()}</div>
+  ${mirTrayHTML()}${mirModalHTML()}`;
 }
 function draftPower(u){
   if (u.name === 'Recruit') return 1 + (u.arm||0);
@@ -5623,12 +5790,14 @@ function mobilizeHTML(){
   if (G.net && !ui.draft) ui.draft = netClone(defaultDraft);
   if (PP() && ui.handoff != null) return handoffHTML();
   const S = seat(), O = 1 - S, me = G.players[S], d = ui.draft || [];
-  const smith = armAllow(me), study = trAllow(me);
+  const smith = armUI(me), study = trUI(me);
   const armUsed = d.reduce((s,u) => s + (u.arm||0), 0), trUsed = d.reduce((s,u) => s + (u.tr||0), 0);
   if (ui.pick === 'arm' && armUsed >= smith || ui.pick === 'tr' && trUsed >= study) ui.pick = null;
-  const recAvail = recAllow(me), recUsed = d.filter(u => u.name === 'Recruit').length;
+  const recAvail = recUI(me), recUsed = d.filter(u => u.name === 'Recruit').length;
   // which miracles this deck would use up (placing more Recruits or Armaments than your own)
   const spend = mirSpend(me, 'rec', recUsed - recBase(me)).concat(mirSpend(me, 'arm', armUsed - bVal(me, 'Smithy')), mirSpend(me, 'tr', trUsed - bVal(me, 'Study'))).map(j => me.mir[j]);
+  if (!G.net){ const rdy = mobReady(me), cov = k => rdy.filter(j => MIRS[me.mir[j]][k]); spend.length = 0;
+    for (const [k, over] of [['rec', recUsed - recBase(me)], ['arm', armUsed - bVal(me, 'Smithy')], ['tr', trUsed - bVal(me, 'Study')]]) if (over > 0){ const ix = cov(k); spend.push(...mirSpend({mir:ix.map(j => me.mir[j])}, k, over).map(x => me.mir[ix[x]])); } }
   const mobMir = (me.mir || []).filter(n => MIRS[n].rec || MIRS[n].arm || MIRS[n].tr);
   const uniq = d.filter(u => !exemptUnit(u.name)).length, occ = {};
   const rows = d.map((u, i) => {
@@ -5660,7 +5829,7 @@ function mobilizeHTML(){
   return `<div class="forces mob2">
     <div class="panel deckp"><h2>${PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck'} <button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button></h2>
       <p class="note">${uniq}/${deckCap(me)} unique${smith ? ` · ${tokIcon('arm')} ${armUsed}/${smith}` : ''}${study ? ` · ${tokIcon('tr')} ${trUsed}/${study}` : ''}${recAvail ? ` · Recruits ${recUsed}/${recAvail}` : ''}</p>
-      ${mobMir.length ? `<p class="note">✶ Miracles in hand: ${mobMir.map(esc).join(', ')}. Their Recruits, Armaments and Training are on the bench; placing more than your own uses them up.${spend.length ? ` <b>This deck uses ${spend.map(esc).join(' and ')}.</b>` : ' This deck keeps them for later.'}</p>` : ''}
+      ${spend.length ? `<p class="note">✶ This deck uses ${spend.map(esc).join(' and ')}.</p>` : ''}
       ${ui.pick ? `<p class="pickhint">Tap a unit to give it ${ui.pick === 'arm' ? 'an Armament' : 'a Training token'}. <button type="button" class="small" data-act="t-cancel">Cancel</button></p>` : ''}
       ${d.length > 1 ? `<div class="dend back"><span>Back</span> Rearguard · fights last</div>` : ''}
       <div class="list dropzone dgrid stack" id="deck-list" data-zone="deck">${rows.reverse().join('') || '<div class="dempty">Drag or tap units from the bench</div>'}</div>
@@ -5668,10 +5837,13 @@ function mobilizeHTML(){
       ${ui.err ? `<p class="err">${esc(ui.err)}</p>` : ''}
       <div class="row"><button type="button" data-act="suggest">Suggest a deck</button><span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${ui.planning ? 'The AI is planning its deck…' : PP() && !G.net && S === 0 ? `Lock in and pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle'}</button></div>
     </div>
+    <div class="mobright">
     <div class="panel benchp dropzone" data-zone="bench"><h2>Bench</h2>
       <div class="list dropzone dgrid stack" id="bench-list" data-zone="bench">${tokCards + benchUnits || '<div class="dempty">Every unit is in your deck</div>'}</div>
     </div>
-  </div>`;
+    ${mobMirHTML(me)}
+    </div>
+  </div>${mirModalHTML()}`;
 }
 // the help behind the ⓘ during Mobilize
 const MOB_INFO = 'Mobilize: set your deck in secret. Your deck is held face up, like the physical game: the front card (the full card at the bottom) is your Vanguard and fights first, the cards behind it fight next in order, and the back card (at the top) is your Rearguard. Drag cards to reorder them, or tap a bench card to add it to the back. Drag a token onto a unit, or tap the token and then a unit. Tap a deck card to send its newest token back, or to bench it once it has none. Double-tap any card to read it.';
@@ -6521,6 +6693,8 @@ function lockDeck(){
     if (left){ ui.remind = {kind:'lock', items:left}; sfx.soft(); renderPlay(); return; }
   }
   ui.remindOk = false;
+  // the miracles you played are the ones spent (online both screens work it out the same way, so it's left to the rules there)
+  if (!G.net){ const me = G.players[seat()]; me.mirPlay = mobReady(me).map(j => me.mir[j]); }
   if (G.net){ sfx.lock(); ui.err = ''; ui.pick = null; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => [netIx(u.name), u.arm || 0, u.tr || 0])]); return; }
   if (PP()){
     const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = ''; ui.pick = null;
@@ -6551,7 +6725,7 @@ function showBattle(res){ ui.battle = res; ui.frame = 0; ui.draft = null; ui.pic
 // is this unit (or a Recruit) still waiting on the bench?
 function benchHas(n){
   const me = G.players[seat()], d = ui.draft || [];
-  if (n === 'Recruit') return recAllow(me) - d.filter(u => u.name === 'Recruit').length > 0;
+  if (n === 'Recruit') return recUI(me) - d.filter(u => u.name === 'Recruit').length > 0;
   return !!me.hand[n] && !d.some(u => u.name === n);
 }
 $('view-play').addEventListener('click', e => {
@@ -6608,6 +6782,11 @@ $('view-play').addEventListener('click', e => {
     case 'bm-u': case 'bm-b': doMove(['m', act === 'bm-u' ? 'u' : 'b']); return;
     case 'mir-vis-u': case 'mir-vis-b': doMove(['v', act === 'mir-vis-u' ? 'u' : 'b']); return;
     case 'mir-fav': doMove(['f']); return;
+    case 'mir-tray': ui.mirTray = !ui.mirTray; ui.mirModal = null; sfx.soft(); renderPlay(); return;
+    case 'mirm-open': ui.mirModal = {j:+t.dataset.j, w:t.dataset.w}; ui.mirErr = ''; sfx.soft(); renderPlay(); return;
+    case 'mirm-close': if (t.classList.contains('mirmodal') && e.target.closest('.mirmbox')) return; ui.mirModal = null; ui.mirErr = ''; renderPlay(); return;
+    case 'mirm-vis': { ui.mirModal = null; ui.mirTray = false; doMove(['v', t.dataset.k === 'b' ? 'b' : 'u']); return; }
+    case 'mirm-use': { mirUse(); return; }
     case 'mir-peek': ui.mirOpen = ui.mirOpen === t.dataset.k ? null : t.dataset.k; renderPlay(); return;
     case 'sell-u': case 'sell-b': doMove(['s', act === 'sell-u' ? 'u' : 'b', t.dataset.name]); return;
     case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); toGame(); return;
