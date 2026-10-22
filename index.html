@@ -1036,6 +1036,19 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 .mcard.b .zhw{color:var(--or);opacity:.2}
 .mcard.ghost .zhw{color:var(--muted)}
 .stage .card{cursor:pointer}
+/* battle table: cards and the charge boxes are one fixed size, so a card arriving or leaving never resizes the table */
+:root{--bch:136px;--bcw:104px}
+.table .card:not(.mini){height:var(--bch);min-height:0}
+.table .card:not(.mini) .zh{margin:auto}
+.table .card:not(.mini) .hprow{margin-top:auto}
+.table .slot{height:var(--bch);min-height:0}
+.table .charge{box-sizing:border-box;width:calc(var(--bcw) + 20px);height:calc(var(--bch) + 20px);min-width:0;min-height:0;padding:10px;display:flex;align-items:center;justify-content:center}
+@media (max-width:640px){
+  :root{--bch:128px;--bcw:92px}
+  .table .charge{width:calc(var(--bcw) + 8px);height:calc(var(--bch) + 8px);padding:4px;min-width:0}
+  .table .tz .zl{min-height:2.5em;display:flex;align-items:flex-end}
+  .table .trow.s0 .tz .zl{align-items:flex-start}
+}
 /* market cards keep one square shape at any screen width (the row no longer stretches them on a wide window) */
 @media (min-width:861px){
   .mktp .market{grid-template-columns:minmax(0,150px) 2px repeat(5,minmax(0,150px));justify-content:start}
@@ -5085,7 +5098,7 @@ function battleHTML(){
   } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
   return `<div class="panel">
-    <div class="row battlectl"><button type="button" data-act="b-first" ${ui.frame===0?'disabled':''}>Start</button><button type="button" data-act="b-prev" ${ui.frame===0?'disabled':''}>Back</button><button type="button" class="primary" data-act="b-next" ${atEnd?'disabled':''}>Next step</button><button type="button" data-act="b-last" ${atEnd?'disabled':''}>Skip to end</button><button type="button" class="autobtn" data-act="b-auto" aria-pressed="${autoOn() ? 'true' : 'false'}" title="Play the battle step by step on its own">${autoLabel()}</button><button type="button" class="speedbtn" data-act="b-speed" aria-pressed="${autoFast() ? 'true' : 'false'}" title="Auto-play speed" aria-label="Auto-play speed">${speedLabel()}</button><span class="note">${ui.frame+1} / ${res.frames.length} · ${esc(f.label)}</span></div>
+    <div class="row battlectl"><button type="button" data-act="b-first" ${ui.frame===0?'disabled':''}>Start</button><button type="button" data-act="b-prev" ${ui.frame===0?'disabled':''}>Back</button><button type="button" class="primary" data-act="b-next" ${atEnd?'disabled':''}>Next step</button>${atEnd ? '<button type="button" data-act="b-replay">Replay fight</button>' : '<button type="button" data-act="b-last">Skip to end</button>'}<button type="button" class="autobtn" data-act="b-auto" aria-pressed="${autoOn() ? 'true' : 'false'}" title="Play the battle step by step on its own">${autoLabel()}</button><button type="button" class="speedbtn" data-act="b-speed" aria-pressed="${autoFast() ? 'true' : 'false'}" title="Auto-play speed" aria-label="Auto-play speed">${speedLabel()}</button><span class="note">${ui.frame+1} / ${res.frames.length} · ${esc(f.label)}</span></div>
     <div class="stage">${lineHTML(f, PP() ? [poss(0), poss(1)] : ['Your','AI'])}${banner}</div>
     ${tail}
   </div>
@@ -5207,6 +5220,33 @@ function autoTick(){
   autoT = setTimeout(autoTick, (reduceMotion() ? 700 : 1150) / (autoFast() ? 2 : 1));
 }
 function stopAnim(){ if (ui.animT){ clearTimeout(ui.animT); ui.animT = null; } }
+// Reserve each side's row at the tallest it gets during this battle (decks shrink, graveyards grow): every frame is
+// laid out once in a hidden copy of the table and measured. Redone when the battle or the table's width changes.
+function reserveRows(){
+  const st = $('view-play').querySelector('.stage'), line = st && st.querySelector('.line.table');
+  if (!st || !line || !ui.battle) return;
+  const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length;
+  if (ui.battle.rowKey !== key){
+    const probe = document.createElement('div');
+    probe.className = 'stage'; probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = `position:absolute;left:-10000px;top:0;width:${w}px;visibility:hidden;pointer-events:none`;
+    st.parentNode.appendChild(probe);
+    const names = PP() ? [poss(0), poss(1)] : ['Your', 'AI'], mx = [0, 0];
+    for (const fr of ui.battle.frames){
+      probe.innerHTML = lineHTML(fr, names);
+      probe.querySelectorAll('.trow').forEach(r => { const i = r.classList.contains('s1') ? 1 : 0; mx[i] = Math.max(mx[i], r.getBoundingClientRect().height); });
+    }
+    probe.remove();
+    ui.battle.rowH = mx; ui.battle.rowKey = key;
+  }
+  const [h0, h1] = ui.battle.rowH;
+  const r0 = line.querySelector('.trow.s0'), r1 = line.querySelector('.trow.s1');
+  if (r0) r0.style.minHeight = Math.ceil(h0) + 'px';
+  if (r1) r1.style.minHeight = Math.ceil(h1) + 'px';
+}
+window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
+// every redraw of the battle keeps the reserved row heights
+{ const draw = renderPlay; renderPlay = function(){ const r = draw.apply(this, arguments); if (ui.battle) reserveRows(); return r; }; }
 function goFrame(k, glide){
   stopAnim();
   const from = new Map();
@@ -5214,7 +5254,7 @@ function goFrame(k, glide){
   const prevSvg = $('view-play').querySelector('.stage .arrows:not(.out)');
   const oldSvg = glide && k === ui.arrowsFor && prevSvg && prevSvg.dataset.full !== '0' ? prevSvg : null;   // incomplete: let the fresh drawing (which can see new units) take over
   const prevF = glide && ui.battle ? ui.battle.frames[ui.frame] : null;
-  ui.frame = k; ui.bannerOff = false; renderPlay();
+  ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay(); reserveRows();
   if (prevF && ui.battle) animateTokens(prevF, ui.battle.frames[k]); else clearTimeout(ui.tokT);
   if (prevSvg && !oldSvg) fadeArrows(prevSvg, $('view-play').querySelector('.stage'));
   if (ui.battle && k === ui.battle.frames.length - 1 && !ui.battle.chimed){
@@ -5674,6 +5714,7 @@ $('view-play').addEventListener('click', e => {
     case 'lock': lockDeck(); return;
     case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); return; }
     case 'b-first': sfx.soft(); stopAuto(true); goFrame(0); return;
+    case 'b-replay': sfx.soft(); stopAuto(true); goFrame(0); return;
     case 'b-prev': sfx.soft(); stopAuto(true); goFrame(Math.max(0, ui.frame - 1)); return;
     case 'b-next': stepForward(); return;
     case 'b-last': sfx.soft(); goFrame(ui.battle.frames.length - 1); return;
