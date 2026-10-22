@@ -735,8 +735,8 @@ header{position:relative}
 .card .pk{position:absolute;width:9px;font-size:8px;line-height:1;text-align:center;pointer-events:none;
   width:var(--px);left:calc(100% + var(--j) * var(--px));top:calc(18px - (var(--j) + 1) * var(--py))}
 .card[data-side="1"] .pk{left:auto;right:calc(100% + var(--j) * var(--px));top:auto;bottom:calc(18px - (var(--j) + 1) * var(--py))}
-:root{--px:9px;--py:7px}
-@media (max-width:640px){ :root{--px:6px;--py:5px} .card .pk{font-size:6px} }
+:root{--px:12px;--py:8px}
+@media (max-width:640px){ :root{--px:10px;--py:7px} .card .pk{font-size:6px} }
 .table .trow{gap:16px}
 .table .charge{padding:10px}
 .stage .linewrap{padding:18px 0}
@@ -1350,8 +1350,7 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 .dempty{width:var(--sc)}
 .stack.dgrid>*:not(:last-child){margin-bottom:calc(var(--strip) - var(--sc))!important}
 .stack.dgrid>.mcard:not(:last-child){box-shadow:inset 0 3px 0 var(--muted),0 -2px 6px rgba(0,0,0,.08)}
-/* a covered card shows its tokens only beside its own strip */
-#deck-list.stack>.mcard.drow:not(:last-child){clip-path:inset(-60px -60px calc(100% - var(--strip)) -40px)}
+/* tokens on a deck card are whole cards tucked behind it, never cut off */
 #deck-list.stack .mcard.drow:not(.peek){overflow:visible!important}
 .stack .mcard>button,#bench-list.stack .mcard.bcard:not(.peek)>button{display:none!important}
 .dempty{display:flex;align-items:center;justify-content:center;text-align:center;height:var(--sc);border:2px dashed var(--line);border-radius:8px;color:var(--muted);font-size:.85rem;padding:10px}
@@ -1375,8 +1374,21 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 .mcard.tcard.tr{box-shadow:inset 0 3px 0 var(--azure);border-color:color-mix(in srgb,var(--azure) 55%,var(--line))}
 .mcard.tcard .tn{font-family:var(--f-mono);font-weight:700;font-size:.9rem!important}
 .mcard.tcard.arm .tn,.mcard.tcard.arm .tbig{color:var(--or)} .mcard.tcard.tr .tn,.mcard.tcard.tr .tbig{color:var(--azure)}
-.mcard.tcard .tbig{font-size:2.4rem;line-height:1;text-align:center;margin:6px 0 2px;opacity:.85}
-.mcard.tcard .stx{display:block!important;font-size:.72rem;line-height:1.25;color:var(--muted);-webkit-line-clamp:unset!important}
+.mcard.tcard .tbig{display:flex;justify-content:center;margin:auto 0;line-height:0}
+.mcard.tcard .tbig .gi{width:calc(var(--card-sq) * .3);height:calc(var(--card-sq) * .3);margin:0;vertical-align:0}
+.mcard.tcard .stx{display:block!important;font-size:.7rem;line-height:1.2;color:var(--muted);-webkit-line-clamp:unset!important;margin-top:0!important;padding-top:0!important}
+.mcard.tcard{justify-content:flex-start}
+/* custom token icons in small places: card edges, chips, the deck count, battle arrows */
+.mcard.drow .pkhit .gi{width:100%;height:auto;margin:0;vertical-align:top}
+.card .pk{display:flex;justify-content:center;align-items:flex-start;box-sizing:border-box;padding:2px 2px 0 1px}
+.card[data-side="1"] .pk{padding:0 1px 2px 2px;align-items:flex-end}
+.card .pk .gi{width:calc(var(--px) - 4px);height:calc(var(--px) - 4px);margin:0;vertical-align:top;flex:none}
+.tokchip .ico .gi{width:80%;height:80%;margin:0;vertical-align:0;fill:var(--bg)}
+.deckp>.note .gi{width:1.15em;height:1.15em;vertical-align:-.22em;margin:0}
+.arlic{opacity:0;animation:arlin .2s ease-out forwards}
+.arlic.t-arm{fill:var(--or)} .arlic.t-tr{fill:var(--azure)} .arlic.t-sh{fill:var(--muted)} .arlic.t-rec{fill:var(--ok)}
+.arrows.still .arlic,.arrows.quiet .arlic{animation:none;opacity:1}
+@media (prefers-reduced-motion: reduce){ .arlic{animation:none;opacity:1} }
 .mcard.tcard.picked{background:var(--or-soft)!important;outline:2px solid var(--or);outline-offset:2px}
 .mcard.tcard.dragging{opacity:.5}
 /* the ⓘ for the phase you're in */
@@ -1398,6 +1410,14 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 /* deck view (the scoreboard's deck buttons) */
 .fcards{grid-template-columns:repeat(auto-fill,var(--card-sq))!important}
 .fcards .mcard:not(.peek){height:auto!important;aspect-ratio:1/1!important;min-height:0!important;width:var(--card-sq)}
+
+/* attached tokens: a tab on top of each tucked-behind token card, with its icon and name */
+#deck-list .mcard.drow .pkhit.tkt{position:absolute;z-index:1;width:auto;display:flex;align-items:center;gap:3px;padding:0 5px;font-size:.56rem;font-weight:700;letter-spacing:.02em;line-height:1;white-space:nowrap;overflow:hidden;border-radius:7px 7px 0 0;background:none;cursor:pointer}
+#deck-list .mcard.drow .pkhit.tkt .gi{width:10px;height:10px;flex:none;margin:0;vertical-align:0}
+#deck-list .mcard.drow .pkhit.tkt span{overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+#deck-list .mcard.drow .pkhit.tkt::before{display:none}
+#deck-list .mcard.drow .pkhit.tkt:hover{background:color-mix(in srgb, currentColor 14%, transparent)}
+.dragghost .pkhit.tkt{display:none}
 @media (max-width:640px){
   .forces.mob2{gap:6px}
   .forces.mob2 .panel{padding:8px 6px}
@@ -4283,7 +4303,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
 /* ===================== BATTLE VIEW ===================== */
 // Armaments, Training and Shields look like extra cards tucked behind the unit, each poking out a little further.
 // Yours fan up and to the right; the AI's (across the table) fan down and to the left.
-const TOKS = {cp:{c:'--muted', i:'', n:'extra copy', fill:'var(--bg)'}, arm:{c:'--or', i:'⚒', n:'Armament'}, tr:{c:'--azure', i:'▲', n:'Training'}, sh:{c:'--muted', i:'◆', n:'Shield'}};
+const TOKS = {cp:{c:'--muted', i:'', n:'extra copy', fill:'var(--bg)'}, arm:{c:'--or', i:'', n:'Armament'}, tr:{c:'--azure', i:'', n:'Training'}, sh:{c:'--muted', i:'', n:'Shield'}};
 const POKE = {x:9, y:7, mx:6};
 function tokenList(u){ return [...Array(Math.min(3, u.cp || 0)).fill('cp'), ...Array(u.arm || 0).fill('arm'), ...Array(u.tr || 0).fill('tr'), ...Array(u.sh || 0).fill('sh')]; }
 const pokeCap = () => (window.matchMedia && matchMedia('(max-width:640px)').matches) ? 3 : POKE.mx;
@@ -4293,7 +4313,7 @@ function pokeParts(t, side){
     sh.push(`${dx} ${dy} 0 -1px ${TOKS[k].fill || `color-mix(in srgb, ${c} 22%, var(--surface))`}`, `${dx} ${dy} 0 0 ${c}`); });
   const n = t.length, mx = `calc(var(--px) * ${n})`, my = `calc(var(--py) * ${n})`;
   const room = side === 1 ? {marginLeft:mx, marginBottom:my} : {marginRight:mx, marginTop:my};
-  const html = t.map((k, j) => `<span class="pk" style="--j:${j};color:var(${TOKS[k].c})" aria-hidden="true">${TOKS[k].i}</span>`).join('');
+  const html = t.map((k, j) => `<span class="pk" style="--j:${j};color:var(${TOKS[k].c})" aria-hidden="true">${tokIcon(k)}</span>`).join('');
   return {shadow:sh.join(','), room, html};
 }
 function pokeStyle(u, side){
@@ -4353,7 +4373,7 @@ function lineHTML(f, names){
   return `<div class="linewrap"><div class="line table">
     ${cityRow(T)}
     <div class="trow s1">${graveZone(sn[T], T)}${chargeZone(sn[T], T)}${deckZone(sn[T], T)}</div>
-    <div class="clash" aria-hidden="true">⚔</div>
+    <div class="clash" aria-hidden="true">⚔︎</div>
     <div class="trow s0">${deckZone(sn[M], M)}${chargeZone(sn[M], M)}${graveZone(sn[M], M)}</div>
     ${cityRow(M)}
   </div></div>`;
@@ -5138,6 +5158,23 @@ const GI = {
   sh:'<svg class="gi gi-sh" viewBox="0 0 16 16" aria-label="Shield" role="img"><path d="M8 1.2l5.8 2.1v4.3c0 3.5-2.4 6.1-5.8 7.3-3.4-1.2-5.8-3.8-5.8-7.3V3.3z"/><path d="M8 3.2v9.6" stroke="var(--bg)" stroke-width="1" fill="none" opacity=".55"/></svg>',
   rec:'<svg class="gi gi-rec" viewBox="0 0 16 16" aria-label="Recruit" role="img"><circle cx="8" cy="4.6" r="2.7"/><path d="M5.2 3.6c.4-1.9 1.5-2.6 2.8-2.6s2.4.7 2.8 2.6z" opacity=".6"/><path d="M2.8 15c0-4 2.2-6 5.2-6s5.2 2 5.2 6z"/></svg>'
 };
+// a token's custom icon wherever a token is drawn (never an emoji)
+const tokIcon = k => GI[k] || '';
+// the same icon as an element inside an SVG drawing (the battle arrows), coloured like its label
+function tokIconSvg(k){
+  const m = (GI[k] || '').match(/^<svg[^>]*>([\s\S]*)<\/svg>$/); if (!m) return null;
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  el.setAttribute('viewBox', '0 0 16 16'); el.setAttribute('class', `arlic t-${k}`); el.setAttribute('aria-hidden', 'true'); el.innerHTML = m[1];
+  return el;
+}
+// put an arrow label's token icon right after its number; a right-aligned label moves over to make room
+function placeTokIcon(lbl){
+  const ic = lbl._ic; if (!ic) return;
+  const S = 13, end = lbl.style.textAnchor === 'end';
+  if (end) lbl.setAttribute('x', +lbl.getAttribute('x') - S - 1);
+  let b; try{ b = lbl.getBBox(); }catch(e){ return; }
+  ic.setAttribute('x', b.x + b.width + 1); ic.setAttribute('y', b.y + (b.height - S) / 2); ic.setAttribute('width', S); ic.setAttribute('height', S);
+}
 // the preview line for a card, with the owned level lit inside each 1/2/3 the same way the full text does it
 function shortHTML(name, kind, own, noNext){
   const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) return '';
@@ -5439,22 +5476,27 @@ function draftPower(u){
   return u.name === 'Jester' ? '?' : DEFS[u.name].p[L-1] + (u.arm||0);
 }
 const DPX = 8, DPY = 6;
+// Behind a deck card: extra copies peek out as thin edges, and each attached token is a whole card tucked behind it,
+// stepped up so a tab with the token's icon and name shows above the unit (newest farthest back). The card gets a
+// top margin of the same height, so in the overlapping deck no tab ever covers the card above.
+const TKT = 14, TKX = 4, CPX = 3;
 function deckPoke(u, c, i){
-  const list = [...Array(Math.min(3, extraCopies(u.name, 'u', c))).fill('cp'), ...tokOrder(u)];
-  if (!list.length) return {style:'', html:''};
+  const cps = Math.min(3, extraCopies(u.name, 'u', c)), toks = tokOrder(u);
+  if (!cps && !toks.length) return {style:'', html:''};
   const sh = ['inset 0 3px 0 var(--muted)'];
-  list.forEach((k, j) => { const dx = DPX * (j + 1), dy = -DPY * (j + 1), col = `var(${TOKS[k].c})`;
-    sh.push(`${dx}px ${dy}px 0 -1px ${TOKS[k].fill || `color-mix(in srgb, ${col} 22%, var(--surface))`}`, `${dx}px ${dy}px 0 0 ${col}`); });
-  const n = list.length;
-  const html = list.map((k, j) => k === 'cp' ? '' : `<span class="pkhit" style="--j:${j};color:var(${TOKS[k].c})" role="button" tabindex="0" data-act="t-off" data-tok="${k}" data-i="${i}" title="${TOKS[k].n}: tap the card to send its newest token back to the bench" aria-label="Send this ${TOKS[k].n} back to the bench">${TOKS[k].i}</span>`).join('');
-  const nt = list.filter(k => k !== 'cp').length, cp = n - nt;
-  const title = [cp ? `${cp} extra cop${cp > 1 ? 'ies' : 'y'}` : '', u.arm ? `${u.arm} Armament${u.arm > 1 ? 's' : ''}` : '', u.tr ? `${u.tr} Training` : ''].filter(Boolean).join(', ');
-  return {style:` style="box-shadow:${sh.join(',')}" title="${title} behind it"`, html};
+  for (let j = 0; j < cps; j++){ const d = CPX * (j + 1); sh.push(`${d}px ${-d}px 0 -1px var(--card, var(--bg))`, `${d}px ${-d}px 0 0 var(--muted)`); }
+  const base = CPX * cps;
+  toks.forEach((k, j) => { const dx = base + TKX * (j + 1), dy = -(base + TKT * (j + 1)), col = `var(${TOKS[k].c})`;
+    sh.push(`${dx}px ${dy}px 0 -1px color-mix(in srgb, ${col} 16%, var(--card, var(--surface)))`, `${dx}px ${dy}px 0 0 ${col}`); });
+  const html = toks.map((k, j) => `<span class="pkhit tkt t-${k}" style="--j:${j};top:${-(base + TKT * (j + 1))}px;left:${base + TKX * (j + 1)}px;right:${-(base + TKX * (j + 1))}px;height:${TKT}px;color:var(${TOKS[k].c})" role="button" tabindex="0" data-act="t-off" data-tok="${k}" data-i="${i}" title="${TOKS[k].n}: tap to send the newest token back to the bench" aria-label="${TOKS[k].n} attached. Tap to send the newest token back to the bench">${tokIcon(k)}<span>${TOKS[k].n}</span></span>`).join('');
+  const room = base + TKT * toks.length;
+  const title = [cps ? `${cps} extra cop${cps > 1 ? 'ies' : 'y'}` : '', u.arm ? `${u.arm} Armament${u.arm > 1 ? 's' : ''}` : '', u.tr ? `${u.tr} Training` : ''].filter(Boolean).join(', ');
+  return {style:` style="box-shadow:${sh.join(',')};margin-top:${room}px" data-room="${room}" title="${title} behind it"`, html};
 }
 // rules text printed on the bench token cards
 const TOKRULES = {
-  arm:'Attach to a unit: it has +1 power this battle. A unit can hold more than one.',
-  tr:'Attach to a unit: it fights 1 level higher this battle. Not on Recruits or units at max level.'
+  arm:'Attach to a unit for this battle. Stacks.',
+  tr:'Attach to a unit for this battle. Not on Recruits or max level.'
 };
 function tokChip(kind, where, i){
   const lbl = kind === 'arm' ? 'Armament' : 'Training', fx = kind === 'arm' ? '+1 power' : '+1 level';
@@ -5462,8 +5504,8 @@ function tokChip(kind, where, i){
   const act = where === 'bench' ? `data-act="t-pick"` : `data-act="t-off" data-i="${i}"`;
   const tip = where === 'bench' ? `Drag onto a unit (or tap, then tap a unit)` : `Tap to send back to the bench, or drag to another unit`;
   const rules = TOKRULES[kind];
-  if (where === 'bench') return `<span class="tokchip tokcard ${kind}${pick}" role="button" tabindex="0" data-drag="tok" data-tok="${kind}" ${act} title="${tip}" aria-label="${lbl}: ${rules} ${tip}"><span class="ttop"><span class="ico" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span><span class="tl">${lbl}</span></span><span class="fx">${fx}</span><span class="rt">${rules}</span></span>`;
-  return `<span class="tokchip ${kind}${pick}" role="button" tabindex="0" data-drag="${where === 'bench' ? 'tok' : 'ton'}" data-tok="${kind}" ${act} ${where==='row'?`data-i="${i}"`:''} title="${tip}" aria-label="${lbl} (${fx}). ${tip}"><span class="ico" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span>${where === 'bench' ? `${lbl} <span class="fx">${fx}</span>` : (kind === 'arm' ? '+1 Arm' : '+1 Lv')}</span>`;
+  if (where === 'bench') return `<span class="tokchip tokcard ${kind}${pick}" role="button" tabindex="0" data-drag="tok" data-tok="${kind}" ${act} title="${tip}" aria-label="${lbl}: ${rules} ${tip}"><span class="ttop"><span class="ico" aria-hidden="true">${tokIcon(kind)}</span><span class="tl">${lbl}</span></span><span class="fx">${fx}</span><span class="rt">${rules}</span></span>`;
+  return `<span class="tokchip ${kind}${pick}" role="button" tabindex="0" data-drag="${where === 'bench' ? 'tok' : 'ton'}" data-tok="${kind}" ${act} ${where==='row'?`data-i="${i}"`:''} title="${tip}" aria-label="${lbl} (${fx}). ${tip}"><span class="ico" aria-hidden="true">${tokIcon(kind)}</span>${where === 'bench' ? `${lbl} <span class="fx">${fx}</span>` : (kind === 'arm' ? '+1 Arm' : '+1 Lv')}</span>`;
 }
 // can this token go on this draft unit? returns an error message or ''
 function tokBlock(kind, u){
@@ -5551,7 +5593,7 @@ function mobilizeHTML(){
   // Vanguard and fights first; each card behind it peeks out above, back to the Rearguard at the top
   return `<div class="forces mob2">
     <div class="panel deckp"><h2>${PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck'} <button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button></h2>
-      <p class="note">${uniq}/${deckCap(me)} unique${smith ? ` · ⚒ ${armUsed}/${smith}` : ''}${study ? ` · ▲ ${trUsed}/${study}` : ''}${recAvail ? ` · Recruits ${recUsed}/${recAvail}` : ''}</p>
+      <p class="note">${uniq}/${deckCap(me)} unique${smith ? ` · ${tokIcon('arm')} ${armUsed}/${smith}` : ''}${study ? ` · ${tokIcon('tr')} ${trUsed}/${study}` : ''}${recAvail ? ` · Recruits ${recUsed}/${recAvail}` : ''}</p>
       ${mobMir.length ? `<p class="note">✶ Miracles in hand: ${mobMir.map(esc).join(', ')}. Their Recruits, Armaments and Training are on the bench; placing more than your own uses them up.${spend.length ? ` <b>This deck uses ${spend.map(esc).join(' and ')}.</b>` : ' This deck keeps them for later.'}</p>` : ''}
       ${ui.pick ? `<p class="pickhint">Tap a unit to give it ${ui.pick === 'arm' ? 'an Armament' : 'a Training token'}. <button type="button" class="small" data-act="t-cancel">Cancel</button></p>` : ''}
       ${d.length > 1 ? `<div class="dend back"><span>Back</span> Rearguard · fights last</div>` : ''}
@@ -5573,7 +5615,7 @@ function tokCard(kind, n){
   return `<div class="mcard tcard ${kind}${ui.pick === kind ? ' picked' : ''}" role="button" tabindex="0" data-drag="tok" data-tok="${kind}" data-act="t-pick" title="Drag onto a unit (or tap, then tap a unit)" aria-label="${n} ${lbl}${n > 1 ? 's' : ''} left: ${TOKRULES[kind]} Drag onto a unit, or tap it and then a unit.">
     <div class="top"><span class="nm">${lbl}</span><span class="cost tn">×${n}</span></div>
     <div class="curve">${fx}</div>
-    <span class="tbig" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span>
+    <span class="tbig" aria-hidden="true">${tokIcon(kind)}</span>
     <div class="stx">${TOKRULES[kind]}</div>
   </div>`;
 }
@@ -5627,6 +5669,7 @@ function placeArrow(path, stage, sr){
     const side = A.by === 0 ? 1 : -1, ex = side > 0 ? tr.right - sr.left - 8 : tr.left - sr.left + 8, ey = tr.top - sr.top + 10;
     path.setAttribute('d', `M${ex - side * 26},${ey - 6} C${ex - side * 20},${ey - 34} ${ex + side * 14},${ey - 30} ${ex},${ey}`);
     lbl.setAttribute('x', ex + side * 8); lbl.setAttribute('y', ey - 22); lbl.style.textAnchor = side > 0 ? 'start' : 'end';
+    placeTokIcon(lbl);
     return;
   }
   const fe = A.from ? find(A.from) : A.chip ? stage.querySelector(A.chip) : null;
@@ -5648,6 +5691,7 @@ function placeArrow(path, stage, sr){
   path.setAttribute('d', `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`);
   lbl.setAttribute('x', (x1 + 2 * cx + x2) / 4 + (A.by === 0 ? 6 : -6)); lbl.setAttribute('y', (y1 + 2 * cy + y2) / 4 + 4);
   lbl.style.textAnchor = A.by === 0 ? 'start' : 'end';   // yours label to the right of its arc, the AI's to the left
+  placeTokIcon(lbl);
 }
 // While the battle shows arrows, re-aim them every frame so their ends stay fixed to the cards as the cards move.
 let arrowRaf = 0;
@@ -5757,7 +5801,7 @@ function drawArrows(list, animate, rects){
     ['arm','tr','sh','rec','ret'].map(t => `<marker id="aht-${t}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="aht t-${t}"/></marker>`).join('')}</defs>`;
   const pairs = new Map();
   for (const l of list){ const k = `${l.from}>${l.to}>${l.tok || ''}`; const p = pairs.get(k); if (p) p.amt += l.amt; else pairs.set(k, {...l}); }
-  const TOKLBL = {arm:'⚒', tr:'▲', sh:'◆', rec:' Recruit', ret:''};
+  const TOKLBL = {arm:'', tr:'', sh:'', rec:'', ret:''};   // the token is shown by its icon after the number
   let drawn = 0;
   const find = id => id && (stage.querySelector(`.card[data-uid="${id}"]`) || stage.querySelector(`.grave [data-uid="${id}"]`));
   const lane = [0, 0];
@@ -5773,7 +5817,7 @@ function drawArrows(list, animate, rects){
     const chip = chipSel && stage.querySelector(chipSel);
     if (chip && animate === true && chip.animate) chip.animate([{boxShadow:'0 0 0 0 transparent'}, {boxShadow:'0 0 0 4px color-mix(in srgb, var(--or) 45%, transparent)', offset:.3}, {boxShadow:'0 0 0 0 transparent'}], {duration:700, delay:n * 90});
     const cls = h.tok ? `arw tok t-${h.tok}` : `arw s${VS(h.by)}`, mk = h.tok ? `aht-${h.tok}` : `ah${VS(h.by)}`;
-    const text = h.tok === 'ret' ? 'returns' : h.tok ? `+${h.amt}${h.tok === 'rec' && h.amt > 1 ? ' Recruits' : TOKLBL[h.tok]}` : (h.amt ? `${h.amt}` : 'blocked');
+    const text = h.tok === 'ret' ? 'returns' : h.tok ? `+${h.amt}${TOKLBL[h.tok]}` : (h.amt ? `${h.amt}` : 'blocked');
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('class', cls); path.setAttribute('marker-end', `url(#${mk})`);
     if (animate === true) path.style.animationDelay = (n * 90) + 'ms';
@@ -5782,6 +5826,8 @@ function drawArrows(list, animate, rects){
     lbl.setAttribute('class', h.tok ? `arl tok t-${h.tok}` : `arl s${VS(h.by)}`); lbl.textContent = text;
     if (animate === true) lbl.style.animationDelay = (n * 90 + 200) + 'ms';
     svg.appendChild(lbl);
+    const ic = h.tok && h.tok !== 'ret' ? tokIconSvg(h.tok) : null;
+    if (ic){ if (animate === true) ic.style.animationDelay = (n * 90 + 200) + 'ms'; svg.appendChild(ic); lbl._ic = ic; }
     // each arrow remembers what it joins, so it can be re-aimed at the cards wherever they are drawn on screen
     path._arw = {from:h.from, to:h.to, chip:chipSel, by:VS(h.by), n, self:!!(h.tok && h.from === h.to && h.tok !== 'ret'), lbl};
     placeArrow(path, stage, sr);
@@ -6623,7 +6669,10 @@ function dragHover(){
     // moves, so the drop spot comes straight from how far down the pointer is: steady while cards slide aside
     const list = $('deck-list'), rows = deckRows(list), cs = getComputedStyle(list);
     const strip = parseFloat(cs.getPropertyValue('--strip')) || 58, top = list.getBoundingClientRect().top + parseFloat(cs.paddingTop || 0);
-    const N = rows.length + 1, v = Math.max(0, Math.min(N - 1, Math.floor((e.clientY - top) / strip)));
+    // each card's strip starts below its own token tabs; walk down the column adding them up
+    let y = top, v = 0;
+    for (const r of rows){ const h = (+r.dataset.room || 0) + strip; if (e.clientY < y + h) break; y += h; v++; }
+    const N = rows.length + 1; v = Math.min(v, N - 1);
     const at = N - 1 - v;
     if (at !== drag.at || drag.zone !== 'deck') placeGap(list, at);
     drag.at = at;
