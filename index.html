@@ -949,6 +949,21 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 @media (max-width:640px){ .hgtok{width:22px;height:22px;right:-7px;bottom:-7px} .hgtok svg{width:12px;height:12px} }
 
 @media (max-width:640px){ .mktp .mpcards{width:33px;height:40px} .mktp .mpc,.mktp .mpface{width:30px;height:40px} .mktp .mplbl{font-size:.4rem;letter-spacing:.02em} .mktp .mpcount{font-size:.82rem} .mphit{left:22px} }
+
+/* mobilize deck: indented, dotted slots behind the cards (Vanguard first, Rearguard last); cards sit on top */
+.deckwrap{position:relative;margin-bottom:22px}
+.dslots{position:absolute!important;inset:0;z-index:0;pointer-events:none}
+.deckwrap #deck-list{position:relative;z-index:1}
+.dslot{position:relative;height:160px}
+.dslot::before{content:"";position:absolute;inset:-4px;border-radius:11px;border:2px dotted color-mix(in srgb, var(--muted) 70%, transparent);
+  background:color-mix(in srgb, var(--sunk) 85%, var(--ink) 7%);box-shadow:inset 0 3px 8px rgba(0,0,0,.18)}
+.dslot .dlab{position:absolute;left:0;right:0;top:calc(100% + 6px);text-align:center;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted);white-space:nowrap;line-height:1}
+.dslot.van .dlab,.dslot.rear .dlab{color:var(--ink)}
+.dslot:not(.filled) .dlab{top:50%;transform:translateY(-50%)}
+.dspacer{height:160px;visibility:hidden}
+.deckwrap .dgrid{row-gap:28px!important;column-gap:14px!important;padding-top:22px}
+@media (max-width:640px){ .deckwrap .dgrid{column-gap:10px!important;row-gap:24px!important} .dslot::before{inset:-3px} }
+@media (max-width:640px){ .dslot,.dspacer{height:var(--chd)} .dslot .dlab{font-size:.52rem;letter-spacing:.04em} }
 </style>
 
 <div class="wrap">
@@ -4562,7 +4577,6 @@ function marketCard(name, kind, src, idx, side, always, mir){
     ${short ? `<span class="need">Need $${info.price - me.money} more</span>` : ''}
     <span class="curve">${curveText(name, kind, own)}</span>
     <span class="tx">${cardTx(name, kind, own)}</span>${shortHTML(name, kind, own)}
-    ${own || jump ? `<span class="ownrow">${own ? `<span class="own">${PP() && !G.net ? `${esc(nm(S))} owns` : 'You own'} ${kind === 'u' ? '×' + own : 'level ' + Math.min(own, BDEFS[name] ? BDEFS[name].lv.length : 3)}</span>` : ''}${jump ? `<span class="jump">${jump}</span>` : ''}</span>` : ''}
     ${extra}${info.ok && myTurn ? `<span class="ctag">Buy $${info.price}</span>` : ''}
     <button type="button" class="${info.ok && myTurn ? 'primary' : ''}" data-act="buy" data-src="${src}" data-idx="${idx ?? ''}" ${info.ok && myTurn ? '' : 'disabled'}>${label}</button>
     ${side ? hgToken() : ''}
@@ -4603,7 +4617,6 @@ function forceCard(n, c, kind, canSell, isNew, ai){
     ${isNew ? '<span class="side-tag"><span class="newb">NEW</span></span>' : ''}
     <span class="curve">${curveText(n, kind, c)}</span>
     <span class="tx">${cardTx(n, kind, c)}</span>${shortHTML(n, kind, c)}
-    <span class="ownrow"><span class="own">${own}</span></span>
     ${sell}
   </div>`;
 }
@@ -4808,7 +4821,7 @@ function deckPoke(u, c, i){
   const html = list.map((k, j) => k === 'cp' ? '' : `<span class="pkhit" style="--j:${j};color:var(${TOKS[k].c})" role="button" tabindex="0" data-act="t-off" data-tok="${k}" data-i="${i}" title="${TOKS[k].n}: tap to send it back to the bench" aria-label="Send this ${TOKS[k].n} back to the bench">${TOKS[k].i}</span>`).join('');
   const nt = list.filter(k => k !== 'cp').length, cp = n - nt;
   const title = [cp ? `${cp} extra cop${cp > 1 ? 'ies' : 'y'}` : '', u.arm ? `${u.arm} Armament${u.arm > 1 ? 's' : ''}` : '', u.tr ? `${u.tr} Training` : ''].filter(Boolean).join(', ');
-  return {style:` style="box-shadow:${sh.join(',')};margin-right:${DPX * n}px;margin-top:${DPY * n}px" title="${title} behind it"`, html};
+  return {style:` style="box-shadow:${sh.join(',')}" title="${title} behind it"`, html};
 }
 function tokChip(kind, where, i){
   const lbl = kind === 'arm' ? 'Armament' : 'Training', fx = kind === 'arm' ? '+1 power' : '+1 level';
@@ -4866,13 +4879,17 @@ function mobilizeHTML(){
     const lv = u.name === 'Recruit' ? 1 : c + (u.tr||0);
     const sel = ui.sel && ui.sel.zone === 'deck' && ui.sel.i === i ? ' sel' : ui.sel ? ' cansel' : '';
     return `<div class="mcard fcard u drow${sel}${ui.pick ? (can ? ' target' : ' notarget') : ''}" data-drag="deck" data-i="${i}" data-key="${esc(key)}" data-uname="${esc(u.name)}"${pk.style}>${pk.html}
-      <div class="top"><span class="nm"><span class="dpos">${i+1}</span> ${esc(u.name)}</span><span class="cost">${'$'.repeat(DEFS[u.name].c)}</span></div>
-      ${tags ? `<span class="tags">${tags}</span>` : ''}
-      <span class="curve">${curveText(u.name, 'u', lv)}${u.arm ? ` <span class="tag">+${u.arm} Arm</span>` : ''}</span>
+      <div class="top"><span class="nm">${esc(u.name)}</span><span class="cost">${'$'.repeat(DEFS[u.name].c)}</span></div>
+      <span class="curve">${curveText(u.name, 'u', lv)}</span>
       <span class="tx">${cardTx(u.name, 'u', lv)}</span>${shortHTML(u.name, 'u', lv)}
-      <span class="ownrow"><span class="own">${u.name === 'Recruit' ? 'Token' : `×${c}${exemptUnit(u.name) ? '' : ` · Lv ${Math.min(lv, uMax(u.name))}`}`} · ${draftPower(u)} pwr</span></span>
     </div>`;
-  }).join('') || '<p class="note">Your deck is empty. Add units from the bench.</p>';
+  }).join('');
+  // slots: one for every card you could field (each unit you own up to your unique limit, plus Mercenaries and Recruits)
+  const ownNames = Object.keys(me.hand).filter(n => n !== 'Recruit');
+  const nSlots = Math.max(1, d.length, Math.min(deckCap(me), ownNames.filter(n => !exemptUnit(n)).length) + ownNames.filter(n => exemptUnit(n)).length + recAvail);
+  const slotLab = i => i === 0 ? (d.length === 1 ? 'Vanguard · Rearguard' : 'Vanguard') : i === d.length - 1 ? 'Rearguard' : String(i + 1);
+  const slots = Array.from({length:nSlots}, (_, i) => `<div class="dslot${i < d.length ? ' filled' : ''}${i === 0 ? ' van' : ''}${i > 0 && i === d.length - 1 ? ' rear' : ''}"><span class="dlab">${slotLab(i)}</span></div>`).join('');
+  const spacers = '<div class="dspacer"></div>'.repeat(Math.max(0, nSlots - d.length));
   const avail = Object.keys(me.hand).filter(n => n !== 'Recruit' && !d.some(u => u.name === n));
   const benchToks = [...Array(Math.max(0, smith - armUsed))].map(() => tokChip('arm', 'bench')).join('') + [...Array(Math.max(0, study - trUsed))].map(() => tokChip('tr', 'bench')).join('');
   return `<div class="forces mob">
@@ -4880,7 +4897,7 @@ function mobilizeHTML(){
       <p class="note">Top card fights first. ${uniq}/${deckCap(me)} unique units${smith ? ` · Armaments ${armUsed}/${smith}` : ''}${study ? ` · Training ${trUsed}/${study}` : ''}${recAvail ? ` · Recruits ${recUsed}/${recAvail}` : ''}</p>
       ${mobMir.length ? `<p class="note">✶ Miracles in hand: ${mobMir.map(esc).join(', ')}. Their Recruits, Armaments and Training are on the bench; placing more than your own uses them up.${spend.length ? ` <b>This deck uses ${spend.map(esc).join(' and ')}.</b>` : ' This deck keeps them for later.'}</p>` : ''}
       ${ui.pick ? `<p class="pickhint">Tap a unit to give it ${ui.pick === 'arm' ? 'an Armament' : 'a Training token'}. <button type="button" class="small" data-act="t-cancel">Cancel</button></p>` : ''}
-      <div class="list dropzone dgrid" id="deck-list" data-zone="deck">${rows}</div>
+      <div class="deckwrap"><div class="dgrid dslots" aria-hidden="true">${slots}</div><div class="list dropzone dgrid" id="deck-list" data-zone="deck">${rows}${spacers}</div></div>
       ${ui.err ? `<p class="err">${esc(ui.err)}</p>` : ''}
       <div class="row"><button type="button" data-act="suggest">Suggest a deck</button><span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${ui.planning ? 'The AI is planning its deck…' : PP() && !G.net && S === 0 ? `Lock in and pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle'}</button></div>
     </div>
@@ -4892,7 +4909,6 @@ function mobilizeHTML(){
         return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
         <div class="top"><span class="nm">${esc(n)}</span><span class="cost">${'$'.repeat(DEFS[n].c)}</span></div>
         <span class="curve">${curveText(n, 'u', c)}</span><span class="tx">${cardTx(n, 'u', c)}</span>${shortHTML(n, 'u', c)}
-        <span class="ownrow"><span class="own">×${c}${exemptUnit(n) ? '' : ` · Lv ${uLvl(n, c)}`}</span></span>
         <button type="button" data-act="d-add" data-name="${esc(n)}">Add to deck</button></div>`; }).join('') || '<p class="note">Every unit is in your deck.</p>'}
       ${Array.from({length:Math.max(0, recAvail - recUsed)}, (_, k) => `<div class="mcard fcard u bcard${!k && ui.sel && ui.sel.zone === 'bench' && ui.sel.name === 'Recruit' ? ' sel' : ''}" data-drag="bench" data-name="Recruit">
         <div class="top"><span class="nm">Recruit</span><span class="cost">$</span></div>
@@ -5585,7 +5601,7 @@ function slideFrom(rects, els, ms){
 const deckRows = zone => [...zone.querySelectorAll('.drow')].filter(r => !drag || r !== drag.src);
 function placeGap(zone, at){
   const rows = deckRows(zone || $('deck-list')), rects = new Map(rows.map(r => [r, r.getBoundingClientRect()]));
-  if (zone){ if (at < rows.length) zone.insertBefore(drag.line, rows[at]); else zone.appendChild(drag.line); }
+  if (zone){ if (at < rows.length) zone.insertBefore(drag.line, rows[at]); else zone.insertBefore(drag.line, zone.querySelector('.dspacer')); }
   else if (drag.line.parentNode) drag.line.remove();
   slideFrom(rects, rows);
 }
