@@ -1921,7 +1921,11 @@ function startShop(g){
   for (const p of g.players) p.money += Math.max(0, income(p));
   for (const k of ['u','b']){
     const size = k === 'u' ? RULES.unitDisplay : RULES.bldgDisplay, deck = k === 'u' ? g.uDeck : g.bDeck;
-    while (g.disp[k].length < size){ const c = dealCard(g, k); if (!c) break; g.disp[k].push(c); }
+    // each display card has a fixed slot (at); cards that stay keep theirs and new cards fill the empty ones in order
+    const used = new Set(g.disp[k].filter(c => c.at != null).map(c => c.at));
+    const free = () => { let a = 0; while (used.has(a)) a++; used.add(a); return a; };
+    for (const c of g.disp[k]) if (c.at == null) c.at = free();
+    while (g.disp[k].length < size){ const c = dealCard(g, k); if (!c) break; c.at = free(); g.disp[k].push(c); }
   }
   let first;
   if (g.round === 1){ first = g.firstOverride != null ? g.firstOverride : g.rnd() < 0.5 ? 0 : 1; g.first1 = first; }
@@ -2040,8 +2044,8 @@ function useWrit(g, i, n, names){
   for (const nm of pick){
     const kd = g.disp.u.some(c => c.name === nm) ? 'u' : 'b', row = g.disp[kd];
     const k = row.findIndex(c => c.name === nm); if (k < 0) continue;
-    row.splice(k, 1); (g.muster || (g.muster = [])).push(nm); moved.push(nm);
-    const c = dealCard(g, kd); if (c) row.splice(k, 0, c);   // a new card from its own deck takes its place
+    const was = row.splice(k, 1)[0]; (g.muster || (g.muster = [])).push(nm); moved.push(nm);
+    const c = dealCard(g, kd); if (c){ c.at = was.at; row.splice(k, 0, c); }   // a new card from its own deck takes its place
   }
   g.log.push({t:moved.length ? `${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} Muster Writ: ${moved.join(' and ')} ${moved.length > 1 ? 'go' : 'goes'} to the Muster pile.`
                              : `${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} Muster Writ and ${g.labels[i]==='You'?'move':'moves'} nothing.`, side:i});
@@ -2202,9 +2206,9 @@ function endShop(g){
   g.muster = g.muster || [];
   for (const c of g.disp.u.concat(g.disp.b)) if (c.side) g.muster.push(c.name);
   g.leaving = {u:[], b:[]};
-  for (const k of ['u','b']) g.disp[k].forEach((c, j) => { if (c.side) g.leaving[k].push({name:c.name, j}); });
+  for (const k of ['u','b']) g.disp[k].forEach((c, j) => { if (c.side) g.leaving[k].push({name:c.name, j, at:c.at}); });
   // unbought cards go sideways with their miracles; ones already sideways leave with theirs
-  for (const k of ['u','b']) g.disp[k] = g.disp[k].filter(c => !c.side).map(c => ({name:c.name, side:true, mir:c.mir || []}));
+  for (const k of ['u','b']) g.disp[k] = g.disp[k].filter(c => !c.side).map(c => ({name:c.name, side:true, mir:c.mir || [], at:c.at}));
   g.phase = 'mobilize'; g.decks = [null,null];
 }
 function validateDeck(g, i, spec){
@@ -4344,7 +4348,7 @@ const AI_DEPTH = () => DEPTH.master;
 function scheduleAI(){
   if (aiTimer || aiBusy || !G || PP() || G.phase !== 'shop' || cur(G) !== 1) return;
   aiTimer = setTimeout(async () => { aiTimer = null; if (!G || G.phase !== 'shop' || cur(G) !== 1) return;
-    const g0 = G, before = {u:G.disp.u.map(c => c.name), b:G.disp.b.map(c => c.name)}, m0 = G.players[1].money, n0 = G.log.length;
+    const g0 = G, before = {u:G.disp.u.map(c => c.name), b:G.disp.b.map(c => c.name), at:{u:G.disp.u.map(c => c.at), b:G.disp.b.map(c => c.at)}}, m0 = G.players[1].money, n0 = G.log.length;
     aiBusy = true; let r = null;
     try{ r = await aiThink('shop', {depth:AI_DEPTH()}); } finally { aiBusy = false; }
     if (G !== g0 || G.phase !== 'shop' || cur(G) !== 1) return;   // the game moved on while it thought
@@ -4574,7 +4578,7 @@ const MOVE_SOUND = {b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle()
 // vol: how loud a successful move sounds (null: silent); own: a failed move is this screen's player's, so it buzzes.
 function shopMove(i, a, vol, own){
   const k = a[0] === 'b' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
-  const name = k && G.disp[k][a[2]] ? G.disp[k][a[2]].name : null, pos = k ? mergedPos(k, a[2]) : -1, m0 = G.players[i].money;
+  const dc = k && G.disp[k][a[2]], name = dc ? dc.name : null, pos = k ? (dc && dc.at != null ? dc.at : mergedPos(k, a[2])) : -1, m0 = G.players[i].money;
   const ok = applyMove(i, a);
   if (ok && k && name) addGhost(k, pos, name, m0 - G.players[i].money, i);
   if (vol != null){ if (ok) MOVE_SOUND[a[0]](vol); else if (own) sfx.err(); }
@@ -5085,9 +5089,19 @@ function musterPileHTML(){
     <span class="mpcards" aria-hidden="true">${Array.from({length:Math.max(1, n)}, (_, k) => `<span class="mpc${pile.length ? '' : ' mpe'}" style="--k:${Math.max(1, n) - 1 - k}"></span>`).join('')}<span class="mpface"><span class="mplbl">Muster</span><b class="mpcount">${pile.length}</b></span></span>${hits ? `<span class="mphit" aria-hidden="true">${hits}</span>` : ''}</button>`;
 }
 function marketRow(kind, src){
-  const cards = G.disp[kind].map((c, i) => marketCard(c.name, kind, src, i, c.side, false, c.mir));
-  for (const g of ghostList(kind).slice().sort((a, b) => a.idx - b.idx))
-    cards.splice(Math.min(g.idx, cards.length), 0, ghostCard(g, kind));
+  // each card stays in its own slot from shop to shop (a returning card keeps its place); a bought card's ghost holds its slot
+  const slotted = G.disp[kind].some(c => c.at != null);
+  let cards;
+  if (slotted){
+    const items = G.disp[kind].map((c, i) => ({at:c.at != null ? c.at : i, html:marketCard(c.name, kind, src, i, c.side, false, c.mir)}));
+    for (const g of ghostList(kind)) items.push({at:g.idx, html:ghostCard(g, kind), ghost:true});
+    items.sort((a, b) => a.at - b.at || (a.ghost ? 1 : 0) - (b.ghost ? 1 : 0));
+    cards = items.map(it => it.html.replace('<div ', `<div data-at="${it.at}" `));
+  } else {
+    cards = G.disp[kind].map((c, i) => marketCard(c.name, kind, src, i, c.side, false, c.mir));
+    for (const g of ghostList(kind).slice().sort((a, b) => a.idx - b.idx))
+      cards.splice(Math.min(g.idx, cards.length), 0, ghostCard(g, kind));
+  }
   // the always-available card (Recruit or Field) leads its row
   const always = kind === 'u' ? marketCard('Recruit', 'u', 'recruit', 0, false, true) : marketCard('Field', 'b', 'field', 0, false, true);
   const alwaysWrap = `<div class="alwaysw"><span class="alab">Always available</span><div class="astack">${always}</div></div>`;
@@ -5110,7 +5124,7 @@ function noteAIMoves(before, money0, logN){
     const was = before[k], now = G.disp[k].map(c => c.name);
     if (now.length >= was.length) continue;
     let j = 0; while (j < now.length && now[j] === was[j]) j++;
-    const pos = mergedPos(k, j);
+    const pos = before.at && before.at[k][j] != null ? before.at[k][j] : mergedPos(k, j);
     ui.ghosts[k].push({idx:pos, name:was[j], price:spent, who:1});
   }
   const buys = G.log.slice(logN).filter(l => l.side === 1 && / buys /.test(l.t));
@@ -5856,8 +5870,8 @@ function leaveToPile(rows){
   [['u', rows[0]], ['b', rows[1]]].forEach(([kind, row]) => {
     if (!row) return;
     const slots = [...row.children].filter(c => !c.classList.contains('alwaysw') && !c.classList.contains('mdiv'));
-    for (const {name, j} of L[kind]){
-      const slot = slots[j] || slots[slots.length - 1]; if (!slot) continue;
+    for (const {name, j, at} of L[kind]){
+      const slot = (at != null && slots.find(el => el.dataset.at === String(at))) || slots[j] || slots[slots.length - 1]; if (!slot) continue;
       const card = slot.classList.contains('mcard') ? slot : slot.querySelector('.mcard') || slot;
       const r = card.getBoundingClientRect(); if (!r.width) continue;
       const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) continue;
