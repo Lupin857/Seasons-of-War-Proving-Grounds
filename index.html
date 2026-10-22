@@ -5976,6 +5976,19 @@ function renderPlay(){
    reconnect through their room instead. A finished game is cleared once its result has been shown. */
 var SAVE_KEY = 'sow-save-v1', saveT = null;
 var SAVE_UI = ['battle','frame','draft','lastDraft','lastDrafts','drafts','mobSeat','handoff','mktTab','dealt','ghosts','roll','revealed','pre','lastTurn','musterOpen','bannerOff'];
+/* Sets and Maps (such as the cards each player has seen this shop) don't survive plain JSON: they come back as empty
+   objects and the next Buy or Pass throws. Save them tagged and rebuild them on load, so a reload or a page update
+   picks the game up where it was. */
+const saveRep = (k, v) => v instanceof Set ? {$set:[...v]} : v instanceof Map ? {$map:[...v]} : v;
+const saveRev = (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? ('$set' in v ? new Set(v.$set) : '$map' in v ? new Map(v.$map) : v) : v;
+// a save from an older version of the page: rebuild sets that were flattened to {} and fill in any fields added since
+function upgradeSave(g){
+  for (const k of ['seen', 'mirSeen']) if (Array.isArray(g[k])) g[k] = g[k].map(x => x instanceof Set ? x : new Set(Array.isArray(x) ? x : []));
+  const d = newGame({rnd:Math.random, miracles:g.miracles, target:g.target, labels:g.labels});
+  for (const k in d) if (!(k in g)) g[k] = d[k];
+  g.players.forEach((p, i) => { for (const k in d.players[i]) if (!(k in p)) p[k] = d.players[i][k]; });
+  return g;
+}
 function saveGame(){ clearTimeout(saveT); saveT = setTimeout(saveNow, 300); }
 function saveNow(){
   clearTimeout(saveT); saveT = null;
@@ -5984,7 +5997,7 @@ function saveNow(){
     if (G.over && !hideResult()){ localStorage.removeItem(SAVE_KEY); return; }
     const u = {}; for (const k of SAVE_UI) if (ui[k] !== undefined) u[k] = ui[k];
     const {rnd, ...g} = G;
-    const put = (gg, uu) => localStorage.setItem(SAVE_KEY, JSON.stringify({v:1, at:Date.now(), len:LEN, g:gg, u:uu}));
+    const put = (gg, uu) => localStorage.setItem(SAVE_KEY, JSON.stringify({v:1, at:Date.now(), len:LEN, g:gg, u:uu}, saveRep));
     try{ put(g, u); }
     catch(e){   // storage full: drop the match record, then the battle replay, rather than lose the game
       const {rec, ...g2} = g;
@@ -5994,10 +6007,10 @@ function saveNow(){
 }
 function loadSave(){
   try{
-    const s = jparse(localStorage.getItem(SAVE_KEY) || 'null');
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', (k, v) => saveRev(k, renameRevive(k, v)));   // renamed cards, then sets
     if (!s || s.v !== 1 || !s.g || !s.g.players || s.len !== LEN || (s.g.over && !(s.u && s.u.battle && !s.u.revealed))) return false;
     stopTimers();
-    G = {...s.g, rnd:Math.random};
+    G = upgradeSave({...s.g, rnd:Math.random});
     ui = freshUI({...(s.u || {}), start:false});
     if (ui.roll){ ui.roll.rolling = false; if (ui.roll.first == null){ ui.roll.you = null; ui.roll.ai = null; ui.roll.tie = false; } }
     if (!ui.battle && G.phase === 'battle' && !G.over) startShop(G);   // the replay didn't fit in storage: go on to the next shop
@@ -8161,8 +8174,15 @@ document.addEventListener('scroll', hideTip, true);
 document.addEventListener('click', e => { if (!coarse()) return; const el = e.target.closest('[data-tip]'); if (el) showTip(el); else hideTip(); });
 
 try{ if (!document.documentElement.lang) document.documentElement.lang = 'en'; }catch(e){}   // lets long card names hyphenate on small cards
-if (loadSave()){ renderPlay(); if (ui.battle) startAuto(600); else scheduleAI(); }
-else { ui.start = true; renderPlay(); }
+// a save the current version can't draw (a card it names was removed, say) falls back to the start screen instead of a frozen page
+let resumed = false;
+try{ if (loadSave()){ renderPlay(); resumed = true; if (ui.battle) startAuto(600); else scheduleAI(); } }
+catch(e){   // kept aside rather than deleted, in case a later fix can read it
+  console.error('Saved game could not be resumed', e);
+  try{ localStorage.setItem('sow-save-unreadable', localStorage.getItem(SAVE_KEY)); localStorage.removeItem(SAVE_KEY); }catch(e2){}
+  stopTimers(); G = null; ui = {};
+}
+if (!resumed){ ui.start = true; renderPlay(); }
 
 </script>
 
