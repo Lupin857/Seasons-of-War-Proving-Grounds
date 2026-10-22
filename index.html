@@ -785,11 +785,14 @@ header{position:relative}
 .mcard.drow .pkhit:hover{background:color-mix(in srgb, currentColor 25%, transparent);border-radius:0 6px 6px 0}
 @media (pointer:coarse){ .mcard.drow .pkhit::before{content:"";position:absolute;inset:-4px -3px} }
 /* bench tokens: small cards */
-.tokchip.tokcard{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:2px;width:86px;height:64px;border-radius:7px;border-width:1px;padding:5px 7px;
+.tokchip.tokcard{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:3px;width:150px;min-height:64px;height:auto;border-radius:7px;border-width:1px;padding:5px 7px;
   background:color-mix(in srgb, currentColor 12%, var(--surface));box-shadow:inset 0 3px 0 currentColor;font-size:.8rem;line-height:1.15}
 .tokchip.tokcard .ico{width:18px;height:18px;font-size:.7rem}
 .tokchip.tokcard .tl{color:var(--ink)}
-.tokchip.tokcard .fx{font-size:.7rem}
+.tokchip.tokcard .fx{font-size:.7rem;font-weight:700;color:currentColor}
+.tokchip.tokcard .ttop{display:flex;align-items:center;gap:5px}
+.tokchip.tokcard .rt{font-weight:400;font-size:.72rem;line-height:1.3;color:var(--muted);white-space:normal}
+@media (max-width:640px){ .tokchip.tokcard{width:calc(50% - 4px)} }
 .tokchip.tokcard.picked{background:var(--or-soft);box-shadow:inset 0 3px 0 currentColor,0 0 0 3px var(--or-soft),0 0 0 5px currentColor}
 .mcard.drow .dbtn button{flex:1;padding:3px 0}
 .mcard.drow .tx,.mcard.bcard .tx{overflow:visible}
@@ -1102,6 +1105,49 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
   .stamp{font-size:.6rem;padding:0 6px;line-height:1.35}
   .mktp .zhw,.fcards .zhw{--wm:70px}
 }
+
+/* scoreboard sides are deck buttons: they open each player's cards */
+.board .deckbtn{display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;align-items:flex-start;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;box-shadow:0 2px 0 var(--line);transition:transform .08s,box-shadow .08s,border-color .15s}
+.board .deckbtn.ai{text-align:right;align-items:flex-end}
+.board .deckbtn:hover{border-color:currentColor}
+.board .deckbtn.you{border-color:color-mix(in srgb,var(--azure) 45%,var(--line))}
+.board .deckbtn.ai{border-color:color-mix(in srgb,var(--gules) 45%,var(--line))}
+.board .deckbtn:active{transform:translateY(2px);box-shadow:0 0 0 var(--line)}
+.board .deckbtn.on{background:var(--or-soft)}
+.board .deckbtn .who{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.dkic{position:relative;flex:none;width:14px;height:17px;display:inline-block}
+.dkic i{position:absolute;width:11px;height:14px;border:1.5px solid currentColor;border-radius:2px;background:var(--bg)}
+.dkic i:first-child{left:3px;top:0}.dkic i:last-child{left:0;top:3px}
+.dkgo{font-family:var(--f-body);font-weight:700;opacity:.7}
+.board .deckbtn .m3{font-family:var(--f-body)}
+.board .deckbtn.you .m3{color:var(--azure)}
+.logp .log{max-height:180px}
+.decksheet{position:fixed;inset:0;z-index:60;background:rgba(10,14,20,.38);display:flex;align-items:flex-end;justify-content:center;animation:peekbg .16s ease-out}
+.dsheet{width:min(100%,1000px);max-height:min(86vh,900px);background:var(--surface);border-radius:14px 14px 0 0;border-top:3px solid var(--azure);display:flex;flex-direction:column;box-shadow:0 -12px 40px rgba(0,0,0,.3);animation:dsup .22s cubic-bezier(.2,.9,.3,1)}
+.dsheet.s1{border-top-color:var(--gules)}
+@keyframes dsup{from{transform:translateY(40px);opacity:.4}}
+.dshead{display:flex;align-items:center;gap:8px;padding:8px 10px 0 12px;border-bottom:1px solid var(--line)}
+.dstabs{display:flex;gap:4px;flex:1;min-width:0}
+.dstabs button{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:10px 12px;font-family:var(--f-display);font-size:1.1rem;color:var(--muted)}
+.dstabs button.s0[aria-selected="true"]{color:var(--azure);border-bottom-color:var(--azure)}
+.dstabs button.s1[aria-selected="true"]{color:var(--gules);border-bottom-color:var(--gules)}
+.dsclose{border:none;background:none;font-size:1.2rem;min-width:44px;min-height:44px}
+.dsbody{overflow:auto;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));display:flex!important;flex-direction:column;gap:10px}
+body.dsopen{overflow:hidden}
+@media (prefers-reduced-motion: reduce){ .dsheet,.decksheet{animation:none} }
+@media (max-width:640px){
+  /* the scoreboard rides at the top of the bottom bar */
+  #view-play:has(.dock) .board.topboard{display:none}
+  .dock .board.inDock{position:static;box-shadow:none;background:none;border:none;border-radius:0;padding:0 0 7px;margin-bottom:0;border-bottom:1px solid var(--line);gap:0 6px}
+  .board .deckbtn{padding:5px 8px;min-height:44px;justify-content:center}
+  .board .deckbtn .m3{display:none}
+  .board .deckbtn{padding:5px 6px}
+  .board .deckbtn .who{font-size:.9rem!important;gap:4px;white-space:normal;line-height:1.05}
+  .dock .board.inDock{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .board .deckbtn .dkgo{display:none}
+  .decksheet{z-index:80}
+  .dsheet{max-height:88vh}
+}
 </style>
 
 <div class="wrap">
@@ -1131,7 +1177,7 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
         <li>Each shop: $3 + income. Money carries over. Display of 5 units and 5 buildings; unbought cards go sideways and come back once. After that, they go face-up to the Muster pile.</li>
         <li>Turn order: random in round 1; afterward the loser of the last battle shops first (draw: whoever shopped second).</li>
         <li>Per shop: 2 units and 1 building. Once per shop you may make one extra purchase for $1 more (not a Field). Carpenter's Guild adds extra building buys (Fields included) and makes buildings $1 cheaper (minimum $1).</li>
-        <li>Selling: on your shop turn you may sell any number of cards you didn't buy this shop, for $1 each. Selling doesn't use a buy or end your turn. A sold unit or building drops one level. A sold card goes face-up to the Muster pile, so both players see which card it was (Fields return to the supply, and a level from Mason's Guild puts the Guild in the Muster pile).</li>
+        <li>Selling: on your shop turn you may sell any number of cards for $1 each, including cards you just bought this shop. Selling doesn't use a buy or end your turn. A sold unit or building drops one level. A sold card goes face-up to the Muster pile, so both players see which card it was (Fields return to the supply, and a level from Mason's Guild puts the Guild in the Muster pile).</li>
         <li>Muster pile: a returning card that goes unbought again, or a card someone sells, is laid face-up in the Muster pile. On your turn you may buy a copy of a unit or building you already own from the Muster pile, at its normal price, using a normal buy of that kind. Black Market cards you don't buy still go to the bottom of the deck.</li>
         <li>Fields ($1, +$1 income) and Recruits ($1, 1-power token) are always for sale. City holds 5 buildings; duplicates share a slot, Fields don't.</li>
         <li>Mobilize: up to 5 unique units (+Reserve Encampment); Mercenary and Recruits don't count. Smithy Armaments, Study Training and Barracks Recruits are placed here. Farmhand and Arsonist pay out if they're in your deck.</li>
@@ -1952,13 +1998,12 @@ function useVision(g, i, k){
 // Selling: on your shop turn, as a free action (no buy used, turn doesn't end), sell one copy of a unit or building
 // for a flat $1. It drops a level (or leaves if it was the last copy). The card goes to the bottom of its deck;
 // Fields and Recruits go back to the supply, and a level that came from Mason's Guild sends the Guild back instead.
-// Cards bought this shop can't be sold back the same shop.
+// Cards bought this shop can be sold back the same shop too.
 const SELL_PRICE = 1;
 function canSell(g, i, kind, name){
   const p = g.players[i];
   if (g.phase !== 'shop' || cur(g) !== i || g.passed[i]) return false;
   if (name === 'Recruit' || !(kind === 'u' ? p.hand[name] : p.city[name])) return false;
-  if (g.shopBought && g.shopBought[i].includes(name)) return false;
   return true;
 }
 function sell(g, i, kind, name){
@@ -4218,9 +4263,10 @@ function flyBuys(i, before, mk){
   const p = G.players[i], side = i === seat() ? ':not(.ai)' : '.ai', got = [];
   for (const [k, now] of [['u', p.hand], ['b', p.city]]) for (const n in now) if ((now[n] || 0) > (before[k][n] || 0)) got.push(n);
   got.forEach((n, j) => {
-    const tos = $('view-play').querySelectorAll(`.forces .fcard${side}[data-card="${CSS.escape(n)}"]`), to = tos[tos.length - 1];
+    const tos = $('view-play').querySelectorAll(`.dsheet.s${i} .fcard${side}[data-card="${CSS.escape(n)}"]`), to = tos[tos.length - 1];
     const src = mk.get(n) || mk.get("Mason's Guild") || mk.get('__deck');
     if (to && src) setTimeout(() => flyCard(src, to), j * 140);
+    else { const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => db.animate([{transform:'scale(1)'}, {transform:'scale(1.07)', background:'var(--or-soft)'}, {transform:'none'}], {duration:520, easing:'ease-out'}), 380 + j * 140); }
   });
 }
 function flyCard(src, to){
@@ -4574,13 +4620,35 @@ function phaseLabel(){
   if (ui.battle) return G.over && !hideResult() ? 'Game over' : 'Battle';
   return {shop:'Shop', mobilize:'Mobilize', battle:'Battle', over:'Game over'}[G.phase];
 }
-function boardHTML(){
-  const me = G.players[0], ai = G.players[1], B = hideResult() ? ui.pre : boardSnap();
-  return `<div class="board">
-    <div class="side you"><span class="who">${PP() ? esc(nm(0)) : 'You'}</span><span class="meta">$${B.money[0]} · income $${B.inc[0]}</span><span class="meta">${B.cath[0] ? 'Cathedral +1 point' : '&nbsp;'}</span></div>
+function deckLabel(i){
+  if (PP() && !G.net) return `${esc(nm(i))}'s deck`;
+  return i === seat() ? 'Your deck' : "Opponent's deck";
+}
+function boardHTML(where){
+  const B = hideResult() ? ui.pre : boardSnap();
+  const deckBtn = i => `<button type="button" class="side ${i ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${deckLabel(i)}: view cards">
+      <span class="who"><span class="dkic" aria-hidden="true"><i></i><i></i></span>${deckLabel(i)}<span class="dkgo" aria-hidden="true">›</span></span>
+      <span class="meta">$${B.money[i]} · income $${B.inc[i]}</span>
+      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : i === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span></button>`;
+  return `<div class="board${where === 'dock' ? ' inDock' : ' topboard'}">
+    ${deckBtn(0)}
     <div class="mid"><div class="sc">${B.tot[0]} – ${B.tot[1]}</div><div class="rd">Round ${G.round} · ${phaseLabel()} · first to ${G.target}</div></div>
-    <div class="side ai"><span class="who">${PP() ? esc(nm(1)) : 'AI'}</span><span class="meta">$${B.money[1]} · income $${B.inc[1]}</span><span class="meta">${B.cath[1] ? 'Cathedral +1 point' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span></div>
+    ${deckBtn(1)}
   </div>`;
+}
+// the cards each player owns (formerly "forces"), opened from the deck buttons on the scoreboard
+function deckSheetHTML(){
+  const i = ui.deckView; if (i !== 0 && i !== 1) return '';
+  const S = seat(), mine = i === S, p = G.players[i];
+  const canSell = mine && G.phase === 'shop' && !ui.battle && cur(G) === S && !G.passed[S];
+  const body = mine ? forcesHTML(p, canSell, new Set((G.shopBought && G.shopBought[S]) || []))
+                    : forcesHTML({...p, hand:pubHand(p)}, false, aiFresh(), true);
+  const note = canSell ? '<p class="note">On your turn you can sell any card for $1, even one you just bought. Selling is free: it doesn\'t use a buy or end your turn.</p>'
+    : !mine && G.phase === 'mobilize' && !ui.battle ? '<p class="note">Their deck order is secret.</p>' : '';
+  const tabs = [0, 1].map(k => `<button type="button" role="tab" aria-selected="${k === i}" class="s${k}" data-act="deck-open" data-p="${k}">${deckLabel(k)}</button>`).join('');
+  return `<div class="decksheet" data-act="deck-close"><div class="dsheet s${i}" role="dialog" aria-modal="true" aria-label="${deckLabel(i)}">
+    <div class="dshead"><div class="dstabs" role="tablist">${tabs}</div><button type="button" class="dsclose" data-act="deck-close" aria-label="Close">✕</button></div>
+    <div class="dsbody forces">${note}${body}</div></div></div>`;
 }
 function curveText(name, kind, own, noNext){
   if (kind === 'u'){
@@ -4769,11 +4837,11 @@ function mirListHTML(name, mir, cls){
 }
 function unitLine(n, c, canSell, isNew){
   const L = uLvl(n, c), pw = n === 'Jester' ? '?' : DEFS[n].p[L-1];
-  return `<div class="li${isNew ? ' isnew' : ''}"><span class="nm">${esc(n)}${isNew ? ' <span class="newb">NEW</span>' : ''}</span><span class="mono">×${c} · Lv ${L} · ${pw} pwr</span>${canSell && !isNew && n !== 'Recruit' ? `<button type="button" class="small" data-act="sell-u" data-name="${esc(n)}" title="Sell one copy for $1">Sell $1</button>` : ''}</div>`;
+  return `<div class="li${isNew ? ' isnew' : ''}"><span class="nm">${esc(n)}${isNew ? ' <span class="newb">NEW</span>' : ''}</span><span class="mono">×${c} · Lv ${L} · ${pw} pwr</span>${canSell && n !== 'Recruit' ? `<button type="button" class="small" data-act="sell-u" data-name="${esc(n)}" title="Sell one copy for $1">Sell $1</button>` : ''}</div>`;
 }
 function bldgLine(n, c, canSell, isNew){
   const lv = n === 'Field' ? `×${c}` : `Lv ${Math.min(c, BDEFS[n].lv.length)}`;
-  return `<div class="li${isNew ? ' isnew' : ''}"><span class="nm">${esc(n)}${isNew ? ' <span class="newb">NEW</span>' : ''}</span><span class="mono">${lv}</span>${canSell && !isNew ? `<button type="button" class="small" data-act="sell-b" data-name="${esc(n)}" title="Sell one level for $1">Sell $1</button>` : ''}</div>`;
+  return `<div class="li${isNew ? ' isnew' : ''}"><span class="nm">${esc(n)}${isNew ? ' <span class="newb">NEW</span>' : ''}</span><span class="mono">${lv}</span>${canSell ? `<button type="button" class="small" data-act="sell-b" data-name="${esc(n)}" title="Sell one level for $1">Sell $1</button>` : ''}</div>`;
 }
 // Owned cards are drawn like market cards (name, power curve with the current level lit, full text) so you can read them.
 function forceCard(n, c, kind, canSell, isNew, ai){
@@ -4785,7 +4853,7 @@ function forceCard(n, c, kind, canSell, isNew, ai){
   const owner = mine ? 'You' : PP() ? esc(nm(ai ? 1 - seat() : seat())) : 'AI';
   const verb = mine ? 'own' : 'owns';
   const own = !hasLevels(n, kind) ? `${owner} ${verb} it` : `${owner} ${verb} ${have}`;
-  const sell = canSell && !isNew && !(kind === 'u' && n === 'Recruit')
+  const sell = canSell && !(kind === 'u' && n === 'Recruit')
     ? `<button type="button" data-act="sell-${kind}" data-name="${esc(n)}" title="${kind === 'u' ? 'Sell one copy' : 'Sell one level'} for $1">Sell $1</button>` : '';
   const oside = ai ? 1 - seat() : seat();   // whose card this is: blue for seat 0, red for seat 1
   return `<div class="mcard fcard ${kind}${ai ? ' ai' : ''} so${oside}${isNew ? ' isnew hasst' : ''}" data-card="${esc(n)}"${copyStyle(extraCopies(n, kind, c), kind)}>
@@ -4881,7 +4949,7 @@ function dockHTML(){
     const lbl = ui.planning ? 'AI is planning…' : PP() && !G.net && S === 0 ? `Lock in, pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle';
     body = `${ui.sel ? '<button type="button" data-act="sel-clear">Cancel</button>' : ''}<span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lbl}</button>`;
   } else return '';
-  return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock"><div class="dhint"><span class="dphase">${esc(phase)}</span><span class="dtxt">${hint}</span></div>
+  return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock">${boardHTML('dock')}<div class="dhint"><span class="dphase">${esc(phase)}</span><span class="dtxt">${hint}</span></div>
     <div class="dbar">${body}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
 // "Taken by AI" placeholders keep their spot in the market for the rest of the shop
@@ -4972,10 +5040,7 @@ function shopHTML(){
     ${G.bm[S] ? `<span class="eyebrow">Black Market: ${G.bm[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}, $${bmOff(me)} off one card)</span><div class="market plain">${G.bm[S].cards.map((n, i) => marketCard(n, G.bm[S].k, 'bm', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
     ${G.vis && G.vis[S] ? `<span class="eyebrow">Vision: ${G.vis[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}; buy one at normal price, the rest go to the bottom)</span><div class="market plain">${G.vis[S].cards.map((n, i) => marketCard(n, G.vis[S].k, 'vis', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
   </div>
-  <div class="forces">
-    <div class="panel"><h2>${PP() && !G.net ? `${esc(nm(S))}'s forces` : 'Your forces'}</h2>${myTurn && !G.passed[S] ? '<p class="note">On your turn you can sell any card you didn\'t buy this shop for $1. Selling is free: it doesn\'t use a buy or end your turn.</p>' : ''}${forcesHTML(me, myTurn && !G.passed[S], new Set((G.shopBought && G.shopBought[S]) || []))}</div>
-    <div class="panel"><h2>${PP() ? `${esc(nm(O))}'s forces` : 'AI forces'}</h2>${forcesHTML({...G.players[O], hand:pubHand(G.players[O])}, false, aiFresh(), true)}<span class="eyebrow">Recent moves</span>${logHTML()}</div>
-  </div>`;
+  <div class="panel logp"><span class="eyebrow">Recent moves</span>${logHTML()}</div>`;
 }
 function draftPower(u){
   if (u.name === 'Recruit') return 1 + (u.arm||0);
@@ -4995,12 +5060,18 @@ function deckPoke(u, c, i){
   const title = [cp ? `${cp} extra cop${cp > 1 ? 'ies' : 'y'}` : '', u.arm ? `${u.arm} Armament${u.arm > 1 ? 's' : ''}` : '', u.tr ? `${u.tr} Training` : ''].filter(Boolean).join(', ');
   return {style:` style="box-shadow:${sh.join(',')}" title="${title} behind it"`, html};
 }
+// rules text printed on the bench token cards
+const TOKRULES = {
+  arm:'Attach to a unit: it has +1 power this battle. A unit can hold more than one.',
+  tr:'Attach to a unit: it fights 1 level higher this battle. Not on Recruits or units at max level.'
+};
 function tokChip(kind, where, i){
   const lbl = kind === 'arm' ? 'Armament' : 'Training', fx = kind === 'arm' ? '+1 power' : '+1 level';
   const pick = where === 'bench' && ui.pick === kind ? ' picked' : '';
   const act = where === 'bench' ? `data-act="t-pick"` : `data-act="t-off" data-i="${i}"`;
   const tip = where === 'bench' ? `Drag onto a unit (or tap, then tap a unit)` : `Tap to send back to the bench, or drag to another unit`;
-  if (where === 'bench') return `<span class="tokchip tokcard ${kind}${pick}" role="button" tabindex="0" data-drag="tok" data-tok="${kind}" ${act} title="${tip}" aria-label="${lbl} (${fx}). ${tip}"><span class="ico" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span><span class="tl">${lbl}</span><span class="fx">${fx}</span></span>`;
+  const rules = TOKRULES[kind];
+  if (where === 'bench') return `<span class="tokchip tokcard ${kind}${pick}" role="button" tabindex="0" data-drag="tok" data-tok="${kind}" ${act} title="${tip}" aria-label="${lbl}: ${rules} ${tip}"><span class="ttop"><span class="ico" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span><span class="tl">${lbl}</span></span><span class="fx">${fx}</span><span class="rt">${rules}</span></span>`;
   return `<span class="tokchip ${kind}${pick}" role="button" tabindex="0" data-drag="${where === 'bench' ? 'tok' : 'ton'}" data-tok="${kind}" ${act} ${where==='row'?`data-i="${i}"`:''} title="${tip}" aria-label="${lbl} (${fx}). ${tip}"><span class="ico" aria-hidden="true">${kind === 'arm' ? '⚒' : '▲'}</span>${where === 'bench' ? `${lbl} <span class="fx">${fx}</span>` : (kind === 'arm' ? '+1 Arm' : '+1 Lv')}</span>`;
 }
 // can this token go on this draft unit? returns an error message or ''
@@ -5073,7 +5144,7 @@ function mobilizeHTML(){
     </div>
     <div class="sidecol">
     <div class="panel benchp dropzone" data-zone="bench"><h2>Bench</h2>
-      <p class="note mobhelp">${coarse() ? 'Drag units into your deck and drag them around to reorder. Tap a card to move it between your deck and the bench. Double-tap a card to read it.' : 'Drag units into your deck and drag them around to reorder. Click a card to move it between your deck and the bench. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to tuck it behind (or tap the token, then a unit). Tap a token\'s edge behind a unit to send it back.' : ''}</p>
+      <p class="note mobhelp">${coarse() ? 'Drag units into your deck and drag them around to reorder. Tap a card to move it between your deck and the bench. Double-tap a card to read it.' : 'Drag units into your deck and drag them around to reorder. Click a card to move it between your deck and the bench. Double-click a card to read it.'}${smith || study ? ' Drag a token onto a unit to attach it (or tap the token, then a unit). Tap a token\'s edge behind a unit to send it back.' : ''}</p>
       ${smith || study ? `<span class="eyebrow">Tokens</span><div class="tokbench dropzone" data-zone="bench">${benchToks || '<span class="note">All tokens placed.</span>'}</div><span class="eyebrow">Units</span>` : ''}
       <div class="list dropzone dgrid" id="bench-list" data-zone="bench">${avail.map(n => { const c = me.hand[n];
         return `<div class="mcard fcard u bcard${ui.sel && ui.sel.zone === 'bench' && ui.sel.name === n ? ' sel' : ''}" data-drag="bench" data-name="${esc(n)}"${copyStyle(extraCopies(n, 'u', c), 'u')}>
@@ -5083,7 +5154,6 @@ function mobilizeHTML(){
         ${cardFace('Recruit', 'u', 1)}
         <button type="button" data-act="d-rec">Add to deck</button></div>`).join('')}</div>
     </div>
-    <div class="panel aip"><span class="eyebrow">${PP() ? `${esc(nm(O))}'s forces` : 'AI forces'} (deck order is secret)</span>${forcesHTML({...G.players[O], hand:pubHand(G.players[O])}, false, aiFresh(), true)}</div>
     </div></div>`;
 }
 function battleHTML(){
@@ -5477,7 +5547,8 @@ function renderPlay(){
   h += `<div class="row">${G.net && NET ? `<span class="note">Online room <b class="mono">${esc(NET.code)}</b></span><button type="button" data-act="st-net-leave">Leave room</button>` : ''}<span class="grow"></span><button type="button" data-act="newgame">${G.over && !hideResult() ? 'Choose next opponent' : 'New game…'}</button></div>`;
   const lw = $('view-play').querySelector('.linewrap'), sx = lw ? lw.scrollLeft : 0;
   const wasMine = !!$('view-play').querySelector('.dock.mine');
-  $('view-play').innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockHTML()}${remindHTML()}`;
+  $('view-play').innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockHTML()}${ui.start || ui.roll ? '' : deckSheetHTML()}${remindHTML()}`;
+  document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.decksheet'));
   const dk = $('dock');
   if (dk){
     document.documentElement.style.setProperty('--dockh', dk.offsetHeight + 'px');
@@ -5711,6 +5782,8 @@ $('view-play').addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const act = t.dataset.act, i = +t.dataset.i, d = ui.draft;
   switch (act){
+    case 'deck-open': { const k = +t.dataset.p; ui.deckView = ui.deckView === k && t.classList.contains('deckbtn') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
+    case 'deck-close': if (t.classList.contains('decksheet') && e.target !== t) return; ui.deckView = null; sfx.soft(); renderPlay(); return;
     case 'roll': doRoll(); return;
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
@@ -7481,6 +7554,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && peekEl) cl
 // a card with miracles behind it opens its panel from the keyboard too
 $('view-play').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mcard.hasmir')){ e.preventDefault(); e.target.click(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.remind){ ui.remind = null; renderPlay(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.deckView != null && !peekEl){ ui.deckView = null; renderPlay(); } });
 $('view-play').addEventListener('click', e => { if (ui.remind && e.target.classList && e.target.classList.contains('remind')){ ui.remind = null; renderPlay(); } });
 window.addEventListener('pointercancel', () => { if (peekEl && peekReady) return; endPress(); });
 window.addEventListener('scroll', () => { if (press && !peekEl) endPress(); }, {passive:true});
