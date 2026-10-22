@@ -1044,6 +1044,10 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 @media (min-width:641px) and (max-width:860px){
   .mktp .market,.mktp .market.plain{grid-template-columns:repeat(3,minmax(0,150px));justify-content:start}
 }
+/* phones: shop and forces cards are as tall as they are wide, whatever the browser's toolbars leave of the screen */
+@media (max-width:640px){
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.mktp .mirwrap>.mcard:not(.peek){height:auto!important;aspect-ratio:1/1;min-height:0!important}
+}
 .mcard.cant>.zhw,.mirwrap>.mcard.cant>.zhw{opacity:.1}
 .fcards .zhw,.dgrid .zhw{--wm:84px}
 .mcard.peek .zhw{--wm:120px;top:50%}
