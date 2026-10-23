@@ -1662,14 +1662,14 @@ const DEFS = {
   'Recruiter':{c:3,n:2,p:[2,3,4],v:[1,2,3],t:'Charge: place 1/2/3 Recruits on top of your deck.'},
   'Scholar':{c:3,n:2,p:[1,3,5],v:[1],tt:'Reveal and Charge: train your other charging or revealed unit{v|| # times}.'},
   'Man-at-arms':{c:4,n:2,p:[3,4,5],v:[1],tt:'Charge: gain {v|a Shield|# Shields}.'},
-  'Halberd Knight':{c:4,n:2,p:[3,4,5],v:[2,3,4],t:'Charge: deal 2/3/4 to the enemy unit ahead of me.'},
+  'Halberd Knight':{c:4,n:2,p:[3,4,5],v:[2,3,4],t:'Charge: deal 2/3/4 with Shield-break to the enemy unit ahead of me.'},
   'Armored Knight':{c:4,n:2,p:[3,4,5],v:[1],tt:'I take {v} less damage from all sources (minimum 1).'},
   'Recruit':{c:1,n:0,p:[1],token:true,t:'Token. 1 power. Discarded after the battle phase.'},
 };
 const BDEFS = {
   'Field':{c:1,n:0,lv:[1],always:true,t:'+$1 income. Each Field takes its own city slot.'},
   'Cathedral':{c:4,n:1,lv:[1],t:'+1 point while you own it. You must win a battle to reach the winning score.'},
-  'Trebuchet':{c:3,n:2,lv:[3,5],t:'Battle start: deal 3/5 damage with overrun to the enemy Vanguard.'},
+  'Trebuchet':{c:3,n:2,lv:[3,5],t:'Battle start: deal 3/5 damage with overrun and Shield-break to the enemy Vanguard.'},
   'Black Market':{c:3,n:3,lv:[3,6,9],t:'Shop: once per shop, look at the top 3/6/9 cards of the unit deck or the building deck (not both). You may buy one of them for $1/$2/$3 less.'},
   "Mason's Guild":{c:1,n:3,lv:[1],attach:true,t:'When you buy this, attach it to another building to level that building up.'},
   'Bazaar':{c:2,n:0,lv:[1,2,3],t:'Retired: no longer in the game.'},
@@ -1774,8 +1774,10 @@ function runBattle(cfgs, record){
   // token arrows: who gave what to whom (from a unit, a graveyard entry, or null for a building)
   const tokMeta = (from, to, side, tok, amt) => record && to ? {from: from ? `${from.owner}-${from.uid}` : null, to:`${to.owner}-${to.uid}`, by:side, amt, tok} : undefined;
   const hitMeta = (u, src, side, amt) => { const f = srcUnit(src); return {from: f ? `${f.owner}-${f.uid}` : null, to:`${u.owner}-${u.uid}`, by:side, amt}; };
-  function hit(u, amt, src, side){
+  function hit(u, amt, src, side, brk){
     if (!u || amt <= 0) return 0;
+    // Shield-break: the hit ignores Shields and discards all of them
+    if (brk && u.sh > 0){ const k = u.sh; u.sh = 0; if (record) log(`${src} breaks ${nameOf(u)}'s ${k > 1 ? `${k} Shields` : 'Shield'}.`, side); }
     if (u.sh > 0){ u.sh--; if (record) log(`${nameOf(u)}'s Shield blocks ${amt} from ${src}.`, side, hitMeta(u, src, side, 0)); return 0; }
     let a = amt;
     if (key(u) === 'Armored Knight' && !u.jFail) a = Math.max(1, a - val(u));
@@ -1788,10 +1790,10 @@ function runBattle(cfgs, record){
     if (lvl(u) >= maxLv(u)){ if (record) log(`${src} trains ${nameOf(u)}, but it is already at its highest level.`, side); return; }
     u.train++; if (record) log(`${src} trains ${nameOf(u)} to level ${lvl(u)} (${power(u)} power).`, side, tokMeta(srcUnit(src), u, side, 'tr', 1));
   }
-  function overrunHit(target, amt, src, side, spill, spillAb){
+  function overrunHit(target, amt, src, side, spill, spillAb, brk){
     const rem = power(target) - target.dmg;
-    const dealt = hit(target, amt, src, side);
-    if (dealt > rem && rem >= 0 && spill && spill !== target) withAb(spillAb || AB, () => hit(spill, dealt - rem, `${src} (overrun)`, side));
+    const dealt = hit(target, amt, src, side, brk);
+    if (dealt > rem && rem >= 0 && spill && spill !== target) withAb(spillAb || AB, () => hit(spill, dealt - rem, `${src} (overrun)`, side, brk));
   }
   function doReveal(u, p){ return withAb(abU(u, p), () => doReveal0(u, p)); }
   function doReveal0(u, p){
@@ -1838,7 +1840,7 @@ function runBattle(cfgs, record){
       case 'Dark Knight': { const t = top(p); if (t) hit(t, v, N, s); break; }
       case 'Scholar': { const t = top(p); if (t) for (let i = 0; i < v; i++) train(t, N, s); break; }
       case 'Man-at-arms': if (v > 0){ u.sh += v; log(`${N} gains ${many(v, 'a Shield', 'Shields')}.`, s, tokMeta(u, u, s, 'sh', v)); } break;
-      case 'Halberd Knight': { const t = enemyAhead(p); if (t) hit(t, v, N, s); break; }
+      case 'Halberd Knight': { const t = enemyAhead(p); if (t) hit(t, v, N, s, true); break; }
       case 'Grave-Robber': {
         let need = v, took = 0, from = null;
         for (const g of [P[1-p].grave, P[p].grave]){
@@ -2004,7 +2006,7 @@ function runBattle(cfgs, record){
   for (const p of [0,1]){ const t = top(p); if (P[p].armory && t){ t.sh += P[p].armory; withAb(abB('Armory', p), () => log(`Armory gives ${nameOf(t)} ${P[p].armory} ${plural(P[p].armory, 'Shield')}.`, p, tokMeta(null, t, p, 'sh', P[p].armory))); } }
   for (const p of [0,1]){ const t = top(p); if (P[p].yard && t) withAb(abB('Training Yard', p), () => { for (let k = 0; k < P[p].yard; k++) train(t, `${P[p].nm} Training Yard`, p); t.arm += 1; log(`Training Yard gives ${nameOf(t)} an Armament.`, p, tokMeta(null, t, p, 'arm', 1)); }); }
   for (const p of [0,1]){
-    if (P[p].treb){ const t = top(1-p); if (t) withAb(abB('Trebuchet', p), () => overrunHit(t, BDEFS.Trebuchet.lv[P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1])); }
+    if (P[p].treb){ const t = top(1-p); if (t) withAb(abB('Trebuchet', p), () => overrunHit(t, BDEFS.Trebuchet.lv[P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1], null, true)); }
   }
   for (const p of [0,1]){ const t = top(p); if (t) doReveal(t, p); }
   frame('Battle start');
@@ -2701,7 +2703,7 @@ const ABIL = {
   'Pigeon Hunter':[1.5,1.5,1.5], 'Brawler':[1,2,3], 'Fencer':[1.2,1.2,1.2], 'Sleepy Guard':[0.7,1.4,2.1], 'Musketeer':[1.6,3.2,4.8],
   'Dark Knight':[-1.2,-1.8,-2.4], 'Knight':[0.7,1.4,2.1], 'Jester':[2,2.5,3], 'Cannon':[2.7,4.5,5.4],
   'Grave-Robber':[1.2,1.8,2.4], 'Lancer':[1.5,2,2.5], 'White Knight':[2.5,2.5,2.5], 'Recruiter':[2,3,4],
-  'Scholar':[3,3,3], 'Man-at-arms':[2.5,2.5,2.5], 'Halberd Knight':[2,3,4], 'Armored Knight':[2,2.5,3],
+  'Scholar':[3,3,3], 'Man-at-arms':[2.5,2.5,2.5], 'Halberd Knight':[2.4,3.4,4.4], 'Armored Knight':[2,2.5,3],
 };
 const ALL_CARDS = Object.keys(DEFS).concat(Object.keys(BDEFS));
 const OPINION_KEYS = ALL_CARDS.concat(Object.keys(MIRS));   // cards and miracles the AI forms opinions about
@@ -2940,7 +2942,7 @@ function aiValue(g, i, name, kind){
     case 'Study': v = G.s * rf * 1.6 * inc; break;
     case 'Armory': v = G.s * rf * 2.5 * inc; break;
     case 'Training Yard': v = G.s * rf * (2.5 * inc + (c ? 0 : 1.0)); break;   // the Armament comes with the first level only
-    case 'Trebuchet': v = G.s * rf * 0.6 * inc; break;
+    case 'Trebuchet': v = G.s * rf * 0.8 * inc; break;
     case 'Reserve Encampment': v = G.s * rf * (uniqueUnits(p) > deckCap(p) ? 3 : 0.4) * inc; break;
     case 'Infirmary': v = G.s * rf * 2.5; break;
     case 'Black Market': {
@@ -5544,6 +5546,8 @@ const SHORT_RULES = [
   [/the enemy Vanguard/g, 'enemy Vanguard'], [/to your units/g, 'to your units'],
   // effects
   [new RegExp(`my attacks deal \\+${SHORT_N}`), '+$1 dmg'],
+  [new RegExp(`deal ${SHORT_N}(?: damage)? with overrun and Shield-break to`, 'g'), '$1 dmg (overrun, Shield-break) →'],
+  [new RegExp(`deal ${SHORT_N}(?: damage)? with Shield-break to`, 'g'), '$1 dmg (Shield-break) →'],
   [new RegExp(`deal ${SHORT_N}(?: damage)? with overrun to`, 'g'), '$1 dmg (overrun) →'],
   [new RegExp(`deal ${SHORT_N}(?: damage)? to`, 'g'), '$1 dmg →'],
   [/before I attack, take 1 Armament from/, 'steal 1 ⟨arm⟩ from'],
@@ -9012,6 +9016,7 @@ const KEYWORDS = {
   'Ahead of Me / Behind Me': 'Units form one line: your deck, your charge zone, the enemy’s charge zone, the enemy’s deck. “Ahead of me” is the next unit toward the enemy; “behind me” is the next unit toward the bottom of my deck. Empty zones are skipped. Graveyards don’t count.',
   'Graveyard': 'Where your units go when they **Die**, keeping their tokens. They return to your deck after each battle.',
   'Overrun': 'If this damage kills its target, the leftover damage hits the next enemy unit behind the target.',
+  'Shield-break': 'This damage isn’t blocked by **Shields**. The target’s **Shields** are all discarded, then it takes the damage.',
   'Stealth': 'In a fight, I **Attack** the enemy **Revealed Unit** (if there is one) instead of the enemy **Charging Unit**. The enemy **Charging Unit** still attacks me.',
   'Level': 'Values written X/X/X have one number per level. A card’s level equals its number of copies: 1 copy uses the first number, 2 copies the second, and so on. Copies beyond the highest level have no extra effect.',
   'Train': '**Attach** a **Training** token to the unit.',
