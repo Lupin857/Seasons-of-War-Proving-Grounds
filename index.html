@@ -7576,28 +7576,40 @@ function workerMain(){
     }
     if (m.cmd === 'pairs'){
       const st = {}; let s = 0; const each = [];
-      for (const sd of m.seeds){ const v = safe(() => pairGames(m.A, m.B, sd, 8, m.depth, st), 0.5); s += v; each.push(v); }
-      postMessage({id:m.id, score:m.each ? each : s / m.seeds.length, stats:st, games:m.seeds.length * 2}); return;
+      for (const sd of m.seeds){ const one = {}; const v = safe(() => pairGames(m.A, m.B, sd, 8, m.depth, one), 0.5); s += v; each.push(v);
+        postMessage({id:m.id, part:true, stats:one, games:2}); }
+      postMessage({id:m.id, score:m.each ? each : s / m.seeds.length, stats:st, games:0}); return;
     }
     if (m.cmd !== 'match') return;
     const st = {}; let w = 0;
     for (let k = 0; k < m.n; k++){
       const sw = k % 2, g = safe(() => playAIGame(sw ? m.B : m.A, sw ? m.A : m.B, 8, m.depth), null);
-      if (!g){ w += 0.5; continue; }
-      recordStats(st, g);
+      if (!g){ w += 0.5; postMessage({id:m.id, part:true, stats:{}, games:1}); continue; }
+      const one = {}; recordStats(one, g);
       const my = sw ? 1 : 0; w += scoreFor(g.winner, my);
+      postMessage({id:m.id, part:true, stats:one, games:1});
     }
-    postMessage({id:m.id, score:w / m.n, stats:st, games:m.n});
+    postMessage({id:m.id, score:w / m.n, stats:st, games:0});
   };
 }
 const POOL_SIZE = Math.max(1, Math.min(6, (navigator.hardwareConcurrency || 2) - 1));
 let pool = [], queue = [], pending = new Map(), nextId = 1, job = null, poolErr = null;
+let poolUrl = null;
 function ensurePool(){
   if (pool.length) return;
-  const src = $('engine').textContent + `\n(${workerMain.toString()})();`;
-  const url = URL.createObjectURL(new Blob([src], {type:'text/javascript'}));
-  for (let k = 0; k < POOL_SIZE; k++){
-    const w = new Worker(url); w.busy = false;
+  for (let k = 0; k < POOL_SIZE; k++) pool.push(makeWorker());
+}
+// a finished game's stats count right away, whether or not the rest of its batch ever finishes
+function takeGames(d, t){
+  mergeStats(d.stats || {}); brain.games += d.games || 0;
+  if (d.stats && d.stats.__ctx) brain.ctxEv = deepAdd(brain.ctxEv || {}, d.stats.__ctx);
+  if (t && t.job && t.job === job && job.win && t.msg && t.msg.win) mergeStats(d.stats || {}, job.win);
+  if (t && t.job && t.job === job && job.kind === 'sim' && d.games){ job.done += d.games; if (!$('view-stats').hidden) renderStats(); if (!$('view-train').hidden) renderTrain(); }
+}
+function makeWorker(){
+  if (!poolUrl){ const src = $('engine').textContent + `\n(${workerMain.toString()})();`; poolUrl = URL.createObjectURL(new Blob([src], {type:'text/javascript'})); }
+  {
+    const w = new Worker(poolUrl); w.busy = false;
     w.onerror = ev => {
       if (ev && ev.preventDefault) ev.preventDefault();
       poolErr = {n:(poolErr ? poolErr.n : 0) + 1, msg:(ev && ev.message) || 'a background worker failed', at:Date.now()}; console.error('SOW worker error', ev && ev.message);
@@ -7606,15 +7618,13 @@ function ensurePool(){
     };
     w.onmessage = e => {
       if (e.data.errs){ poolErr = {n:(poolErr ? poolErr.n : 0) + e.data.errs, msg:e.data.err, at:Date.now()}; console.error('SOW game error', e.data.err); }
+      if (e.data.part){ const t = pending.get(e.data.id); if (t) takeGames(e.data, t); return; }
       const t = pending.get(e.data.id); pending.delete(e.data.id); w.busy = false;
       if (!t){ pump(); return; }
-      mergeStats(e.data.stats || {}); brain.games += e.data.games || 0;
-      if (e.data.stats && e.data.stats.__ctx) brain.ctxEv = deepAdd(brain.ctxEv || {}, e.data.stats.__ctx);
-      if (job && job.win && t.msg && t.msg.win) mergeStats(e.data.stats, job.win);
-      if (job && job.kind === 'sim'){ job.done += e.data.games; if (!$('view-stats').hidden) renderStats(); if (!$('view-train').hidden) renderTrain(); }
+      takeGames(e.data, t);
       t.resolve(e.data.score); pump();
     };
-    pool.push(w);
+    return w;
   }
 }
 function pump(){
@@ -7625,8 +7635,8 @@ function pump(){
     w.postMessage(t.msg ? {...t.msg, id, ov:t.ov, syn:SYN} : {cmd:'match', id, A:t.A, B:t.B, n:t.n, depth:t.depth, ov:ovLen(effOV(), LEN), syn:SYN});
   }
 }
-function task(msg, ov){ return new Promise(resolve => { queue.push({msg, ov: ov === undefined ? ovLen(effOV(), LEN) : ov, resolve}); pump(); }); }
-function match(A, B, n){ return new Promise(resolve => { queue.push({A, B, n, depth:job ? job.depth : null, resolve}); pump(); }); }
+function task(msg, ov){ return new Promise(resolve => { queue.push({msg, ov: ov === undefined ? ovLen(effOV(), LEN) : ov, resolve, job}); pump(); }); }
+function match(A, B, n){ return new Promise(resolve => { queue.push({A, B, n, depth:job ? job.depth : null, resolve, job}); pump(); }); }
 // split a long match across workers (chunks of 4 games, alternating seats)
 async function matchN(A, B, n){
   const chunks = []; for (let k = 0; k < n; k += 4) chunks.push(match(A, B, Math.min(4, n - k)));
@@ -7803,9 +7813,15 @@ async function startSim(n){
 }
 function stopJob(){
   if (!job || job.kind === 'lab') return;
-  job.stop = true;
-  for (const t of queue) t.resolve(0.5);
-  queue = [];
+  const J = job; J.stop = true;
+  queue = queue.filter(t => { if (t.job !== J) return true; t.resolve(null); return false; });
+  pool = pool.map(w => {
+    const t = w.busy ? pending.get(w.taskId) : null;
+    if (!t || t.job !== J) return w;
+    w.terminate(); pending.delete(w.taskId); t.resolve(null);
+    return makeWorker();
+  });
+  saveStats(); saveBrain(); refreshViews(); pump();
 }
 
 /* ===================== TRAIN VIEW ===================== */
@@ -7869,7 +7885,7 @@ function renderTrain(){
     </div>
     <div class="panel">
       <div class="row"><button type="button" class="primary" data-act="t10" ${busy?'disabled':''}>Train 10 steps</button><button type="button" data-act="t50" ${busy?'disabled':''}>Train 50</button><button type="button" data-act="t200" ${busy?'disabled':''}>Train 200</button><button type="button" data-act="stop" ${busy?'':'disabled'}>Stop</button>
-        ${''}<span class="note">${busy ? (job.kind === 'train' ? (job.stop ? 'Stopping after the current matches…' : `Training… step ${job.done} of ${job.total}`) : `Running stat games… ${job.done} of ${job.total}`) : `Using ${POOL_SIZE} background ${plural(POOL_SIZE, 'worker')}. Each step plays ${ES.dirs * ES.pairs * 2} games (roughly 1–3 minutes), and every ${ES.every}th step adds safety checks that stop as soon as they're sure (and every ${ES.progEvery}th, ${ES.progPairs * 2} games against the starting AI for the chart) (several minutes). You can keep playing while it trains.`}</span></div>
+        ${''}<span class="note">${busy ? (job.kind === 'train' ? (job.stop ? 'Stopping…' : `Training… step ${job.done} of ${job.total}`) : `Running stat games… ${job.done} of ${job.total}`) : `Using ${POOL_SIZE} background ${plural(POOL_SIZE, 'worker')}. Each step plays ${ES.dirs * ES.pairs * 2} games (roughly 1–3 minutes), and every ${ES.every}th step adds safety checks that stop as soon as they're sure (and every ${ES.progEvery}th, ${ES.progPairs * 2} games against the starting AI for the chart) (several minutes). You can keep playing while it trains.`}</span></div>
       <div id="trainprog">${trainProgHTML()}</div>
       ${sparkSVG(brain.history)}
       ${aiSyncHTML()}
