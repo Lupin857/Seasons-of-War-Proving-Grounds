@@ -1641,7 +1641,7 @@ const DEFS = {
   'Veteran Knight':{c:1,n:3,p:[1,2,3],v:[1,2,3],t:'On My Death: the unit behind me gains 1/2/3 Armaments.'},
   'Cowardly Squire':{c:1,n:3,p:[1,3,5],v:[1],tt:'On My Death: replace me with {v|a Recruit|# Recruits}.'},
   'Arsonist':{c:2,n:3,p:[2,3,5],m:[1,1,2],t:'Mobilize: if I am in your deck, gain $1/$1/$2 per Field in the enemy city.'},
-  'Assassin':{c:2,n:3,p:[2,4,6],t:'Stealth: I attack the enemy revealed unit, if any; their charging unit still attacks me.'},
+  'Assassin':{c:2,n:3,p:[2,4,6],t:'Stealth: I attack the enemy revealed unit, if any; their charging unit still attacks me. My attacks deal +1.'},
   'Marksman':{c:2,n:3,p:[2,3,4],t:'While Revealed: when your charging unit attacks, I hit the enemy charging unit first.'},
   'Studious Squire':{c:2,n:3,p:[2,4,5],v:[1,1,2],t:'While Revealed: when the ally ahead attacks, gain 1/1/2 Armaments.'},
   'Aging Master':{c:2,n:3,p:[1,3,5],v:[1],tt:'On My Death: train the unit behind me{v|| # times}.'},
@@ -1679,7 +1679,7 @@ const BDEFS = {
   'Reserve Encampment':{c:2,n:2,lv:[1,2],t:'Mobilize: your deck holds 1/2 more unique units.'},
   'Study':{c:2,n:2,lv:[1,2],t:'Mobilize: add 1/2 Training tokens to your army.'},
   'Armory':{c:3,n:2,lv:[1,2],t:'Battle start: your Vanguard gains 1/2 Shields.'},
-  'Training Yard':{c:2,n:2,lv:[1,2],t:'Battle start: train your Vanguard 1/2 times.'},
+  'Training Yard':{c:2,n:2,lv:[1,2],t:'Battle start: train your Vanguard 1/2 times, then it gains an Armament.'},
   'Windmill':{c:2,n:4,lv:[2,4],t:'Shop: +$2/$4 income.'},
   'Infirmary':{c:4,n:2,lv:[1],t:'Once per battle, when you run out of units, return your Vanguard to your deck.'},
 };
@@ -1940,6 +1940,7 @@ function runBattle(cfgs, record){
     const atk = [0,1].map(p => {
       let a = power(c[p]);
       if (key(c[p]) === 'Pikeman' && !c[p].jFail && power(c[1-p]) > power(c[p])) a += val(c[p]);
+      if (key(c[p]) === 'Assassin' && !c[p].jFail) a += 1;
       return a;
     });
     const tgt = [0,1].map(p => (key(c[p]) === 'Assassin' && !c[p].jFail && top(1-p)) ? top(1-p) : c[1-p]);
@@ -1953,7 +1954,7 @@ function runBattle(cfgs, record){
     for (const p of [0,1]){
       const N = record ? nameOf(c[p]) : '', was = !isDead(c[1-p]);
       // a fight hit is the plain fight, unless an ability shaped it (Pikeman's bonus, Assassin's Stealth)
-      const shaped = (key(c[p]) === 'Pikeman' && !c[p].jFail && atk[p] > power(c[p])) || tgt[p] !== c[1-p];
+      const shaped = ((key(c[p]) === 'Pikeman' || key(c[p]) === 'Assassin') && !c[p].jFail && atk[p] > power(c[p])) || tgt[p] !== c[1-p];
       withAb(shaped ? abU(c[p], p) : null, () => {
         if (key(c[p]) === 'Lancer' && !c[p].jFail) overrunHit(tgt[p], atk[p], N, p, top(1-p), abU(c[p], p));
         else hit(tgt[p], atk[p], N, p);
@@ -2001,7 +2002,7 @@ function runBattle(cfgs, record){
 
   for (const p of [0,1]){ const t = top(p); if (t){ P[p].revealed = t.uid; log(`${nameOf(t)} is revealed as the Vanguard.`, p); } }
   for (const p of [0,1]){ const t = top(p); if (P[p].armory && t){ t.sh += P[p].armory; withAb(abB('Armory', p), () => log(`Armory gives ${nameOf(t)} ${P[p].armory} ${plural(P[p].armory, 'Shield')}.`, p, tokMeta(null, t, p, 'sh', P[p].armory))); } }
-  for (const p of [0,1]){ const t = top(p); if (P[p].yard && t) withAb(abB('Training Yard', p), () => { for (let k = 0; k < P[p].yard; k++) train(t, `${P[p].nm} Training Yard`, p); }); }
+  for (const p of [0,1]){ const t = top(p); if (P[p].yard && t) withAb(abB('Training Yard', p), () => { for (let k = 0; k < P[p].yard; k++) train(t, `${P[p].nm} Training Yard`, p); t.arm += 1; log(`Training Yard gives ${nameOf(t)} an Armament.`, p, tokMeta(null, t, p, 'arm', 1)); }); }
   for (const p of [0,1]){
     if (P[p].treb){ const t = top(1-p); if (t) withAb(abB('Trebuchet', p), () => overrunHit(t, BDEFS.Trebuchet.lv[P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1])); }
   }
@@ -2938,7 +2939,7 @@ function aiValue(g, i, name, kind){
     case 'Barracks': v = G.s * rf * 0.7 * inc; break;
     case 'Study': v = G.s * rf * 1.6 * inc; break;
     case 'Armory': v = G.s * rf * 2.5 * inc; break;
-    case 'Training Yard': v = G.s * rf * 2.5 * inc; break;
+    case 'Training Yard': v = G.s * rf * (2.5 * inc + (c ? 0 : 1.0)); break;   // the Armament comes with the first level only
     case 'Trebuchet': v = G.s * rf * 0.6 * inc; break;
     case 'Reserve Encampment': v = G.s * rf * (uniqueUnits(p) > deckCap(p) ? 3 : 0.4) * inc; break;
     case 'Infirmary': v = G.s * rf * 2.5; break;
@@ -5504,7 +5505,7 @@ function mirSealHTML(n, tight){
 const SHORT_N = '(\\$?\\d+(?:/\\$?\\d+)*)';
 const SHORT_FIX = {
   'Pigeon Hunter':'Reveal: swap both players’ revealed and charging units…',
-  'Assassin':'My attacks have Stealth',
+  'Assassin':'Stealth; my attacks deal +1',
   'Jester':'Reveal: become a copy of the unit ahead of me',
   'Barber-Surgeon':'Revealed: once, dying charger → deck bottom',
   'Strong Villager':'', 'Bazaar':''
@@ -5553,6 +5554,7 @@ const SHORT_RULES = [
   [new RegExp(`add ${SHORT_N} Recruits to your deck`), '+$1 ⟨rec⟩ in deck'],
   [/replace me with a Recruit/, 'I become a ⟨rec⟩'],
   [new RegExp(`add ${SHORT_N} Training tokens to your army`), '+$1 ⟨tr⟩ for your army'],
+  [new RegExp(`train your Vanguard ${SHORT_N} times, then it gains an Armament`), 'Vanguard +$1 ⟨tr⟩ +1 ⟨arm⟩'],
   [new RegExp(`train your Vanguard ${SHORT_N} times`), 'Vanguard +$1 ⟨tr⟩'],
   [/\btrain /g, '⟨tr⟩ '],
   [new RegExp(`your deck holds ${SHORT_N} more unique units`), '+$1 unique units in deck'],
