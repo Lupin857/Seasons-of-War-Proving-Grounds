@@ -1485,7 +1485,7 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
         <li>Two players, first to 3, 4 or 5 points while leading (chosen when you start a game; each length has its own AI, card stats and ratings). Ties keep playing. Game stops after 20 rounds.</li>
         <li>Each shop: $3 + income. Money carries over. Display of 5 units and 5 buildings; unbought cards go sideways and come back once. After that, they go face-up to the Salvage pile.</li>
         <li>Turn order: random in round 1; afterward the loser of the last battle shops first (draw: whoever shopped second).</li>
-        <li>Per shop: 2 units and 1 building. Once per shop you may make one extra purchase for $1 more (not a Field). Carpenter's Guild adds extra building buys (Fields included) and makes buildings $1 cheaper (minimum $1).</li>
+        <li>Per shop: 3 buys of any kind (units or buildings). Once per shop you may make one extra buy for $1 more. You may buy at most 1 Field per shop, however you buy it. Carpenter's Guild adds extra building buys and makes buildings $1 cheaper (minimum $1).</li>
         <li>Selling: on your shop turn you may sell any number of cards for $1 each, including cards you just bought this shop. Selling doesn't use a buy or end your turn. A sold unit or building drops one level. A sold card goes face-up to the Salvage pile, so both players see which card it was (Fields return to the supply, and a level from Mason's Guild puts the Guild in the Salvage pile).</li>
         <li>Salvage pile: a returning card that goes unbought again, or a card someone sells, is laid face-up in the Salvage pile. On your turn you may buy a copy of a unit or building you already own from the Salvage pile, at its normal price, using a normal buy of that kind. Black Market cards you don't buy still go to the bottom of the deck.</li>
         <li>Fields ($1, +$1 income) and Recruits ($1, 1-power token) are always for sale. City holds 5 buildings; duplicates share a slot, Fields don't.</li>
@@ -2049,7 +2049,7 @@ const MIRS = {
   'Militia Vow':   {u:2, b:0, s:0, rec:1, sh:'hand: +1 Recruit at a Mobilize', t:'Goes to your hand. At a Mobilize, add 1 Recruit to your deck. Single use.'},
   'Call to Arms':  {u:1, b:0, s:1, rec:2, sh:'hand: +2 Recruits at a Mobilize', t:'Goes to your hand. At a Mobilize, add 2 Recruits to your deck. Single use.'},
   'Blessed Steel': {u:1, b:0, s:1, arm:2, sh:'hand: +2 Armaments at a Mobilize', t:"Goes to your hand. At a Mobilize, place 2 Armaments (on top of your Smithy's). Single use."},
-  'Divine Favor':  {u:0, b:1, s:1, fav:1, sh:'hand: 1 extra buy on a shop turn', t:'Goes to your hand. On any shop turn, use it for one extra buy at normal price (Fields allowed). Single use.'},
+  'Divine Favor':  {u:0, b:1, s:1, fav:1, sh:'hand: 1 extra buy on a shop turn', t:'Goes to your hand. On any shop turn, use it for one extra buy at normal price. Single use.'},
   'Vision':        {u:0, b:1, s:0, vis:3, sh:'hand: look at 3, buy 1', t:'Goes to your hand. On any shop turn, look at the top 3 cards of either deck and buy one at normal price (uses a normal buy). Single use.'},
   'Salvage Writ':   {u:1, b:0, s:1, writ:1, sh:'now: up to 2 display cards to the Salvage pile', t:'Use it right away: move up to 2 other cards from the display to the Salvage pile (any miracles under them are discarded).'},
   'Patronage':     {u:1, b:1, s:1, disc:2, sh:'', t:''},
@@ -2109,7 +2109,7 @@ function peekCards(deck, n){
   for (const c of skip) deck.unshift(c);
   return cards;
 }
-const RULES = {target:3, unitsPerShop:2, bldgPerShop:1, citySlots:5, deckCap:5, baseIncome:3, unitDisplay:5, bldgDisplay:5, maxRounds:20};
+const RULES = {target:3, buysPerShop:3, fieldsPerShop:1, citySlots:5, deckCap:5, baseIncome:3, unitDisplay:5, bldgDisplay:5, maxRounds:20};
 
 /* ===================== BALANCE OVERRIDES ===================== */
 // The sheet's numbers are kept in ORIG; overrides are applied on top so every change can be undone.
@@ -2161,7 +2161,7 @@ function describeOverrides(ov, base){
     const ch = Object.entries(ov.mirs[n]).filter(([k, v]) => v !== src[k]).map(([k, v]) => k === 's' ? `surcharge +$${v}` : k === 'u' ? `unit-deck copies ${v}` : k === 'b' ? `building-deck copies ${v}` : `effect ${v}`);
     if (ch.length) out.push(`${n} (miracle): ${ch.join(', ')}`);
   }
-  const rl = {target:'winning score', unitsPerShop:'units per shop', bldgPerShop:'buildings per shop', citySlots:'city slots', deckCap:'deck size', baseIncome:'base income', unitDisplay:'unit display', bldgDisplay:'building display', maxRounds:'round limit'};
+  const rl = {target:'winning score', buysPerShop:'buys per shop', fieldsPerShop:'Fields per shop', citySlots:'city slots', deckCap:'deck size', baseIncome:'base income', unitDisplay:'unit display', bldgDisplay:'building display', maxRounds:'round limit'};
   for (const k in (ov.rules || {})) if (ov.rules[k] !== base.RULES[k]) out.push(`${rl[k] || k}: ${ov.rules[k]}`);
   return out;
 }
@@ -2255,7 +2255,7 @@ function startShop(g){
   else if (g.lastBattle && g.lastBattle.w >= 0) first = 1 - g.lastBattle.w;
   else first = g.order[1];
   g.order = [first, 1 - first]; g.turnIdx = 0; g.passed = [false,false];
-  g.buys = [0,1].map(() => ({u:0, b:0, carp:0, extra:false, fav:0, favN:0}));
+  g.buys = [0,1].map(() => ({u:0, b:0, carp:0, extra:false, fav:0, favN:0, fld:0}));
   g.bm = [null,null]; g.bmUsed = [false,false]; g.vis = [null,null];
   g.seen = [new Set(), new Set()]; g.shopBought = [[], []]; g.buyTags = [{}, {}];
   g.mirSeen = [new Set(), new Set()]; g.mirShop = [[], []];
@@ -2287,8 +2287,8 @@ function cantAcquire(st, name, kind){
 // The buy button's wording when a card can't be bought: how much more money, or which buys are used up this shop.
 function whyNot(info, p){
   if (info.price != null && p.money < info.price) return `Need $${info.price - p.money} more`;
-  if (info.why === 'Unit buys used up') return 'No unit buys left this round';
-  if (info.why === 'Building buy used up') return 'No city buys left this round';
+  if (info.why === 'Buys used up') return 'No buys left this round';
+  if (info.why === 'One Field per shop') return 'Only one Field per shop';
   return info.why;
 }
 function buyInfo(g, i, name, kind, src, idx){ return buyQuote(g.players[i], g.buys[i], name, kind, src, mirSur(mirOf(g, {src, idx}))); }
@@ -2299,13 +2299,14 @@ function buyQuote(p, b, name, kind, src, sur){
   let price = Dd.c + (sur || 0);   // miracle surcharge: discounts below apply to the total
   const no = cantAcquire(p, name, kind); if (no) return {ok:false, why:no};
   if (src === 'mu' && !(ownsCard(p, name) > 0)) return {ok:false, why:'Own one to salvage it'};
+  if (name === 'Field' && (b.fld || 0) >= RULES.fieldsPerShop) return {ok:false, why:'One Field per shop'};
   let slot;
-  const baseOk = kind === 'u' ? b.u < RULES.unitsPerShop : b.b < RULES.bldgPerShop;
+  const baseOk = baseLeft(b) > 0;   // buys of any kind, units or buildings
   if (baseOk) slot = 'base';
   else if (kind === 'b' && b.carp < bVal(p, "Carpenter's Guild")) slot = 'carp';
-  else if (b.fav > 0) slot = 'fav';   // Divine Favor: an extra buy at normal price, Fields allowed
-  else if (!b.extra && name !== 'Field'){ slot = 'extra'; price += 1; }
-  else return {ok:false, why: kind === 'u' ? 'Unit buys used up' : 'Building buy used up'};
+  else if (b.fav > 0) slot = 'fav';   // Divine Favor: an extra buy at normal price
+  else if (!b.extra){ slot = 'extra'; price += 1; }
+  else return {ok:false, why:'Buys used up'};
   if (kind === 'b' && bVal(p, "Carpenter's Guild")) price = Math.max(1, price - 1);   // Carpenter's Guild discount
   if (src === 'bm') price = Math.max(0, price - bmOff(p));   // Black Market discount: $1/$2/$3 by level
   const disc = p.discArm ? mirDisc(p) : null; if (disc) price = Math.max(0, price - MIRS[disc].disc);   // Patronage (once played): next card costs less
@@ -2315,7 +2316,9 @@ function buyQuote(p, b, name, kind, src, sur){
 // the discount miracle in hand the next buy would use (the biggest), or null
 function mirDisc(p){ let best = null; for (const n of (p && p.mir) || []) if (MIRS[n] && MIRS[n].disc && (!best || MIRS[n].disc > MIRS[best].disc)) best = n; return best; }
 const bmOff = p => Math.max(1, bLvl(p, 'Black Market'));
-function useSlot(b, kind, slot){ if (slot === 'base'){ if (kind === 'u') b.u++; else b.b++; } else if (slot === 'carp') b.carp++; else if (slot === 'fav') b.fav--; else b.extra = true; }
+// shared buys left this shop (units and buildings draw from the same pool)
+function baseLeft(b){ return RULES.buysPerShop - (b.u + b.b); }
+function useSlot(b, kind, slot, name){ if (name === 'Field') b.fld = (b.fld || 0) + 1; if (slot === 'base'){ if (kind === 'u') b.u++; else b.b++; } else if (slot === 'carp') b.carp++; else if (slot === 'fav') b.fav--; else b.extra = true; }
 function sourceCard(g, i, src, idx){
   if (src === 'du') return g.disp.u[idx] && {name:g.disp.u[idx].name, kind:'u'};
   if (src === 'db') return g.disp.b[idx] && {name:g.disp.b[idx].name, kind:'b'};
@@ -2336,7 +2339,7 @@ function buy(g, i, src, idx, attach, writ){
   if (sc.name === "Mason's Guild"){ const ts = masonTargets(p); if (!ts.includes(attach)) attach = ts[0]; }
   p.money -= info.price;
   if (info.disc){ const j = p.mir.indexOf(info.disc); if (j >= 0) p.mir.splice(j, 1); p.discArm = false; }   // the discount miracle is used up
-  useSlot(b, sc.kind, info.slot);
+  useSlot(b, sc.kind, info.slot, sc.name);
   if (src === 'du') g.disp.u.splice(idx, 1);
   if (src === 'db') g.disp.b.splice(idx, 1);
   if (src === 'mu') g.muster.splice(idx, 1);
@@ -2782,7 +2785,7 @@ function bmPeekGain(g, i, k, kind){
 }
 function bmPeekCalc(g, i, k, U, p, G, deck){
   // a typical shop's spending money and buys of this kind
-  const budget = Math.max(p.money, Math.max(0, income(p))), buys = U ? RULES.unitsPerShop : RULES.bldgPerShop;
+  const budget = Math.max(p.money, Math.max(0, income(p))), buys = RULES.buysPerShop;
   const Dk = U ? DEFS : BDEFS, free = U ? 'Recruit' : 'Field';
   const blocked = n => !!cantAcquire(p, n, U ? 'u' : 'b');
   const opt = (n, price) => blocked(n) || price > budget ? null
@@ -2892,7 +2895,7 @@ function aiValue(g, i, name, kind){
       // what the bigger peek finds (at whichever deck is better to look at), over this shop (if I still have a buy) and the shops likely left
       if (!(G.bmk ?? 1)){ v = 0; break; }   // training set this weight to 0: skip the simulated peeks it would multiply
       const lv = BDEFS['Black Market'].lv, b = g.buys && g.buys[i];
-      const shops = (b && (b.u < RULES.unitsPerShop || b.b < RULES.bldgPerShop) ? 1 : 0) + expShops(g, i);
+      const shops = (b && baseLeft(b) > 0 ? 1 : 0) + expShops(g, i);
       const peek = n => n ? Math.max(bmPeekGain(g, i, n, 'u'), bmPeekGain(g, i, n, 'b')) : 0;
       v = (G.bmk ?? 1) * shops * (peek(lv[nl-1]) - (c ? peek(lv[Math.min(c, lv.length)-1]) : 0));
       break;
@@ -3031,7 +3034,7 @@ function oppGuessSet(g, i, n){
     // no army yet: they field nothing, or (if they can still shop) the one unit they could still afford
     const opp = g.players[1-i];
     out.push([]);
-    if (g.phase === 'shop' && !g.passed[1-i] && g.buys && g.buys[1-i].u < RULES.unitsPerShop){
+    if (g.phase === 'shop' && !g.passed[1-i] && g.buys && baseLeft(g.buys[1-i]) > 0){
       const names = new Set(['Recruit', ...g.disp.u.map(c => c.name)]);
       for (const nm of names) if (DEFS[nm].c <= opp.money) out.push([{name:nm, copies:1, arm:0, sh:0, tr:0}]);
     }
@@ -3089,7 +3092,7 @@ function predictOppBuys(g, i, G, excl){
         if (v > G.thresh && (!best || v > best.v)) best = {...c, v, price:q.price, slot:q.slot};
       }
       if (!best) break;
-      picks.push(best); fake.money -= best.price; useSlot(b, best.kind, best.slot);
+      picks.push(best); fake.money -= best.price; useSlot(b, best.kind, best.slot, best.name);
       if (best.kind === 'u') fake.hand[best.name] = (fake.hand[best.name] || 0) + 1;
       else fake.city[best.name] = (fake.city[best.name] || 0) + 1;
       if (best.src === 'du' || best.src === 'db'){ const x = opts.find(c => c.src === best.src && c.idx === best.idx); if (x) x.taken = true; }
@@ -3643,12 +3646,12 @@ function aiUseMiracles(g, i, G, mE, TH){
   const p = g.players[i], b = g.buys[i], mir = p.mir || [];
   if (!mir.length || g.passed[i]) return;
   if (!p.discArm && mirDisc(p)) useDisc(g, i, true);
-  if (!g._po && mir.includes('Vision') && !(g.vis && g.vis[i]) && p.money >= 1 && (b.u < RULES.unitsPerShop || b.b < RULES.bldgPerShop)){
+  if (!g._po && mir.includes('Vision') && !(g.vis && g.vis[i]) && p.money >= 1 && baseLeft(b) > 0){
     const gu = g.uDeck.some(n => !isMir(n)) ? bmPeekGain(g, i, MIRS.Vision.vis, 'u') : -1;
     const gb = g.bDeck.some(n => !isMir(n)) ? bmPeekGain(g, i, MIRS.Vision.vis, 'b') : -1;
     if (Math.max(gu, gb) > 0.3) useVision(g, i, gb > gu ? 'b' : 'u');
   }
-  if (p.mir.includes('Divine Favor') && !b.fav && b.u >= RULES.unitsPerShop && b.b >= RULES.bldgPerShop && p.money >= 1){
+  if (p.mir.includes('Divine Favor') && !b.fav && baseLeft(b) <= 0 && p.money >= 1){
     b.fav = 1; let worth = false;
     for (const o of aiShopOptions(g, i)){
       const inf = buyInfo(g, i, o.name, o.kind, o.src, o.idx);
@@ -5772,8 +5775,9 @@ function slotsHTML(short){
   const group = (label, n, used, cls) => `<span class="slotg">${label}<span class="pips" aria-hidden="true">${
     Array.from({length:n}, (_, k) => `<i class="pip${cls ? ' ' + cls : ''}${k < used ? ' used' : ''}"></i>`).join('')}</span><span class="sr">${n - used} of ${n} left</span></span>`;
   return `<div class="slots">
-      ${group(short ? 'Units' : 'Unit buys', RULES.unitsPerShop, b.u)}
-      ${group(short ? 'City' : 'City buys', RULES.bldgPerShop + carp, b.b + b.carp)}
+      ${group(short ? 'Buys' : 'Buys', RULES.buysPerShop, b.u + b.b)}
+      ${carp ? group(short ? 'City' : "Carpenter's buys", carp, b.carp) : ''}
+      ${group(short ? 'Field' : 'Field', RULES.fieldsPerShop, Math.min(RULES.fieldsPerShop, b.fld || 0))}
       ${group(short ? '<span class="gold">+$1</span>' : 'Extra buy +$1', 1, b.extra ? 1 : 0, 'x')}
       ${b.favN ? group(short ? 'Favor' : 'Divine Favor', b.favN, b.favN - b.fav, 'x') : ''}
     </div>`;
@@ -8138,7 +8142,7 @@ function mirRows(){
 }
 function renderLab(){
   const changes = describeOverrides(OV), busy = !!job;
-  const ruleLbl = {baseIncome:'Base income ($)', unitsPerShop:'Units per shop', bldgPerShop:'Buildings per shop', deckCap:'Deck size (unique units)', citySlots:'City slots', unitDisplay:'Units on display', bldgDisplay:'Buildings on display'};
+  const ruleLbl = {baseIncome:'Base income ($)', buysPerShop:'Buys per shop', fieldsPerShop:'Fields per shop', deckCap:'Deck size (unique units)', citySlots:'City slots', unitDisplay:'Units on display', bldgDisplay:'Buildings on display'};
   const bOpts = Object.keys(BDEFS).filter(n => n !== "Mason's Guild").sort().map(n => `<option ${lab.bld===n?'selected':''}>${esc(n)}</option>`).join('');
   const uNames = Object.keys(DEFS).filter(n => !DEFS[n].token && n !== 'Jester').sort();
   const uOpts = sel => uNames.map(n => `<option ${sel===n?'selected':''}>${esc(n)}</option>`).join('');
@@ -9211,4 +9215,5 @@ if (!resumed){ ui.start = true; renderPlay(); }
 
 </script>
 
-</body></html>
+
+</body></html
