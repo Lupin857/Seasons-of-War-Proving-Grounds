@@ -1503,7 +1503,8 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
         <li>Battle: same engine as the Battle Sandbox (Charge before Reveal except Pigeon Hunter, which reveals before Charges; Vanguard reveals first, deaths after abilities, damage clears when hidden). A Reveal still resolves if Recruiter covers the unit, and triggers again when it is uncovered.</li>
         <li>Cathedral: +1 point while owned, but you can only win at the end of a battle phase in which you won the battle.</li>
         <li>Mason's Guild attaches to one of your buildings and counts as an extra copy of it. Black Market ($3) looks at the top 3/6/9 cards of either the unit deck or the building deck (your choice, not both) once per shop; you may buy one of them for $1/$2/$3 less (by its level) (it still uses your normal buys for that kind). Unbought cards go to the bottom.</li>
-        <li>Miracles (optional, set at the start of a game): 9 in the unit deck and 4 in the building deck. A miracle is never shown alone: the next card from its deck is laid on top of it (more miracles stack). That card costs its price plus each miracle's surcharge (discounts apply to the total), and its buyer gets every miracle under it. Money miracles pay at once, and Salvage Writ is used at once (up to 1 other display card goes to the Salvage pile and is replaced from its deck, then you take another shop turn before your opponent); the others go to your hand, which both players can see, and are played later: Divine Favor, Vision and Patronage on your shop turn (from the ✶ Miracles tab; a played Patronage takes $2 off your next buy), and Recruit, Armament and Training miracles at a Mobilize (from the Miracles panel: their Recruits or tokens go on your bench, and the miracle is discarded once you lock in with them placed). Unbought, a covered card goes sideways and leaves with its miracles. Black Market and Vision put a miracle they turn up on the bottom and look at one more card. Miracles can't be sold.</li>
+        <li>Miracles (optional, set at the start of a game): 13 in the unit deck and 7 in the building deck. A miracle is never shown alone: the next card from its deck is laid on top of it (more miracles stack). That card costs its price plus each miracle's surcharge (discounts apply to the total), and its buyer gets every miracle under it. Money miracles pay at once, and Salvage Writ is used at once (up to 1 other display card goes to the Salvage pile and is replaced from its deck, then you take another shop turn before your opponent); the others go to your hand, which both players can see, and are played later: Divine Favor, Vision and Patronage on your shop turn (from the ✶ Miracles tab; a played Patronage takes $2 off your next buy), and Recruit, Armament and Training miracles at a Mobilize (from the Miracles panel: their Recruits or tokens go on your bench, and the miracle is discarded once you lock in with them placed). Unbought, a covered card goes sideways and leaves with its miracles. Black Market and Vision put a miracle they turn up on the bottom and look at one more card. Miracles can't be sold.</li>
+        <li>More miracles: Covenant deals one more card from the same deck on top of it when it is dealt, and the two are bought together for their combined price (one buy; two buildings need two City slots). Mill, when used, sends the top 3 units of the unit deck to the Salvage pile. Restock, when used, deals a card from the same deck into the display. Freeze goes to your hand: on your shop turn, play it as your turn to set aside a display card with its miracles; its spot stays empty, and only you can buy it, at its normal price with a normal buy, on any later shop turn.</li>
         <li>Not in this version: Recruitment Office and Outpost (0 copies on the sheet).</li>
       </ul>
     </div>
@@ -1644,6 +1645,16 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
 .writown{position:absolute;left:50%;top:-10px;transform:translateX(-50%);z-index:5;white-space:nowrap;pointer-events:none;font-size:.66rem;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--sunk);color:var(--muted)}
 @media (prefers-reduced-motion: reduce){ .mcard.writtgt{transition:none} .mcard.writtgt:hover{transform:none} }
 @media (max-width:640px){ .writmark{font-size:.6rem;bottom:5px;padding:1px 6px} .writbar{padding:8px 10px} }
+
+/* Covenant: the card bought together with this one, named on a gold tag along the bottom */
+.pairtag{position:absolute;left:6px;right:6px;bottom:6px;z-index:5;pointer-events:none;display:block;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:.7rem;font-weight:700;line-height:1.3;padding:2px 6px;border-radius:999px;background:var(--or-soft);color:var(--ink);border:1px solid var(--or)}
+.pairtag .pc{font-family:var(--f-mono);color:var(--or)}
+.mcard:has(> .pairtag) .stx{padding-bottom:18px}
+.mirhover .pairseal,.sheetmir .pairseal{box-shadow:0 8px 24px rgba(0,0,0,.2),inset 0 3px 0 var(--muted)!important;border-color:var(--line)!important}
+.mirhover .pairseal b,.sheetmir .pairseal b{color:var(--ink)!important;font-family:var(--f-body)!important;font-weight:700!important}
+.writmark{top:50%;bottom:auto!important;transform:translate(-50%,-50%)}
+.frozenrow .mcard.ghost{opacity:.85}
 </style>
 <script>/* PeerJS 1.5.5 (MIT) */
 (()=>{function e(e,t,n,r){Object.defineProperty(e,t,{get:n,set:r,enumerable:!0,configurable:!0})}function t(e){return e&&e.__esModule?e.default:e}class n{constructor(){this.chunkedMTU=16300,this._dataCount=1,this.chunk=e=>{let t=[],n=e.byteLength,r=Math.ceil(n/this.chunkedMTU),i=0,s=0;for(;s<n;){let o=Math.min(n,s+this.chunkedMTU),a=e.slice(s,o),c={__peerData:this._dataCount,n:i,data:a,total:r};t.push(c),s=o,i++}return this._dataCount++,t}}}class r{append_buffer(e){this.flush(),this._parts.push(e)}append(e){this._pieces.push(e)}flush(){if(this._pieces.length>0){let e=new Uint8Array(this._pieces);this._parts.push(e),this._pieces=[]}}toArrayBuffer(){let e=[];for(let t of this._parts)e.push(t);return function(e){let t=0;for(let n of e)t+=n.byteLength;let n=new Uint8Array(t),r=0;for(let t of e){let e=new Uint8Array(t.buffer,t.byteOffset,t.byteLength);n.set(e,r),r+=t.byteLength}return n}(e).buffer}constructor(){this.encoder=new TextEncoder,this._pieces=[],this._parts=[]}}function i(e){return new o(e).unpack()}function s(e){let t=new a,n=t.pack(e);return n instanceof Promise?n.then(()=>t.getBuffer()):t.getBuffer()}class o{unpack(){let e,t=this.unpack_uint8();if(t<128)return t;if((224^t)<32)return(224^t)-32;if((e=160^t)<=15)return this.unpack_raw(e);if((e=176^t)<=15)return this.unpack_string(e);if((e=144^t)<=15)return this.unpack_array(e);if((e=128^t)<=15)return this.unpack_map(e);switch(t){case 192:return null;case 193:case 212:case 213:case 214:case 215:return;case 194:return!1;case 195:return!0;case 202:return this.unpack_float();case 203:return this.unpack_double();case 204:return this.unpack_uint8();case 205:return this.unpack_uint16();case 206:return this.unpack_uint32();case 207:return this.unpack_uint64();case 208:return this.unpack_int8();case 209:return this.unpack_int16();case 210:return this.unpack_int32();case 211:return this.unpack_int64();case 216:return e=this.unpack_uint16(),this.unpack_string(e);case 217:return e=this.unpack_uint32(),this.unpack_string(e);case 218:return e=this.unpack_uint16(),this.unpack_raw(e);case 219:return e=this.unpack_uint32(),this.unpack_raw(e);case 220:return e=this.unpack_uint16(),this.unpack_array(e);case 221:return e=this.unpack_uint32(),this.unpack_array(e);case 222:return e=this.unpack_uint16(),this.unpack_map(e);case 223:return e=this.unpack_uint32(),this.unpack_map(e)}}unpack_uint8(){let e=255&this.dataView[this.index];return this.index++,e}unpack_uint16(){let e=this.read(2),t=(255&e[0])*256+(255&e[1]);return this.index+=2,t}unpack_uint32(){let e=this.read(4),t=((256*e[0]+e[1])*256+e[2])*256+e[3];return this.index+=4,t}unpack_uint64(){let e=this.read(8),t=((((((256*e[0]+e[1])*256+e[2])*256+e[3])*256+e[4])*256+e[5])*256+e[6])*256+e[7];return this.index+=8,t}unpack_int8(){let e=this.unpack_uint8();return e<128?e:e-256}unpack_int16(){let e=this.unpack_uint16();return e<32768?e:e-65536}unpack_int32(){let e=this.unpack_uint32();return e<0x80000000?e:e-0x100000000}unpack_int64(){let e=this.unpack_uint64();return e<0x8000000000000000?e:e-0xffffffffffffffff}unpack_raw(e){if(this.length<this.index+e)throw Error(`BinaryPackFailure: index is out of range ${this.index} ${e} ${this.length}`);let t=this.dataBuffer.slice(this.index,this.index+e);return this.index+=e,t}unpack_string(e){let t,n,r=this.read(e),i=0,s="";for(;i<e;)(t=r[i])<160?(n=t,i++):(192^t)<32?(n=(31&t)<<6|63&r[i+1],i+=2):(224^t)<16?(n=(15&t)<<12|(63&r[i+1])<<6|63&r[i+2],i+=3):(n=(7&t)<<18|(63&r[i+1])<<12|(63&r[i+2])<<6|63&r[i+3],i+=4),s+=String.fromCodePoint(n);return this.index+=e,s}unpack_array(e){let t=Array(e);for(let n=0;n<e;n++)t[n]=this.unpack();return t}unpack_map(e){let t={};for(let n=0;n<e;n++)t[this.unpack()]=this.unpack();return t}unpack_float(){let e=this.unpack_uint32();return(0==e>>31?1:-1)*(8388607&e|8388608)*2**((e>>23&255)-127-23)}unpack_double(){let e=this.unpack_uint32(),t=this.unpack_uint32(),n=(e>>20&2047)-1023;return(0==e>>31?1:-1)*((1048575&e|1048576)*2**(n-20)+t*2**(n-52))}read(e){let t=this.index;if(t+e<=this.length)return this.dataView.subarray(t,t+e);throw Error("BinaryPackFailure: read index out of range")}constructor(e){this.index=0,this.dataBuffer=e,this.dataView=new Uint8Array(this.dataBuffer),this.length=this.dataBuffer.byteLength}}class a{getBuffer(){return this._bufferBuilder.toArrayBuffer()}pack(e){if("string"==typeof e)this.pack_string(e);else if("number"==typeof e)Math.floor(e)===e?this.pack_integer(e):this.pack_double(e);else if("boolean"==typeof e)!0===e?this._bufferBuilder.append(195):!1===e&&this._bufferBuilder.append(194);else if(void 0===e)this._bufferBuilder.append(192);else if("object"==typeof e)if(null===e)this._bufferBuilder.append(192);else{let t=e.constructor;if(e instanceof Array){let t=this.pack_array(e);if(t instanceof Promise)return t.then(()=>this._bufferBuilder.flush())}else if(e instanceof ArrayBuffer)this.pack_bin(new Uint8Array(e));else if("BYTES_PER_ELEMENT"in e)this.pack_bin(new Uint8Array(e.buffer,e.byteOffset,e.byteLength));else if(e instanceof Date)this.pack_string(e.toString());else if(e instanceof Blob)return e.arrayBuffer().then(e=>{this.pack_bin(new Uint8Array(e)),this._bufferBuilder.flush()});else if(t==Object||t.toString().startsWith("class")){let t=this.pack_object(e);if(t instanceof Promise)return t.then(()=>this._bufferBuilder.flush())}else throw Error(`Type "${t.toString()}" not yet supported`)}else throw Error(`Type "${typeof e}" not yet supported`);this._bufferBuilder.flush()}pack_bin(e){let t=e.length;if(t<=15)this.pack_uint8(160+t);else if(t<=65535)this._bufferBuilder.append(218),this.pack_uint16(t);else if(t<=0xffffffff)this._bufferBuilder.append(219),this.pack_uint32(t);else throw Error("Invalid length");this._bufferBuilder.append_buffer(e)}pack_string(e){let t=this._textEncoder.encode(e),n=t.length;if(n<=15)this.pack_uint8(176+n);else if(n<=65535)this._bufferBuilder.append(216),this.pack_uint16(n);else if(n<=0xffffffff)this._bufferBuilder.append(217),this.pack_uint32(n);else throw Error("Invalid length");this._bufferBuilder.append_buffer(t)}pack_array(e){let t=e.length;if(t<=15)this.pack_uint8(144+t);else if(t<=65535)this._bufferBuilder.append(220),this.pack_uint16(t);else if(t<=0xffffffff)this._bufferBuilder.append(221),this.pack_uint32(t);else throw Error("Invalid length");let n=r=>{if(r<t){let t=this.pack(e[r]);return t instanceof Promise?t.then(()=>n(r+1)):n(r+1)}};return n(0)}pack_integer(e){if(e>=-32&&e<=127)this._bufferBuilder.append(255&e);else if(e>=0&&e<=255)this._bufferBuilder.append(204),this.pack_uint8(e);else if(e>=-128&&e<=127)this._bufferBuilder.append(208),this.pack_int8(e);else if(e>=0&&e<=65535)this._bufferBuilder.append(205),this.pack_uint16(e);else if(e>=-32768&&e<=32767)this._bufferBuilder.append(209),this.pack_int16(e);else if(e>=0&&e<=0xffffffff)this._bufferBuilder.append(206),this.pack_uint32(e);else if(e>=-0x80000000&&e<=0x7fffffff)this._bufferBuilder.append(210),this.pack_int32(e);else if(e>=-0x8000000000000000&&e<=0x8000000000000000)this._bufferBuilder.append(211),this.pack_int64(e);else if(e>=0&&e<=0xffffffffffffffff)this._bufferBuilder.append(207),this.pack_uint64(e);else throw Error("Invalid integer")}pack_double(e){let t=0;e<0&&(t=1,e=-e);let n=Math.floor(Math.log(e)/Math.LN2),r=Math.floor((e/2**n-1)*0x10000000000000),i=t<<31|n+1023<<20|r/0x100000000&1048575;this._bufferBuilder.append(203),this.pack_int32(i),this.pack_int32(r%0x100000000)}pack_object(e){let t=Object.keys(e),n=t.length;if(n<=15)this.pack_uint8(128+n);else if(n<=65535)this._bufferBuilder.append(222),this.pack_uint16(n);else if(n<=0xffffffff)this._bufferBuilder.append(223),this.pack_uint32(n);else throw Error("Invalid length");let r=n=>{if(n<t.length){let i=t[n];if(e.hasOwnProperty(i)){this.pack(i);let t=this.pack(e[i]);if(t instanceof Promise)return t.then(()=>r(n+1))}return r(n+1)}};return r(0)}pack_uint8(e){this._bufferBuilder.append(e)}pack_uint16(e){this._bufferBuilder.append(e>>8),this._bufferBuilder.append(255&e)}pack_uint32(e){let t=0|e;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t)}pack_uint64(e){let t=e/0x100000000,n=e%0x100000000;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t),this._bufferBuilder.append((0xff000000&n)>>>24),this._bufferBuilder.append((0xff0000&n)>>>16),this._bufferBuilder.append((65280&n)>>>8),this._bufferBuilder.append(255&n)}pack_int8(e){this._bufferBuilder.append(255&e)}pack_int16(e){this._bufferBuilder.append((65280&e)>>8),this._bufferBuilder.append(255&e)}pack_int32(e){this._bufferBuilder.append(e>>>24&255),this._bufferBuilder.append((0xff0000&e)>>>16),this._bufferBuilder.append((65280&e)>>>8),this._bufferBuilder.append(255&e)}pack_int64(e){let t=Math.floor(e/0x100000000),n=e%0x100000000;this._bufferBuilder.append((0xff000000&t)>>>24),this._bufferBuilder.append((0xff0000&t)>>>16),this._bufferBuilder.append((65280&t)>>>8),this._bufferBuilder.append(255&t),this._bufferBuilder.append((0xff000000&n)>>>24),this._bufferBuilder.append((0xff0000&n)>>>16),this._bufferBuilder.append((65280&n)>>>8),this._bufferBuilder.append(255&n)}constructor(){this._bufferBuilder=new r,this._textEncoder=new TextEncoder}}"use strict";let c=!0,p=!0;function d(e,t,n){let r=e.match(t);return r&&r.length>=n&&parseInt(r[n],10)}function l(e,t,n){if(!e.RTCPeerConnection)return;let r=e.RTCPeerConnection.prototype,i=r.addEventListener;r.addEventListener=function(e,r){if(e!==t)return i.apply(this,arguments);let s=e=>{let t=n(e);t&&(r.handleEvent?r.handleEvent(t):r(t))};return this._eventMap=this._eventMap||{},this._eventMap[t]||(this._eventMap[t]=new Map),this._eventMap[t].set(r,s),i.apply(this,[e,s])};let s=r.removeEventListener;r.removeEventListener=function(e,n){if(e!==t||!this._eventMap||!this._eventMap[t]||!this._eventMap[t].has(n))return s.apply(this,arguments);let r=this._eventMap[t].get(n);return this._eventMap[t].delete(n),0===this._eventMap[t].size&&delete this._eventMap[t],0===Object.keys(this._eventMap).length&&delete this._eventMap,s.apply(this,[e,r])},Object.defineProperty(r,"on"+t,{get(){return this["_on"+t]},set(e){this["_on"+t]&&(this.removeEventListener(t,this["_on"+t]),delete this["_on"+t]),e&&this.addEventListener(t,this["_on"+t]=e)},enumerable:!0,configurable:!0})}function h(e){return"boolean"!=typeof e?Error("Argument type: "+typeof e+". Please use a boolean."):(c=e,e?"adapter.js logging disabled":"adapter.js logging enabled")}function u(e){return"boolean"!=typeof e?Error("Argument type: "+typeof e+". Please use a boolean."):(p=!e,"adapter.js deprecation warnings "+(e?"disabled":"enabled"))}function f(){"object"==typeof window&&(c||"undefined"!=typeof console&&"function"==typeof console.log&&console.log.apply(console,arguments))}function m(e,t){p&&console.warn(e+" is deprecated, please use "+t+" instead.")}function _(e){return"[object Object]"===Object.prototype.toString.call(e)}function g(e,t,n){let r=n?"outbound-rtp":"inbound-rtp",i=new Map;if(null===t)return i;let s=[];return e.forEach(e=>{"track"===e.type&&e.trackIdentifier===t.id&&s.push(e)}),s.forEach(t=>{e.forEach(n=>{n.type===r&&n.trackId===t.id&&function e(t,n,r){!n||r.has(n.id)||(r.set(n.id,n),Object.keys(n).forEach(i=>{i.endsWith("Id")?e(t,t.get(n[i]),r):i.endsWith("Ids")&&n[i].forEach(n=>{e(t,t.get(n),r)})}))}(e,n,i)})}),i}"use strict";var y={};function C(e,t){let n=e&&e.navigator;if(!n.mediaDevices)return;let r=function(e){if("object"!=typeof e||e.mandatory||e.optional)return e;let t={};return Object.keys(e).forEach(n=>{if("require"===n||"advanced"===n||"mediaSource"===n)return;let r="object"==typeof e[n]?e[n]:{ideal:e[n]};void 0!==r.exact&&"number"==typeof r.exact&&(r.min=r.max=r.exact);let i=function(e,t){return e?e+t.charAt(0).toUpperCase()+t.slice(1):"deviceId"===t?"sourceId":t};if(void 0!==r.ideal){t.optional=t.optional||[];let e={};"number"==typeof r.ideal?(e[i("min",n)]=r.ideal,t.optional.push(e),(e={})[i("max",n)]=r.ideal):e[i("",n)]=r.ideal,t.optional.push(e)}void 0!==r.exact&&"number"!=typeof r.exact?(t.mandatory=t.mandatory||{},t.mandatory[i("",n)]=r.exact):["min","max"].forEach(e=>{void 0!==r[e]&&(t.mandatory=t.mandatory||{},t.mandatory[i(e,n)]=r[e])})}),e.advanced&&(t.optional=(t.optional||[]).concat(e.advanced)),t},i=function(e,i){if(t.version>=61)return i(e);if((e=JSON.parse(JSON.stringify(e)))&&"object"==typeof e.audio){let t=function(e,t,n){t in e&&!(n in e)&&(e[n]=e[t],delete e[t])};t((e=JSON.parse(JSON.stringify(e))).audio,"autoGainControl","googAutoGainControl"),t(e.audio,"noiseSuppression","googNoiseSuppression"),e.audio=r(e.audio)}if(e&&"object"==typeof e.video){let s=e.video.facingMode;s=s&&("object"==typeof s?s:{ideal:s});let o=t.version<66;if(s&&("user"===s.exact||"environment"===s.exact||"user"===s.ideal||"environment"===s.ideal)&&!(n.mediaDevices.getSupportedConstraints&&n.mediaDevices.getSupportedConstraints().facingMode&&!o)){let t;if(delete e.video.facingMode,"environment"===s.exact||"environment"===s.ideal?t=["back","rear"]:("user"===s.exact||"user"===s.ideal)&&(t=["front"]),t)return n.mediaDevices.enumerateDevices().then(n=>{let o=(n=n.filter(e=>"videoinput"===e.kind)).find(e=>t.some(t=>e.label.toLowerCase().includes(t)));return!o&&n.length&&t.includes("back")&&(o=n[n.length-1]),o&&(e.video.deviceId=s.exact?{exact:o.deviceId}:{ideal:o.deviceId}),e.video=r(e.video),f("chrome: "+JSON.stringify(e)),i(e)})}e.video=r(e.video)}return f("chrome: "+JSON.stringify(e)),i(e)},s=function(e){return t.version>=64?e:{name:({PermissionDeniedError:"NotAllowedError",PermissionDismissedError:"NotAllowedError",InvalidStateError:"NotAllowedError",DevicesNotFoundError:"NotFoundError",ConstraintNotSatisfiedError:"OverconstrainedError",TrackStartError:"NotReadableError",MediaDeviceFailedDueToShutdown:"NotAllowedError",MediaDeviceKillSwitchOn:"NotAllowedError",TabCaptureError:"AbortError",ScreenCaptureError:"AbortError",DeviceCaptureError:"AbortError"})[e.name]||e.name,message:e.message,constraint:e.constraint||e.constraintName,toString(){return this.name+(this.message&&": ")+this.message}}};if(n.getUserMedia=(function(e,t,r){i(e,e=>{n.webkitGetUserMedia(e,t,e=>{r&&r(s(e))})})}).bind(n),n.mediaDevices.getUserMedia){let e=n.mediaDevices.getUserMedia.bind(n.mediaDevices);n.mediaDevices.getUserMedia=function(t){return i(t,t=>e(t).then(e=>{if(t.audio&&!e.getAudioTracks().length||t.video&&!e.getVideoTracks().length)throw e.getTracks().forEach(e=>{e.stop()}),new DOMException("","NotFoundError");return e},e=>Promise.reject(s(e))))}}}"use strict";function v(e){e.MediaStream=e.MediaStream||e.webkitMediaStream}function b(e){if("object"!=typeof e||!e.RTCPeerConnection||"ontrack"in e.RTCPeerConnection.prototype)l(e,"track",e=>(e.transceiver||Object.defineProperty(e,"transceiver",{value:{receiver:e.receiver}}),e));else{Object.defineProperty(e.RTCPeerConnection.prototype,"ontrack",{get(){return this._ontrack},set(e){this._ontrack&&this.removeEventListener("track",this._ontrack),this.addEventListener("track",this._ontrack=e)},enumerable:!0,configurable:!0});let t=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){return this._ontrackpoly||(this._ontrackpoly=t=>{t.stream.addEventListener("addtrack",n=>{let r;r=e.RTCPeerConnection.prototype.getReceivers?this.getReceivers().find(e=>e.track&&e.track.id===n.track.id):{track:n.track};let i=new Event("track");i.track=n.track,i.receiver=r,i.transceiver={receiver:r},i.streams=[t.stream],this.dispatchEvent(i)}),t.stream.getTracks().forEach(n=>{let r;r=e.RTCPeerConnection.prototype.getReceivers?this.getReceivers().find(e=>e.track&&e.track.id===n.id):{track:n};let i=new Event("track");i.track=n,i.receiver=r,i.transceiver={receiver:r},i.streams=[t.stream],this.dispatchEvent(i)})},this.addEventListener("addstream",this._ontrackpoly)),t.apply(this,arguments)}}}function T(e){if("object"==typeof e&&e.RTCPeerConnection&&!("getSenders"in e.RTCPeerConnection.prototype)&&"createDTMFSender"in e.RTCPeerConnection.prototype){let t=function(e,t){return{track:t,get dtmf(){return void 0===this._dtmf&&("audio"===t.kind?this._dtmf=e.createDTMFSender(t):this._dtmf=null),this._dtmf},_pc:e}};if(!e.RTCPeerConnection.prototype.getSenders){e.RTCPeerConnection.prototype.getSenders=function(){return this._senders=this._senders||[],this._senders.slice()};let n=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addTrack=function(e,r){let i=n.apply(this,arguments);return i||(i=t(this,e),this._senders.push(i)),i};let r=e.RTCPeerConnection.prototype.removeTrack;e.RTCPeerConnection.prototype.removeTrack=function(e){r.apply(this,arguments);let t=this._senders.indexOf(e);-1!==t&&this._senders.splice(t,1)}}let n=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(e){this._senders=this._senders||[],n.apply(this,[e]),e.getTracks().forEach(e=>{this._senders.push(t(this,e))})};let r=e.RTCPeerConnection.prototype.removeStream;e.RTCPeerConnection.prototype.removeStream=function(e){this._senders=this._senders||[],r.apply(this,[e]),e.getTracks().forEach(e=>{let t=this._senders.find(t=>t.track===e);t&&this._senders.splice(this._senders.indexOf(t),1)})}}else if("object"==typeof e&&e.RTCPeerConnection&&"getSenders"in e.RTCPeerConnection.prototype&&"createDTMFSender"in e.RTCPeerConnection.prototype&&e.RTCRtpSender&&!("dtmf"in e.RTCRtpSender.prototype)){let t=e.RTCPeerConnection.prototype.getSenders;e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e},Object.defineProperty(e.RTCRtpSender.prototype,"dtmf",{get(){return void 0===this._dtmf&&("audio"===this.track.kind?this._dtmf=this._pc.createDTMFSender(this.track):this._dtmf=null),this._dtmf}})}}function S(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender&&e.RTCRtpReceiver))return;if(!("getStats"in e.RTCRtpSender.prototype)){let t=e.RTCPeerConnection.prototype.getSenders;t&&(e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e});let n=e.RTCPeerConnection.prototype.addTrack;n&&(e.RTCPeerConnection.prototype.addTrack=function(){let e=n.apply(this,arguments);return e._pc=this,e}),e.RTCRtpSender.prototype.getStats=function(){let e=this;return this._pc.getStats().then(t=>g(t,e.track,!0))}}if(!("getStats"in e.RTCRtpReceiver.prototype)){let t=e.RTCPeerConnection.prototype.getReceivers;t&&(e.RTCPeerConnection.prototype.getReceivers=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e}),l(e,"track",e=>(e.receiver._pc=e.srcElement,e)),e.RTCRtpReceiver.prototype.getStats=function(){let e=this;return this._pc.getStats().then(t=>g(t,e.track,!1))}}if(!("getStats"in e.RTCRtpSender.prototype&&"getStats"in e.RTCRtpReceiver.prototype))return;let t=e.RTCPeerConnection.prototype.getStats;e.RTCPeerConnection.prototype.getStats=function(){if(arguments.length>0&&arguments[0]instanceof e.MediaStreamTrack){let e,t,n,r=arguments[0];return(this.getSenders().forEach(t=>{t.track===r&&(e?n=!0:e=t)}),this.getReceivers().forEach(e=>(e.track===r&&(t?n=!0:t=e),e.track===r)),n||e&&t)?Promise.reject(new DOMException("There are more than one sender or receiver for the track.","InvalidAccessError")):e?e.getStats():t?t.getStats():Promise.reject(new DOMException("There is no sender or receiver for the track.","InvalidAccessError"))}return t.apply(this,arguments)}}function k(e){e.RTCPeerConnection.prototype.getLocalStreams=function(){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},Object.keys(this._shimmedLocalStreams).map(e=>this._shimmedLocalStreams[e][0])};let t=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addTrack=function(e,n){if(!n)return t.apply(this,arguments);this._shimmedLocalStreams=this._shimmedLocalStreams||{};let r=t.apply(this,arguments);return this._shimmedLocalStreams[n.id]?-1===this._shimmedLocalStreams[n.id].indexOf(r)&&this._shimmedLocalStreams[n.id].push(r):this._shimmedLocalStreams[n.id]=[n,r],r};let n=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(e){this._shimmedLocalStreams=this._shimmedLocalStreams||{},e.getTracks().forEach(e=>{if(this.getSenders().find(t=>t.track===e))throw new DOMException("Track already exists.","InvalidAccessError")});let t=this.getSenders();n.apply(this,arguments);let r=this.getSenders().filter(e=>-1===t.indexOf(e));this._shimmedLocalStreams[e.id]=[e].concat(r)};let r=e.RTCPeerConnection.prototype.removeStream;e.RTCPeerConnection.prototype.removeStream=function(e){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},delete this._shimmedLocalStreams[e.id],r.apply(this,arguments)};let i=e.RTCPeerConnection.prototype.removeTrack;e.RTCPeerConnection.prototype.removeTrack=function(e){return this._shimmedLocalStreams=this._shimmedLocalStreams||{},e&&Object.keys(this._shimmedLocalStreams).forEach(t=>{let n=this._shimmedLocalStreams[t].indexOf(e);-1!==n&&this._shimmedLocalStreams[t].splice(n,1),1===this._shimmedLocalStreams[t].length&&delete this._shimmedLocalStreams[t]}),i.apply(this,arguments)}}function R(e,t){if(!e.RTCPeerConnection)return;if(e.RTCPeerConnection.prototype.addTrack&&t.version>=65)return k(e);let n=e.RTCPeerConnection.prototype.getLocalStreams;e.RTCPeerConnection.prototype.getLocalStreams=function(){let e=n.apply(this);return this._reverseStreams=this._reverseStreams||{},e.map(e=>this._reverseStreams[e.id])};let r=e.RTCPeerConnection.prototype.addStream;e.RTCPeerConnection.prototype.addStream=function(t){if(this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{},t.getTracks().forEach(e=>{if(this.getSenders().find(t=>t.track===e))throw new DOMException("Track already exists.","InvalidAccessError")}),!this._reverseStreams[t.id]){let n=new e.MediaStream(t.getTracks());this._streams[t.id]=n,this._reverseStreams[n.id]=t,t=n}r.apply(this,[t])};let i=e.RTCPeerConnection.prototype.removeStream;function s(e,t){let n=t.sdp;return Object.keys(e._reverseStreams||[]).forEach(t=>{let r=e._reverseStreams[t],i=e._streams[r.id];n=n.replace(RegExp(i.id,"g"),r.id)}),new RTCSessionDescription({type:t.type,sdp:n})}e.RTCPeerConnection.prototype.removeStream=function(e){this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{},i.apply(this,[this._streams[e.id]||e]),delete this._reverseStreams[this._streams[e.id]?this._streams[e.id].id:e.id],delete this._streams[e.id]},e.RTCPeerConnection.prototype.addTrack=function(t,n){if("closed"===this.signalingState)throw new DOMException("The RTCPeerConnection's signalingState is 'closed'.","InvalidStateError");let r=[].slice.call(arguments,1);if(1!==r.length||!r[0].getTracks().find(e=>e===t))throw new DOMException("The adapter.js addTrack polyfill only supports a single  stream which is associated with the specified track.","NotSupportedError");if(this.getSenders().find(e=>e.track===t))throw new DOMException("Track already exists.","InvalidAccessError");this._streams=this._streams||{},this._reverseStreams=this._reverseStreams||{};let i=this._streams[n.id];if(i)i.addTrack(t),Promise.resolve().then(()=>{this.dispatchEvent(new Event("negotiationneeded"))});else{let r=new e.MediaStream([t]);this._streams[n.id]=r,this._reverseStreams[r.id]=n,this.addStream(r)}return this.getSenders().find(e=>e.track===t)},["createOffer","createAnswer"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){let e=arguments,t=arguments.length&&"function"==typeof arguments[0];return t?n.apply(this,[t=>{let n=s(this,t);e[0].apply(null,[n])},t=>{e[1]&&e[1].apply(null,t)},arguments[2]]):n.apply(this,arguments).then(e=>s(this,e))}})[t]});let o=e.RTCPeerConnection.prototype.setLocalDescription;e.RTCPeerConnection.prototype.setLocalDescription=function(){var e,t;let n;return arguments.length&&arguments[0].type?(arguments[0]=(e=this,t=arguments[0],n=t.sdp,Object.keys(e._reverseStreams||[]).forEach(t=>{let r=e._reverseStreams[t],i=e._streams[r.id];n=n.replace(RegExp(r.id,"g"),i.id)}),new RTCSessionDescription({type:t.type,sdp:n})),o.apply(this,arguments)):o.apply(this,arguments)};let a=Object.getOwnPropertyDescriptor(e.RTCPeerConnection.prototype,"localDescription");Object.defineProperty(e.RTCPeerConnection.prototype,"localDescription",{get(){let e=a.get.apply(this);return""===e.type?e:s(this,e)}}),e.RTCPeerConnection.prototype.removeTrack=function(e){let t;if("closed"===this.signalingState)throw new DOMException("The RTCPeerConnection's signalingState is 'closed'.","InvalidStateError");if(!e._pc)throw new DOMException("Argument 1 of RTCPeerConnection.removeTrack does not implement interface RTCRtpSender.","TypeError");if(e._pc!==this)throw new DOMException("Sender was not created by this connection.","InvalidAccessError");this._streams=this._streams||{},Object.keys(this._streams).forEach(n=>{this._streams[n].getTracks().find(t=>e.track===t)&&(t=this._streams[n])}),t&&(1===t.getTracks().length?this.removeStream(this._reverseStreams[t.id]):t.removeTrack(e.track),this.dispatchEvent(new Event("negotiationneeded")))}}function P(e,t){!e.RTCPeerConnection&&e.webkitRTCPeerConnection&&(e.RTCPeerConnection=e.webkitRTCPeerConnection),e.RTCPeerConnection&&t.version<53&&["setLocalDescription","setRemoteDescription","addIceCandidate"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){return arguments[0]=new("addIceCandidate"===t?e.RTCIceCandidate:e.RTCSessionDescription)(arguments[0]),n.apply(this,arguments)}})[t]})}function w(e,t){l(e,"negotiationneeded",e=>{let n=e.target;if(!(t.version<72)&&(!n.getConfiguration||"plan-b"!==n.getConfiguration().sdpSemantics)||"stable"===n.signalingState)return e})}"use strict";e(y,"shimMediaStream",()=>v),e(y,"shimOnTrack",()=>b),e(y,"shimGetSendersWithDtmf",()=>T),e(y,"shimSenderReceiverGetStats",()=>S),e(y,"shimAddTrackRemoveTrackWithNative",()=>k),e(y,"shimAddTrackRemoveTrack",()=>R),e(y,"shimPeerConnection",()=>P),e(y,"fixNegotiationNeeded",()=>w),e(y,"shimGetUserMedia",()=>C);var E={};function x(e,t){let n=e&&e.navigator,r=e&&e.MediaStreamTrack;if(n.getUserMedia=function(e,t,r){m("navigator.getUserMedia","navigator.mediaDevices.getUserMedia"),n.mediaDevices.getUserMedia(e).then(t,r)},!(t.version>55&&"autoGainControl"in n.mediaDevices.getSupportedConstraints())){let e=function(e,t,n){t in e&&!(n in e)&&(e[n]=e[t],delete e[t])},t=n.mediaDevices.getUserMedia.bind(n.mediaDevices);if(n.mediaDevices.getUserMedia=function(n){return"object"==typeof n&&"object"==typeof n.audio&&(e((n=JSON.parse(JSON.stringify(n))).audio,"autoGainControl","mozAutoGainControl"),e(n.audio,"noiseSuppression","mozNoiseSuppression")),t(n)},r&&r.prototype.getSettings){let t=r.prototype.getSettings;r.prototype.getSettings=function(){let n=t.apply(this,arguments);return e(n,"mozAutoGainControl","autoGainControl"),e(n,"mozNoiseSuppression","noiseSuppression"),n}}if(r&&r.prototype.applyConstraints){let t=r.prototype.applyConstraints;r.prototype.applyConstraints=function(n){return"audio"===this.kind&&"object"==typeof n&&(e(n=JSON.parse(JSON.stringify(n)),"autoGainControl","mozAutoGainControl"),e(n,"noiseSuppression","mozNoiseSuppression")),t.apply(this,[n])}}}}"use strict";function D(e,t){e.navigator.mediaDevices&&"getDisplayMedia"in e.navigator.mediaDevices||e.navigator.mediaDevices&&(e.navigator.mediaDevices.getDisplayMedia=function(n){if(!(n&&n.video)){let e=new DOMException("getDisplayMedia without video constraints is undefined");return e.name="NotFoundError",e.code=8,Promise.reject(e)}return!0===n.video?n.video={mediaSource:t}:n.video.mediaSource=t,e.navigator.mediaDevices.getUserMedia(n)})}"use strict";function I(e){"object"==typeof e&&e.RTCTrackEvent&&"receiver"in e.RTCTrackEvent.prototype&&!("transceiver"in e.RTCTrackEvent.prototype)&&Object.defineProperty(e.RTCTrackEvent.prototype,"transceiver",{get(){return{receiver:this.receiver}}})}function M(e,t){if("object"!=typeof e||!(e.RTCPeerConnection||e.mozRTCPeerConnection))return;!e.RTCPeerConnection&&e.mozRTCPeerConnection&&(e.RTCPeerConnection=e.mozRTCPeerConnection),t.version<53&&["setLocalDescription","setRemoteDescription","addIceCandidate"].forEach(function(t){let n=e.RTCPeerConnection.prototype[t];e.RTCPeerConnection.prototype[t]=({[t](){return arguments[0]=new("addIceCandidate"===t?e.RTCIceCandidate:e.RTCSessionDescription)(arguments[0]),n.apply(this,arguments)}})[t]});let n={inboundrtp:"inbound-rtp",outboundrtp:"outbound-rtp",candidatepair:"candidate-pair",localcandidate:"local-candidate",remotecandidate:"remote-candidate"},r=e.RTCPeerConnection.prototype.getStats;e.RTCPeerConnection.prototype.getStats=function(){let[e,i,s]=arguments;return r.apply(this,[e||null]).then(e=>{if(t.version<53&&!i)try{e.forEach(e=>{e.type=n[e.type]||e.type})}catch(t){if("TypeError"!==t.name)throw t;e.forEach((t,r)=>{e.set(r,Object.assign({},t,{type:n[t.type]||t.type}))})}return e}).then(i,s)}}function O(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender)||e.RTCRtpSender&&"getStats"in e.RTCRtpSender.prototype)return;let t=e.RTCPeerConnection.prototype.getSenders;t&&(e.RTCPeerConnection.prototype.getSenders=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e});let n=e.RTCPeerConnection.prototype.addTrack;n&&(e.RTCPeerConnection.prototype.addTrack=function(){let e=n.apply(this,arguments);return e._pc=this,e}),e.RTCRtpSender.prototype.getStats=function(){return this.track?this._pc.getStats(this.track):Promise.resolve(new Map)}}function L(e){if(!("object"==typeof e&&e.RTCPeerConnection&&e.RTCRtpSender)||e.RTCRtpSender&&"getStats"in e.RTCRtpReceiver.prototype)return;let t=e.RTCPeerConnection.prototype.getReceivers;t&&(e.RTCPeerConnection.prototype.getReceivers=function(){let e=t.apply(this,[]);return e.forEach(e=>e._pc=this),e}),l(e,"track",e=>(e.receiver._pc=e.srcElement,e)),e.RTCRtpReceiver.prototype.getStats=function(){return this._pc.getStats(this.track)}}function A(e){!e.RTCPeerConnection||"removeStream"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.removeStream=function(e){m("removeStream","removeTrack"),this.getSenders().forEach(t=>{t.track&&e.getTracks().includes(t.track)&&this.removeTrack(t)})})}function j(e){e.DataChannel&&!e.RTCDataChannel&&(e.RTCDataChannel=e.DataChannel)}function B(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.addTransceiver;t&&(e.RTCPeerConnection.prototype.addTransceiver=function(){this.setParametersPromises=[];let e=arguments[1]&&arguments[1].sendEncodings;void 0===e&&(e=[]);let n=(e=[...e]).length>0;n&&e.forEach(e=>{if("rid"in e&&!/^[a-z0-9]{0,16}$/i.test(e.rid))throw TypeError("Invalid RID value provided.");if("scaleResolutionDownBy"in e&&!(parseFloat(e.scaleResolutionDownBy)>=1))throw RangeError("scale_resolution_down_by must be >= 1.0");if("maxFramerate"in e&&!(parseFloat(e.maxFramerate)>=0))throw RangeError("max_framerate must be >= 0.0")});let r=t.apply(this,arguments);if(n){let{sender:t}=r,n=t.getParameters();"encodings"in n&&(1!==n.encodings.length||0!==Object.keys(n.encodings[0]).length)||(n.encodings=e,t.sendEncodings=e,this.setParametersPromises.push(t.setParameters(n).then(()=>{delete t.sendEncodings}).catch(()=>{delete t.sendEncodings})))}return r})}function U(e){if(!("object"==typeof e&&e.RTCRtpSender))return;let t=e.RTCRtpSender.prototype.getParameters;t&&(e.RTCRtpSender.prototype.getParameters=function(){let e=t.apply(this,arguments);return"encodings"in e||(e.encodings=[].concat(this.sendEncodings||[{}])),e})}function F(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.createOffer;e.RTCPeerConnection.prototype.createOffer=function(){return this.setParametersPromises&&this.setParametersPromises.length?Promise.all(this.setParametersPromises).then(()=>t.apply(this,arguments)).finally(()=>{this.setParametersPromises=[]}):t.apply(this,arguments)}}function N(e){if(!("object"==typeof e&&e.RTCPeerConnection))return;let t=e.RTCPeerConnection.prototype.createAnswer;e.RTCPeerConnection.prototype.createAnswer=function(){return this.setParametersPromises&&this.setParametersPromises.length?Promise.all(this.setParametersPromises).then(()=>t.apply(this,arguments)).finally(()=>{this.setParametersPromises=[]}):t.apply(this,arguments)}}"use strict";e(E,"shimOnTrack",()=>I),e(E,"shimPeerConnection",()=>M),e(E,"shimSenderGetStats",()=>O),e(E,"shimReceiverGetStats",()=>L),e(E,"shimRemoveStream",()=>A),e(E,"shimRTCDataChannel",()=>j),e(E,"shimAddTransceiver",()=>B),e(E,"shimGetParameters",()=>U),e(E,"shimCreateOffer",()=>F),e(E,"shimCreateAnswer",()=>N),e(E,"shimGetUserMedia",()=>x),e(E,"shimGetDisplayMedia",()=>D);var z={};function $(e){if("object"==typeof e&&e.RTCPeerConnection){if("getLocalStreams"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.getLocalStreams=function(){return this._localStreams||(this._localStreams=[]),this._localStreams}),!("addStream"in e.RTCPeerConnection.prototype)){let t=e.RTCPeerConnection.prototype.addTrack;e.RTCPeerConnection.prototype.addStream=function(e){this._localStreams||(this._localStreams=[]),this._localStreams.includes(e)||this._localStreams.push(e),e.getAudioTracks().forEach(n=>t.call(this,n,e)),e.getVideoTracks().forEach(n=>t.call(this,n,e))},e.RTCPeerConnection.prototype.addTrack=function(e,...n){return n&&n.forEach(e=>{this._localStreams?this._localStreams.includes(e)||this._localStreams.push(e):this._localStreams=[e]}),t.apply(this,arguments)}}"removeStream"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.removeStream=function(e){this._localStreams||(this._localStreams=[]);let t=this._localStreams.indexOf(e);if(-1===t)return;this._localStreams.splice(t,1);let n=e.getTracks();this.getSenders().forEach(e=>{n.includes(e.track)&&this.removeTrack(e)})})}}function V(e){if("object"==typeof e&&e.RTCPeerConnection&&("getRemoteStreams"in e.RTCPeerConnection.prototype||(e.RTCPeerConnection.prototype.getRemoteStreams=function(){return this._remoteStreams?this._remoteStreams:[]}),!("onaddstream"in e.RTCPeerConnection.prototype))){Object.defineProperty(e.RTCPeerConnection.prototype,"onaddstream",{get(){return this._onaddstream},set(e){this._onaddstream&&(this.removeEventListener("addstream",this._onaddstream),this.removeEventListener("track",this._onaddstreampoly)),this.addEventListener("addstream",this._onaddstream=e),this.addEventListener("track",this._onaddstreampoly=e=>{e.streams.forEach(e=>{if(this._remoteStreams||(this._remoteStreams=[]),this._remoteStreams.includes(e))return;this._remoteStreams.push(e);let t=new Event("addstream");t.stream=e,this.dispatchEvent(t)})})}});let t=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){let e=this;return this._onaddstreampoly||this.addEventListener("track",this._onaddstreampoly=function(t){t.streams.forEach(t=>{if(e._remoteStreams||(e._remoteStreams=[]),e._remoteStreams.indexOf(t)>=0)return;e._remoteStreams.push(t);let n=new Event("addstream");n.stream=t,e.dispatchEvent(n)})}),t.apply(e,arguments)}}}function G(e){if("object"!=typeof e||!e.RTCPeerConnection)return;let t=e.RTCPeerConnection.prototype,n=t.createOffer,r=t.createAnswer,i=t.setLocalDescription,s=t.setRemoteDescription,o=t.addIceCandidate;t.createOffer=function(e,t){let r=arguments.length>=2?arguments[2]:arguments[0],i=n.apply(this,[r]);return t?(i.then(e,t),Promise.resolve()):i},t.createAnswer=function(e,t){let n=arguments.length>=2?arguments[2]:arguments[0],i=r.apply(this,[n]);return t?(i.then(e,t),Promise.resolve()):i};let a=function(e,t,n){let r=i.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r};t.setLocalDescription=a,t.setRemoteDescription=a=function(e,t,n){let r=s.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r},t.addIceCandidate=function(e,t,n){let r=o.apply(this,[e]);return n?(r.then(t,n),Promise.resolve()):r}}function J(e){let t=e&&e.navigator;if(t.mediaDevices&&t.mediaDevices.getUserMedia){let e=t.mediaDevices,n=e.getUserMedia.bind(e);t.mediaDevices.getUserMedia=e=>n(W(e))}!t.getUserMedia&&t.mediaDevices&&t.mediaDevices.getUserMedia&&(t.getUserMedia=(function(e,n,r){t.mediaDevices.getUserMedia(e).then(n,r)}).bind(t))}function W(e){return e&&void 0!==e.video?Object.assign({},e,{video:function e(t){return _(t)?Object.keys(t).reduce(function(n,r){let i=_(t[r]),s=i?e(t[r]):t[r],o=i&&!Object.keys(s).length;return void 0===s||o?n:Object.assign(n,{[r]:s})},{}):t}(e.video)}):e}function Y(e){if(!e.RTCPeerConnection)return;let t=e.RTCPeerConnection;e.RTCPeerConnection=function(e,n){if(e&&e.iceServers){let t=[];for(let n=0;n<e.iceServers.length;n++){let r=e.iceServers[n];void 0===r.urls&&r.url?(m("RTCIceServer.url","RTCIceServer.urls"),(r=JSON.parse(JSON.stringify(r))).urls=r.url,delete r.url,t.push(r)):t.push(e.iceServers[n])}e.iceServers=t}return new t(e,n)},e.RTCPeerConnection.prototype=t.prototype,"generateCertificate"in t&&Object.defineProperty(e.RTCPeerConnection,"generateCertificate",{get:()=>t.generateCertificate})}function H(e){"object"==typeof e&&e.RTCTrackEvent&&"receiver"in e.RTCTrackEvent.prototype&&!("transceiver"in e.RTCTrackEvent.prototype)&&Object.defineProperty(e.RTCTrackEvent.prototype,"transceiver",{get(){return{receiver:this.receiver}}})}function K(e){let t=e.RTCPeerConnection.prototype.createOffer;e.RTCPeerConnection.prototype.createOffer=function(e){if(e){void 0!==e.offerToReceiveAudio&&(e.offerToReceiveAudio=!!e.offerToReceiveAudio);let t=this.getTransceivers().find(e=>"audio"===e.receiver.track.kind);!1===e.offerToReceiveAudio&&t?"sendrecv"===t.direction?t.setDirection?t.setDirection("sendonly"):t.direction="sendonly":"recvonly"===t.direction&&(t.setDirection?t.setDirection("inactive"):t.direction="inactive"):!0!==e.offerToReceiveAudio||t||this.addTransceiver("audio",{direction:"recvonly"}),void 0!==e.offerToReceiveVideo&&(e.offerToReceiveVideo=!!e.offerToReceiveVideo);let n=this.getTransceivers().find(e=>"video"===e.receiver.track.kind);!1===e.offerToReceiveVideo&&n?"sendrecv"===n.direction?n.setDirection?n.setDirection("sendonly"):n.direction="sendonly":"recvonly"===n.direction&&(n.setDirection?n.setDirection("inactive"):n.direction="inactive"):!0!==e.offerToReceiveVideo||n||this.addTransceiver("video",{direction:"recvonly"})}return t.apply(this,arguments)}}function X(e){"object"!=typeof e||e.AudioContext||(e.AudioContext=e.webkitAudioContext)}e(z,"shimLocalStreamsAPI",()=>$),e(z,"shimRemoteStreamsAPI",()=>V),e(z,"shimCallbacksAPI",()=>G),e(z,"shimGetUserMedia",()=>J),e(z,"shimConstraints",()=>W),e(z,"shimRTCIceServerUrls",()=>Y),e(z,"shimTrackEventTransceiver",()=>H),e(z,"shimCreateOfferLegacy",()=>K),e(z,"shimAudioContext",()=>X);var Q={};"use strict";e(Q,"shimRTCIceCandidate",()=>ee),e(Q,"shimRTCIceCandidateRelayProtocol",()=>et),e(Q,"shimMaxMessageSize",()=>en),e(Q,"shimSendThrowTypeError",()=>er),e(Q,"shimConnectionState",()=>ei),e(Q,"removeExtmapAllowMixed",()=>es),e(Q,"shimAddIceCandidateNullOrEmpty",()=>eo),e(Q,"shimParameterlessSetLocalDescription",()=>ea);var q={};"use strict";let Z={};function ee(e){if(!e.RTCIceCandidate||e.RTCIceCandidate&&"foundation"in e.RTCIceCandidate.prototype)return;let n=e.RTCIceCandidate;e.RTCIceCandidate=function(e){if("object"==typeof e&&e.candidate&&0===e.candidate.indexOf("a=")&&((e=JSON.parse(JSON.stringify(e))).candidate=e.candidate.substring(2)),e.candidate&&e.candidate.length){let r=new n(e),i=t(q).parseCandidate(e.candidate);for(let e in i)e in r||Object.defineProperty(r,e,{value:i[e]});return r.toJSON=function(){return{candidate:r.candidate,sdpMid:r.sdpMid,sdpMLineIndex:r.sdpMLineIndex,usernameFragment:r.usernameFragment}},r}return new n(e)},e.RTCIceCandidate.prototype=n.prototype,l(e,"icecandidate",t=>(t.candidate&&Object.defineProperty(t,"candidate",{value:new e.RTCIceCandidate(t.candidate),writable:"false"}),t))}function et(e){!e.RTCIceCandidate||e.RTCIceCandidate&&"relayProtocol"in e.RTCIceCandidate.prototype||l(e,"icecandidate",e=>{if(e.candidate){let n=t(q).parseCandidate(e.candidate.candidate);"relay"===n.type&&(e.candidate.relayProtocol=({0:"tls",1:"tcp",2:"udp"})[n.priority>>24])}return e})}function en(e,n){if(!e.RTCPeerConnection)return;"sctp"in e.RTCPeerConnection.prototype||Object.defineProperty(e.RTCPeerConnection.prototype,"sctp",{get(){return void 0===this._sctp?null:this._sctp}});let r=function(e){if(!e||!e.sdp)return!1;let n=t(q).splitSections(e.sdp);return n.shift(),n.some(e=>{let n=t(q).parseMLine(e);return n&&"application"===n.kind&&-1!==n.protocol.indexOf("SCTP")})},i=function(e){let t=e.sdp.match(/mozilla...THIS_IS_SDPARTA-(\d+)/);if(null===t||t.length<2)return -1;let n=parseInt(t[1],10);return n!=n?-1:n},s=function(e){let t=65536;return"firefox"===n.browser&&(t=n.version<57?-1===e?16384:0x7ffffff5:n.version<60?57===n.version?65535:65536:0x7ffffff5),t},o=function(e,r){let i=65536;"firefox"===n.browser&&57===n.version&&(i=65535);let s=t(q).matchPrefix(e.sdp,"a=max-message-size:");return s.length>0?i=parseInt(s[0].substring(19),10):"firefox"===n.browser&&-1!==r&&(i=0x7ffffff5),i},a=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(){if(this._sctp=null,"chrome"===n.browser&&n.version>=76){let{sdpSemantics:e}=this.getConfiguration();"plan-b"===e&&Object.defineProperty(this,"sctp",{get(){return void 0===this._sctp?null:this._sctp},enumerable:!0,configurable:!0})}if(r(arguments[0])){let e,t=i(arguments[0]),n=s(t),r=o(arguments[0],t);e=0===n&&0===r?Number.POSITIVE_INFINITY:0===n||0===r?Math.max(n,r):Math.min(n,r);let a={};Object.defineProperty(a,"maxMessageSize",{get:()=>e}),this._sctp=a}return a.apply(this,arguments)}}function er(e){if(!(e.RTCPeerConnection&&"createDataChannel"in e.RTCPeerConnection.prototype))return;function t(e,t){let n=e.send;e.send=function(){let r=arguments[0],i=r.length||r.size||r.byteLength;if("open"===e.readyState&&t.sctp&&i>t.sctp.maxMessageSize)throw TypeError("Message too large (can send a maximum of "+t.sctp.maxMessageSize+" bytes)");return n.apply(e,arguments)}}let n=e.RTCPeerConnection.prototype.createDataChannel;e.RTCPeerConnection.prototype.createDataChannel=function(){let e=n.apply(this,arguments);return t(e,this),e},l(e,"datachannel",e=>(t(e.channel,e.target),e))}function ei(e){if(!e.RTCPeerConnection||"connectionState"in e.RTCPeerConnection.prototype)return;let t=e.RTCPeerConnection.prototype;Object.defineProperty(t,"connectionState",{get(){return({completed:"connected",checking:"connecting"})[this.iceConnectionState]||this.iceConnectionState},enumerable:!0,configurable:!0}),Object.defineProperty(t,"onconnectionstatechange",{get(){return this._onconnectionstatechange||null},set(e){this._onconnectionstatechange&&(this.removeEventListener("connectionstatechange",this._onconnectionstatechange),delete this._onconnectionstatechange),e&&this.addEventListener("connectionstatechange",this._onconnectionstatechange=e)},enumerable:!0,configurable:!0}),["setLocalDescription","setRemoteDescription"].forEach(e=>{let n=t[e];t[e]=function(){return this._connectionstatechangepoly||(this._connectionstatechangepoly=e=>{let t=e.target;if(t._lastConnectionState!==t.connectionState){t._lastConnectionState=t.connectionState;let n=new Event("connectionstatechange",e);t.dispatchEvent(n)}return e},this.addEventListener("iceconnectionstatechange",this._connectionstatechangepoly)),n.apply(this,arguments)}})}function es(e,t){if(!e.RTCPeerConnection||"chrome"===t.browser&&t.version>=71||"safari"===t.browser&&t.version>=605)return;let n=e.RTCPeerConnection.prototype.setRemoteDescription;e.RTCPeerConnection.prototype.setRemoteDescription=function(t){if(t&&t.sdp&&-1!==t.sdp.indexOf("\na=extmap-allow-mixed")){let n=t.sdp.split("\n").filter(e=>"a=extmap-allow-mixed"!==e.trim()).join("\n");e.RTCSessionDescription&&t instanceof e.RTCSessionDescription?arguments[0]=new e.RTCSessionDescription({type:t.type,sdp:n}):t.sdp=n}return n.apply(this,arguments)}}function eo(e,t){if(!(e.RTCPeerConnection&&e.RTCPeerConnection.prototype))return;let n=e.RTCPeerConnection.prototype.addIceCandidate;n&&0!==n.length&&(e.RTCPeerConnection.prototype.addIceCandidate=function(){return arguments[0]?("chrome"===t.browser&&t.version<78||"firefox"===t.browser&&t.version<68||"safari"===t.browser)&&arguments[0]&&""===arguments[0].candidate?Promise.resolve():n.apply(this,arguments):(arguments[1]&&arguments[1].apply(null),Promise.resolve())})}function ea(e,t){if(!(e.RTCPeerConnection&&e.RTCPeerConnection.prototype))return;let n=e.RTCPeerConnection.prototype.setLocalDescription;n&&0!==n.length&&(e.RTCPeerConnection.prototype.setLocalDescription=function(){let e=arguments[0]||{};if("object"!=typeof e||e.type&&e.sdp)return n.apply(this,arguments);if(!(e={type:e.type,sdp:e.sdp}).type)switch(this.signalingState){case"stable":case"have-local-offer":case"have-remote-pranswer":e.type="offer";break;default:e.type="answer"}return e.sdp||"offer"!==e.type&&"answer"!==e.type?n.apply(this,[e]):("offer"===e.type?this.createOffer:this.createAnswer).apply(this).then(e=>n.apply(this,[e]))})}"use strict";Z.generateIdentifier=function(){return Math.random().toString(36).substring(2,12)},Z.localCName=Z.generateIdentifier(),Z.splitLines=function(e){return e.trim().split("\n").map(e=>e.trim())},Z.splitSections=function(e){return e.split("\nm=").map((e,t)=>(t>0?"m="+e:e).trim()+"\r\n")},Z.getDescription=function(e){let t=Z.splitSections(e);return t&&t[0]},Z.getMediaSections=function(e){let t=Z.splitSections(e);return t.shift(),t},Z.matchPrefix=function(e,t){return Z.splitLines(e).filter(e=>0===e.indexOf(t))},Z.parseCandidate=function(e){let t,n={foundation:(t=0===e.indexOf("a=candidate:")?e.substring(12).split(" "):e.substring(10).split(" "))[0],component:{1:"rtp",2:"rtcp"}[t[1]]||t[1],protocol:t[2].toLowerCase(),priority:parseInt(t[3],10),ip:t[4],address:t[4],port:parseInt(t[5],10),type:t[7]};for(let e=8;e<t.length;e+=2)switch(t[e]){case"raddr":n.relatedAddress=t[e+1];break;case"rport":n.relatedPort=parseInt(t[e+1],10);break;case"tcptype":n.tcpType=t[e+1];break;case"ufrag":n.ufrag=t[e+1],n.usernameFragment=t[e+1];break;default:void 0===n[t[e]]&&(n[t[e]]=t[e+1])}return n},Z.writeCandidate=function(e){let t=[];t.push(e.foundation);let n=e.component;"rtp"===n?t.push(1):"rtcp"===n?t.push(2):t.push(n),t.push(e.protocol.toUpperCase()),t.push(e.priority),t.push(e.address||e.ip),t.push(e.port);let r=e.type;return t.push("typ"),t.push(r),"host"!==r&&e.relatedAddress&&e.relatedPort&&(t.push("raddr"),t.push(e.relatedAddress),t.push("rport"),t.push(e.relatedPort)),e.tcpType&&"tcp"===e.protocol.toLowerCase()&&(t.push("tcptype"),t.push(e.tcpType)),(e.usernameFragment||e.ufrag)&&(t.push("ufrag"),t.push(e.usernameFragment||e.ufrag)),"candidate:"+t.join(" ")},Z.parseIceOptions=function(e){return e.substring(14).split(" ")},Z.parseRtpMap=function(e){let t=e.substring(9).split(" "),n={payloadType:parseInt(t.shift(),10)};return n.name=(t=t[0].split("/"))[0],n.clockRate=parseInt(t[1],10),n.channels=3===t.length?parseInt(t[2],10):1,n.numChannels=n.channels,n},Z.writeRtpMap=function(e){let t=e.payloadType;void 0!==e.preferredPayloadType&&(t=e.preferredPayloadType);let n=e.channels||e.numChannels||1;return"a=rtpmap:"+t+" "+e.name+"/"+e.clockRate+(1!==n?"/"+n:"")+"\r\n"},Z.parseExtmap=function(e){let t=e.substring(9).split(" ");return{id:parseInt(t[0],10),direction:t[0].indexOf("/")>0?t[0].split("/")[1]:"sendrecv",uri:t[1],attributes:t.slice(2).join(" ")}},Z.writeExtmap=function(e){return"a=extmap:"+(e.id||e.preferredId)+(e.direction&&"sendrecv"!==e.direction?"/"+e.direction:"")+" "+e.uri+(e.attributes?" "+e.attributes:"")+"\r\n"},Z.parseFmtp=function(e){let t,n={},r=e.substring(e.indexOf(" ")+1).split(";");for(let e=0;e<r.length;e++)n[(t=r[e].trim().split("="))[0].trim()]=t[1];return n},Z.writeFmtp=function(e){let t="",n=e.payloadType;if(void 0!==e.preferredPayloadType&&(n=e.preferredPayloadType),e.parameters&&Object.keys(e.parameters).length){let r=[];Object.keys(e.parameters).forEach(t=>{void 0!==e.parameters[t]?r.push(t+"="+e.parameters[t]):r.push(t)}),t+="a=fmtp:"+n+" "+r.join(";")+"\r\n"}return t},Z.parseRtcpFb=function(e){let t=e.substring(e.indexOf(" ")+1).split(" ");return{type:t.shift(),parameter:t.join(" ")}},Z.writeRtcpFb=function(e){let t="",n=e.payloadType;return void 0!==e.preferredPayloadType&&(n=e.preferredPayloadType),e.rtcpFeedback&&e.rtcpFeedback.length&&e.rtcpFeedback.forEach(e=>{t+="a=rtcp-fb:"+n+" "+e.type+(e.parameter&&e.parameter.length?" "+e.parameter:"")+"\r\n"}),t},Z.parseSsrcMedia=function(e){let t=e.indexOf(" "),n={ssrc:parseInt(e.substring(7,t),10)},r=e.indexOf(":",t);return r>-1?(n.attribute=e.substring(t+1,r),n.value=e.substring(r+1)):n.attribute=e.substring(t+1),n},Z.parseSsrcGroup=function(e){let t=e.substring(13).split(" ");return{semantics:t.shift(),ssrcs:t.map(e=>parseInt(e,10))}},Z.getMid=function(e){let t=Z.matchPrefix(e,"a=mid:")[0];if(t)return t.substring(6)},Z.parseFingerprint=function(e){let t=e.substring(14).split(" ");return{algorithm:t[0].toLowerCase(),value:t[1].toUpperCase()}},Z.getDtlsParameters=function(e,t){return{role:"auto",fingerprints:Z.matchPrefix(e+t,"a=fingerprint:").map(Z.parseFingerprint)}},Z.writeDtlsParameters=function(e,t){let n="a=setup:"+t+"\r\n";return e.fingerprints.forEach(e=>{n+="a=fingerprint:"+e.algorithm+" "+e.value+"\r\n"}),n},Z.parseCryptoLine=function(e){let t=e.substring(9).split(" ");return{tag:parseInt(t[0],10),cryptoSuite:t[1],keyParams:t[2],sessionParams:t.slice(3)}},Z.writeCryptoLine=function(e){return"a=crypto:"+e.tag+" "+e.cryptoSuite+" "+("object"==typeof e.keyParams?Z.writeCryptoKeyParams(e.keyParams):e.keyParams)+(e.sessionParams?" "+e.sessionParams.join(" "):"")+"\r\n"},Z.parseCryptoKeyParams=function(e){if(0!==e.indexOf("inline:"))return null;let t=e.substring(7).split("|");return{keyMethod:"inline",keySalt:t[0],lifeTime:t[1],mkiValue:t[2]?t[2].split(":")[0]:void 0,mkiLength:t[2]?t[2].split(":")[1]:void 0}},Z.writeCryptoKeyParams=function(e){return e.keyMethod+":"+e.keySalt+(e.lifeTime?"|"+e.lifeTime:"")+(e.mkiValue&&e.mkiLength?"|"+e.mkiValue+":"+e.mkiLength:"")},Z.getCryptoParameters=function(e,t){return Z.matchPrefix(e+t,"a=crypto:").map(Z.parseCryptoLine)},Z.getIceParameters=function(e,t){let n=Z.matchPrefix(e+t,"a=ice-ufrag:")[0],r=Z.matchPrefix(e+t,"a=ice-pwd:")[0];return n&&r?{usernameFragment:n.substring(12),password:r.substring(10)}:null},Z.writeIceParameters=function(e){let t="a=ice-ufrag:"+e.usernameFragment+"\r\na=ice-pwd:"+e.password+"\r\n";return e.iceLite&&(t+="a=ice-lite\r\n"),t},Z.parseRtpParameters=function(e){let t={codecs:[],headerExtensions:[],fecMechanisms:[],rtcp:[]},n=Z.splitLines(e)[0].split(" ");t.profile=n[2];for(let r=3;r<n.length;r++){let i=n[r],s=Z.matchPrefix(e,"a=rtpmap:"+i+" ")[0];if(s){let n=Z.parseRtpMap(s),r=Z.matchPrefix(e,"a=fmtp:"+i+" ");switch(n.parameters=r.length?Z.parseFmtp(r[0]):{},n.rtcpFeedback=Z.matchPrefix(e,"a=rtcp-fb:"+i+" ").map(Z.parseRtcpFb),t.codecs.push(n),n.name.toUpperCase()){case"RED":case"ULPFEC":t.fecMechanisms.push(n.name.toUpperCase())}}}Z.matchPrefix(e,"a=extmap:").forEach(e=>{t.headerExtensions.push(Z.parseExtmap(e))});let r=Z.matchPrefix(e,"a=rtcp-fb:* ").map(Z.parseRtcpFb);return t.codecs.forEach(e=>{r.forEach(t=>{e.rtcpFeedback.find(e=>e.type===t.type&&e.parameter===t.parameter)||e.rtcpFeedback.push(t)})}),t},Z.writeRtpDescription=function(e,t){let n="";n+="m="+e+" ",n+=t.codecs.length>0?"9":"0",n+=" "+(t.profile||"UDP/TLS/RTP/SAVPF")+" ",n+=t.codecs.map(e=>void 0!==e.preferredPayloadType?e.preferredPayloadType:e.payloadType).join(" ")+"\r\n",n+="c=IN IP4 0.0.0.0\r\n",n+="a=rtcp:9 IN IP4 0.0.0.0\r\n",t.codecs.forEach(e=>{n+=Z.writeRtpMap(e),n+=Z.writeFmtp(e),n+=Z.writeRtcpFb(e)});let r=0;return t.codecs.forEach(e=>{e.maxptime>r&&(r=e.maxptime)}),r>0&&(n+="a=maxptime:"+r+"\r\n"),t.headerExtensions&&t.headerExtensions.forEach(e=>{n+=Z.writeExtmap(e)}),n},Z.parseRtpEncodingParameters=function(e){let t,n=[],r=Z.parseRtpParameters(e),i=-1!==r.fecMechanisms.indexOf("RED"),s=-1!==r.fecMechanisms.indexOf("ULPFEC"),o=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"cname"===e.attribute),a=o.length>0&&o[0].ssrc,c=Z.matchPrefix(e,"a=ssrc-group:FID").map(e=>e.substring(17).split(" ").map(e=>parseInt(e,10)));c.length>0&&c[0].length>1&&c[0][0]===a&&(t=c[0][1]),r.codecs.forEach(e=>{if("RTX"===e.name.toUpperCase()&&e.parameters.apt){let r={ssrc:a,codecPayloadType:parseInt(e.parameters.apt,10)};a&&t&&(r.rtx={ssrc:t}),n.push(r),i&&((r=JSON.parse(JSON.stringify(r))).fec={ssrc:a,mechanism:s?"red+ulpfec":"red"},n.push(r))}}),0===n.length&&a&&n.push({ssrc:a});let p=Z.matchPrefix(e,"b=");return p.length&&(p=0===p[0].indexOf("b=TIAS:")?parseInt(p[0].substring(7),10):0===p[0].indexOf("b=AS:")?950*parseInt(p[0].substring(5),10)-16e3:void 0,n.forEach(e=>{e.maxBitrate=p})),n},Z.parseRtcpParameters=function(e){let t={},n=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"cname"===e.attribute)[0];n&&(t.cname=n.value,t.ssrc=n.ssrc);let r=Z.matchPrefix(e,"a=rtcp-rsize");return t.reducedSize=r.length>0,t.compound=0===r.length,t.mux=Z.matchPrefix(e,"a=rtcp-mux").length>0,t},Z.writeRtcpParameters=function(e){let t="";return e.reducedSize&&(t+="a=rtcp-rsize\r\n"),e.mux&&(t+="a=rtcp-mux\r\n"),void 0!==e.ssrc&&e.cname&&(t+="a=ssrc:"+e.ssrc+" cname:"+e.cname+"\r\n"),t},Z.parseMsid=function(e){let t,n=Z.matchPrefix(e,"a=msid:");if(1===n.length)return{stream:(t=n[0].substring(7).split(" "))[0],track:t[1]};let r=Z.matchPrefix(e,"a=ssrc:").map(e=>Z.parseSsrcMedia(e)).filter(e=>"msid"===e.attribute);if(r.length>0)return{stream:(t=r[0].value.split(" "))[0],track:t[1]}},Z.parseSctpDescription=function(e){let t,n=Z.parseMLine(e),r=Z.matchPrefix(e,"a=max-message-size:");r.length>0&&(t=parseInt(r[0].substring(19),10)),isNaN(t)&&(t=65536);let i=Z.matchPrefix(e,"a=sctp-port:");if(i.length>0)return{port:parseInt(i[0].substring(12),10),protocol:n.fmt,maxMessageSize:t};let s=Z.matchPrefix(e,"a=sctpmap:");if(s.length>0){let e=s[0].substring(10).split(" ");return{port:parseInt(e[0],10),protocol:e[1],maxMessageSize:t}}},Z.writeSctpDescription=function(e,t){let n=[];return n="DTLS/SCTP"!==e.protocol?["m="+e.kind+" 9 "+e.protocol+" "+t.protocol+"\r\n","c=IN IP4 0.0.0.0\r\n","a=sctp-port:"+t.port+"\r\n"]:["m="+e.kind+" 9 "+e.protocol+" "+t.port+"\r\n","c=IN IP4 0.0.0.0\r\n","a=sctpmap:"+t.port+" "+t.protocol+" 65535\r\n"],void 0!==t.maxMessageSize&&n.push("a=max-message-size:"+t.maxMessageSize+"\r\n"),n.join("")},Z.generateSessionId=function(){return Math.random().toString().substr(2,22)},Z.writeSessionBoilerplate=function(e,t,n){return"v=0\r\no="+(n||"thisisadapterortc")+" "+(e||Z.generateSessionId())+" "+(void 0!==t?t:2)+" IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"},Z.getDirection=function(e,t){let n=Z.splitLines(e);for(let e=0;e<n.length;e++)switch(n[e]){case"a=sendrecv":case"a=sendonly":case"a=recvonly":case"a=inactive":return n[e].substring(2)}return t?Z.getDirection(t):"sendrecv"},Z.getKind=function(e){return Z.splitLines(e)[0].split(" ")[0].substring(2)},Z.isRejected=function(e){return"0"===e.split(" ",2)[1]},Z.parseMLine=function(e){let t=Z.splitLines(e)[0].substring(2).split(" ");return{kind:t[0],port:parseInt(t[1],10),protocol:t[2],fmt:t.slice(3).join(" ")}},Z.parseOLine=function(e){let t=Z.matchPrefix(e,"o=")[0].substring(2).split(" ");return{username:t[0],sessionId:t[1],sessionVersion:parseInt(t[2],10),netType:t[3],addressType:t[4],address:t[5]}},Z.isValidSDP=function(e){if("string"!=typeof e||0===e.length)return!1;let t=Z.splitLines(e);for(let e=0;e<t.length;e++)if(t[e].length<2||"="!==t[e].charAt(1))return!1;return!0},q=Z;let ec=function({window:e}={},t={shimChrome:!0,shimFirefox:!0,shimSafari:!0}){let n=function(e){let t={browser:null,version:null};if(void 0===e||!e.navigator||!e.navigator.userAgent)return t.browser="Not a browser.",t;let{navigator:n}=e;if(n.userAgentData&&n.userAgentData.brands){let e=n.userAgentData.brands.find(e=>"Chromium"===e.brand);if(e)return{browser:"chrome",version:parseInt(e.version,10)}}return n.mozGetUserMedia?(t.browser="firefox",t.version=d(n.userAgent,/Firefox\/(\d+)\./,1)):n.webkitGetUserMedia||!1===e.isSecureContext&&e.webkitRTCPeerConnection?(t.browser="chrome",t.version=d(n.userAgent,/Chrom(e|ium)\/(\d+)\./,2)):e.RTCPeerConnection&&n.userAgent.match(/AppleWebKit\/(\d+)\./)?(t.browser="safari",t.version=d(n.userAgent,/AppleWebKit\/(\d+)\./,1),t.supportsUnifiedPlan=e.RTCRtpTransceiver&&"currentDirection"in e.RTCRtpTransceiver.prototype):t.browser="Not a supported browser.",t}(e),r={browserDetails:n,commonShim:Q,extractVersion:d,disableLog:h,disableWarnings:u,sdp:q};switch(n.browser){case"chrome":if(!y||!y.shimPeerConnection||!t.shimChrome){f("Chrome shim is not included in this adapter release.");break}if(null===n.version){f("Chrome shim can not determine version, not shimming.");break}f("adapter.js shimming chrome."),r.browserShim=y,eo(e,n),ea(e,n),y.shimGetUserMedia(e,n),y.shimMediaStream(e,n),y.shimPeerConnection(e,n),y.shimOnTrack(e,n),y.shimAddTrackRemoveTrack(e,n),y.shimGetSendersWithDtmf(e,n),y.shimSenderReceiverGetStats(e,n),y.fixNegotiationNeeded(e,n),ee(e,n),et(e,n),ei(e,n),en(e,n),er(e,n),es(e,n);break;case"firefox":if(!E||!E.shimPeerConnection||!t.shimFirefox){f("Firefox shim is not included in this adapter release.");break}f("adapter.js shimming firefox."),r.browserShim=E,eo(e,n),ea(e,n),E.shimGetUserMedia(e,n),E.shimPeerConnection(e,n),E.shimOnTrack(e,n),E.shimRemoveStream(e,n),E.shimSenderGetStats(e,n),E.shimReceiverGetStats(e,n),E.shimRTCDataChannel(e,n),E.shimAddTransceiver(e,n),E.shimGetParameters(e,n),E.shimCreateOffer(e,n),E.shimCreateAnswer(e,n),ee(e,n),ei(e,n),en(e,n),er(e,n);break;case"safari":if(!z||!t.shimSafari){f("Safari shim is not included in this adapter release.");break}f("adapter.js shimming safari."),r.browserShim=z,eo(e,n),ea(e,n),z.shimRTCIceServerUrls(e,n),z.shimCreateOfferLegacy(e,n),z.shimCallbacksAPI(e,n),z.shimLocalStreamsAPI(e,n),z.shimRemoteStreamsAPI(e,n),z.shimTrackEventTransceiver(e,n),z.shimGetUserMedia(e,n),z.shimAudioContext(e,n),ee(e,n),et(e,n),en(e,n),er(e,n),es(e,n);break;default:f("Unsupported browser!")}return r}({window:"undefined"==typeof window?void 0:window}),ep=ec.default||ec,ed=new class{isWebRTCSupported(){return"undefined"!=typeof RTCPeerConnection}isBrowserSupported(){let e=this.getBrowser(),t=this.getVersion();return!!this.supportedBrowsers.includes(e)&&("chrome"===e?t>=this.minChromeVersion:"firefox"===e?t>=this.minFirefoxVersion:"safari"===e&&!this.isIOS&&t>=this.minSafariVersion)}getBrowser(){return ep.browserDetails.browser}getVersion(){return ep.browserDetails.version||0}isUnifiedPlanSupported(){let e,t=this.getBrowser(),n=ep.browserDetails.version||0;if("chrome"===t&&n<this.minChromeVersion)return!1;if("firefox"===t&&n>=this.minFirefoxVersion)return!0;if(!window.RTCRtpTransceiver||!("currentDirection"in RTCRtpTransceiver.prototype))return!1;let r=!1;try{(e=new RTCPeerConnection).addTransceiver("audio"),r=!0}catch(e){}finally{e&&e.close()}return r}toString(){return`Supports:
@@ -2090,10 +2101,14 @@ const MIRS = {
   'Salvage Writ':   {u:1, b:0, s:1, writ:1, sh:'now: up to 2 display cards to the Salvage pile', t:'Use it right away: move up to 2 other cards from the display to the Salvage pile (any miracles under them are discarded).'},
   'Patronage':     {u:1, b:1, s:1, disc:2, sh:'', t:''},
   'Sacred Lesson': {u:1, b:0, s:1, tr:1, sh:'hand: +1 Training token at a Mobilize', t:"Goes to your hand. At a Mobilize, place 1 Training token (on top of your Study's). Single use."},
+  'Freeze':        {u:1, b:1, s:0, frz:1, sh:'', t:''},
+  'Covenant':      {u:1, b:1, s:0, cov:1, sh:'', t:''},
+  'Mill':          {u:1, b:0, s:0, mill:3, sh:'', t:''},
+  'Restock':       {u:1, b:1, s:0, rst:1, sh:'', t:''},
 };
 // what each miracle does is one number (its effect key); its text is written from that number
 const MIR_FX = {};
-for (const n in MIRS) MIR_FX[n] = ['cash','disc','rec','arm','tr','writ','vis','fav'].find(k => MIRS[n][k]);
+for (const n in MIRS) MIR_FX[n] = ['cash','disc','rec','arm','tr','writ','vis','fav','frz','cov','mill','rst'].find(k => MIRS[n][k]);
 const MIR_TEXT = {
   cash:v => [`$${v} back now`, `When you buy the card on top of this, get $${v} back.`],
   rec: v => [`hand: +${v} Recruit${v === 1 ? '' : 's'} at a Mobilize`, `When you buy the card on top of this, put this card in your hand. You may discard this card at a Mobilize to add ${v} Recruit${v === 1 ? '' : 's'} to your deck.`],
@@ -2103,6 +2118,10 @@ const MIR_TEXT = {
   vis: v => [`hand: look at ${v}, buy 1`, `When you buy the card on top of this, put this card in your hand. You may discard this card on any shop turn to look at the top ${v} cards of either deck and buy one at normal price (uses a normal buy).`],
   disc:v => [`hand: play it so your next buy costs $${v} less`, `When you buy the card on top of this, put this card in your hand. On your shop turn you may play it: the next card you buy, of any kind, costs $${v} less (minimum $0). Then discard this card.`],
   fav: v => [`hand: ${v === 1 ? '1 extra buy' : v + ' extra buys'} on a shop turn`, `When you buy the card on top of this, put this card in your hand. You may discard this card on any shop turn for ${v === 1 ? 'one Extra buy' : v + ' Extra buys'} at normal price.`],
+  frz: v => ['hand: set aside a display card for later', 'When you buy the card on top of this, put this card in your hand. On your shop turn you may discard this card as your turn to set aside a display card and any miracles under it; its spot stays empty. You may buy it at normal price on any later shop turn, even in a later round.'],
+  cov: v => [`dealt with ${v === 1 ? 'one more card' : v + ' more cards'} on top`, `When this is dealt, ${v === 1 ? 'one more card' : v + ' more cards'} from the same deck ${v === 1 ? 'is' : 'are'} dealt on top of it. The cards on top are bought together for their combined price.`],
+  mill:v => [`now: the top ${v} units go to the Salvage pile`, `When you buy the card on top of this, send the top ${v} units of the unit deck to the Salvage pile.`],
+  rst: v => [`now: ${v === 1 ? 'a new card' : v + ' new cards'} in the display`, `When you buy the card on top of this, deal ${v === 1 ? 'a card' : v + ' cards'} from the same deck into the shop display.`],
 };
 function mirRetext(n){ const k = MIR_FX[n]; if (!k) return; const [sh, t] = MIR_TEXT[k](MIRS[n][k]); MIRS[n].sh = sh; MIRS[n].t = t; }
 for (const n in MIRS) mirRetext(n);
@@ -2127,14 +2146,28 @@ function mirSpend(p, key, over){
   }
   return best ? idx.slice(0, m).filter((_, b) => best.mask >> b & 1) : [];
 }
+// the display card (or frozen card) an option points at, or null
+function slotOf(g, o){
+  if (o.src === 'du') return g.disp.u[o.idx] || null;
+  if (o.src === 'db') return g.disp.b[o.idx] || null;
+  if (o.src === 'fz') return (g.frozen && g.frozen[o.who ?? cur(g)] || [])[o.idx] || null;
+  return null;
+}
 // the miracles under a display card (or none)
-function mirOf(g, o){ const c = o.src === 'du' ? g.disp.u[o.idx] : o.src === 'db' ? g.disp.b[o.idx] : null; return (c && c.mir) || []; }
+function mirOf(g, o){ const c = slotOf(g, o); return (c && c.mir) || []; }
+// Covenant: the extra cards bought together with a display card (or none)
+function pairOf(g, o){ const c = slotOf(g, o); return (c && c.pair) || []; }
+const pairCost = (pair, kind) => (pair || []).reduce((s, n) => s + ((kind === 'u' ? DEFS : BDEFS)[n] || {c:0}).c, 0);
 // draw the next display card: miracles drawn on the way stack under it
 function dealCard(g, k){
   const deck = k === 'u' ? g.uDeck : g.bDeck, mir = [];
   while (deck.length){ const n = deck.pop(); if (isMir(n)) mir.push(n); else {
     if (mir.length && g.mirShown) for (const m of mir) g.mirShown[m] = (g.mirShown[m] || 0) + 1;
-    return {name:n, side:false, mir}; } }
+    const c = {name:n, side:false, mir};
+    // Covenant: one more card from the same deck is dealt on top; the two are bought together
+    const nCov = mir.reduce((s, m) => s + (MIRS[m].cov || 0), 0);
+    if (nCov){ const extra = peekCards(deck, nCov); if (extra.length) c.pair = extra; }
+    return c; } }
   for (const m of mir) deck.unshift(m);   // nothing left to cover them: they wait at the bottom
   return null;
 }
@@ -2317,7 +2350,7 @@ function newGame(o){
     uDeck:shuffle(unitPool().concat(mo ? mirPool('u') : []), rnd), bDeck:shuffle(bldPool().concat(mo ? mirPool('b') : []), rnd), mirShown:{},
     disp:{u:[], b:[]}, muster:[], log:[], labels:o.labels || ['Azure','Gules'],
     players:[0,1].map(i => ({id:i, money:0, score:0, hand:{}, city:{}, mir:[], prevDeck:null, genome:(o.genomes||[])[i] || null, bought:[], wonLast:false})),
-    order:[0,1], turnIdx:0, passed:[false,false], buys:null, bm:[null,null], bmUsed:[false,false], vis:[null,null], mirGot:[[], []], decks:[null,null], lastBattle:null,
+    order:[0,1], turnIdx:0, passed:[false,false], buys:null, frozen:[[], []], bm:[null,null], bmUsed:[false,false], vis:[null,null], mirGot:[[], []], decks:[null,null], lastBattle:null,
     om:o.om || [null,null], omPending:[null,null]};
 }
 const cur = g => g.order[g.turnIdx];
@@ -2374,15 +2407,24 @@ function whyNot(info, p){
   if (info.why === 'One Field per shop') return 'Only one Field per shop';
   return info.why;
 }
-function buyInfo(g, i, name, kind, src, idx){ return buyQuote(g.players[i], g.buys[i], name, kind, src, mirSur(mirOf(g, {src, idx}))); }
+function buyInfo(g, i, name, kind, src, idx){ const o = {src, idx, who:i}; return buyQuote(g.players[i], g.buys[i], name, kind, src, mirSur(mirOf(g, o)), pairOf(g, o)); }
 // The price and buy slot for one card, or why it can't be bought. p is anything with {hand, city, money}
 // and b the buys used this shop ({u, b, carp, extra}), so the AI can price hypothetical purchases the same way.
-function buyQuote(p, b, name, kind, src, sur){
+function buyQuote(p, b, name, kind, src, sur, pair){
   const Dd = kind === 'u' ? DEFS[name] : BDEFS[name];
   let price = Dd.c + (sur || 0);   // miracle surcharge: discounts below apply to the total
   const no = cantAcquire(p, name, kind); if (no) return {ok:false, why:no};
   if (src === 'mu' && !(ownsCard(p, name) > 0)) return {ok:false, why:'Own one to salvage it'};
-  if (name === 'Field' && (b.fld || 0) >= RULES.fieldsPerShop) return {ok:false, why:'One Field per shop'};
+  pair = pair || [];
+  const nFld = (name === 'Field' ? 1 : 0) + pair.filter(n => n === 'Field').length;
+  if (nFld && (b.fld || 0) + nFld > RULES.fieldsPerShop) return {ok:false, why:'One Field per shop'};
+  if (pair.length){
+    // Covenant: every card on top must fit too, counted one after another (two buildings need two City slots)
+    const st = {hand:{...p.hand}, city:{...p.city}}, add = n => { if (kind === 'u') st.hand[n] = (st.hand[n] || 0) + 1; else if (n !== "Mason's Guild") st.city[n] = (st.city[n] || 0) + 1; else { const t = masonTargets(st)[0]; if (t) st.city[t]++; } };
+    add(name);
+    for (const n of pair){ const why = cantAcquire(st, n, kind); if (why) return {ok:false, why:`${n}: ${why}`}; add(n); }
+    price += pairCost(pair, kind);
+  }
   let slot;
   const baseOk = baseLeft(b) > 0;   // buys of any kind, units or buildings
   if (baseOk) slot = 'base';
@@ -2390,7 +2432,7 @@ function buyQuote(p, b, name, kind, src, sur){
   else if (b.fav > 0) slot = 'fav';   // Divine Favor: an extra buy at normal price
   else if (!b.extra){ slot = 'extra'; price += 1; }
   else return {ok:false, why:'Buys used up'};
-  if (kind === 'b' && bVal(p, "Carpenter's Guild")) price = Math.max(1, price - 1);   // Carpenter's Guild discount
+  if (kind === 'b' && bVal(p, "Carpenter's Guild")) price = Math.max(1 + pair.length, price - 1 - pair.length);   // Carpenter's Guild discount, each building
   if (src === 'bm') price = Math.max(0, price - bmOff(p));   // Black Market discount: $1/$2/$3 by level
   const disc = p.discArm ? mirDisc(p) : null; if (disc) price = Math.max(0, price - MIRS[disc].disc);   // Patronage (once played): next card costs less
   if (p.money < price) return {ok:false, price, slot, disc, why:`Needs $${price}`};
@@ -2410,6 +2452,7 @@ function sourceCard(g, i, src, idx){
   if (src === 'bm') return g.bm[i] && g.bm[i].cards[idx] && {name:g.bm[i].cards[idx], kind:g.bm[i].k};
   if (src === 'mu') return g.muster && g.muster[idx] && {name:g.muster[idx], kind:cardKind(g.muster[idx])};
   if (src === 'vis') return g.vis && g.vis[i] && g.vis[i].cards[idx] && {name:g.vis[i].cards[idx], kind:g.vis[i].k};
+  if (src === 'fz') return g.frozen && g.frozen[i] && g.frozen[i][idx] && {name:g.frozen[i][idx].name, kind:g.frozen[i][idx].kind};
   return null;
 }
 function buy(g, i, src, idx, attach, writ){
@@ -2417,7 +2460,8 @@ function buy(g, i, src, idx, attach, writ){
   noteSeen(g, i);
   const sc = sourceCard(g, i, src, idx); if (!sc) return false;
   const info = buyInfo(g, i, sc.name, sc.kind, src, idx); if (!info.ok) return false;
-  const p = g.players[i], b = g.buys[i], mir = mirOf(g, {src, idx}).slice();
+  const p = g.players[i], b = g.buys[i], mir = mirOf(g, {src, idx, who:i}).slice(), pair = pairOf(g, {src, idx, who:i}).slice();
+  const spot = src === 'du' || src === 'db' ? {k:src === 'du' ? 'u' : 'b', at:(slotOf(g, {src, idx}) || {}).at} : src === 'fz' ? {k:sc.kind, at:null} : null;
   // the situation at the moment of buying (before paying), for situational card opinions
   if (sc.name === "Mason's Guild"){ const ts = masonTargets(p); if (!ts.includes(attach)) attach = ts[0]; }
   p.money -= info.price;
@@ -2426,6 +2470,7 @@ function buy(g, i, src, idx, attach, writ){
   if (src === 'du') g.disp.u.splice(idx, 1);
   if (src === 'db') g.disp.b.splice(idx, 1);
   if (src === 'mu') g.muster.splice(idx, 1);
+  if (src === 'fz') g.frozen[i].splice(idx, 1);
   if (src === 'bm'){
     // Black Market: one card only; the others go back under the deck
     g.bm[i].cards.splice(idx, 1);
@@ -2443,10 +2488,18 @@ function buy(g, i, src, idx, attach, writ){
   else p.city[sc.name] = (p.city[sc.name] || 0) + 1;
   p.bought.push(sc.name);
   if (g.shopBought) g.shopBought[i].push(sc.name);
+  // Covenant: the cards on top come along (a Mason's Guild among them goes on the building it would level best)
+  const pairGot = [];
+  for (const n of pair){
+    if (sc.kind === 'u') p.hand[n] = (p.hand[n] || 0) + 1;
+    else if (n === "Mason's Guild"){ const t = aiMasonTarget(g, i); if (!t) continue; p.city[t] = (p.city[t] || 0) + 1; p.mason = p.mason || {}; p.mason[t] = (p.mason[t] || 0) + 1; }
+    else p.city[n] = (p.city[n] || 0) + 1;
+    p.bought.push(n); if (g.shopBought) g.shopBought[i].push(n); pairGot.push(n);
+  }
   const extra = (info.slot === 'extra' ? ' (extra buy, +$1)' : info.slot === 'carp' ? " (Carpenter's Guild)" : '') + (src === 'bm' ? ` (Black Market, $${bmOff(p)} off)` : '') + (src === 'mu' ? ' from the Salvage pile' : '');
   const extraFull = extra + (info.slot === 'fav' ? ' (Divine Favor)' : '') + (src === 'vis' ? ' (Vision)' : '') + (info.disc ? ` (${info.disc}, $${MIRS[info.disc].disc} off)` : '');
-  g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''} for $${info.price}${extraFull}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null}});
-  const again = mir.length ? gainMiracles(g, i, mir, writ) : false;
+  g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''}${pairGot.length ? ` and ${pairGot.join(' and ')} (Covenant)` : ''} for $${info.price}${extraFull}${src === 'fz' ? ' (frozen)' : ''}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null, pair:pairGot.length ? pairGot : undefined}});
+  const again = mir.length ? gainMiracles(g, i, mir, writ, spot) : false;
   if (again) g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'take':'takes'} another shop turn (Salvage Writ).`, side:i});
   else nextTurn(g);
   return true;
@@ -2460,7 +2513,7 @@ function useWrit(g, i, n, names){
   for (const nm of pick){
     const kd = g.disp.u.some(c => c.name === nm) ? 'u' : 'b', row = g.disp[kd];
     const k = row.findIndex(c => c.name === nm); if (k < 0) continue;
-    const was = row.splice(k, 1)[0]; (g.muster || (g.muster = [])).push(nm); moved.push(nm);
+    const was = row.splice(k, 1)[0]; (g.muster || (g.muster = [])).push(nm, ...(was.pair || [])); moved.push(nm);
     const c = dealCard(g, kd); if (c){ c.at = was.at; row.splice(k, 0, c); }   // a new card from its own deck takes its place
   }
   g.log.push({t:moved.length ? `${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} Salvage Writ: ${moved.join(' and ')} ${moved.length > 1 ? 'go' : 'goes'} to the Salvage pile.`
@@ -2485,17 +2538,37 @@ function writPick(g, i, n){
   return n == null ? out.slice(0, MIRS['Salvage Writ'].writ) : out.slice(0, n);
 }
 // The miracles under a bought card: money ones pay out now, the rest go to the buyer's hand
-function gainMiracles(g, i, mir, writ){
+function gainMiracles(g, i, mir, writ, spot){
   const p = g.players[i], you = g.labels[i] === 'You', parts = [], writs = [];
+  let mill = 0, rst = 0;
   for (const n of mir){
     const m = MIRS[n];
     if (m.cash){ p.money += m.cash; parts.push(`${n} (+$${m.cash})`); }
     else if (m.writ){ writs.push(m.writ); parts.push(`${n} (used now)`); }
+    else if (m.cov){ }   // Covenant did its work when it was dealt (the log line for the buy names its cards)
+    else if (m.mill){ mill += m.mill; parts.push(`${n} (used now)`); }
+    else if (m.rst){ rst += m.rst; parts.push(`${n} (used now)`); }
     else { (p.mir || (p.mir = [])).push(n); parts.push(`${n} (to hand)`); }
     if (g.mirGot) g.mirGot[i].push(n);
     if (g.mirShop) g.mirShop[i].push(n);
   }
-  g.log.push({t:`${g.labels[i]} ${you ? 'receive' : 'receives'} ${parts.join(' and ')}.`, side:i});
+  if (parts.length) g.log.push({t:`${g.labels[i]} ${you ? 'receive' : 'receives'} ${parts.join(' and ')}.`, side:i});
+  // Mill: the top units of the unit deck go face-up to the Salvage pile (a miracle turned up goes to the bottom)
+  if (mill){
+    const out = peekCards(g.uDeck, mill); (g.muster || (g.muster = [])).push(...out);
+    g.log.push({t:out.length ? `Mill: ${out.join(', ')} ${out.length > 1 ? 'go' : 'goes'} to the Salvage pile.` : 'Mill: the unit deck is empty.', side:i});
+  }
+  // Restock: new cards from the bought card's deck go into the display (the first into its empty spot)
+  if (rst && spot){
+    const row = g.disp[spot.k], got = [];
+    for (let r = 0; r < rst; r++){
+      const c = dealCard(g, spot.k); if (!c) break;
+      const used = new Set(row.filter(x => x.at != null).map(x => x.at));
+      let at = r === 0 && spot.at != null && !used.has(spot.at) ? spot.at : 0; while (used.has(at)) at++;
+      c.at = at; row.push(c); got.push(c.name);
+    }
+    g.log.push({t:got.length ? `Restock: ${got.join(' and ')} ${got.length > 1 ? 'are' : 'is'} dealt into the display.` : 'Restock: that deck is empty.', side:i});
+  }
   // two Writs under one card move up to 4; a person's list covers them all
   if (writs.length){ const tot = writs.reduce((a, b) => a + b, 0); useWrit(g, i, tot, writ); }
   return writs.length > 0;   // Salvage Writ: the buyer shops again before the opponent
@@ -2520,6 +2593,21 @@ function useDisc(g, i, on){
   if (!!p.discArm === on) return false;
   p.discArm = on;
   g.log.push({t:on ? `${g.labels[i]} ${g.labels[i]==='You'?'play':'plays'} ${n}: the next card costs $${MIRS[n].disc} less.` : `${g.labels[i]} ${g.labels[i]==='You'?'take':'takes'} ${n} back into hand.`, side:i});
+  return true;
+}
+// Freeze: from hand, as your shop turn, set aside a display card with its miracles (and Covenant cards); its spot stays
+// empty this shop. Only you may buy it, at its normal price, on any later shop turn.
+function canFreeze(g, i){ const p = g.players[i]; return g.phase === 'shop' && cur(g) === i && !g.passed[i] && (p.mir || []).some(n => MIRS[n] && MIRS[n].frz); }
+function useFreeze(g, i, src, idx){
+  if (!canFreeze(g, i) || (src !== 'du' && src !== 'db')) return false;
+  const row = g.disp[src === 'du' ? 'u' : 'b'], c = row[idx]; if (!c) return false;
+  noteSeen(g, i);
+  const p = g.players[i], j = p.mir.findIndex(n => MIRS[n] && MIRS[n].frz), fn = p.mir[j];
+  p.mir.splice(j, 1); row.splice(idx, 1);
+  g.frozen = g.frozen || [[], []];
+  g.frozen[i].push({name:c.name, kind:src === 'du' ? 'u' : 'b', mir:c.mir || [], pair:c.pair});
+  g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} ${fn}: ${c.name}${c.pair && c.pair.length ? ` (with ${c.pair.join(' and ')})` : ''} is set aside for ${g.labels[i]==='You'?'you':g.labels[i]}.`, side:i, ev:{a:'freeze', n:c.name}});
+  nextTurn(g);
   return true;
 }
 // Vision: from hand on your shop turn, look at the top 3 of either deck and buy one (with a normal buy, normal price)
@@ -2643,11 +2731,11 @@ function endShop(g){
   for (const i of [0,1]) if (g.vis && g.vis[i]){ const deck = g.vis[i].k === 'u' ? g.uDeck : g.bDeck; for (const c of g.vis[i].cards) deck.unshift(c); g.vis[i] = null; }
   // Salvage pile: a returning card that goes unbought again is laid face-up there (its miracles are discarded)
   g.muster = g.muster || [];
-  for (const c of g.disp.u.concat(g.disp.b)) if (c.side) g.muster.push(c.name);
+  for (const c of g.disp.u.concat(g.disp.b)) if (c.side) g.muster.push(c.name, ...(c.pair || []));
   g.leaving = {u:[], b:[]};
   for (const k of ['u','b']) g.disp[k].forEach((c, j) => { if (c.side) g.leaving[k].push({name:c.name, j, at:c.at}); });
   // unbought cards go sideways with their miracles; ones already sideways leave with theirs
-  for (const k of ['u','b']) g.disp[k] = g.disp[k].filter(c => !c.side).map(c => ({name:c.name, side:true, mir:c.mir || [], at:c.at}));
+  for (const k of ['u','b']) g.disp[k] = g.disp[k].filter(c => !c.side).map(c => ({name:c.name, side:true, mir:c.mir || [], at:c.at, ...(c.pair ? {pair:c.pair} : {})}));
   g.phase = 'mobilize'; g.decks = [null,null];
 }
 function validateDeck(g, i, spec){
@@ -3037,9 +3125,11 @@ function cathedralGain(g, i){
 // Money back cancels price; Recruits and Armaments are valued like a bought Recruit each, a Training token like two;
 // Salvage Writ by the display units it would move plus the extra turn; Divine Favor like a
 // spare extra buy; Vision like a 3-card Black Market peek. G.mir scales the lot (learned in training; 1 = neutral).
-function mirValue(g, i, list, G, mE){
-  if (!list || !list.length) return 0;
+function mirValue(g, i, list, G, mE, pair, kind){
   let v = 0;
+  // Covenant: each card on top is worth what it's worth to me, less its price (the price is already in the quote)
+  for (const n of pair || []) v += aiValue(g, i, n, kind || cardKind(n)) - ((kind === 'u' ? DEFS : BDEFS)[n] || {c:0}).c * G.m * (mE ?? 1);
+  if (!list || !list.length) return v;
   for (const n of list){
     const m = MIRS[n];
     if (m.cash) v += m.cash * G.m * mE;
@@ -3050,6 +3140,10 @@ function mirValue(g, i, list, G, mE){
     if (m.writ) v += writPick(g, i, null).reduce((s, x) => s + x.v, 0) * 0.5 + 0.8 * G.m * Math.max(0.5, mE);   // + shopping again before the opponent
     if (m.fav) v += m.fav * 1.2 * G.m * Math.max(0.5, mE);
     if (m.vis && !g._po) v += Math.max(bmPeekGain(g, i, m.vis, 'u'), bmPeekGain(g, i, m.vis, 'b'));
+    // Restock: one more card to choose from, measured like a one-card Black Market peek (the opponent sees it too)
+    if (m.rst && !g._po) v += 0.5 * m.rst * Math.max(0, bmPeekGain(g, i, 1, kind || 'u'));
+    // Freeze: a held card to set aside later, worth a little like a spare buy; Mill only shapes what's left (learned opinion)
+    if (m.frz) v += 0.4 * G.m * Math.max(0.5, mE);
   }
   let op = 0; for (const n of list) op += (G.bias && G.bias[n]) || 0;   // learned opinion of each miracle
   return v * (G.mir ?? 1) + op;
@@ -3068,6 +3162,7 @@ function aiShopOptions(g, i){
   const me = g.players[i];
   (g.muster || []).forEach((n, idx) => { if (ownsCard(me, n) > 0 && !opts.some(o => o.src === 'mu' && o.name === n)) opts.push({src:'mu', idx, name:n, kind:cardKind(n)}); });
   if (g.vis && g.vis[i]) g.vis[i].cards.forEach((n, idx) => opts.push({src:'vis', idx, name:n, kind:g.vis[i].k}));
+  if (g.frozen && g.frozen[i]) g.frozen[i].forEach((c, idx) => opts.push({src:'fz', idx, who:i, name:c.name, kind:c.kind}));
   return opts;
 }
 const BATTLE_BLDGS = new Set(['Smithy','Barracks','Study','Armory','Training Yard','Trebuchet','Infirmary','Reserve Encampment']);
@@ -3181,8 +3276,8 @@ function predictOppBuys(g, i, G, excl){
       let best = null;
       for (const c of opts){
         if (c.taken) continue;
-        const q = buyQuote(fake, b, c.name, c.kind, c.src, mirSur(mirOf(g, c))); if (!q.ok) continue;
-        const v = aiValue(g, o, c.name, c.kind) - q.price * G.m + mirValue(g, o, mirOf(g, c), G, 1);
+        const q = buyQuote(fake, b, c.name, c.kind, c.src, mirSur(mirOf(g, c)), pairOf(g, c)); if (!q.ok) continue;
+        const v = aiValue(g, o, c.name, c.kind) - q.price * G.m + mirValue(g, o, mirOf(g, c), G, 1, pairOf(g, c), c.kind);
         if (v > G.thresh && (!best || v > best.v)) best = {...c, v, price:q.price, slot:q.slot};
       }
       if (!best) break;
@@ -3526,13 +3621,18 @@ function shopMoves(g, j, G, width, econ){
       const seenP = new Set();
       for (const m of pairs){ const k = m.sn + '>' + m.name; if (seenP.has(k)) continue; seenP.add(k); list.push(m); if (seenP.size >= 6) break; }
     }
+    // Freeze: setting aside each display card (as this turn) is weighed against buying and passing
+    if (canFreeze(g, j)){
+      const fseen = new Set();
+      for (const [src, row] of [['du', g.disp.u], ['db', g.disp.b]]) row.forEach((c, idx) => { if (fseen.has(c.name)) return; fseen.add(c.name); list.push({act:'freeze', src, idx, name:c.name}); });
+    }
     list.push({act:'pass', name:'pass'});
     return list;
   }
   for (const o of aiShopOptions(g, j)){
     const info = buyInfo(g, j, o.name, o.kind, o.src, o.idx); if (!info.ok) continue;
     if (o.name === "Mason's Guild" && !aiMasonTarget(g, j)) continue;
-    const f = aiValue(g, j, o.name, o.kind) - info.price * G.m * mE + mirValue(g, j, mirOf(g, o), G, mE);
+    const f = aiValue(g, j, o.name, o.kind) - info.price * G.m * mE + mirValue(g, j, mirOf(g, o), G, mE, pairOf(g, o), o.kind);
     out.push({act:'buy', src:o.src, idx:o.idx, name:o.name, kind:o.kind, price:info.price, f});
   }
   out.sort((a, b) => b.f - a.f);
@@ -3547,6 +3647,7 @@ function shopMoves(g, j, G, width, econ){
 }
 function doMove(g, j, m){
   if (m.act === 'sell'){ sell(g, j, m.kind, m.name); return; }
+  if (m.act === 'freeze'){ if (useFreeze(g, j, m.src, m.idx)) return; if (g.phase === 'shop' && cur(g) === j) pass(g, j); return; }
   if (m.act === 'sellbuy'){
     if (sell(g, j, m.sk, m.sn) && buy(g, j, m.src, m.idx, m.name === "Mason's Guild" ? aiMasonTarget(g, j) : undefined)) return;
     if (g.phase === 'shop' && cur(g) === j) pass(g, j); return;
@@ -3678,7 +3779,7 @@ function aiShopTurnSeen(g, i, depth){
   const cands = [];
   for (const o of aiShopOptions(g, i)){
     const info = buyInfo(g, i, o.name, o.kind, o.src, o.idx); if (!info.ok) continue;
-    const c0 = {...o, price:info.price, v:aiValue(g, i, o.name, o.kind) - info.price * G.m * mE + mirValue(g, i, mirOf(g, o), G, mE)};
+    const c0 = {...o, price:info.price, v:aiValue(g, i, o.name, o.kind) - info.price * G.m * mE + mirValue(g, i, mirOf(g, o), G, mE, pairOf(g, o), o.kind)};
     // Salvage patience: a Salvage copy the opponent can't take (they own none) will still be there next shop, so it's
     // worth a little less than a display card that may be gone; fades out when few shops are left
     if (o.src === 'mu' && !(ownsCard(g.players[1-i], o.name) > 0)) c0.v -= (G.mpat ?? 0.5) * mE;
@@ -3697,6 +3798,7 @@ function aiShopTurnSeen(g, i, depth){
       return aiShopTurnSeen(g, i, depth);   // shouldn't happen; shop on with the money
     }
     if (pick.act === 'buy' && buy(g, i, pick.src, pick.idx, pick.name === "Mason's Guild" ? aiMasonTarget(g, i) : undefined)) return pick.name;
+    if (pick.act === 'freeze' && useFreeze(g, i, pick.src, pick.idx)) return 'freeze ' + pick.name;
     pass(g, i); return null;
   }
   let target = aiSaveTarget(g, i, G, mE);
@@ -3816,7 +3918,7 @@ function aiUseMiracles(g, i, G, mE, TH){
     b.fav = 1; let worth = false;
     for (const o of aiShopOptions(g, i)){
       const inf = buyInfo(g, i, o.name, o.kind, o.src, o.idx);
-      if (inf.ok && inf.slot === 'fav' && aiValue(g, i, o.name, o.kind) - inf.price * G.m * mE + mirValue(g, i, mirOf(g, o), G, mE) > TH + 1){ worth = true; break; }
+      if (inf.ok && inf.slot === 'fav' && aiValue(g, i, o.name, o.kind) - inf.price * G.m * mE + mirValue(g, i, mirOf(g, o), G, mE, pairOf(g, o), o.kind) > TH + 1){ worth = true; break; }
     }
     b.fav = 0;
     if (worth) useFavor(g, i);
@@ -3883,7 +3985,7 @@ function aiSaveTarget(g, i, G, mE){
     if (info.ok || !/^Needs/.test(info.why || '')) return;     // affordable now, or blocked for another reason
     const cost = (kind === 'u' ? DEFS : BDEFS)[c.name].c + mirSur(c.mir);
     if (cost > next) return;
-    const v = aiValue(g, i, c.name, kind) - cost * G.m + mirValue(g, i, c.mir, G, 1);
+    const v = aiValue(g, i, c.name, kind) - (cost + pairCost(c.pair, kind)) * G.m + mirValue(g, i, c.mir, G, 1, c.pair, kind);
     if (v > 0 && (!t || v > t.v)) t = {name:c.name, kind, cost, v, src, idx};
   });
   return t;
@@ -4976,7 +5078,7 @@ function recBattle(g){
   recSave(g);
 }
 // wrap the shop actions so every action (yours and the AI's) is recorded with the board as it was just before
-for (const [nm, act] of [['buy','buy'], ['sell','sell'], ['pass','pass'], ['useBM','black market'], ['useFavor','divine favor'], ['useVision','vision'], ['useDisc','patronage'], ['useWrit','salvage writ']]){
+for (const [nm, act] of [['buy','buy'], ['sell','sell'], ['pass','pass'], ['useBM','black market'], ['useFavor','divine favor'], ['useVision','vision'], ['useDisc','patronage'], ['useWrit','salvage writ'], ['useFreeze','freeze']]){
   const f = window[nm]; if (typeof f !== 'function') continue;
   window[nm] = function(g, i, ...a){
     if (!g || !g.rec) return f.call(this, g, i, ...a);
@@ -5093,7 +5195,7 @@ let aiW = null, aiWSeq = 0, aiBusy = false;
 const aiWPending = new Map();
 function aiWorkerMain(){
   let ROOT = null, LOG = null;
-  for (const nm of ['buy', 'sell', 'pass', 'useBM', 'useVision', 'useFavor', 'useDisc', 'useWrit']){
+  for (const nm of ['buy', 'sell', 'pass', 'useBM', 'useVision', 'useFavor', 'useDisc', 'useWrit', 'useFreeze']){
     const f = self[nm]; if (typeof f !== 'function') continue;
     self[nm] = function(g, ...a){ if (g === ROOT && LOG) LOG.push({fn:nm, args:a, why:g._why || null}); return f.call(this, g, ...a); };
   }
@@ -5355,22 +5457,23 @@ function applyMove(i, a){
     case 'v': return useVision(G, i, a[1]);
     case 'f': return useFavor(G, i);
     case 'z': return useDisc(G, i, !!a[1]);
+    case 'i': return useFreeze(G, i, a[1], a[2]);
   }
   return false;
 }
 // the faded "bought" card a market buy leaves behind for the rest of the round
-function addGhost(k, idx, name, price, who){
+function addGhost(k, idx, name, price, who, frz){
   if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
-  ui.ghosts[k].push({idx, name, price, who});
+  ui.ghosts[k].push(frz ? {idx, name, price, who, frz:true} : {idx, name, price, who});
 }
-const MOVE_SOUND = {b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), v:() => sfx.rustle(), f:() => sfx.rustle(), z:() => sfx.rustle(), p:() => sfx.wood()};
+const MOVE_SOUND = {i:() => sfx.rustle(), b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), v:() => sfx.rustle(), f:() => sfx.rustle(), z:() => sfx.rustle(), p:() => sfx.wood()};
 // Make a shop move for player i, plus what the screen does around it: the ghost card and a sound.
 // vol: how loud a successful move sounds (null: silent); own: a failed move is this screen's player's, so it buzzes.
 function shopMove(i, a, vol, own){
-  const k = a[0] === 'b' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
+  const k = a[0] === 'b' || a[0] === 'i' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
   const dc = k && G.disp[k][a[2]], name = dc ? dc.name : null, pos = k ? (dc && dc.at != null ? dc.at : mergedPos(k, a[2])) : -1, m0 = G.players[i].money;
   const ok = applyMove(i, a);
-  if (ok && k && name) addGhost(k, pos, name, m0 - G.players[i].money, i);
+  if (ok && k && name) addGhost(k, pos, name, m0 - G.players[i].money, i, a[0] === 'i');
   if (vol != null){ if (ok) MOVE_SOUND[a[0]](vol); else if (own) sfx.err(); }
   return ok;
 }
@@ -5380,7 +5483,7 @@ function doMove(a){
   if (G.net){ netDo(netEncode(a)); return; }
   const S = seat(), fly = a[0] === 'b' ? {own0:snapOwn(S), mk:marketSnap()} : null;
   const ok = shopMove(S, a, 1, true);
-  if (a[0] === 'b' || a[0] === 'p') afterAction(); else renderPlay();
+  if (a[0] === 'b' || a[0] === 'p' || a[0] === 'i') afterAction(); else renderPlay();
   if (ok && fly) flyBuys(S, fly.own0, fly.mk);
 }
 // apply every move both players have made that this page hasn't applied yet
@@ -5616,8 +5719,12 @@ const MIR_BRIEF = {
   vis: v => `Shop: Discard this to look at the top ${v} cards of either deck and buy one at normal price.`,
   disc:v => `Shop: Discard this so your next card costs $${v} less.`,
   fav: v => `Shop: Discard this for ${v === 1 ? '1 extra buy' : v + ' extra buys'} at normal price.`,
+  frz: v => 'Shop: Discard this as your turn to set aside a display card and any miracles under it. Its spot stays empty. You may buy it at normal price on any later shop turn, even in a later round.',
+  cov: v => `Deal ${v === 1 ? 'one more card' : v + ' more cards'} from the same deck on top of this. ${v === 1 ? 'Both cards are' : 'All the cards are'} bought together for their combined price.`,
+  mill:v => `Send the top ${v} units of the unit deck to the Salvage pile.`,
+  rst: v => `Deal ${v === 1 ? 'a card' : v + ' cards'} from the same deck into the shop display.`,
 };
-const mirNow = n => { const k = MIR_FX[n]; return k === 'cash' || k === 'writ'; };
+const mirNow = n => ['cash', 'writ', 'cov', 'mill', 'rst'].includes(MIR_FX[n]);
 function mirBrief(n){ const k = MIR_FX[n]; return k && MIR_BRIEF[k] ? MIR_BRIEF[k](MIRS[n][k]) : MIRS[n].t; }
 function mirSealHTML(n, tight){
   const m = MIRS[n];
@@ -5740,8 +5847,18 @@ function writMode(){
   const info = buyInfo(G, seat(), c.name, c.kind, w.src, w.idx); if (!info.ok) return null;
   return {n, sel:w.sel, src:w.src, idx:w.idx, name:c.name, price:info.price};
 }
+// Freeze targeting in progress: true while you pick the display card to set aside
+function freezeMode(){
+  if (!ui.freeze || !G || !canFreeze(G, seat())) { if (ui.freeze) ui.freeze = null; return false; }
+  return true;
+}
 // the bar over the market while picking: what to do, what's picked, and Buy / Cancel
 function writBarHTML(){
+  if (freezeMode()) return `<div class="writbar" role="status">
+    <span class="wbt"><b>✶ Freeze</b><br>Tap a card in the market to set it aside for you.</span>
+    <span class="note">Its miracles go with it and its spot stays empty. This uses your turn.</span>
+    <span class="row"><button type="button" class="small" data-act="frz-cancel">Cancel</button></span>
+  </div>`;
   const wm = writMode(); if (!wm) return '';
   const picked = wm.sel.map(j => (G.disp[j[0] === 'b' ? 'b' : 'u'][+j.slice(1)] || {}).name).filter(Boolean);
   const upTo = wm.n === 1 ? 'up to 1 other card' : `up to ${wm.n} other cards`;
@@ -5771,43 +5888,59 @@ function marketCard(name, kind, src, idx, side, always, mir){
   }
   // Salvage Writ targeting: the card being bought is marked, every other display card is tapped to pick it, and
   // anything that can't be picked (Recruit, Field, the Salvage pile, Black Market, Vision) steps back
-  const wm = writMode(), disp = src === 'du' || src === 'db';
-  const wrole = !wm ? '' : disp && wm.src === src && wm.idx === (idx ?? 0) ? 'src' : disp ? 'tgt' : 'off';
+  const fm = freezeMode(), wm = fm ? null : writMode(), disp = src === 'du' || src === 'db';
+  const wrole = fm ? (disp ? 'tgt' : 'off') : !wm ? '' : disp && wm.src === src && wm.idx === (idx ?? 0) ? 'src' : disp ? 'tgt' : 'off';
+  if (wrole === 'tgt' && fm){
+    const what = 'Tap to set it aside for you.';
+    const fcard = `<div class="mcard ${kind} writtgt${side ? ' leaving' : ''}" data-act="frz-pick" data-src="${src}" data-idx="${idx ?? 0}" role="button" tabindex="0" title="${esc(what)}" aria-label="${esc(name)}. ${esc(what)}">
+    ${cardFace(name, kind, own)}${pairTagHTML(pairOf(G, {src, idx:idx ?? 0}), kind)}
+    ${side ? hgToken() : ''}
+  </div>`;
+    return mirWrapHTML(name, kind, mir, fcard, pairOf(G, {src, idx:idx ?? 0}));
+  }
   if (wrole === 'tgt'){
     const j = (src === 'db' ? 'b' : 'u') + (idx ?? 0), on = wm.sel.includes(j), full = !on && wm.sel.length >= wm.n;
     const oo = ownsCard(G.players[1 - S], name) ? (PP() || G.net ? `${esc(nm(1 - S))} owns one` : 'They own one') : ownsCard(me, name) ? 'You own one' : '';
     const what = on ? 'Picked for the Salvage pile. Tap again to keep it.' : full ? `You've picked ${wm.n}. Tap a picked card to swap.` : 'Tap to send it to the Salvage pile.';
     const tcard = `<div class="mcard ${kind} writtgt${on ? ' on' : ''}${full ? ' full' : ''}${side ? ' leaving' : ''}" data-act="writ-tog" data-j="${j}" role="button" tabindex="0" aria-pressed="${on}" title="${esc(what)}" aria-label="${esc(name)}. ${esc(what)}">
-    ${cardFace(name, kind, own)}
+    ${cardFace(name, kind, own)}${pairTagHTML(pairOf(G, {src, idx:idx ?? 0}), kind)}
     <span class="writmark" aria-hidden="true">${on ? '✓ To Salvage' : ''}</span>${oo ? `<span class="writown" aria-hidden="true">${oo}</span>` : ''}
     ${side ? hgToken() : ''}
   </div>`;
-    if (!(mir && mir.length)) return tcard;
-    const n = Math.min(3, mir.length);
-    const backs = mir.slice(0, n).map((m, k) => `<span class="mirback" style="--j:${k + 1}" aria-hidden="true"><span class="mt"><span class="mn">✶ ${esc(m)}</span>${MIRS[m].s ? `<span class="ms">+${'$'.repeat(MIRS[m].s)}</span>` : ''}</span></span>`).join('');
-    return `<div class="mirwrap" style="--n:${n}">${backs}${tcard}${mirListHTML(name, mir, 'mirhover').replace('<div class="mirhover">', '<div class="mirhover" aria-hidden="true">')}</div>`;
+    return mirWrapHTML(name, kind, mir, tcard, pairOf(G, {src, idx:idx ?? 0}));
   }
   const short = !info.ok && info.price != null && me.money < info.price;
   const jump = info.ok || short ? jumpText(name, kind, own) : '';
   const label = info.ok ? `Buy $${info.price}${info.slot === 'extra' ? ' (extra buy)' : info.slot === 'carp' ? ' (Carpenter)' : info.slot === 'fav' ? ' (Divine Favor)' : ''}${src === 'bm' ? ` ($${bmOff(me)} off)` : ''}${info.disc ? ` (${esc(info.disc)})` : ''}` : esc(whyNot(info, me));
+  const pair = pairOf(G, {src, idx:idx ?? 0, who:S});
   const sur = mirSur(mir), hasMir = !!(mir && mir.length), mkey = `${src}:${idx}:${name}`;
   const card = `<div class="mcard ${kind}${wrole === 'src' ? ' writsrc' : wrole === 'off' ? ' writoff' : ''}${short ? ' cant' : ''}${info.ok && myTurn && !wrole ? ' canbuy' : ''}${jump ? ' lvup' : ''}${always ? ' always' : ''}${hasMir ? ' hasmir' : ''}${side ? ' leaving' : ''}${short || own ? ' hasst' : ''}"${hasMir ? ` data-act="mir-peek" data-k="${esc(mkey)}" title="${mir.length > 1 ? `${mir.length} miracles` : 'A miracle'} behind this card. Click to see." aria-label="${esc(name)}: ${mir.length > 1 ? `${mir.length} miracles` : 'a miracle'} behind it. Click to see." role="button" tabindex="0"` : ''}>
-    ${cardFace(name, kind, own)}
+    ${cardFace(name, kind, own)}${pairTagHTML(pair, kind)}
     ${stampsHTML([short ? ['st-need', `Need $${info.price - me.money} more`] : null, always ? null : ownStamp(name, kind, own)])}
     ${extra}${wrole === 'src' ? `<span class="ctag">✶ Buying</span>` : info.ok && myTurn && !wrole ? `<span class="ctag">Buy $${info.price}</span>` : ''}
     <button type="button" class="${info.ok && myTurn && wrole !== 'off' ? 'primary' : ''}" data-act="buy" data-src="${src}" data-idx="${idx ?? ''}" ${info.ok && myTurn && wrole !== 'off' ? '' : 'disabled'}>${label}</button>
     ${side ? hgToken() : ''}
     ${hasMir && ui.mirOpen === mkey ? mirListHTML(name, mir, 'mirpop').replace('<div class="mirpop">', `<div class="mirpop" data-act="mir-peek" data-k="${esc(mkey)}">`).replace('.</span></div>', '. Click to close.</span></div>') : ''}
   </div>`;
-  if (!hasMir) return card;
+  return mirWrapHTML(name, kind, mir, card, pair);
+}
+// Covenant: the card(s) bought together with this one, named on the card
+function pairTagHTML(pair, kind){
+  if (!pair || !pair.length) return '';
+  return `<span class="pairtag" title="Bought together with ${esc(pair.join(' and '))} (Covenant)">＋ ${pair.map(n => `${esc(n)} <span class="pc">$${((kind === 'u' ? DEFS : BDEFS)[n] || {c:0}).c}</span>`).join(' ＋ ')}</span>`;
+}
+// a display card with miracles behind it: the gold backs peeking out, and the hover box (miracles plus any Covenant card)
+function mirWrapHTML(name, kind, mir, card, pair){
+  if (!(mir && mir.length)) return card;
   const n = Math.min(3, mir.length);
   const backs = mir.slice(0, n).map((m, k) => `<span class="mirback" style="--j:${k + 1}" aria-hidden="true"><span class="mt"><span class="mn">✶ ${esc(m)}</span>${MIRS[m].s ? `<span class="ms">+${'$'.repeat(MIRS[m].s)}</span>` : ''}</span></span>`).join('');
-  return `<div class="mirwrap" style="--n:${n}">${backs}${card}${mirListHTML(name, mir, 'mirhover').replace('<div class="mirhover">', '<div class="mirhover" aria-hidden="true">')}</div>`;
+  return `<div class="mirwrap" style="--n:${n}">${backs}${card}${mirListHTML(name, mir, 'mirhover', pair, kind).replace('<div class="mirhover">', '<div class="mirhover" aria-hidden="true">')}</div>`;
 }
 // what's behind a covered card: shown when you click it (over the card) and in the press-and-hold full-size view
-function mirListHTML(name, mir, cls){
-  const sur = mirSur(mir);
-  return `<div class="${cls}">${mir.map(n => mirSealHTML(n)).join('')}</div>`;
+function mirListHTML(name, mir, cls, pair, kind){
+  const pairs = (pair || []).map(n => { const d = (kind === 'u' ? DEFS : BDEFS)[n]; if (!d) return '';
+    return `<span class="mirseal pairseal"><span class="mtop"><b>＋ ${esc(n)}</b><span class="sur">$${d.c}</span></span><span class="mtx">${shortHTML(n, kind, 0, true) || esc(d.t || '')}</span></span>`; }).join('');
+  return `<div class="${cls}">${mir.map(n => mirSealHTML(n)).join('')}${pairs}</div>`;
 }
 function unitLine(n, c, canSell, isNew){
   const L = uLvl(n, c), pw = n === 'Jester' ? '?' : DEFS[n].p[L-1];
@@ -5869,6 +6002,10 @@ function mirPlayable(j, where){
   if (where === 'mob') return {ok:false, why:'Play it on a shop turn.'};
   if (!myTurn) return {ok:false, why:G.passed[S] ? 'You passed this shop.' : 'Wait for your turn.'};
   if (m.fav) return {ok:true, label:`Play: ${m.fav > 1 ? m.fav + ' extra buys' : 'an extra buy'}`};
+  if (m.frz){
+    if (!G.disp.u.length && !G.disp.b.length) return {ok:false, why:'There is no display card to set aside.'};
+    return {ok:true, label:'Play: pick a card to set aside', why:'This uses your turn.'};
+  }
   if (m.vis){
     if (G.vis && G.vis[S]) return {ok:false, why:'You are already looking with a Vision.'};
     return {ok:true, vis:true, label:'Look at'};
@@ -5952,6 +6089,7 @@ function mirUse(){
   }
   ui.mirModal = null;
   if (m.fav){ ui.mirTray = false; doMove(['f']); return; }
+  if (m.frz){ ui.mirTray = false; ui.writ = null; ui.freeze = true; sfx.pick(); renderPlay(); return; }
   if (m.disc){ doMove(['z', pl.on ? 0 : 1]); return; }
   renderPlay();
 }
@@ -6059,7 +6197,8 @@ function marketRow(kind, src){
   let cards;
   if (slotted){
     const items = G.disp[kind].map((c, i) => ({at:c.at != null ? c.at : i, html:marketCard(c.name, kind, src, i, c.side, false, c.mir)}));
-    for (const g of ghostList(kind)) items.push({at:g.idx, html:ghostCard(g, kind), ghost:true});
+    const occ = new Set(G.disp[kind].map(c => c.at));
+    for (const g of ghostList(kind)) if (!occ.has(g.idx)) items.push({at:g.idx, html:ghostCard(g, kind), ghost:true});
     items.sort((a, b) => a.at - b.at || (a.ghost ? 1 : 0) - (b.ghost ? 1 : 0));
     cards = items.map(it => it.html.replace('<div ', `<div data-at="${it.at}" `));
   } else {
@@ -6072,13 +6211,22 @@ function marketRow(kind, src){
   const alwaysWrap = `<div class="alwaysw"><span class="alab">Always available</span><div class="astack">${always}</div></div>`;
   return alwaysWrap + '<div class="mdiv" aria-hidden="true"></div>' + cards.join('');
 }
+// Freeze: cards set aside, under the market. Yours can be bought like display cards; your opponent's are shown so you know.
+function frozenHTML(S){
+  const fz = G.frozen || [[], []], mine = fz[S] || [], theirs = fz[1 - S] || [];
+  if (!mine.length && !theirs.length) return '';
+  const who = PP() || G.net ? esc(nm(1 - S)) : 'AI';
+  const row = mine.map((c, i) => marketCard(c.name, c.kind, 'fz', i, false, false, c.mir)).join('');
+  const their = theirs.map(c => `<div class="mcard ${c.kind} ghost theirs hasst">${cardFace(c.name, c.kind, 0, true)}${pairTagHTML(c.pair, c.kind)}${stampsHTML([['st-theirs', `✶ Set aside by ${who}`]])}</div>`).join('');
+  return `<span class="eyebrow">✶ Set aside with Freeze</span><div class="market plain peekrow frozenrow">${row}${their}</div>`;
+}
 // a card that was bought this shop: still readable, marked with who took it
 function ghostCard(g, kind){
   const d = kind === 'u' ? DEFS[g.name] : BDEFS[g.name]; if (!d) return '';
   const S = seat(), mine = g.who === S, tp = G.players[g.who] || {hand:{}, city:{}}, own = (kind === 'u' ? tp.hand[g.name] : tp.city[g.name]) || 0;
   return `<div class="mcard ghost hasst ${kind} ${mine ? 'mine' : 'theirs'}">
     ${cardFace(g.name, kind, own, true)}
-    ${stampsHTML([[mine ? 'st-mine' : 'st-theirs', `${mine ? (PP() && !G.net ? `${esc(nm(S))} bought this` : 'You bought this') : `Taken by ${PP() ? esc(nm(g.who)) : 'AI'}`} · $${g.price}`]])}
+    ${stampsHTML([[mine ? 'st-mine' : 'st-theirs', g.frz ? `✶ Frozen by ${mine ? (PP() && !G.net ? esc(nm(S)) : 'you') : PP() ? esc(nm(g.who)) : 'AI'}` : `${mine ? (PP() && !G.net ? `${esc(nm(S))} bought this` : 'You bought this') : `Taken by ${PP() ? esc(nm(g.who)) : 'AI'}`} · $${g.price}`]])}
   </div>`;
 }
 function noteAIMoves(before, money0, logN){
@@ -6090,9 +6238,10 @@ function noteAIMoves(before, money0, logN){
     if (now.length >= was.length) continue;
     let j = 0; while (j < now.length && now[j] === was[j]) j++;
     const pos = before.at && before.at[k][j] != null ? before.at[k][j] : mergedPos(k, j);
-    ui.ghosts[k].push({idx:pos, name:was[j], price:spent, who:1});
+    const frz = G.log.slice(logN).some(l => l.side === 1 && l.ev && l.ev.a === 'freeze' && l.ev.n === was[j]);
+    ui.ghosts[k].push(frz ? {idx:pos, name:was[j], price:0, who:1, frz:true} : {idx:pos, name:was[j], price:spent, who:1});
   }
-  const buys = G.log.slice(logN).filter(l => l.side === 1 && / buys /.test(l.t));
+  const buys = G.log.slice(logN).filter(l => l.side === 1 && (/ buys /.test(l.t) || (l.ev && l.ev.a === 'freeze')));
   if (buys.length){ showToast(buys.map(l => l.t).join(' ')); sfx.coin(0.45); }
   else if (G.log.slice(logN).some(l => l.side === 1 && / passes\./.test(l.t))) sfx.wood();
 }
@@ -6138,6 +6287,7 @@ function shopHTML(){
     <div class="market">${marketRow('u', 'du')}</div></div>
     <div class="msec" data-k="b">${sdeckHTML('b', bmOk, bmN)}
     <div class="market">${marketRow('b', 'db')}</div></div>
+    ${frozenHTML(S)}
     ${G.bm[S] ? `<span class="eyebrow peekhead ${G.bm[S].k === 'b' ? 'b' : 'u'}">Black Market: ${G.bm[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}, $${bmOff(me)} off one card)</span><div class="market plain peekrow" data-from="${G.bm[S].k === 'b' ? 'b' : 'u'}" data-key="${G.round}-${S}-bm-${G.bm[S].k}">${G.bm[S].cards.map((n, i) => marketCard(n, G.bm[S].k, 'bm', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
     ${G.vis && G.vis[S] ? `<span class="eyebrow">Vision: ${G.vis[S].k === 'b' ? 'buildings' : 'units'} (only ${PP() ? esc(nm(S)) : 'you'}; buy one at normal price, the rest go to the bottom)</span><div class="market plain peekrow" data-from="${G.vis[S].k === 'b' ? 'b' : 'u'}" data-key="${G.round}-${S}-vis-${G.vis[S].k}">${G.vis[S].cards.map((n, i) => marketCard(n, G.vis[S].k, 'vis', i)).join('') || '<p class="note">Nothing left.</p>'}</div>` : ''}
   </div>
@@ -7402,6 +7552,8 @@ $('view-play').addEventListener('click', e => {
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
     case 'mason-cancel': sfx.soft(); ui.mason = null; renderPlay(); return;
     case 'writ-cancel': sfx.soft(); ui.writ = null; renderPlay(); return;
+    case 'frz-cancel': sfx.soft(); ui.freeze = null; renderPlay(); return;
+    case 'frz-pick': { if (!freezeMode()) return; ui.freeze = null; doMove(['i', t.dataset.src, +t.dataset.idx]); return; }
     case 'writ-tog': { const wm = writMode(); if (!wm) return; const j = t.dataset.j, k = ui.writ.sel.indexOf(j);
       if (k >= 0) ui.writ.sel.splice(k, 1); else if (ui.writ.sel.length < wm.n) ui.writ.sel.push(j); else return;
       sfx.soft(); renderPlay(); return; }
@@ -7412,6 +7564,7 @@ $('view-play').addEventListener('click', e => {
       const src = t.dataset.src, idx = t.dataset.idx === '' ? 0 : +t.dataset.idx;
       const nm0 = (sourceCard(G, seat(), src, idx) || {}).name;
       if (act === 'buy' && nm0 === "Mason's Guild"){ sfx.pick(); ui.mason = {src, idx}; renderPlay(); return; }   // pick what it levels up first
+      if (act === 'buy') ui.freeze = null;
       if (act === 'buy' && ui.writ && ui.writ.src === src && ui.writ.idx === idx){ const w = ui.writ; ui.writ = null; const names = w.sel.map(j => { const c = G.disp[j[0] === 'b' ? 'b' : 'u'][+j.slice(1)]; return c && c.name; }).filter(Boolean); doMove(['b', w.src, w.idx, null, names]); return; }
       if (act === 'buy' && mirOf(G, {src, idx}).some(m => MIRS[m].writ)){ sfx.pick(); ui.writ = {src, idx, sel:[]}; renderPlay(); return; }   // pick what Salvage Writ moves
       ui.mason = null;
@@ -8360,7 +8513,7 @@ function bldgRows(){
       <td>${(OV.bldgs || {})[n] ? `<button type="button" class="small" data-act="reset" data-grp="bldgs" data-name="${esc(n)}">Reset</button>` : ''}</td></tr>`; }).join('');
 }
 function mirRows(){
-  const what = {cash:'$ back', disc:'$ off next card', rec:'Recruits', arm:'Armaments', tr:'Training tokens', writ:'units moved', vis:'cards looked at', fav:'extra buys'};
+  const what = {cash:'$ back', disc:'$ off next card', rec:'Recruits', arm:'Armaments', tr:'Training tokens', writ:'units moved', vis:'cards looked at', fav:'extra buys', frz:'cards set aside', cov:'cards on top', mill:'units milled', rst:'cards dealt'};
   return labSorted(Object.keys(ORIG.MIRS), MIRS, 'mirs').map(n => { const m = MIRS[n], fx = MIR_FX[n];
     const cell = (key, val, lbl) => `<td><input type="text" inputmode="numeric" aria-label="${esc(n)} ${lbl}" title="${lbl}" data-grp="mirs" data-name="${esc(n)}" data-key="${key}" value="${esc(val)}" style="width:3em" class="${changed('mirs', n, key) ? 'chg' : ''}"></td>`;
     return `<tr><th scope="row" class="first"><span class="cname">${esc(n)}</span></th>${cell('s', m.s, 'surcharge')}${cell('u', m.u | 0, 'copies in the unit deck')}${cell('b', m.b | 0, 'copies in the building deck')}${fx ? `<td><div class="row" style="gap:.3em;flex-wrap:nowrap">${cell(fx, m[fx], what[fx]).replace(/^<td>|<\/td>$/g, '')}<span class="note">${what[fx]}</span></div></td>` : '<td class="note">—</td>'}<td class="note" style="white-space:normal;min-width:16em">${esc(m.t)}</td>
