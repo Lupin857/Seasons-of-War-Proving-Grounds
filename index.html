@@ -1674,11 +1674,11 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
 :root{--chalk:var(--card,#fff)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--chalk:var(--card,#222A35)}}
 :root[data-theme="dark"]{--chalk:var(--card,#222A35)}
-.pbar{display:none}
+.gtop{display:none}
 @media (max-width:640px){
-  .pbar{display:block;position:sticky;top:env(safe-area-inset-top,0px);z-index:19;margin:0 -16px 12px;padding:8px 16px 0;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.07)}
-  body:has(#view-play:not([hidden]) #pbar)::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:19}
-  body:has(#view-play:not([hidden]) #pbar) header .eyebrow,body:has(#view-play:not([hidden]) #pbar) header .sub{display:none}
+  .gtop{display:block;position:sticky;top:env(safe-area-inset-top,0px);z-index:19;margin:0 -16px 12px;padding:8px 16px 0;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.07)}
+  body:has(#view-play:not([hidden]) #gtop)::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--surface);z-index:19}
+  body:has(#view-play:not([hidden]) #gtop) header .eyebrow,body:has(#view-play:not([hidden]) #gtop) header .sub{display:none}
   .pbg{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}
   .pbs{display:flex;flex-direction:column;line-height:1.25;min-width:0}
   .pbs.s1{text-align:right}
@@ -1716,7 +1716,7 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .dock .dbtns.tight .dk .dl{display:none}
   .dock .dbtns.tight .dk{padding:0 13px}
   #view-play:has(.dock) .mirdock .mirtab{display:none}
-  body:has(#view-play:not([hidden]) #pbar) .turnflash.theirs{padding-top:calc(var(--bh,0px) + 8px + env(safe-area-inset-top,0px))}
+  body:has(#view-play:not([hidden]) #gtop) .turnflash.theirs{padding-top:calc(var(--bh,0px) + 8px + env(safe-area-inset-top,0px))}
 }
 @media (max-width:370px){ .dock .dbtns .dk .dl,.dock .dbtns .mirb .dl{display:none} .dock .dbtns .dk,.dock .dbtns .mirb{padding:0 11px} }
 </style>
@@ -6279,7 +6279,7 @@ function pbarHTML(){
     return `<div class="pbs s${VS(i)}"><span class="pbn">${who}${shopping && G.passed[i] ? ' <span class="pbx">passed</span>' : ''}</span><span class="pbmo">$${B.money[i]} · +$${B.inc[i]}</span>${cap}</div>`;
   };
   const L = VS(0), Rt = VS(1);
-  return `<div class="pbar" id="pbar"><div class="pbg">${side(L)}<div class="pbm"><div class="sc">${B.tot[L]} – ${B.tot[Rt]}</div><div class="rd">Round ${G.round} · first to ${G.target}</div></div>${side(Rt)}</div>
+  return `<div class="gtop" id="gtop"><div class="pbg">${side(L)}<div class="pbm"><div class="sc">${B.tot[L]} – ${B.tot[Rt]}</div><div class="rd">Round ${G.round} · first to ${G.target}</div></div>${side(Rt)}</div>
     <div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div></div>`;
 }
 // "Taken by AI" placeholders keep their spot in the market for the rest of the shop
@@ -7397,7 +7397,7 @@ function renderPlay(){
     lw2.addEventListener('scroll', () => { if (!ui.animT) drawArrows(stepArrows(), 'quiet'); }, {passive:true});
   }
   if (ui.battle && ui.chronOpen){ const on = document.querySelector('.fr.on'); if (on) on.scrollIntoView({block:'nearest'}); }
-  const pb = $('pbar'), bd = pb && pb.offsetHeight ? pb : $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px');
+  const pb = $('gtop'), bd = pb && pb.offsetHeight ? pb : $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px');
   markMore();
   flashedNow = false;
   turnWatch();
@@ -9692,7 +9692,7 @@ $('view-play').addEventListener('click', e => {
 $('view-play').addEventListener('click', e => { if (eatClick){ e.stopPropagation(); e.preventDefault(); eatClick = false; } }, true);
 $('view-play').addEventListener('contextmenu', e => { if (e.target.closest('.mktp .mcard, .fcards .mcard, .dgrid .mcard')) e.preventDefault(); });
 let moreRz = null;
-window.addEventListener('resize', () => { clearTimeout(moreRz); moreRz = setTimeout(() => { if (!$('view-play').hidden) markMore(); const pb = $('pbar'), bd = pb && pb.offsetHeight ? pb : $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px'); }, 120); });
+window.addEventListener('resize', () => { clearTimeout(moreRz); moreRz = setTimeout(() => { if (!$('view-play').hidden) markMore(); const pb = $('gtop'), bd = pb && pb.offsetHeight ? pb : $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px'); }, 120); });
 
 // miracles behind a card open side by side above it on hover: each box about a card wide, and the row slides left
 // when it would run off the right edge of the screen (the little arrow still points at the card)
