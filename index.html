@@ -5444,11 +5444,24 @@ async function roomNS(){
   ROOM_NS = window.Peer ? {join: (name, o) => peerJoin(name, o || {})} : null;
   return ROOM_NS;
 }
-/* Direct browser-to-browser link (WebRTC through the free PeerJS service). The host registers the room code;
-   the guest connects to it. Each side sends its presence (name + moves) whenever it changes. */
+/* Relay servers (TURN, from Metered's free Open Relay) for when two networks can't connect directly.
+   Fetched once per page; if the fetch fails, PeerJS's built-in servers are used instead. */
+const NET_RELAY = 'https://stateofwar.metered.live/api/v1/turn/credentials?apiKey=d64e55ce7966c2732dce4fb36c5bbc9e074b';
+let NET_ICE = null;
+function netIce(){
+  if (!NET_ICE) NET_ICE = Promise.race([
+    fetch(NET_RELAY).then(r => r.ok ? r.json() : null).then(a => Array.isArray(a) && a.length ? [{urls:'stun:stun.l.google.com:19302'}, ...a] : null),
+    new Promise(res => setTimeout(() => res(null), 5000))
+  ]).catch(() => null).then(a => { if (!a) NET_ICE = null; return a; });
+  return NET_ICE;
+}
+/* Direct browser-to-browser link (WebRTC through the free PeerJS service, with a relay if needed). The host
+   registers the room code; the guest connects to it. Each side sends its presence (name + moves) whenever it changes.
+   link: '' (fine or still trying), 'nohost' (the service has no room with this code), 'nolink' (the room is there
+   but the two devices couldn't connect). */
 function peerJoin(name, o){
   const id = 'sowpg-' + name, host = !!o.host, conns = new Map(), handlers = [], errs = [];
-  let me = {}, peer = null, left = false, retryT = null, tries = 0;
+  let me = {}, peer = null, left = false, retryT = null, tries = 0, link = '', ice = null, starting = false;
   const fail = msg => errs.forEach(f => { try{ f({code:'upstream_error', message:msg}); }catch(e){} });
   const emitPeers = () => {
     const peers = [{peer:'me', isMe:true, sameTab:true, presence:me}];
@@ -5457,26 +5470,32 @@ function peerJoin(name, o){
   };
   const wire = conn => {
     const r = {conn, pres:null, open:false};
+    if (!host) setTimeout(() => { if (!r.open && !left){ link = 'nolink'; try{ conn.close(); }catch(e){} emitPeers(); retry(); } }, 15000);
     conn.on('open', () => {
-      r.open = true; tries = 0;
+      r.open = true; tries = 0; link = '';
       if (host) for (const [k, o2] of conns) if (k !== conn.peer){ try{ o2.conn.close(); }catch(e){} conns.delete(k); }   // newest guest connection wins (a reload rejoins)
       conns.set(conn.peer, r); try{ conn.send({t:'p', p:me}); }catch(e){} emitPeers();
     });
     conn.on('data', d => { if (d && d.t === 'p' && d.p && typeof d.p === 'object'){ r.pres = d.p; emitPeers(); } });
-    conn.on('close', () => { if (conns.get(conn.peer) === r) conns.delete(conn.peer); emitPeers(); if (!host) retry(); });
-    conn.on('error', () => {});
+    conn.on('close', () => { if (!r.open && !host && link !== 'nohost') link = 'nolink'; if (conns.get(conn.peer) === r) conns.delete(conn.peer); emitPeers(); if (!host) retry(); });
+    conn.on('error', () => { if (!r.open && !host && link !== 'nohost'){ link = 'nolink'; emitPeers(); } });
   };
   const connect = () => { if (left || !peer || peer.destroyed) return; if ([...conns.values()].some(r => r.open)) return; wire(peer.connect(id, {reliable:true})); };
   const retry = () => { if (left) return; clearTimeout(retryT); retryT = setTimeout(() => { if (peer && peer.disconnected && !peer.destroyed) peer.reconnect(); else connect(); }, Math.min(8000, 1500 + 1000 * tries++)); };
-  const start = () => {
+  const start = async () => {
+    if (left || starting || (peer && !peer.destroyed)) return;
+    starting = true;
+    if (!ice) ice = await netIce();
+    starting = false;
     if (left) return;
-    peer = host ? new Peer(id) : new Peer();
-    peer.on('open', () => { tries = 0; if (!host) connect(); });
+    const opts = ice ? {config:{iceServers:ice, sdpSemantics:'unified-plan'}} : {};
+    peer = host ? new Peer(id, opts) : new Peer(opts);
+    peer.on('open', () => { tries = 0; emitPeers(); if (!host) connect(); });
     if (host) peer.on('connection', wire);
-    peer.on('disconnected', () => { if (!left) setTimeout(() => { if (!left && peer && !peer.destroyed) peer.reconnect(); }, 1500); });
+    peer.on('disconnected', () => { emitPeers(); if (!left) setTimeout(() => { if (!left && peer && peer.disconnected && !peer.destroyed) peer.reconnect(); }, 1500); });
     peer.on('error', e => {
       const t = e && e.type;
-      if (t === 'peer-unavailable'){ retry(); return; }   // nobody hosting yet: keep trying
+      if (t === 'peer-unavailable'){ link = 'nohost'; emitPeers(); retry(); return; }   // nobody hosting yet: keep trying
       if (t === 'unavailable-id'){   // our old registration is still closing (after a reload), or the code is taken: try again shortly
         try{ peer.destroy(); }catch(e2){} if (tries++ > 8){ fail('That room code is already in use. Leave and create a new room.'); return; }
         setTimeout(start, 2500); return;
@@ -5489,14 +5508,24 @@ function peerJoin(name, o){
       retry();
     });
   };
+  const wake = () => {
+    if (left || document.visibilityState === 'hidden') return;
+    if (!peer || peer.destroyed){ start(); return; }
+    if (peer.disconnected){ try{ peer.reconnect(); }catch(e){} return; }
+    if (!host && ![...conns.values()].some(r => r.open)){ tries = 0; clearTimeout(retryT); connect(); }
+  };
+  document.addEventListener('visibilitychange', wake);
+  window.addEventListener('online', wake);
+  window.addEventListener('pageshow', wake);
   start();
   return Promise.resolve({
     name,
     presence: async patch => { me = {...me, ...patch}; for (const r of conns.values()) if (r.open){ try{ r.conn.send({t:'p', p:me}); }catch(e){} } emitPeers(); },
     onPeers: (h, onErr) => { handlers.push(h); if (onErr) errs.push(onErr); setTimeout(emitPeers, 0); return () => {}; },
     peers: () => [],
-    leave: async () => { left = true; clearTimeout(retryT); try{ peer && peer.destroy(); }catch(e){} },
-    connected: () => !!(peer && peer.open)
+    leave: async () => { left = true; clearTimeout(retryT); document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); window.removeEventListener('pageshow', wake); try{ peer && peer.destroy(); }catch(e){} },
+    connected: () => !!(peer && peer.open && !peer.disconnected),
+    link: () => link
   });
 }
 function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, at:Date.now()}); }
@@ -5679,9 +5708,14 @@ function netLobbyHTML(){
       <span class="eyebrow">Room code</span><span class="roomcode">${esc(n.code)}</span>
       <p class="note">Send your friend the invite (it has a link that fills in the code). They open it, type their name and tap <b>Join a room</b>. The game starts as soon as they join.</p>
       <div class="row"><button type="button" class="primary" data-act="st-net-copy">Copy invite</button><span class="note" id="net-copied" role="status"></span></div>
-      <p class="turn ai">Waiting for your friend to join…</p>`;
-  else body = `<span class="eyebrow">Room code</span><span class="roomcode">${esc(n.code)}</span>
-      <p class="turn ai">${waitLong ? "Nobody is hosting this room right now. Check the code, or ask your friend to open the room (it stays open while their page is open)." : 'Joining…'}</p>`;
+      ${n.room && n.room.connected() ? `<p class="turn ai">Room open. Waiting for your friend to join…</p>`
+        : `<p class="turn ai">${waitLong ? "Reopening your room… Keep this page open and in front while your friend joins (phones close the room when you switch away, and reopen it when you come back)." : 'Opening your room…'}</p>`}`;
+  else {
+    const lk = n.room && n.room.link ? n.room.link() : '';
+    body = `<span class="eyebrow">Room code</span><span class="roomcode">${esc(n.code)}</span>
+      <p class="turn ai">${lk === 'nolink' ? "Found the room, but your devices couldn't connect yet. Still trying… If it keeps failing, both of you reload the page, or one of you switch between Wi-Fi and cell data."
+        : waitLong || lk === 'nohost' ? "No room is open with that code right now. Check the code, or ask your friend to go back to the game page (their room closes while they're in another app). This page keeps trying." : 'Joining…'}</p>`;
+  }
   return `<div class="panel startp netlobby"><h2>Play online</h2>${body}<div class="row"><button type="button" data-act="st-net-leave">Leave</button></div></div>`;
 }
 function netStartHTML(){
@@ -5695,7 +5729,7 @@ function netStartHTML(){
       <div class="row"><button type="button" class="primary" data-act="st-net-host">Create a room (first to ${LEN})</button></div>
       <div class="row"><input type="text" id="net-code" maxlength="6" placeholder="Room code" value="${esc(URL_ROOM)}" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:9em"><button type="button" data-act="st-net-join">Join a room</button></div>
       ${saved && saved.code ? `<div class="row"><button type="button" data-act="st-net-rejoin">Rejoin room ${esc(saved.code)}</button><span class="note">Your moves there are saved on this device.</span></div>` : ''}`}
-      <details><summary class="note">How does it connect?</summary><p class="note">No accounts needed. Your two browsers connect directly to each other; the free PeerJS service only introduces them. Keep the page open while you play (the host's page holds the room). Both of you should have the same version of the page open, so reload if it was updated.</p></details>
+      <details><summary class="note">How does it connect?</summary><p class="note">No accounts needed. Your two browsers connect directly to each other; the free PeerJS service only introduces them. If your networks block a direct link, the game goes through a relay server instead. Keep the page open while you play (the host's page holds the room). Both of you should have the same version of the page open, so reload if it was updated.</p></details>
     </div>`;
 }
 async function netStartClick(a, resign){
