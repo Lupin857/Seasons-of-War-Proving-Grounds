@@ -2515,6 +2515,16 @@ function canSell(g, i, kind, name){
   if (name === 'Recruit' || !(kind === 'u' ? p.hand[name] : p.city[name])) return false;
   return true;
 }
+// The AI never sells a card it bought earlier in this same shop: that only undoes the purchase, at a loss, and
+// wastes a buy (the look-ahead can talk itself into it when a shallower look at the first decision disagrees).
+function aiCanSell(g, i, kind, name){
+  if (!canSell(g, i, kind, name)) return false;
+  const got = (g.shopBought && g.shopBought[i]) || [], p = g.players[i];
+  if (got.includes(name)) return false;
+  // selling a building that has a Mason's Guild level on it sells that level: no, if the Guild was bought this shop
+  if (kind === 'b' && p.mason && p.mason[name] > 0 && got.includes("Mason's Guild")) return false;
+  return true;
+}
 function sell(g, i, kind, name){
   if (!canSell(g, i, kind, name)) return false;
   const p = g.players[i];
@@ -3384,6 +3394,14 @@ function outcomeValues(g, i, n, decks, need){
   return {w, t, l};
 }
 const PO_PRIOR = 2;
+// Short-sighted levels in the shop: this battle counts in full, but later battles are seen only dimly. Money and the
+// army you keep still matter a little, as they would to any new player (cards carry over, money buys things later),
+// so a card that does nothing now is never 'free' and selling a unit you need is never a coin flip. They just don't
+// project how far that edge carries, which is where their mistakes come from.
+function shortSightValues(g, i, G, s0, sF){
+  G = G || {};
+  return roundValues(g, i, {kp:(G.kp ?? 0.15) * 0.5, shr:(G.shr ?? 0.6) * 0.5, tie:G.tie ?? 0.12}, s0, sF);
+}
 // Short-sighted levels: what a win, tie or loss here is worth if every later battle were a coin flip and money
 // didn't matter (only the score math: first to the target, ties score nothing, a Cathedral needs a win)
 function myopicValues(g, i, G){ return roundValues(g, i, {kp:0, shr:0, tie:(G && G.tie) ?? 0.12}, 0, 0); }
@@ -3422,7 +3440,7 @@ function evalState(g, i, G, S, cache, stats){
   const qF = S.po ? q : (hasTemps(me) || hasTemps(op)) ? withoutTemps(g, () => edgeRes(g, i, S, cI, cO).q) : q;
   // what a win, tie or loss in this battle is worth for the whole game: played out (or the quick projection without a budget)
   const need = [0, 1, 2].map(o => res.some(row => row.some(c => c.o === o)));   // only the results these battles can produce
-  const V = S.myopic ? myopicValues(g, i, G) : S.po ? outcomeValues(g, i, S.po, i === 0 ? [mine[0], theirs[0]] : [theirs[0], mine[0]], need) : roundValues(g, i, G, logit(q), logit(qF));
+  const V = S.myopic ? shortSightValues(g, i, G, logit(q), logit(qF)) : S.po ? outcomeValues(g, i, S.po, i === 0 ? [mine[0], theirs[0]] : [theirs[0], mine[0]], need) : roundValues(g, i, G, logit(q), logit(qF));
   const rob = G.rob ?? 0.25, vv = [V.w, V.t, V.l];
   let best = -1, bestRow = null;
   for (const row of res){
@@ -3440,15 +3458,43 @@ function shopMoves(g, j, G, width, econ){
   // the deciding player's own options (econ = root): every legal buy and sale is judged by game-win chance, so none is cut here
   if (econ){
     const list = [], seen = new Set();
+    // a sale only makes sense to pay for something: a card I'm a little short for, or one my full city has no room for
+    let blocked = false;
+    const soldNow = (g.sold && g.sold[j]) || [];
     for (const o of aiShopOptions(g, j)){
-      const info = buyInfo(g, j, o.name, o.kind, o.src, o.idx); if (!info.ok) continue;
+      const info = buyInfo(g, j, o.name, o.kind, o.src, o.idx);
+      if (!info.ok){
+        if (o.name !== "Mason's Guild" && !soldNow.includes(o.name) && (info.why === 'City is full' || (info.price != null && info.price - p.money <= SELL_PRICE * (2 - soldNow.length)))) blocked = true;
+        continue;
+      }
       if (o.name === "Mason's Guild" && !aiMasonTarget(g, j)) continue;
+      if (soldNow.includes(o.name)) continue;   // buying back what I just sold only loses money
       const k = o.name + '|' + (o.src === 'du' || o.src === 'db' ? 'd' : o.src); if (seen.has(k)) continue; seen.add(k);
       list.push({act:'buy', src:o.src, idx:o.idx, name:o.name, kind:o.kind, price:info.price});
     }
-    if (!(g.sold && g.sold[j] && g.sold[j].length >= 2)){
-      for (const n in p.hand) if (canSell(g, j, 'u', n)) list.push({act:'sell', kind:'u', name:n, price:-SELL_PRICE});
-      for (const n in p.city) if (canSell(g, j, 'b', n)) list.push({act:'sell', kind:'b', name:n, price:-SELL_PRICE});
+    // A sale is only weighed together with the buy it pays for (a card I'm $1 short for, or one my full city has no
+    // room for): the cheapest few cards to part with, times the best few cards they'd unlock. Selling on its own,
+    // with nothing to spend the dollar on, is never a sensible move.
+    if (blocked && soldNow.length < 2){
+      const sellables = [];
+      for (const n in p.hand) if (aiCanSell(g, j, 'u', n)) sellables.push({kind:'u', name:n});
+      for (const n in p.city) if (aiCanSell(g, j, 'b', n)) sellables.push({kind:'b', name:n});
+      for (const x of sellables) x.r = aiValue(g, j, x.name, x.kind);
+      sellables.sort((a, b) => a.r - b.r);
+      const pairs = [];
+      for (const x of sellables.slice(0, 3)){
+        const c = simClone(g); c.rnd = g.rnd; if (!sell(c, j, x.kind, x.name)) continue;
+        for (const o of aiShopOptions(c, j)){
+          if (o.name === x.name || soldNow.includes(o.name)) continue;
+          if (buyInfo(g, j, o.name, o.kind, o.src, o.idx).ok) continue;   // affordable anyway: no sale needed for it
+          const info = buyInfo(c, j, o.name, o.kind, o.src, o.idx); if (!info.ok) continue;
+          if (o.name === "Mason's Guild" && !aiMasonTarget(c, j)) continue;
+          pairs.push({act:'sellbuy', sk:x.kind, sn:x.name, src:o.src, idx:o.idx, name:o.name, kind:o.kind, price:info.price - SELL_PRICE, r:aiValue(c, j, o.name, o.kind) - x.r});
+        }
+      }
+      pairs.sort((a, b) => b.r - a.r);
+      const seenP = new Set();
+      for (const m of pairs){ const k = m.sn + '>' + m.name; if (seenP.has(k)) continue; seenP.add(k); list.push(m); if (seenP.size >= 6) break; }
     }
     list.push({act:'pass', name:'pass'});
     return list;
@@ -3471,6 +3517,10 @@ function shopMoves(g, j, G, width, econ){
 }
 function doMove(g, j, m){
   if (m.act === 'sell'){ sell(g, j, m.kind, m.name); return; }
+  if (m.act === 'sellbuy'){
+    if (sell(g, j, m.sk, m.sn) && buy(g, j, m.src, m.idx, m.name === "Mason's Guild" ? aiMasonTarget(g, j) : undefined)) return;
+    if (g.phase === 'shop' && cur(g) === j) pass(g, j); return;
+  }
   if (m.act === 'buy' && buy(g, j, m.src, m.idx, m.name === "Mason's Guild" ? aiMasonTarget(g, j) : undefined)) return;
   if (g.phase === 'shop' && cur(g) === j) pass(g, j);
 }
@@ -3505,6 +3555,12 @@ function shopSeed(g, i){
   let x = 2166136261; for (let k = 0; k < s.length; k++){ x ^= s.charCodeAt(k); x = Math.imul(x, 16777619); }
   return x >>> 0;
 }
+// a player's lasting opinion of a card: a standard normal draw fixed by (player seed, card name)
+function misjudge(seed, name){
+  let h = (seed ^ 2166136261) >>> 0;
+  for (let k = 0; k < name.length; k++){ h ^= name.charCodeAt(k); h = Math.imul(h, 16777619); }
+  const r = mulberry32(h >>> 0); return gauss(r);
+}
 function planShop(g, i, G, S){
   if (EVC.size > 4000) EVC.clear();
   const t0 = nowMs(), cache = EVC, stats = {evals:0, iters:0};
@@ -3535,7 +3591,24 @@ function planShop(g, i, G, S){
     if (stats.evals * (S.inner + 0.5) > S.evals){ why = 'work budget'; break; }
     if (S.ms && nowMs() - t0 + lastIter * (S.inner + 0.5) > S.ms){ why = 'time budget'; break; }
   }
-  if (S.blur){ for (const o of opts) o.v += S.blur * gauss(g.rnd); opts.sort((a, b) => b.v - a.v); }
+  // Gut sense of each card: the search compares where each move leads, but a short look often can't tell moves
+  // apart (a unit and a building can lead to the same position once the rest of the shop is played out). Then a
+  // person goes by what the card itself is worth to them right now, so every level adds a small nudge for that.
+  // Weaker levels lean on it more, and misjudge it: each player rates each card a bit too high or too low and keeps
+  // that opinion all game. It's a matter of degree only, so a card that does nothing for them never looks good,
+  // and a card they just bought doesn't suddenly look worth selling.
+  {
+    const me = g.players[i], mE = Math.min(1, expShops(g, i)), lam = 0.0005 + (S.blur || 0) * 0.08;
+    if (S.blur && me._mj == null) me._mj = Math.floor(g.rnd() * 2147483647);
+    const rate = o => { const raw = aiValue(g, i, o.name, o.kind); return S.blur ? raw * Math.exp(S.blur * 5 * misjudge(me._mj, o.name)) : raw; };
+    for (const o of opts){
+      if (!Number.isFinite(o.v)) continue;
+      if (o.act === 'buy') o.v += lam * (rate(o) - o.price * G.m * mE);
+      else if (o.act === 'sell') o.v -= lam * (rate(o) - SELL_PRICE * G.m * mE);
+      else if (o.act === 'sellbuy') o.v += lam * (rate(o) - (o.price + SELL_PRICE) * G.m * mE) - lam * (rate({name:o.sn, kind:o.sk}) - SELL_PRICE * G.m * mE);
+    }
+    opts.sort((a, b) => b.v - a.v);
+  }
   if (opts.length > 1 && opts[0].v < opts[1].v) opts.sort((a, b) => b.v - a.v);
   return {opts, stats:{...stats, ms:Math.round(nowMs() - t0)}, why};
 }
@@ -3586,9 +3659,13 @@ function aiShopTurnSeen(g, i, depth){
     let pick = R.opts[0];
     if (rung && rung.sharp < 1) pick = softPick(R.opts.map(o => ({o, s:o.v ?? 0})), rung.sharp, 0.08, g.rnd).o;
     if (g.rec) g._why = {level:rung ? rung.label : 'full search', search:{steps:R.stats.iters, positionsJudged:R.stats.evals, ms:R.stats.ms, stopped:R.why},
-      options:R.opts.slice(0, 8).map(o => ({move:o.act === 'pass' ? 'pass' : o.act === 'sell' ? 'sell ' + o.name : o.name + (o.src === 'mu' ? ' (Salvage)' : o.src === 'bm' ? ' (Black Market)' : o.src === 'vis' ? ' (Vision)' : ''), price:o.price, winChance:+(o.v ?? 0).toFixed(3)})),
-      chose:pick.act === 'pass' ? 'pass' : pick.act === 'sell' ? 'sell ' + pick.name : pick.name};
+      options:R.opts.slice(0, 8).map(o => ({move:o.act === 'pass' ? 'pass' : o.act === 'sell' ? 'sell ' + o.name : o.act === 'sellbuy' ? `sell ${o.sn} to buy ${o.name}` : o.name + (o.src === 'mu' ? ' (Salvage)' : o.src === 'bm' ? ' (Black Market)' : o.src === 'vis' ? ' (Vision)' : ''), price:o.price, winChance:+(o.v ?? 0).toFixed(3)})),
+      chose:pick.act === 'pass' ? 'pass' : pick.act === 'sell' ? 'sell ' + pick.name : pick.act === 'sellbuy' ? `sell ${pick.sn} to buy ${pick.name}` : pick.name};
     if (pick.act === 'sell' && sell(g, i, pick.kind, pick.name)) return aiShopTurnSeen(g, i, depth);   // a sale is free: then shop on
+    if (pick.act === 'sellbuy' && sell(g, i, pick.sk, pick.sn)){
+      if (buy(g, i, pick.src, pick.idx, pick.name === "Mason's Guild" ? aiMasonTarget(g, i) : undefined)) return pick.name;
+      return aiShopTurnSeen(g, i, depth);   // shouldn't happen; shop on with the money
+    }
     if (pick.act === 'buy' && buy(g, i, pick.src, pick.idx, pick.name === "Mason's Guild" ? aiMasonTarget(g, i) : undefined)) return pick.name;
     pass(g, i); return null;
   }
@@ -3729,8 +3806,8 @@ function aiSellPlan(g, i, G, mE, deepCtx, bar){
   }
   if (!blocked.length) return null;
   const sellables = [];
-  for (const n in p.hand) if (canSell(g, i, 'u', n)) sellables.push({kind:'u', name:n});
-  for (const n in p.city) if (canSell(g, i, 'b', n)) sellables.push({kind:'b', name:n});
+  for (const n in p.hand) if (aiCanSell(g, i, 'u', n)) sellables.push({kind:'u', name:n});
+  for (const n in p.city) if (aiCanSell(g, i, 'b', n)) sellables.push({kind:'b', name:n});
   if (!sellables.length) return null;
   // apply / undo a sale on the player only (no deck, log or money bookkeeping beyond the $1)
   const strip = s => { const t = s.kind === 'u' ? p.hand : p.city; if (!--t[s.name]) delete t[s.name]; p.money += SELL_PRICE; };
