@@ -5325,7 +5325,25 @@ function scheduleAI(){
     }
     if (G.log.length === n0 && G.phase === 'shop' && cur(G) === 1) aiShopTurn(G, 1, AI_DEPTH());   // no worker, or nothing usable came back
     noteAIMoves(before, m0, n0); afterAction(); flyBuys(1, own0, mk);
+    G.log.slice(n0).filter(l => l.ev && l.ev.a === 'sell' && l.side === 1).forEach((l, j) => setTimeout(() => flySell(1, l.ev.n, l.ev.k), 200 + j * 260));
   }, Math.max(650, (ui.dealUntil || 0) - performance.now() + 350));
+}
+/* A sold card flies out of its owner's deck button into the Salvage pile (a sold Field back to the Field in the shop),
+   growing to card size on the way and shrinking into the pile, which bumps as it lands. */
+function flySell(i, name, kind, srcCard){
+  if (reduceMotion() || !G) return;
+  const vp = $('view-play');
+  const from = [...vp.querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.offsetParent);
+  const pile = name === 'Field' ? [...vp.querySelectorAll('.mktp .mcard')].find(el => (el.querySelector('.nm') || {}).textContent === 'Field') : $('muster-pile');
+  if (!from || !pile || !pile.offsetParent) return;
+  const ref = vp.querySelector('.mktp .mcard:not(.ghost)'), rr = ref ? ref.getBoundingClientRect() : null;
+  const w0 = rr && rr.width ? rr.width : 110, h0 = rr && rr.height ? rr.height : 154;
+  let g;
+  if (srcCard){ g = srcCard.cloneNode(true); g.querySelectorAll('button, .stamps, .dealback').forEach(x => x.remove()); g.className = `mcard ${kind}`; }
+  else { g = document.createElement('div'); g.className = `mcard ${kind}`; try{ g.innerHTML = cardFace(name, kind, 1); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span></div>`; } }
+  const a = from.getBoundingClientRect(), target = pile.querySelector('.mpcards') || pile;
+  flyEl(g, a, w0, h0);
+  cardFlight(g, a, target.getBoundingClientRect(), {w0, h0, dur:1150, onLand:() => { g.remove(); bumpEl(target); }});
 }
 /* A bought card flies from the market to the forces it joins, shrinking to its new size on the way. */
 const snapOwn = i => ({u:{...G.players[i].hand}, b:{...G.players[i].city}});
@@ -5345,31 +5363,54 @@ function flyBuys(i, before, mk){
   got.forEach((n, j) => {
     const tos = $('view-play').querySelectorAll(`.dsheet.s${VS(i)} .fcard${side}[data-card="${CSS.escape(n)}"]`), to = tos[tos.length - 1];
     const src = mk.get(n) || mk.get("Mason's Guild") || mk.get('__deck_' + cardKind(n)) || mk.get('__deck_u');
-    if (to && src) setTimeout(() => flyCard(src, to), j * 140);
-    else { const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => db.animate([{transform:'scale(1)'}, {transform:'scale(1.07)', background:'var(--or-soft)'}, {transform:'none'}], {duration:520, easing:'ease-out'}), 380 + j * 140); }
+    if (to && src) setTimeout(() => flyCard(src, to), j * 220);
+    else if (src && src.el){ const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => flyCard(src, db, true), j * 220); }
+    else { const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => db.animate([{transform:'scale(1)'}, {transform:'scale(1.07)', background:'var(--or-soft)'}, {transform:'none'}], {duration:520, easing:'ease-out'}), 380 + j * 140); }
   });
 }
-function flyCard(src, to){
+// into a deck button (when the deck sheet is closed): the card drops into the button and fades, then the button bumps
+function flyCard(src, to, intoBtn){
   if (!to.isConnected) return;
   const a = src.r, b = to.getBoundingClientRect();
   if (!a.width || !b.width) return;
   let g;
-  if (src.el){ g = src.el.cloneNode(true); g.querySelectorAll('.dealback').forEach(x => x.remove()); g.classList.remove('cant', 'peeked'); }
+  if (src.el){ g = src.el.cloneNode(true); g.querySelectorAll('.dealback').forEach(x => x.remove()); g.classList.remove('cant', 'peeked', 'always'); }
   else { g = to.cloneNode(true); }
-  g.removeAttribute('style'); g.classList.add('flying'); g.setAttribute('aria-hidden', 'true');
   const w0 = src.el ? a.width : b.width, h0 = src.el ? a.height : b.height;
-  Object.assign(g.style, {position:'fixed', left:a.left + 'px', top:a.top + 'px', width:w0 + 'px', height:h0 + 'px', margin:'0', zIndex:72, pointerEvents:'none', transformOrigin:'0 0'});
+  flyEl(g, a, w0, h0);
+  if (!intoBtn) to.style.visibility = 'hidden';
+  cardFlight(g, a, b, {w0, h0, keep:!intoBtn, onLand:() => { g.remove(); if (to.isConnected){ to.style.visibility = ''; bumpEl(to); } }});
+}
+// a card copy that flies over the page: fixed, at the start rect, card-sized and solid
+function flyEl(g, at, w0, h0){
+  g.removeAttribute('style'); g.classList.add('flying'); g.setAttribute('aria-hidden', 'true');
+  Object.assign(g.style, {position:'fixed', left:at.left + 'px', top:at.top + 'px', width:w0 + 'px', margin:'0', zIndex:72, pointerEvents:'none', transformOrigin:'0 0', background:'var(--card, var(--surface))', overflow:'hidden'});
+  g.style.setProperty('height', h0 + 'px', 'important');
   document.body.appendChild(g);
-  to.style.visibility = 'hidden';
-  const dx = b.left - a.left, dy = b.top - a.top, sx = b.width / w0, sy = b.height / h0;
-  const mid = `translate(${dx * .5}px,${dy * .5 - 50}px) scale(${(1 + sx) / 2},${(1 + sy) / 2}) rotate(-4deg)`;
+  return g;
+}
+const bumpEl = el => { if (el && el.isConnected) el.animate([{transform:'scale(1)'}, {transform:'scale(1.12)'}, {transform:'none'}], {duration:320, easing:'ease-out'}); };
+/* The one card flight used whenever a card moves between places: buying (market to deck), selling (deck to the
+   Salvage pile) and unbought cards leaving at the start of a round (market to the Salvage pile).
+   g sits at the start rect `from` (transform origin top left) and is w0×h0 at scale 1. It lifts off, travels at a
+   readable size, then shrinks into `to` and fades (keep: lands at full opacity, stretched to fit, e.g. a deck slot).
+   Starting from something small, like a deck button, it fades in as it grows. */
+function cardFlight(g, from, to, o = {}){
+  const w0 = o.w0 || from.width, h0 = o.h0 || from.height;
+  const ca = [from.left + from.width / 2, from.top + from.height / 2], cb = [to.left + to.width / 2, to.top + to.height / 2];
+  const sA = Math.min(from.width / w0, from.height / h0), sB = Math.min(to.width / w0, to.height / h0) * .92, grow = sA < .6;
+  const sM = grow ? .62 : Math.max(.55, sA * .75);
+  const at = (t, s, lift, rot, sy) => `translate(${ca[0] + (cb[0] - ca[0]) * t - w0 * s / 2 - from.left}px,${ca[1] + (cb[1] - ca[1]) * t - h0 * (sy || s) / 2 - lift - from.top}px) scale(${s},${sy || s}) rotate(${rot}deg)`;
+  const end = o.keep ? at(1, to.width / w0, 0, 0, to.height / h0) : at(1, sB, 0, 0);
   const an = g.animate([
-    {transform:'none', boxShadow:'0 0 0 rgba(0,0,0,0)'},
-    {transform:mid, boxShadow:'0 18px 40px rgba(0,0,0,.28)', offset:.45},
-    {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, boxShadow:'0 2px 6px rgba(0,0,0,.12)'}],
-    {duration:620, easing:'cubic-bezier(.35,.1,.25,1)'});
-  const done = () => { g.remove(); if (to.isConnected){ to.style.visibility = ''; to.animate([{transform:'scale(1.08)'}, {transform:'none'}], {duration:200, easing:'ease-out'}); } };
+    {transform:at(0, sA, 0, 0), opacity:grow ? 0 : 1, boxShadow:'0 0 0 rgba(0,0,0,0)'},
+    {transform:at(.08, grow ? sM : sA * 1.06, grow ? 30 : 14, -3), opacity:1, boxShadow:'0 18px 40px rgba(0,0,0,.32)', offset:.2},
+    {transform:at(.78, o.keep ? (sA + to.width / w0) / 2 : sM, 20, 3), opacity:1, boxShadow:'0 14px 32px rgba(0,0,0,.28)', offset:.75},
+    {transform:end, opacity:o.keep ? 1 : 0, boxShadow:'0 2px 6px rgba(0,0,0,.12)'}],
+    {duration:o.dur || 1100, delay:o.delay || 0, easing:'cubic-bezier(.45,.05,.35,1)', fill:'both'});
+  const done = () => { if (o.onLand) o.onLand(); else g.remove(); };
   an.onfinish = done; an.oncancel = done;
+  return an;
 }
 /* ===================== ONLINE PLAY =====================
    Two people on their own devices. Both pages run the same game in lockstep: the host picks a random seed,
@@ -7500,17 +7541,10 @@ function leaveToPile(rows){
       Object.assign(gh.style, {position:'absolute', left:(r.left - mr.left - mktp.clientLeft) + 'px', top:(r.top - mr.top - mktp.clientTop) + 'px', width:r.width + 'px', margin:'0', zIndex:'40', pointerEvents:'none'});
       gh.style.setProperty('height', r.height + 'px', 'important');
       mktp.appendChild(gh);
-      const delay = 80 + k++ * 110, dur = 560;
-      const dx = pcx - (r.left + r.width / 2), dy = pcy - (r.top + r.height / 2), sc = Math.min(1, pr.width / r.width);
-      sfx.flick(delay / 1000 + 0.3);
-      const a = gh.animate([
-        {transform:'none', opacity:1, offset:0},
-        {transform:'translate(0,-10px) rotate(4deg) scale(1.03)', opacity:1, offset:.18},
-        {transform:`translate(${dx}px,${dy}px) rotate(12deg) scale(${sc})`, opacity:1, offset:.92},
-        {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${sc * .9})`, opacity:0, offset:1}
-      ], {duration:dur, delay, easing:'cubic-bezier(.45,.05,.4,1)', fill:'both'});
-      a.onfinish = () => { gh.remove(); landed++; if (cnt) cnt.textContent = Math.max(0, total - arriving + landed);
-        pile.querySelector('.mpcards').animate([{transform:'scale(1.12)'}, {transform:'none'}], {duration:220, easing:'ease-out'}); };
+      const delay = 120 + k++ * 220, dur = 1000;
+      sfx.flick(delay / 1000 + 0.55);
+      gh.style.transformOrigin = '0 0';
+      cardFlight(gh, r, pr, {dur, delay, onLand:() => { gh.remove(); landed++; if (cnt) cnt.textContent = Math.max(0, total - arriving + landed); bumpEl(pile.querySelector(".mpcards")); }});
       end = Math.max(end, delay + dur);
     }
   });
@@ -7539,15 +7573,15 @@ function dealMarket(){
   let tokEnd = slideEnd;
   returning.forEach((el, i) => {
     const tok = el.querySelector('.hgtok'); if (!tok) return;
-    const delay = slideEnd + 120 + i * 200;
-    setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + 300);
+    const delay = slideEnd + 160 + i * 280;
+    setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + 450);
     tok.animate([
       {transform:'translate(14px,-46px) scale(2.1) rotate(-25deg)', opacity:0, offset:0},
       {transform:'translate(4px,-14px) scale(1.5) rotate(-8deg)', opacity:1, offset:.45},
       {transform:'translate(0,0) scale(.82) rotate(0deg)', opacity:1, offset:.78},
       {transform:'none', opacity:1, offset:1}
-    ], {duration:460, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'backwards'});
-    tokEnd = Math.max(tokEnd, delay + 460);
+    ], {duration:700, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'backwards'});
+    tokEnd = Math.max(tokEnd, delay + 700);
   });
   end = tokEnd;
   // 3) the new cards are dealt once the tokens have landed
@@ -7561,21 +7595,21 @@ function dealMarket(){
     if (el.classList.contains('leaving')) continue;   // already slid in above
     const {k:dk, dr, dcx, dcy} = from(el);
     for (const b of backsEl){
-      const bd = dealBase + n++ * 85, br = b.getBoundingClientRect(); bobs[dk]++;
+      const bd = dealBase + n++ * 160, br = b.getBoundingClientRect(); bobs[dk]++;
       const bx = dcx - (br.left + br.width / 2), by = dcy - (br.top + br.height / 2), bs = Math.min(1, dr.width / br.width);
       sfx.flick(bd / 1000 + 0.05);
       b.animate([
         {transform:`translate(${bx}px,${by}px) rotate(-14deg) scale(${bs})`, offset:0},
         {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7},
         {transform:'none', offset:1}
-      ], {duration:520, delay:bd, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
+      ], {duration:800, delay:bd, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
       end = Math.max(end, bd + 520);
     }
-    const delay = dealBase + n++ * 85 + (backsEl.length ? 260 : 0); bobs[dk]++;
+    const delay = dealBase + n++ * 160 + (backsEl.length ? 400 : 0); bobs[dk]++;
     const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
     sfx.flick(delay / 1000 + 0.05);
     const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
-    const dur = 620;
+    const dur = 900;
     el.animate([
       {transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0},
       {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62},
@@ -7599,7 +7633,7 @@ function dealPeeks(skip){
     let n = 0;
     for (const el of row.querySelectorAll('.mcard')){
       const r = el.getBoundingClientRect(); if (!r.width) continue;
-      const delay = 60 + n++ * 110, dur = 600;
+      const delay = 60 + n++ * 180, dur = 900;
       const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
       try{ sfx.flick(delay / 1000 + 0.05); }catch(e){}
       const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
@@ -7726,7 +7760,12 @@ $('view-play').addEventListener('click', e => {
     case 'mirm-vis': { ui.mirModal = null; ui.mirTray = false; doMove(['v', t.dataset.k === 'b' ? 'b' : 'u']); return; }
     case 'mirm-use': { mirUse(); return; }
     case 'mir-peek': ui.mirOpen = ui.mirOpen === t.dataset.k ? null : t.dataset.k; renderPlay(); return;
-    case 'sell-u': case 'sell-b': doMove(['s', act === 'sell-u' ? 'u' : 'b', t.dataset.name]); return;
+    case 'sell-u': case 'sell-b': {
+      const kind = act === 'sell-u' ? 'u' : 'b', name = t.dataset.name, src = t.closest('.fcard, .mcard'), S = seat();
+      const go = () => { const n0 = G.log.length; doMove(['s', kind, name]); if (G.net || G.log.length > n0) flySell(S, name, kind, src); };
+      if (ui.deckView != null && !reduceMotion()){ ui.deckView = null; renderPlay(); setTimeout(go, UNPOP_MS + 30); } else go();
+      return;
+    }
     case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); toGame(); return;
     case 'd-add': d.push({name:t.dataset.name, arm:0, tr:0}); sfx.drop(); break;
     case 'd-rec': d.push({name:'Recruit', arm:0, tr:0}); sfx.drop(); break;
@@ -9642,8 +9681,11 @@ function wirePeek(card, wrap){
       const pkBtns = [...wrap.querySelectorAll('.peek button')], k = pkBtns.indexOf(b);
       let live = liveBtns[k];
       if (!live || !live.isConnected || !sameData(live, b)) live = [...document.querySelectorAll('#view-play button[data-act]')].find(x => sameData(x, b)) || null;
-      closePeek();
-      if (live && !live.disabled) live.click();
+      // the card sinks away first, then its button is pressed, so a buy's flight to the deck isn't hidden behind it
+      closePeek(false, () => {
+        if (!live || !live.isConnected) live = [...document.querySelectorAll('#view-play button[data-act]')].find(x => sameData(x, b)) || null;
+        if (live && !live.disabled) live.click();
+      });
       return;
     }
     if (e.target.closest('.sheetx') || !e.target.closest('.peek, .sheet')) closePeek();   // tap outside the card: back to the market
@@ -9667,14 +9709,14 @@ $('view-play').addEventListener('click', e => {
   const c = e.target.closest('.stage .card'); if (!c || e.target.closest('button')) return;
   openRules(c);
 });
-function closePeek(now){
-  if (!peekEl) return;
+function closePeek(now, after){
+  if (!peekEl){ if (after) after(); return; }
   const w = peekEl; peekEl = null;
   document.documentElement.classList.remove('sheet-open');
   document.querySelectorAll('.mcard.peeked').forEach(c => c.classList.remove('peeked'));
-  if (now){ w.remove(); return; }
+  if (now){ w.remove(); if (after) after(); return; }
   const sh = w.querySelector('.sheet');
-  popOut(sh ? [sh] : [...w.querySelectorAll('.mcard.peek, .peekmir')], w, () => w.remove());
+  popOut(sh ? [sh] : [...w.querySelectorAll('.mcard.peek, .peekmir')], w, () => { w.remove(); if (after) after(); });
 }
 // Every pop-up (card views, deck sheets, miracles, reminders, turn banners, toasts) rises in from the bottom of the
 // screen when it opens and sinks back down when it closes, the same on phones and desktops. The backdrop fades with it.
