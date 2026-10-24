@@ -16,9 +16,8 @@ then pushed here.
 ## Tests (`tools/`)
 - `node tools/golden.mjs check` (~50 s): 1,000 seeded battles + 44 seeded AI-vs-AI games through the engine.
   Pure refactors must PASS. For an intended rule change, run `record` instead and say so in the commit.
-- `node tools/ui-golden.mjs check` (~2.5 min): 6 games played through the real page in headless Chromium
-  (vs AI, pass-and-play, simulated online). It also depends on the built-in snapshot (AI and balance), so
-  re-`record` after refreshing the snapshot or changing rules.
+  Run it only when the engine, rules or AI code changed; skip it for UI-only changes.
+- There is no UI golden test anymore (Brian dropped it, Oct 2026). Check UI changes with headless screenshots.
 - Headless screenshots: Playwright is global (`createRequire(\`${npm root -g}/\`)('playwright')`), Chromium at
   `/opt/pw-browsers/chromium`. Under file:// the page drops to player view; for the designer view run
   `canAdmin = true; playerPreview = false; applyRole()` after load.
@@ -30,7 +29,7 @@ the balance, AI or stats changed:
 1. ArtifactData `list` with `out_dir` (never print inline) for each collection: `balance`, `ai`, `aibrain`,
    `calibration`, `sync`, all into one folder.
 2. `node tools/refresh-snapshot.mjs --db <folder> --html <page>`
-3. Re-record `ui-golden` (the new AI plays differently), then publish and push as usual.
+3. Publish and push as usual.
 
 ## Map of index.html (search by name; line numbers drift)
 Script blocks: PeerJS (minified, online play) → `#snapshot` JSON (one ~1 MB line: **never grep without
