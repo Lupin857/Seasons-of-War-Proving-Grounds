@@ -8712,21 +8712,21 @@ const lth = (key, label) => `<th scope="col" data-lsort="${key}" tabindex="0" st
 function unitRows(){
   return labSorted(Object.keys(ORIG.DEFS).filter(n => !ORIG.DEFS[n].token), DEFS, 'units').map(n => { const d = DEFS[n];
     const lab2 = {c:'cost', n:'copies', p:'power', v:'ability value', x:'second ability value', m:'money'};
-    const inp = (key, val, w) => `<input type="text" inputmode="numeric" aria-label="${esc(n)} ${lab2[key] || key}" title="${lab2[key] || key}" data-grp="units" data-name="${esc(n)}" data-key="${key}" value="${esc(val)}" style="width:${w}em" class="${changed('units', n, key) ? 'chg' : ''}">`;
+    const inp = (key, val, w) => `<input type="text" inputmode="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(n)} ${lab2[key] || key}" title="${lab2[key] || key}" data-grp="units" data-name="${esc(n)}" data-key="${key}" value="${esc(val)}" style="width:${w}em" class="${changed('units', n, key) ? 'chg' : ''}">`;
     const cell = (key, val, w) => `<td>${inp(key, val, w)}</td>`;
     return `<tr><th scope="row" class="first"><span class="cname">${esc(n)}</span></th>${cell('c', d.c, 3)}${cell('n', d.n, 3)}${cell('p', arr(d.p), 6)}${d.v ? (d.x ? `<td><div class="row" style="gap:.3em;flex-wrap:nowrap">${inp('v', arr(d.v), 6)}${inp('x', arr(d.x), 4)}</div></td>` : cell('v', arr(d.v), 6)) : '<td class="note">—</td>'}${d.m ? cell('m', arr(d.m), 6) : '<td class="note">—</td>'}<td class="note" style="min-width:16em">${esc(d.t)}</td>
       <td>${(OV.units || {})[n] ? `<button type="button" class="small" data-act="reset" data-grp="units" data-name="${esc(n)}">Reset</button>` : ''}</td></tr>`; }).join('');
 }
 function bldgRows(){
   return labSorted(Object.keys(ORIG.BDEFS), BDEFS, 'bldgs').map(n => { const d = BDEFS[n];
-    const cell = (key, val, w) => `<td><input type="text" inputmode="numeric" aria-label="${esc(n)} ${key}" data-grp="bldgs" data-name="${esc(n)}" data-key="${key}" value="${esc(val)}" style="width:${w}em" class="${changed('bldgs', n, key) ? 'chg' : ''}"></td>`;
+    const cell = (key, val, w) => `<td><input type="text" inputmode="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(n)} ${key}" data-grp="bldgs" data-name="${esc(n)}" data-key="${key}" value="${esc(val)}" style="width:${w}em" class="${changed('bldgs', n, key) ? 'chg' : ''}"></td>`;
     return `<tr><th scope="row" class="first"><span class="cname">${esc(n)}</span></th>${cell('c', d.c, 3)}${d.always ? '<td class="note">always</td>' : cell('n', d.n, 3)}${cell('lv', arr(d.lv), 6)}<td class="note">${esc(d.t)}</td>
       <td>${(OV.bldgs || {})[n] ? `<button type="button" class="small" data-act="reset" data-grp="bldgs" data-name="${esc(n)}">Reset</button>` : ''}</td></tr>`; }).join('');
 }
 function mirRows(){
   const what = {cash:'$ back', disc:'$ off next card', rec:'Recruits', arm:'Armaments', tr:'Training tokens', writ:'units moved', vis:'cards looked at', fav:'extra buys', frz:'cards set aside', cov:'cards on top', mill:'units milled', rst:'cards dealt'};
   return labSorted(Object.keys(ORIG.MIRS), MIRS, 'mirs').map(n => { const m = MIRS[n], fx = MIR_FX[n];
-    const cell = (key, val, lbl) => `<td><input type="text" inputmode="numeric" aria-label="${esc(n)} ${lbl}" title="${lbl}" data-grp="mirs" data-name="${esc(n)}" data-key="${key}" value="${esc(val)}" style="width:3em" class="${changed('mirs', n, key) ? 'chg' : ''}"></td>`;
+    const cell = (key, val, lbl) => `<td><input type="text" inputmode="text" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" aria-label="${esc(n)} ${lbl}" title="${lbl}" data-grp="mirs" data-name="${esc(n)}" data-key="${key}" value="${esc(val)}" style="width:3em" class="${changed('mirs', n, key) ? 'chg' : ''}"></td>`;
     return `<tr><th scope="row" class="first"><span class="cname">${esc(n)}</span></th>${cell('s', m.s, 'surcharge')}${cell('u', m.u | 0, 'copies in the unit deck')}${cell('b', m.b | 0, 'copies in the building deck')}${fx ? `<td><div class="row" style="gap:.3em;flex-wrap:nowrap">${cell(fx, m[fx], what[fx]).replace(/^<td>|<\/td>$/g, '')}<span class="note">${what[fx]}</span></div></td>` : '<td class="note">—</td>'}<td class="note" style="white-space:normal;min-width:16em">${esc(m.t)}</td>
       <td>${(OV.mirs || {})[n] ? `<button type="button" class="small" data-act="reset" data-grp="mirs" data-name="${esc(n)}">Reset</button>` : ''}</td></tr>`; }).join('');
 }
