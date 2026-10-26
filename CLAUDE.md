@@ -61,6 +61,12 @@ UI script.
   Keep the pattern for any new flip: `perspective(~3.4× card width)` first in every keyframe's transform, the same
   function list in each keyframe, darken a little at edge-on, and swap faces at 90° → −90° so no side is mirrored.
   Never fake a flip with `scaleX`.
+- One pop-up (Oct 2026): `popWinHTML` builds every window over the game (`.pkwin > .sheet.pksheet`): the deck view
+  (`ui.deckView`, body from `deckSheetHTML`), Salvage / Black Market / Vision (`ui.pkWin` 'salvage' / 'peek') and
+  Mason's Guild (`ui.pkWin` 'mason': tap a building to buy and attach). Rendered by `peekWinHTML`; `wireSwipe` gives
+  drag-to-dismiss; `popShut()` / `closePkWin()` close it. Phone: bottom sheet over the bottom bar; wider: centered.
+  Cards in it and in the turn banner (`.tfcards`) use the market card's measured size (`syncCardSize` → `--uw/--uh`).
+  Selling from the pop-up: the card lifts, the pop-up closes, then `flySell(..., lifted)` flies it to Salvage.
 
 ## Cheap habits
 - Search with Grep/`grep -n ... | cut -c1-250`, then read only the lines you need. Never read the whole file.

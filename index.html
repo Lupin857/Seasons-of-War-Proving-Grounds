@@ -1022,13 +1022,24 @@ html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobi
 .pkfoot{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);margin:0 -16px;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px))}
 .pkfoot .note{flex:1;margin:0}
 .pkfoot button{min-height:46px;padding:0 20px;font-weight:700;flex:none}
-/* phones: the window sits just above the bottom bar, so the decks and Salvage stay in view and its cards visibly come
-   out of them (the bar stays usable: Your deck and Miracles close the window) */
+/* phones: the sheet comes up over the bottom bar, like a card's pop-up */
 @media (max-width:640px){
-  .pkwin{bottom:var(--dockh,0px)}
-  .pkwin .pksheet{max-height:calc(100dvh - var(--dockh,0px) - 40px)}
-  .pkwin .pkfoot{padding-bottom:12px}
+  .pkwin .pksheet{max-height:calc(100dvh - 40px - env(safe-area-inset-top,0px))}
 }
+/* every card in the pop-up is a market card at the market's measured size (syncCardSize sets --uw / --uh), in rows
+   centered in the window; buy and sell buttons sit under the cards, as in the market */
+.pkwin .pkgrid,.pkwin .fcards{display:flex!important;flex-wrap:wrap;justify-content:center!important;column-gap:10px!important}
+.pkwin .pkgrid .mcard:not(.peek),.pkwin .fcards .mcard:not(.peek),.pkwin .pkgrid .mwrap{width:var(--uw,118px)!important;height:var(--uh,118px)!important;min-height:0!important;aspect-ratio:auto!important;max-width:none}
+.pkwin .pkgrid .mirwrap{width:var(--uw,118px)!important;height:auto!important;flex:none}
+.pkwin .pkgrid>*,.pkwin .fcards>*{flex:none}
+.pkwin .pkgrid .mirwrap>.mcard:not(.peek){width:auto!important}
+.pkwin .pksec>.pkchip,.pkwin .pksec>.pkttl,.pkwin .pksec>.pksub{align-self:center;text-align:center}
+.pkwin .dsbody .list>.eyebrow{text-align:center}
+/* deck tabs ride under the grab strip; the top edge takes the side's color */
+.pksheet.dsheet{border-top:3px solid var(--azure)}
+.pksheet.dsheet.s1{border-top-color:var(--gules)}
+.pksheet .dshead{margin:0 -16px;padding:0 10px}
+.pksheet .dsbody{padding:12px 0 0;overflow:visible}
 @media (min-width:641px){
   .pkwin{align-items:center;padding:24px}
   .pkwin .pksheet{max-width:860px;max-height:min(86vh,900px);border-radius:14px}
@@ -1230,9 +1241,7 @@ html.sheet-open,html.sheet-open body{overflow:hidden}
 @media (max-width:640px){ .board .deckbtn .caps{font-family:var(--f-body);font-size:.74rem;letter-spacing:-.01em} .board .deckbtn .caps b.full{padding:0 2px} }
 .board .deckbtn.you .m3{color:var(--azure)}
 .logp .log{max-height:180px}
-.decksheet{position:fixed;inset:0;z-index:65;background:rgba(10,14,20,.38);display:flex;align-items:flex-end;justify-content:center;animation:peekbg .16s ease-out}
-.dsheet{width:min(100%,1000px);max-height:min(86vh,900px);background:var(--surface);border-radius:14px 14px 0 0;border-top:3px solid var(--azure);display:flex;flex-direction:column;box-shadow:0 -12px 40px rgba(0,0,0,.3);animation:dsup .22s cubic-bezier(.2,.9,.3,1)}
-.dsheet.s1{border-top-color:var(--gules)}
+.dsheet-old{width:min(100%,1000px);max-height:min(86vh,900px);background:var(--surface);border-radius:14px 14px 0 0;border-top:3px solid var(--azure);display:flex;flex-direction:column;box-shadow:0 -12px 40px rgba(0,0,0,.3);animation:dsup .22s cubic-bezier(.2,.9,.3,1)}
 @keyframes dsup{from{transform:translateY(40px);opacity:.4}}
 .dshead{display:flex;align-items:center;gap:8px;padding:8px 10px 0 12px;border-bottom:1px solid var(--line)}
 .dstabs{display:flex;gap:4px;flex:1;min-width:0}
@@ -1253,8 +1262,6 @@ body.dsopen{overflow:hidden}
   .board .deckbtn .who{font-size:.9rem!important;gap:4px;white-space:normal;line-height:1.05}
   .dock .board.inDock{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
   .board .deckbtn .dkgo{display:none}
-  .decksheet{z-index:65}
-  .dsheet{max-height:88vh}
 }
 
 /* keywords in the pop-up card */
@@ -1355,6 +1362,12 @@ body.dsopen{overflow:hidden}
 .tfcards .tfwrap{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 .tfcards .mcard.tfm{width:100%;height:auto!important;aspect-ratio:1/1;min-height:0;text-align:left;background:var(--card, var(--surface))}
 .tfcards .mcard.tfm.sell{border-style:dashed;opacity:.9}
+/* unified: the summary's cards are market cards at the market's measured size, in rows centered in the banner */
+.tfnews{width:min(calc(var(--uw,118px) * 3 + 22px), calc(100vw - 40px))!important;max-width:none!important;align-self:center}
+.turnflash .tfbox:has(.tfnews){padding-left:10px;padding-right:10px;max-width:calc(100vw - 20px)}
+.tfcards{display:flex!important;flex-wrap:wrap;justify-content:center!important;column-gap:8px!important;row-gap:10px!important;max-height:56vh!important}
+.tfcards .tfwrap{width:var(--uw,118px)}
+.tfcards .mcard.tfm{width:var(--uw,118px)!important;height:var(--uh,118px)!important;aspect-ratio:auto!important;flex:none}
 /* the tag sits under the card, outside it, like the stamps under market cards */
 .tftag{max-width:100%;font-size:.7rem;font-weight:700;line-height:1.4;padding:1px 9px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bg);background:var(--gules)}
 .tftag.s0{background:var(--azure)}
@@ -1831,6 +1844,37 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .dock .dbtns.drow .mirb .ms{font-size:1.25rem}
   .dock .dbtns.drow .mirb .mc{position:absolute;top:-6px;right:-6px}
   .dock .dbtns.drow .act{flex:0 0 auto;width:96px}
+  /* the actions column between the two deck tiles: Miracles above, Pass below */
+  .dock .dtiles.mid{grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr)}
+  .dock .dtiles.mid .tile{padding:6px 7px}
+  .dock .dtiles.mid .ts{gap:8px}
+  .dock .dbtns.dact{flex-direction:column;gap:6px;min-width:0}
+  .dock .dbtns.dact>button{flex:1 1 0;min-height:44px;width:100%;padding:2px 4px;margin:0}
+  .dock .dbtns.dact .mirb{flex-direction:column;gap:2px;position:relative}
+  .dock .dbtns.dact .mirb .dl{display:none}
+  .dock .dbtns.dact .mirb .ms{font-size:1.3rem}
+  .dock .dbtns.dact .act{white-space:normal;line-height:1.1;font-size:.9rem;text-overflow:clip;overflow-wrap:anywhere}
+  .dock .dbtns.dact .act:disabled{font-size:.78rem}
+  /* a tile's buys left, one line */
+  .dock .dtiles .tb{display:block;min-width:0;overflow:hidden}
+  .dock .dtiles .tslots{display:flex;flex-wrap:nowrap;align-items:center;gap:5px;white-space:nowrap}
+  .dock .dtiles .tslots .slotg{display:inline-flex;align-items:center;gap:2px;font-size:.56rem;letter-spacing:.01em;font-weight:700;text-transform:uppercase;color:var(--muted)}
+  .dock .dtiles .tslots .pips{display:inline-flex;gap:2px;margin-left:2px;align-items:center}
+  .dock .dtiles .tslots .pip{width:10px;height:10px;border-width:2px;border-radius:2px}
+  .dock .dtiles .tslots .pip.x{border-radius:50%;border-color:var(--or);background:var(--or)}
+  .dock .dtiles .tslots .xsep{width:2px}
+  .dock .dtiles .tile.s1 .tslots .pip:not(.x){border-color:var(--gules);background:var(--gules)}
+  .dock .dtiles .tslots .pip.used{background:transparent!important;border-color:var(--line)!important}
+}
+@media (max-width:380px){
+  .dock .dtiles.mid .tile{padding:6px 5px}
+  .dock .dtiles .tslots{gap:3px}
+  .dock .dtiles .tslots .pip{width:9px;height:9px}
+  .dock .dtiles .tslots .xsep{width:0}
+  .dock .dtiles .tslots .slotg{letter-spacing:0}
+  .dock .dtiles.mid .ts{gap:5px}
+  .dock .dtiles.mid .ts>span{letter-spacing:0;gap:3px}
+  .dock .dtiles.mid .ts b{font-size:1rem}
 }
 
 /* pop-ups: one shared rise-from-the-bottom animation (popIn/popOut in the script) replaces each one's own entrance */
@@ -5586,11 +5630,22 @@ function oppSellStep(i, ev){
 }
 /* A sold card flies out of its owner's deck button into the Salvage pile (a sold Field back to the Field in the shop),
    growing to card size on the way and shrinking into the pile, which bumps as it lands. */
-function flySell(i, name, kind, srcCard){
-  if (reduceMotion() || !G) return;
+function flySell(i, name, kind, srcCard, lifted){
+  if (reduceMotion() || !G){ if (lifted) lifted.g.remove(); return; }
   const vp = $('view-play');
   const from = [...vp.querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.offsetParent);
-  const pile = name === 'Field' ? [...vp.querySelectorAll('.mktp .mcard')].find(el => (el.querySelector('.nm') || {}).textContent === 'Field') : $('muster-pile');
+  const pile = name === 'Field' ? [...vp.querySelectorAll('.mktp:not(.pkbody) .mcard')].find(el => (el.querySelector('.nm') || {}).textContent === 'Field') : $('muster-pile');
+  if (lifted){
+    // a card you sold from the pop-up: it already rose out of its spot; now it travels on into Salvage
+    const target = pile && pile.offsetParent ? (pile.querySelector('.mpcards') || pile) : null;
+    if (!target){ lifted.g.remove(); return; }
+    lifted.g.getAnimations().forEach(a => a.cancel());
+    const L = lifted.r;
+    pinFly(lifted.g, L.left, L.top, L.w0, L.h0);
+    const tb = target.getBoundingClientRect(), dk = $('dock'), inBar = !!(dk && dk.getClientRects().length && dk.contains(target));
+    cardFlight(lifted.g, L, tb, {w0:L.w0, h0:L.h0, dur:inBar ? 1000 : 900, arc:inBar ? 40 : 0, onLand:() => { lifted.g.remove(); bumpEl(target); }});
+    return;
+  }
   if (!from || !pile || !pile.offsetParent) return;
   const ref = vp.querySelector('.mktp .mcard:not(.ghost)'), rr = ref ? ref.getBoundingClientRect() : null;
   const w0 = rr && rr.width ? rr.width : 110, h0 = rr && rr.height ? rr.height : 154;
@@ -6103,9 +6158,8 @@ function deckSheetHTML(){
   const note = canSell ? '<p class="note">On your turn you can sell any card for $1, even one you just bought. Selling is free: it doesn\'t use a buy or end your turn.</p>'
     : !mine && G.phase === 'mobilize' && !ui.battle ? '<p class="note">Their deck order is secret.</p>' : '';
   const tabs = [VS(0), VS(1)].map(k => `<button type="button" role="tab" aria-selected="${k === i}" class="s${VS(k)}" data-act="deck-open" data-p="${k}">${deckLabel(k)}</button>`).join('');
-  return `<div class="decksheet" data-act="deck-close"><div class="dsheet s${VS(i)}" role="dialog" aria-modal="true" aria-label="${esc(deckName(i))}">
-    <div class="dshead"><div class="dstabs" role="tablist">${tabs}</div><button type="button" class="dsclose" data-act="deck-close" aria-label="Close">✕</button></div>
-    <div class="dsbody forces">${note}${body}</div></div></div>`;
+  return {label:deckName(i), cls:`dsheet s${VS(i)}`, top:`<div class="dshead"><div class="dstabs" role="tablist">${tabs}</div></div>`,
+    head:`<div class="dsbody forces">${note}${body}</div>`, foot:canSell ? 'Selling is free: it doesn\'t use a buy.' : 'Tap a card to read it in full.'};
 }
 function curveText(name, kind, own, noNext){
   if (kind === 'u'){
@@ -6308,7 +6362,7 @@ function writBarHTML(){
     <span class="wbt"><b>✶ Freeze</b><br>Tap a card in the market to set it aside for you.</span>
     <span class="note">Its miracles go with it and its spot stays empty. This uses your turn.</span>
   </div>${pickDockHTML(`<button type="button" data-act="frz-cancel">Cancel</button>`)}`;
-  const mm = masonMode();
+  const mm = ui.pkWin === 'mason' ? null : masonMode();
   if (mm){
     const me = G.players[seat()], own = Object.keys(me.city).filter(n => n !== 'Field' && me.city[n] > 0);
     const lvOf = n => Math.min(me.city[n], BDEFS[n].lv.length);
@@ -6583,6 +6637,15 @@ function slotsHTML(short){
       ${b.favN ? group(short ? 'Favor' : 'Divine Favor', b.favN, b.favN - b.fav, 'x') : ''}
     </div>`;
 }
+// a deck tile's buys left, on one line: buy squares and the gold extra-buy coin together, then Field (and the rare
+// Carpenter's and Divine Favor pips). Side i's color.
+function tileSlotsHTML(i){
+  const me = G.players[i], b = G.buys[i], carp = bVal(me, "Carpenter's Guild");
+  const pips = (n, used, cls) => Array.from({length:n}, (_, k) => `<i class="pip${cls ? ' ' + cls : ''}${k < used ? ' used' : ''}"></i>`).join('');
+  const g = (label, inner) => `<span class="slotg">${label}<span class="pips">${inner}</span></span>`;
+  const fc = fieldCap(me);
+  return `<span class="tslots">${g('Buys', pips(RULES.buysPerShop, b.u + b.b) + `<span class="xsep"></span>` + pips(1, b.extra ? 1 : 0, 'x'))}${g('Field', pips(fc, Math.min(fc, b.fld || 0)))}${carp ? g('City', pips(carp, b.carp)) : ''}${b.favN ? g('Favor', pips(b.favN, b.favN - b.fav, 'x')) : ''}</span>`;
+}
 // The phone bar along the bottom of the screen, in every phase: which phase it is, what to do right now, and the
 // button that moves the game on (Pass, Lock in, Next step, Continue). It stands out when it's waiting on you.
 const VIS_ARM_TXT = '✶ Vision: tap the Units or Buildings deck to look at its top 3.';
@@ -6643,17 +6706,18 @@ function dockHTML(){
     const live = mir.some((_, j) => { const p = mirPlayable(j, 'shop'); return p.ok && !p.on; });
     mirBtn = `<button type="button" class="mirb${live ? ' glow' : ''}${ui.mirTray ? ' on' : ''}" data-act="mir-tray" aria-expanded="${!!ui.mirTray}" aria-label="Miracles${mir.length ? ` (${mir.length})` : ''}"><span class="ms" aria-hidden="true">✶</span><span class="dl">Miracles</span>${mir.length ? `<span class="mc">${mir.length}</span>` : ''}</button>`;
   }
-  // shop on phones: each side's tile is its deck button and carries its gold, income, unit and City counts;
-  // the buy pips share the last row with Miracles and Pass, so the top bar only needs the score
+  // shop on phones: each side's tile is its deck button and carries its gold, income, unit and City counts and its buys
+  // left; Miracles (above) and Pass (below) stand in a narrow column between the two tiles, so the bar is symmetric and
+  // the top bar only needs the score
   if (shopping){
     const B = boardSnap();
     const tile = i => {
-      const p = G.players[i], lab = PP() || G.net ? esc(nm(i)) : i === S ? 'Your deck' : 'Enemy';
+      const p = G.players[i], lab = PP() || G.net ? esc(nm(i)) : i === S ? 'You' : 'Enemy';
       const u = uniqueUnits(i === S ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots, inc = Math.max(0, B.inc[i]);
-      const aria = `${deckName(i)}: view cards. $${B.money[i]}, +$${inc} next shop. Units ${u} of ${uc}. City ${b} of ${bc}.${G.passed[i] ? ' Passed.' : ''}`;
-      return `<button type="button" class="dk tile s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(aria)}"><span class="tt" aria-hidden="true"><span class="dkic"><i></i><i></i></span><span class="tn">${lab}</span>${G.passed[i] ? '<span class="pbx">passed</span>' : ''}<span class="tm">$${B.money[i]}<i>+${inc}</i></span></span><span class="ts" aria-hidden="true"><span>Units<b class="${u >= uc ? 'full' : ''}">${u}<small>/${uc}</small></b></span><span>City<b class="${b >= bc ? 'full' : ''}">${b}<small>/${bc}</small></b></span></span></button>`;
+      const aria = `${deckName(i)}: view cards. $${B.money[i]}, +$${inc} next shop. Units ${u} of ${uc}. City ${b} of ${bc}. ${Math.max(0, RULES.buysPerShop - G.buys[i].u - G.buys[i].b)} of ${RULES.buysPerShop} buys left.${G.passed[i] ? ' Passed.' : ''}`;
+      return `<button type="button" class="dk tile s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(aria)}"><span class="tt" aria-hidden="true"><span class="dkic"><i></i><i></i></span><span class="tn">${lab}</span>${G.passed[i] ? '<span class="pbx">passed</span>' : ''}<span class="tm">$${B.money[i]}<i>+${inc}</i></span></span><span class="ts" aria-hidden="true"><span>Units<b class="${u >= uc ? 'full' : ''}">${u}<small>/${uc}</small></b></span><span>City<b class="${b >= bc ? 'full' : ''}">${b}<small>/${bc}</small></b></span></span><span class="tb" aria-hidden="true">${tileSlotsHTML(i)}</span></button>`;
     };
-    return `<div class="dock${mine ? ' mine' : ''} ph-shop dshop" id="dock">${piles}<div class="dtiles">${tile(VS(0))}${tile(VS(1))}</div><div class="dbtns drow">${slotsHTML(true)}${mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
+    return `<div class="dock${mine ? ' mine' : ''} ph-shop dshop" id="dock">${piles}<div class="dtiles mid">${tile(VS(0))}<div class="dbtns dact">${ui.visArm ? '' : mirBtn}${acts}</div>${tile(VS(1))}</div></div><div class="dockspace" aria-hidden="true"></div>`;
   }
   return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock">${piles}${body ? `<div class="dbar">${body}</div>` : ''}
     <div class="dbtns${shopping ? '' : ' tight'}">${deckBtn(VS(0))}${deckBtn(VS(1))}${mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
@@ -6795,11 +6859,28 @@ function myPeeks(){ const S = seat(); return PEEK_BY.map(by => peekOf(G, S, by))
    by its top strip, tap ✕, Close or outside it to close. Closing a peek keeps the cards set aside: the deck glows
    "Peek 3" until you buy one or the shop ends. */
 function peekWinHTML(){
+  if (ui.deckView === 0 || ui.deckView === 1){
+    if (!G || ui.start || ui.roll || ui.remind){ ui.deckView = null; return ''; }
+    const d = deckSheetHTML(); if (!d) return '';
+    return popWinHTML(d.label, d.cls, d.top, d.head, d.foot);
+  }
   const w = ui.pkWin;
   if (!w || !G || G.phase !== 'shop' || ui.battle || ui.start || ui.roll || ui.remind){ if (!ui.pkPending) ui.pkWin = null; return ''; }
   const S = seat(), me = G.players[S];
   let head = '', body = '', foot = '', label = '';
-  if (w === 'salvage'){
+  if (w === 'mason'){
+    const mm = masonMode(); if (!mm){ ui.pkWin = null; ui.mason = null; return ''; }
+    const own = Object.keys(me.city).filter(n => n !== 'Field' && me.city[n] > 0), lvOf = n => Math.min(me.city[n], BDEFS[n].lv.length);
+    const cards = own.map(n => { const L = lvOf(n), max = BDEFS[n].lv.length;
+      if (L >= max) return `<div class="mcard b writoff" aria-disabled="true">${cardFace(n, 'b', me.city[n])}<span class="writown" aria-hidden="true">${max > 1 ? 'Max level' : 'No levels'}</span></div>`;
+      const what = `Buy Mason's Guild for $${mm.price} and attach it here: Lv ${L} → ${L+1}.`;
+      return `<div class="mcard b writtgt" data-act="mason-tog" data-name="${esc(n)}" role="button" tabindex="0" title="${esc(what)}" aria-label="${esc(n)}. ${esc(what)}">${cardFace(n, 'b', me.city[n])}<span class="writown" aria-hidden="true">Lv ${L} → ${L+1}</span></div>`; }).join('');
+    label = "Mason's Guild";
+    head = `<section class="pksec"><span class="pkchip">✶ Mason's Guild · $${mm.price}</span><h2 class="pkttl">Attach it to a building</h2>
+      <p class="pksub">It counts as one more copy of that building and levels it up. Tap a building to buy it.</p>
+      <div class="fcards">${cards}</div></section>`;
+    foot = 'Close to cancel. Nothing is bought until you tap a building.';
+  } else if (w === 'salvage'){
     const pile = G.muster || []; if (!pile.length){ ui.pkWin = null; return ''; }
     const hits = pile.filter(musterMatch).length;
     const cards = pile.map((n, i) => [n, i]).sort((a, b) => musterMatch(b[0]) - musterMatch(a[0]))
@@ -6823,12 +6904,29 @@ function peekWinHTML(){
     }).join('');
     foot = 'Closing keeps these set aside: tap the glowing deck to look again, until you buy one or the shop ends.';
   } else { ui.pkWin = null; return ''; }
-  return `<div class="pkwin" data-act="pk-close"><div class="sheet pksheet" role="dialog" aria-modal="true" aria-label="${esc(label)}">
+  return popWinHTML(label, '', '', head + body, foot);
+}
+/* THE POP-UP. Every window over the game uses this one container, the same as a card's pop-up: a sheet from the bottom
+   on phones (over the bottom bar), a centered window on bigger screens. Drag it down by its top strip, tap ✕, Close or
+   outside it, or press Escape to close it. Your deck / the enemy's, Salvage, Black Market and Vision peeks and Mason's
+   Guild all open here, and every card in it is the market's card at the market's size (--uw × --uh). */
+function popWinHTML(label, cls, top, body, foot){
+  return `<div class="pkwin" data-act="pk-close"><div class="sheet pksheet ${cls}" role="dialog" aria-modal="true" aria-label="${esc(label)}">
     <div class="sheethead"><span class="grab" aria-hidden="true"></span><button type="button" class="sheetx" data-act="pk-close" aria-label="Close">✕</button></div>
-    <div class="pkbody">${head}${body}</div>
+    ${top}<div class="pkbody mktp">${body}</div>
     <div class="pkfoot"><p class="note">${foot}</p><button type="button" data-act="pk-close">Close</button></div></div></div>`;
 }
-function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); ui.pkWin = null; ui.pkPending = false; renderPlay(); }
+const popShut = () => { ui.pkWin = null; ui.pkPending = false; ui.deckView = null; ui.mason = null; };
+function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); popShut(); renderPlay(); }
+// every card in a pop-up or the turn summary is exactly the size of a market card: measure one and share it
+function syncCardSize(){
+  const c = $('view-play') && $('view-play').querySelector('.mktp:not(.pkbody) .market > .mcard:not(.ghost)'); if (!c) return;
+  const w = c.offsetWidth, h = c.offsetHeight; if (w < 40 || h < 40) return;
+  const st = document.documentElement.style;
+  if (st.getPropertyValue('--uw') !== w + 'px') st.setProperty('--uw', w + 'px');
+  if (st.getPropertyValue('--uh') !== h + 'px') st.setProperty('--uh', h + 'px');
+}
+window.addEventListener('resize', () => requestAnimationFrame(syncCardSize));
 // Phones: the Units deck, the Salvage pile and the Buildings deck ride along the top of the bottom bar, square stacks
 // with their counts printed on them, so they're always in reach for Black Market and Salvage and the market has no headers.
 function dockPilesHTML(){
@@ -7739,7 +7837,7 @@ function turnWatch(){
     const from = turnMarks[who] == null ? G.log.length : turnMarks[who];
     const evs = G.log.slice(from).filter(l => l.ev && l.side === 1 - who);
     turnMarks[who] = G.log.length;
-    if (evs.length) news = `<div class="tfnews"><span class="eyebrow">Since ${who === S && !(PP() && !G.net) ? 'your' : 'their'} last turn, ${esc(PP() || G.net ? nm(1 - who) : 'Opponent')}:</span><div class="tfcards">${evs.map(l => turnNewsCard(l.ev, 1 - who)).join('')}</div></div>`;
+    if (evs.length) news = `<div class="tfnews"><span class="eyebrow">Since ${who === S && !(PP() && !G.net) ? 'your' : 'their'} last turn, ${esc(PP() || G.net ? nm(1 - who) : 'Opponent')}:</span><div class="tfcards mktp">${evs.map(l => turnNewsCard(l.ev, 1 - who)).join('')}</div></div>`;
   }
   if (who === S && noBuysLeft(G, S)){ autoNews = news; return; }   // out of buys: the auto-pass banner says so, with this news
   if (sticky && !news){ news = autoNews; autoNews = ''; }   // the opponent's buys from just before, shown with the auto-pass
@@ -7887,10 +7985,11 @@ function renderPlay(){
   const wasMine = !!$('view-play').querySelector('.dock.mine');
   const dockH = dockHTML();
   if (ui.visArm && !(G && G.phase === 'shop' && !ui.battle && cur(G) === seat() && !G.passed[seat()] && (G.players[seat()].mir || []).includes('Vision') && !peekOf(G, seat(), 'vis'))) ui.visArm = false;
-  const POPS = [['.decksheet', '.dsheet'], ['.mirmodal', '.mirmbox'], ['.remind', '.remindbox'], ['.mirtray', '.mirtray'], ['.pkwin', '.pksheet']];
+  const POPS = [['.mirmodal', '.mirmbox'], ['.remind', '.remindbox'], ['.mirtray', '.mirtray'], ['.pkwin', '.pksheet']];
   const vp0 = $('view-play'), oldPops = POPS.map(([b]) => { const e = vp0.querySelector(b); return e ? {e, r:e.getBoundingClientRect()} : null; });
-  $('view-play').innerHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${ui.start || ui.roll ? '' : deckSheetHTML()}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
-  document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.decksheet'));
+  $('view-play').innerHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
+  syncCardSize();
+  document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.pkwin'));
   { const pw = vp0.querySelector('.pkwin'); if (pw) wireSwipe(pw.querySelector('.pksheet'), pw, pw.querySelector('.sheethead'), null,
       {open:() => pw.isConnected && !pw.dataset.gone, now:closePkWin, leave:() => { pw.dataset.gone = '1'; }, done:closePkWin}); }
   POPS.forEach(([b, x], k) => {
@@ -8242,13 +8341,14 @@ $('view-play').addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const act = t.dataset.act, i = +t.dataset.i, d = ui.draft;
   switch (act){
-    case 'deck-open': { const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.deckView = ui.deckView === k && t.classList.contains('deckbtn') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
-    case 'deck-close': if (t.classList.contains('decksheet') && e.target !== t) return; ui.deckView = null; sfx.soft(); renderPlay(); return;
+    case 'deck-open': { const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.mason = null; ui.deckView = ui.deckView === k && !t.closest('.dstabs') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
+    case 'deck-close': popShut(); sfx.soft(); renderPlay(); return;
     case 'roll': doRoll(); return;
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
-    case 'mason-cancel': sfx.soft(); ui.mason = null; renderPlay(); return;
+    case 'mason-cancel': sfx.soft(); popShut(); renderPlay(); return;
     case 'mason-tog': { const mm = masonMode(); if (!mm) return; const n = t.dataset.name;
+      if (ui.pkWin === 'mason'){ popShut(); sfx.pick(); doMove(['b', mm.src, mm.idx, n]); return; }   // the pop-up: one tap buys and attaches
       if (!masonTargets(G.players[seat()]).includes(n)) return;
       ui.mason.sel = mm.sel === n ? null : n; sfx.soft(); renderPlay(); return; }
     case 'mason-go': { const mm = masonMode(); if (!mm || !mm.sel) return; ui.mason = null; doMove(['b', mm.src, mm.idx, mm.sel]); return; }
@@ -8266,7 +8366,7 @@ $('view-play').addEventListener('click', e => {
       const nm0 = (sourceCard(G, seat(), src, idx) || {}).name;
       if (act === 'buy' && nm0 === "Mason's Guild"){   // pick what it levels up first; Buy on the marked card confirms once one is picked
         const mm = masonMode(); if (mm && mm.src === src && mm.idx === idx){ if (mm.sel){ ui.mason = null; doMove(['b', src, idx, mm.sel]); } return; }
-        sfx.pick(); ui.writ = null; ui.freeze = null; ui.mason = {src, idx, sel:null}; renderPlay(); return; }
+        sfx.pick(); ui.writ = null; ui.freeze = null; ui.deckView = null; ui.mason = {src, idx, sel:null}; ui.pkWin = 'mason'; renderPlay(); return; }
       if (act === 'buy') ui.freeze = null;
       if (act === 'buy' && ui.writ && ui.writ.src === src && ui.writ.idx === idx){ const w = ui.writ; ui.writ = null; const names = w.sel.map(j => { const c = G.disp[j[0] === 'b' ? 'b' : 'u'][+j.slice(1)]; return c && c.name; }).filter(Boolean); doMove(['b', w.src, w.idx, null, names]); return; }
       if (act === 'buy' && mirOf(G, {src, idx}).some(m => MIRS[m].writ)){ sfx.pick(); ui.writ = {src, idx, sel:[]}; renderPlay(); return; }   // pick what Salvage Writ moves
@@ -8285,7 +8385,7 @@ $('view-play').addEventListener('click', e => {
       if (r.kind === 'pass'){ doMove(['p']); return; }
       ui.remindOk = true; lockDeck(); return;
     }
-    case 'muster': ui.pkWin = ui.pkWin === 'salvage' ? null : 'salvage'; ui.pkPending = false; sfx.soft(); renderPlay(); return;
+    case 'muster': ui.deckView = null; ui.mason = null; ui.pkWin = ui.pkWin === 'salvage' ? null : 'salvage'; ui.pkPending = false; sfx.soft(); renderPlay(); return;
     case 'bm-u': case 'bm-b': { const k = act === 'bm-b' ? 'b' : 'u'; ui.pkWin = 'peek'; ui.pkFocus = k; ui.pkPending = true; doMove(['m', k]); return; }
     case 'mir-vis-u': case 'mir-vis-b': doMove(['v', act === 'mir-vis-u' ? 'u' : 'b']); return;
     case 'mir-fav': doMove(['f']); return;
@@ -8295,14 +8395,28 @@ $('view-play').addEventListener('click', e => {
     case 'mirm-vis': ui.mirModal = null; ui.mirTray = false; ui.visArm = true; ui.pkWin = null; sfx.soft(); renderPlay(); return;
     case 'vis-cancel': ui.visArm = false; sfx.soft(); renderPlay(); return;
     case 'vis-u': case 'vis-b': { const k = act === 'vis-b' ? 'b' : 'u'; ui.visArm = false; ui.pkWin = 'peek'; ui.pkFocus = k; ui.pkPending = true; doMove(['v', k]); return; }
-    case 'pk-open': ui.pkWin = 'peek'; ui.pkFocus = t.dataset.k; ui.pkPending = false; sfx.pick(); renderPlay(); return;
-    case 'pk-close': if (t.classList.contains('pkwin') && e.target.closest('.pksheet')) return; ui.pkWin = null; ui.pkPending = false; sfx.soft(); renderPlay(); return;
+    case 'pk-open': ui.deckView = null; ui.mason = null; ui.pkWin = 'peek'; ui.pkFocus = t.dataset.k; ui.pkPending = false; sfx.pick(); renderPlay(); return;
+    case 'pk-close': if (t.classList.contains('pkwin') && e.target.closest('.pksheet')) return; popShut(); sfx.soft(); renderPlay(); return;
     case 'mirm-use': { mirUse(); return; }
     case 'mir-peek': { const k = t.dataset.k; mirTurn(t.closest('.mcard'), k, () => { ui.mirOpen = ui.mirOpen === k ? null : k; }); return; }
     case 'sell-u': case 'sell-b': {
       const kind = act === 'sell-u' ? 'u' : 'b', name = t.dataset.name, src = t.closest('.fcard, .mcard'), S = seat();
-      const go = () => { const n0 = G.log.length; doMove(['s', kind, name]); if (G.net || G.log.length > n0) flySell(S, name, kind, src); };
-      if (ui.deckView != null && !reduceMotion()){ ui.deckView = null; renderPlay(); setTimeout(go, UNPOP_MS + 30); } else go();
+      const inPop = !!(src && src.closest('.pkwin')) && !reduceMotion();
+      if (!inPop){ const n0 = G.log.length; doMove(['s', kind, name]); if (G.net || G.log.length > n0) flySell(S, name, kind, src); return; }
+      // sold from the pop-up: the card lifts out of its spot, the pop-up closes under it, then it flies into Salvage
+      const r = src.getBoundingClientRect(), g = src.cloneNode(true);
+      g.querySelectorAll('button, .stamps, .dealback, .ctag, .hgtok').forEach(x => x.remove());
+      flyEl(g, r, r.width, r.height, LAYER.popupFlight, src.parentElement);
+      g.style.overflow = 'visible'; src.style.visibility = 'hidden';
+      const up = {left:r.left, top:r.top - 16, width:r.width * 1.05, height:r.height * 1.05, w0:r.width, h0:r.height};   // where it hangs once lifted (scaled from its top left)
+      g.animate([{transform:'none', filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'}, {transform:'translateY(-16px) scale(1.05)', filter:'drop-shadow(0 16px 18px rgba(0,0,0,.32))'}],
+        {duration:220, easing:'cubic-bezier(.2,.8,.3,1)', fill:'forwards'});
+      sfx.pick();
+      setTimeout(() => {
+        ui.deckView = null; renderPlay();                        // the pop-up sinks away; the lifted card stays up
+        setTimeout(() => { const n0 = G.log.length; doMove(['s', kind, name]);
+          if (G.net || G.log.length > n0) flySell(S, name, kind, null, {g, r:up}); else g.remove(); }, UNPOP_MS + 20);
+      }, 240);
       return;
     }
     case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); toGame(); return;
@@ -10344,7 +10458,7 @@ function endPress(){
   if (peekEl && !peekReady){ eatClick = true; setTimeout(() => { eatClick = false; peekReady = !!peekEl; }, 60); }
 }
 $('view-play').addEventListener('pointerdown', e => {
-  const card = e.target.closest('.mktp .mcard, .fcards .mcard, .dgrid .mcard'); if (!card || e.button > 0 || card.classList.contains('masonpick') || card.classList.contains('tcard')) return;
+  const card = e.target.closest('.mktp .mcard, .fcards .mcard, .dgrid .mcard'); if (!card || e.button > 0 || card.classList.contains('masonpick') || card.classList.contains('tcard') || card.classList.contains('writtgt') || card.classList.contains('writoff')) return;
   if (compact()) return;   // phones open a card with a tap instead
   if (e.pointerType !== 'mouse' && card.closest('.dgrid')) return;   // touch: holding a Mobilize card picks it up to drag; double-tap reads it
   endPress();
@@ -10353,11 +10467,10 @@ $('view-play').addEventListener('pointerdown', e => {
 window.addEventListener('pointermove', e => { if (press && !peekEl && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) endPress(); });
 window.addEventListener('pointerup', e => { if (peekEl && peekReady) return; endPress(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && peekEl) closePeek(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !peekEl && ui.pkWin){ ui.pkWin = null; ui.pkPending = false; renderPlay(); } }, true);   // capture: runs before a card pop-up's Escape, so one press closes one thing
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !peekEl && (ui.pkWin || ui.deckView != null)){ popShut(); renderPlay(); } }, true);   // capture: runs before a card pop-up's Escape, so one press closes one thing
 // a card with miracles behind it opens its panel from the keyboard too
 $('view-play').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mcard.hasmir, .mcard.writtgt, .stage .card.citycard')){ e.preventDefault(); e.target.click(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.remind){ ui.remind = null; renderPlay(); } });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.deckView != null && !peekEl){ ui.deckView = null; renderPlay(); } });
 $('view-play').addEventListener('click', e => { if (ui.remind && e.target.classList && e.target.classList.contains('remind')){ ui.remind = null; renderPlay(); } });
 window.addEventListener('pointercancel', () => { if (peekEl && peekReady) return; endPress(); });
 window.addEventListener('scroll', () => { if (press && !peekEl) endPress(); }, {passive:true});
