@@ -1024,6 +1024,14 @@ html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobi
 .pkfoot{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);margin:0 -16px;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px))}
 .pkfoot .note{flex:1;margin:0}
 .pkfoot button{min-height:46px;padding:0 20px;font-weight:700;flex:none}
+/* phones: the window sits just above the bottom bar, so the decks and Salvage stay in view and its cards visibly come
+   out of them (the bar stays usable: Your deck and Miracles close the window) */
+@media (max-width:640px){
+  html.pk-open .dock{z-index:68}
+  .pkwin{bottom:var(--dockh,0px)}
+  .pkwin .pksheet{max-height:calc(100dvh - var(--dockh,0px) - 40px)}
+  .pkwin .pkfoot{padding-bottom:12px}
+}
 @media (min-width:641px){
   .pkwin{align-items:center;padding:24px}
   .pkwin .pksheet{max-width:860px;max-height:min(86vh,900px);border-radius:14px}
@@ -5417,7 +5425,8 @@ function flySell(i, name, kind, srcCard){
   else { g = document.createElement('div'); g.className = `mcard ${kind}`; try{ g.innerHTML = cardFace(name, kind, 1); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span></div>`; } }
   const a = from.getBoundingClientRect(), target = pile.querySelector('.mpcards') || pile;
   flyEl(g, a, w0, h0);
-  cardFlight(g, a, target.getBoundingClientRect(), {w0, h0, dur:1150, onLand:() => { g.remove(); bumpEl(target); }});
+  const tb = target.getBoundingClientRect(), dk = $('dock'), inBar = !!(dk && dk.getClientRects().length && dk.contains(target));
+  cardFlight(g, a, tb, {w0, h0, dur:inBar ? 1300 : 1150, arc:inBar ? Math.max(120, h0 + 40) : 0, onLand:() => { g.remove(); bumpEl(target); }});
 }
 /* A bought card flies from the market to the forces it joins, shrinking to its new size on the way. */
 const snapOwn = i => ({u:{...G.players[i].hand}, b:{...G.players[i].city}});
@@ -5451,14 +5460,14 @@ function flyCard(src, to, intoBtn){
   if (src.el){ g = src.el.cloneNode(true); g.querySelectorAll('.dealback').forEach(x => x.remove()); g.classList.remove('cant', 'peeked', 'always'); }
   else { g = to.cloneNode(true); }
   const w0 = src.el ? a.width : b.width, h0 = src.el ? a.height : b.height;
-  flyEl(g, a, w0, h0);
+  flyEl(g, a, w0, h0, flyZ(to));
   if (!intoBtn) to.style.visibility = 'hidden';
   cardFlight(g, a, b, {w0, h0, keep:!intoBtn, onLand:() => { g.remove(); if (to.isConnected){ to.style.visibility = ''; bumpEl(to); } }});
 }
 // a card copy that flies over the page: fixed, at the start rect, card-sized and solid
-function flyEl(g, at, w0, h0){
+function flyEl(g, at, w0, h0, z){
   g.removeAttribute('style'); g.classList.add('flying'); g.setAttribute('aria-hidden', 'true');
-  Object.assign(g.style, {position:'fixed', left:at.left + 'px', top:at.top + 'px', width:w0 + 'px', margin:'0', zIndex:72, pointerEvents:'none', transformOrigin:'0 0', background:'var(--card, var(--surface))', overflow:'hidden'});
+  Object.assign(g.style, {position:'fixed', left:at.left + 'px', top:at.top + 'px', width:w0 + 'px', margin:'0', zIndex:z || FLY_Z, pointerEvents:'none', transformOrigin:'0 0', background:'var(--card, var(--surface))', overflow:'hidden'});
   g.style.setProperty('height', h0 + 'px', 'important');
   document.body.appendChild(g);
   return g;
@@ -5478,8 +5487,8 @@ function cardFlight(g, from, to, o = {}){
   const end = o.keep ? at(1, to.width / w0, 0, 0, to.height / h0) : at(1, sB, 0, 0);
   const an = g.animate([
     {transform:at(0, sA, 0, 0), opacity:grow ? 0 : 1, boxShadow:'0 0 0 rgba(0,0,0,0)'},
-    {transform:at(.08, grow ? sM : sA * 1.06, grow ? 30 : 14, -3), opacity:1, boxShadow:'0 18px 40px rgba(0,0,0,.32)', offset:.2},
-    {transform:at(.78, o.keep ? (sA + to.width / w0) / 2 : sM, 20, 3), opacity:1, boxShadow:'0 14px 32px rgba(0,0,0,.28)', offset:.75},
+    {transform:at(.08, grow ? sM : sA * 1.06, (grow ? 30 : 14) + (o.arc || 0) * .6, -3), opacity:1, boxShadow:'0 18px 40px rgba(0,0,0,.32)', offset:.2},
+    {transform:at(.78, o.keep ? (sA + to.width / w0) / 2 : sM, 20 + (o.arc || 0), 3), opacity:1, boxShadow:'0 14px 32px rgba(0,0,0,.28)', offset:.75},
     {transform:end, opacity:o.keep ? 1 : 0, boxShadow:'0 2px 6px rgba(0,0,0,.12)'}],
     {duration:o.dur || 1100, delay:o.delay || 0, easing:'cubic-bezier(.45,.05,.35,1)', fill:'both'});
   const done = () => { if (o.onLand) o.onLand(); else g.remove(); };
@@ -6602,7 +6611,7 @@ function peekWinHTML(){
     <div class="pkbody">${head}${body}</div>
     <div class="pkfoot"><p class="note">${foot}</p><button type="button" data-act="pk-close">Close</button></div></div></div>`;
 }
-function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); ui.pkWin = null; ui.pkPending = false; renderPlay(); }
+function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); document.documentElement.classList.remove('pk-open'); ui.pkWin = null; ui.pkPending = false; renderPlay(); }
 // Phones: the Units deck, the Salvage pile and the Buildings deck ride along the top of the bottom bar, square stacks
 // with their counts printed on them, so they're always in reach for Black Market and Salvage and the market has no headers.
 function dockPilesHTML(){
@@ -7632,6 +7641,7 @@ function renderPlay(){
   const vp0 = $('view-play'), oldPops = POPS.map(([b]) => { const e = vp0.querySelector(b); return e ? {e, r:e.getBoundingClientRect()} : null; });
   $('view-play').innerHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${ui.start || ui.roll ? '' : deckSheetHTML()}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
   document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.decksheet'));
+  document.documentElement.classList.toggle('pk-open', !!vp0.querySelector('.pkwin'));
   { const pw = vp0.querySelector('.pkwin'); if (pw) wireSwipe(pw.querySelector('.pksheet'), pw, pw.querySelector('.sheethead'), null,
       {open:() => pw.isConnected && !pw.dataset.gone, now:closePkWin, leave:() => { pw.dataset.gone = '1'; }, done:closePkWin}); }
   POPS.forEach(([b, x], k) => {
@@ -7758,10 +7768,17 @@ function dealView(el){
   const pw = el.closest('.pkbody');
   if (pw){ const r = pw.getBoundingClientRect(); return {top:r.top, bottom:r.bottom}; }
   const tb = $('gtop'), dk = $('dock');
-  const top = tb && tb.offsetParent && getComputedStyle(tb).position === 'fixed' ? tb.getBoundingClientRect().bottom : 0;
-  const bottom = dk && dk.offsetParent ? dk.getBoundingClientRect().top : window.innerHeight;
+  const shown = e => !!(e && e.getClientRects().length);   // (offsetParent is always null for fixed bars)
+  const top = shown(tb) && getComputedStyle(tb).position === 'fixed' ? tb.getBoundingClientRect().bottom : 0;
+  const bottom = shown(dk) ? dk.getBoundingClientRect().top : window.innerHeight;
   return {top, bottom};
 }
+/* Flying cards travel on the table: above the market but under the top bar (19), the bottom bar (20), banners and
+   pop-ups, so they slide out from under the bar a deck sits in and back under it into the Salvage pile or a deck button.
+   A card headed into a pop-up (the peek window, an open deck sheet) flies just above that pop-up instead; while the peek
+   window is open the bottom bar rises above it (html.pk-open), so its cards still come up from under the bar. */
+const FLY_Z = 18;
+function flyZ(dest){ return dest && dest.closest && dest.closest('.pkwin') ? 67 : dest && dest.closest && dest.closest('.decksheet, .dsheet') ? 66 : FLY_Z; }
 function dealFly(el, deck, delay, dur, o = {}){
   if (!el || !deck || !el.isConnected) return 0;
   const r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
@@ -7770,16 +7787,19 @@ function dealFly(el, deck, delay, dur, o = {}){
   if (cy < v.top || cy > v.bottom) return 0;
   const g = el.cloneNode(true);
   g.querySelectorAll('.dealback, .mirpop').forEach(x => x.remove());
-  g.classList.add('flying'); g.setAttribute('aria-hidden', 'true'); g.removeAttribute('id');
-  Object.assign(g.style, {position:'fixed', left:r.left + 'px', top:r.top + 'px', width:r.width + 'px', right:'auto', bottom:'auto', margin:'0', zIndex:72, pointerEvents:'none'});
+  g.classList.add('flying'); g.classList.remove('cant', 'peeked'); g.setAttribute('aria-hidden', 'true'); g.removeAttribute('id');
+  Object.assign(g.style, {position:'fixed', left:r.left + 'px', top:r.top + 'px', width:r.width + 'px', right:'auto', bottom:'auto', margin:'0', zIndex:flyZ(el), pointerEvents:'none'});
   g.style.setProperty('height', r.height + 'px', 'important');
   if (!o.plain) g.style.background = 'var(--card, var(--surface))';
   document.body.appendChild(g);
-  const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
+  // until its turn the copy is hidden (the deck and its count show through); then it appears exactly on the deck, the
+  // size of its top card, lifts off, tilts, travels to its spot and flips over
+  const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2);
+  const sx = dr.width / r.width, sy = dr.height / r.height, lift = Math.min(.5, Math.max(sx, sy) * 1.6);
   el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});   // the real card waits, invisible, until the copy lands
   const kf = o.plain
-    ? [{transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}]
-    : [{transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0}, {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62}, {transform:'scaleX(0.04)', offset:.8}, {transform:'none', offset:1}];
+    ? [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.18}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}]
+    : [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.16}, {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62}, {transform:'scaleX(0.04)', offset:.8}, {transform:'none', offset:1}];
   const an = g.animate(kf, {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'both'});
   if (!o.plain){
     const back = document.createElement('span'); back.className = 'dealback ' + (el.classList.contains('b') ? 'b' : 'u'); g.appendChild(back);
@@ -7787,6 +7807,12 @@ function dealFly(el, deck, delay, dur, o = {}){
   }
   an.onfinish = an.oncancel = () => g.remove();
   return delay + dur;
+}
+// a deck's number counts down as its cards are dealt: it starts that many higher and drops as each one lifts off
+function deckCountdown(deck, starts){
+  const b = deck && deck.querySelector('.pcount'); if (!b || !starts.length) return;
+  b.textContent = (parseInt(b.textContent, 10) || 0) + starts.length;
+  for (const t of starts) setTimeout(() => { if (b.isConnected) b.textContent = Math.max(0, (parseInt(b.textContent, 10) || 0) - 1); }, t);
 }
 /* Deal the market at the start of each shop: new cards fly face down out of the deck and flip over.
    Like real cards left on the table, unbought cards from last shop never move: they are already in the same spot
@@ -7796,7 +7822,7 @@ function dealMarket(){
   const vp = $('view-play'), rows = ['u','b'].map(k => vp.querySelector(`.mktp .msec[data-k="${k}"] .market`));
   const decks = {u:vp.querySelector('.sdeck[data-k="u"] .dealdeck'), b:vp.querySelector('.sdeck[data-k="b"] .dealdeck')};
   if (!(decks.u || decks.b) || !rows.some(Boolean)) return;
-  const bobs = {u:0, b:0};
+  const bobs = {u:0, b:0}, starts = {u:[], b:[]};
   // every card is dealt from its own row's deck: units from the unit deck, buildings from the building deck
   const from = el => { const k = (el.closest('.msec') || {}).dataset?.k === 'b' ? 'b' : 'u', d = decks[k] || decks.u || decks.b, r = d.getBoundingClientRect();
     return {k, dr:r, dcx:r.left + r.width / 2, dcy:r.top + r.height / 2}; };
@@ -7834,14 +7860,14 @@ function dealMarket(){
     const deck = decks[dk] || decks.u || decks.b;
     for (const b of backsEl){
       const bd = dealBase + n++ * 160;
-      if (dealFly(b, deck, bd, 800, {plain:true})){ bobs[dk]++; sfx.flick(bd / 1000 + 0.05); }
+      if (dealFly(b, deck, bd, 800, {plain:true})){ bobs[dk]++; starts[dk].push(bd + 60); sfx.flick(bd / 1000 + 0.05); }
       end = Math.max(end, bd + 520);
     }
     const delay = dealBase + n++ * 160 + (backsEl.length ? 400 : 0);
-    if (dealFly(el, deck, delay, 900)){ bobs[dk]++; sfx.flick(delay / 1000 + 0.05); end = Math.max(end, delay + 900); }
+    if (dealFly(el, deck, delay, 900)){ bobs[dk]++; starts[dk].push(delay + 60); sfx.flick(delay / 1000 + 0.05); end = Math.max(end, delay + 900); }
   }
   ui.dealUntil = performance.now() + end;
-  for (const k of ['u','b']) if (decks[k] && bobs[k]) decks[k].animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:170, iterations:bobs[k], delay:120});
+  for (const k of ['u','b']) deckCountdown(decks[k], starts[k]);
 }
 /* Black Market and Vision: the peeked cards come off the top of the deck they were taken from */
 const peekSeen = new Set();
@@ -7853,9 +7879,9 @@ function dealPeeks(skip){
     const cards = [...row.querySelectorAll('.mcard')];
     const go = () => {
       if (!row.isConnected) return;
-      let n = 0;
-      for (const el of cards){ const delay = 60 + n * 180; if (dealFly(el, deck, delay, 900)){ n++; try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} } }
-      if (n) deck.animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:150, iterations:n, delay:40});
+      let n = 0; const st = [];
+      for (const el of cards){ const delay = 60 + n * 180; if (dealFly(el, deck, delay, 900)){ n++; st.push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} } }
+      deckCountdown(deck, st);
     };
     // in the peek window: wait until it has finished rising, so each card lands where it really sits
     const sh = row.closest('.pksheet'), rising = sh ? sh.getAnimations() : [];
@@ -7928,7 +7954,7 @@ $('view-play').addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const act = t.dataset.act, i = +t.dataset.i, d = ui.draft;
   switch (act){
-    case 'deck-open': { const k = +t.dataset.p; ui.deckView = ui.deckView === k && t.classList.contains('deckbtn') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
+    case 'deck-open': { const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.deckView = ui.deckView === k && t.classList.contains('deckbtn') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
     case 'deck-close': if (t.classList.contains('decksheet') && e.target !== t) return; ui.deckView = null; sfx.soft(); renderPlay(); return;
     case 'roll': doRoll(); return;
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
@@ -7975,7 +8001,7 @@ $('view-play').addEventListener('click', e => {
     case 'bm-u': case 'bm-b': { const k = act === 'bm-b' ? 'b' : 'u'; ui.pkWin = 'peek'; ui.pkFocus = k; ui.pkPending = true; doMove(['m', k]); return; }
     case 'mir-vis-u': case 'mir-vis-b': doMove(['v', act === 'mir-vis-u' ? 'u' : 'b']); return;
     case 'mir-fav': doMove(['f']); return;
-    case 'mir-tray': ui.mirTray = !ui.mirTray; ui.mirModal = null; sfx.soft(); renderPlay(); return;
+    case 'mir-tray': ui.mirTray = !ui.mirTray; ui.mirModal = null; if (ui.mirTray){ ui.pkWin = null; ui.pkPending = false; } sfx.soft(); renderPlay(); return;
     case 'mirm-open': ui.mirModal = {j:+t.dataset.j, w:t.dataset.w}; ui.mirErr = ''; sfx.soft(); renderPlay(); return;
     case 'mirm-close': if (t.classList.contains('mirmodal') && e.target.closest('.mirmbox')) return; ui.mirModal = null; ui.mirErr = ''; renderPlay(); return;
     case 'mirm-vis': ui.mirModal = null; ui.mirTray = false; ui.visArm = true; ui.pkWin = null; sfx.soft(); renderPlay(); return;
