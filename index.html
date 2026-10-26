@@ -863,7 +863,6 @@ header{position:relative}
 .dgrid .mcard.drow .dbtn button{font-size:.72rem;padding:1px 0;min-height:0;min-width:0}
 .dgrid .mcard.drow .behind .tokchip{font-size:.62rem;padding:1px 6px 1px 2px}
 .dgrid .mcard.drow .behind .tokchip .ico{width:13px;height:13px;font-size:.55rem}
-.mcard.flying{box-shadow:none}
 .mcard.peek.drow .dbtn button,.mcard.peek>button{font-size:.9rem}
 @media (max-width:640px){ .fcards,.dgrid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px 8px!important} }
 .battlectl .autobtn[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or);color:var(--ink);font-weight:700}
@@ -1352,7 +1351,21 @@ body.dsopen{overflow:hidden}
 .turnflash.theirs .tfbox>em{margin-top:0}
 .tfnews{display:flex;flex-direction:column;gap:6px;margin-top:10px;width:100%;max-width:440px;text-align:left}
 .tfnews .eyebrow{text-align:center}
-.tfcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;max-height:42vh;overflow:auto}
+.tfcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:46vh;overflow:auto;padding:2px}
+/* the turn summary's cards are shop cards (cardFace) at the market's size, stamped Bought / Sold */
+.tfcards .tfwrap{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.tfcards .mcard.tfm{width:100%;height:auto!important;aspect-ratio:1/1;min-height:0;text-align:left;background:var(--card, var(--surface))}
+.tfcards .mcard.tfm.sell{border-style:dashed;opacity:.9}
+/* the tag sits under the card, outside it, like the stamps under market cards */
+.tftag{max-width:100%;font-size:.7rem;font-weight:700;line-height:1.4;padding:1px 9px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bg);background:var(--gules)}
+.tftag.s0{background:var(--azure)}
+.tftag.sell{background:var(--muted)}
+/* an opponent's card holding on screen before it flies (oppHold): its tag says who did what */
+
+.optag{position:fixed;transform:translateX(-50%);pointer-events:none;padding:2px 10px;border-radius:999px;font-size:.66rem;line-height:1.35;font-weight:700;text-align:center;color:var(--bg);background:var(--gules);white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.22)}
+.optag.s0{background:var(--azure)}
+.optag.sell{background:var(--muted)}
+
 .tfcard{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);box-shadow:inset 0 3px 0 var(--muted);color:var(--muted);font-size:.76rem;line-height:1.3}
 .tfcard.b{box-shadow:inset 0 3px 0 var(--or)}
 .tfcard.s1{border-color:color-mix(in srgb,var(--gules) 45%,var(--line))} .tfcard.s0{border-color:color-mix(in srgb,var(--azure) 45%,var(--line))}
@@ -1584,6 +1597,9 @@ html,body{overflow-x:clip}
 /* Recruit and Field: same card colors as the rest; the copies peeking out underneath are cards too */
 .astack>.mcard.u:not(.peek){box-shadow:inset 0 3px 0 var(--muted),3px 3px 0 -1px var(--card),3px 3px 0 0 var(--card-line),6px 6px 0 -1px var(--card),6px 6px 0 0 var(--card-line),var(--card-sh)}
 .astack>.mcard.b:not(.peek){box-shadow:inset 0 3px 0 var(--or),3px 3px 0 -1px var(--card),3px 3px 0 0 var(--card-line),6px 6px 0 -1px var(--card),6px 6px 0 0 var(--card-line),var(--card-sh)}
+/* one card taken off an always-available stack is a single card: in flight or held up, no stack edges behind it */
+.astack>.mcard.u.flying:not(.peek){box-shadow:inset 0 3px 0 var(--muted),var(--card-sh)}
+.astack>.mcard.b.flying:not(.peek){box-shadow:inset 0 3px 0 var(--or),var(--card-sh)}
 /* Your deck / Enemy's deck buttons on the scoreboard: card-colored (white in light mode) so they stand out from the table */
 .board .deckbtn:not(.on){background:var(--card);border-color:var(--card-line)}
 /* the large pop-up card (press-and-hold, tap sheet on phones, miracles behind a card) matches the cards in the rows */
@@ -1779,6 +1795,44 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   body:has(#view-play:not([hidden]) #gtop) .turnflash.theirs{padding-top:calc(var(--bh,0px) + 8px + env(safe-area-inset-top,0px))}
 }
 @media (max-width:370px){ .dock .dbtns .dk .dl,.dock .dbtns .mirb .dl{display:none} .dock .dbtns .dk,.dock .dbtns .mirb{padding:0 11px} }
+/* phone shop: the score alone, centered, up top; each side's gold and limits on its deck tile at the bottom */
+@media (max-width:640px){
+  .gtop.gs{padding:5px 16px 6px}
+  .gtop.gs .pbsc{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px}
+  .gtop.gs .rl,.gtop.gs .rr{font-size:.86rem;color:var(--muted);white-space:nowrap}
+  .gtop.gs .rl{text-align:right}
+  .gtop.gs .sc{display:flex;align-items:baseline;gap:6px;font-family:var(--f-mono);font-size:1.5rem;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+  .gtop.gs .sc b{font-weight:600}
+  .gtop.gs .sc .a{color:var(--azure)} .gtop.gs .sc .b{color:var(--gules)} .gtop.gs .sc .dash{color:var(--muted)}
+  .gtop.gs .pbhint{margin:6px -16px -6px}
+  .dock .dtiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .dock .dtiles .tile{min-height:62px;margin:0;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:4px;padding:6px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--chalk);text-align:left;font-weight:400;min-width:0}
+  .dock .dtiles .tile.s0{border-color:var(--azure);color:var(--azure)}
+  .dock .dtiles .tile.s1{border-color:var(--gules);color:var(--gules)}
+  .dock .dtiles .tile.on{box-shadow:0 0 0 2px currentColor}
+  .dock .dtiles .tt{display:flex;align-items:center;gap:6px;min-width:0}
+  .dock .dtiles .tn{font-family:var(--f-display);font-size:1.08rem;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .dock .dtiles .tt .pbx{flex:none}
+  .dock .dtiles .tm{margin-left:auto;flex:none;font-family:var(--f-mono);font-size:1rem;font-weight:600;color:var(--or);font-variant-numeric:tabular-nums}
+  .dock .dtiles .tm i{font-style:normal;font-weight:400;font-size:.76rem;color:var(--muted);margin-left:2px}
+  .dock .dtiles .ts{display:flex;gap:14px}
+  .dock .dtiles .ts>span{display:inline-flex;align-items:baseline;gap:4px;font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+  .dock .dtiles .ts b{font-family:var(--f-mono);font-size:1.1rem;font-weight:600;color:var(--ink);letter-spacing:0;font-variant-numeric:tabular-nums}
+  .dock .dtiles .ts b small{font-size:.76rem;font-weight:400;color:var(--muted)}
+  .dock .dtiles .ts b.full{color:var(--or);background:var(--or-soft);border-radius:3px;padding:0 3px}
+  .dock .dtiles .ts b.full small{color:var(--or)}
+  .dock .dbtns.drow{align-items:center;gap:8px;background:none;border:none;padding:0;box-shadow:none}
+  .dock .dbtns.drow .slots{flex:1;min-width:0;gap:4px 9px}
+  .dock .dbtns.drow .slotg{font-size:.66rem;gap:3px;letter-spacing:.04em}
+  .dock .dbtns.drow .slotg .pips{gap:3px}
+  .dock .dbtns.drow .pip{width:16px;height:16px;border-width:2px;border-radius:3px}
+  .dock .dbtns.drow .pip.x{border-radius:50%}
+  .dock .dbtns.drow .mirb{width:46px;padding:0;flex:none;position:relative}
+  .dock .dbtns.drow .mirb .dl{display:none}
+  .dock .dbtns.drow .mirb .ms{font-size:1.25rem}
+  .dock .dbtns.drow .mirb .mc{position:absolute;top:-6px;right:-6px}
+  .dock .dbtns.drow .act{flex:0 0 auto;width:96px}
+}
 
 /* pop-ups: one shared rise-from-the-bottom animation (popIn/popOut in the script) replaces each one's own entrance */
 .peekwrap,.decksheet,.dsheet,.mirmodal,.mirmbox,.remind,.remindbox,.turnflash,.turnflash .tfbox,.toast,.mirtray,.mcard.peek{animation:none!important}
@@ -5396,6 +5450,7 @@ const AI_DEPTH = () => DEPTH.master;
 function scheduleAI(){
   if (aiTimer || aiBusy || !G || PP() || G.phase !== 'shop' || cur(G) !== 1) return;
   aiTimer = setTimeout(async () => { aiTimer = null; if (!G || G.phase !== 'shop' || cur(G) !== 1) return;
+    if (oppBusy()){ oppOnIdle(scheduleAI); return; }   // let its last moves finish playing out first
     const g0 = G, before = {u:G.disp.u.map(c => c.name), b:G.disp.b.map(c => c.name), at:{u:G.disp.u.map(c => c.at), b:G.disp.b.map(c => c.at)}}, m0 = G.players[1].money, n0 = G.log.length;
     aiBusy = true; let r = null;
     try{ r = await aiThink('shop', {depth:AI_DEPTH()}); } finally { aiBusy = false; }
@@ -5405,9 +5460,130 @@ function scheduleAI(){
       for (const a of r.acts){ if (a.why) G._why = a.why; const f = window[a.fn]; if (typeof f === 'function') f(G, ...a.args); }
     }
     if (G.log.length === n0 && G.phase === 'shop' && cur(G) === 1) aiShopTurn(G, 1, AI_DEPTH());   // no worker, or nothing usable came back
-    noteAIMoves(before, m0, n0); afterAction(); flyBuys(1, own0, mk);
-    G.log.slice(n0).filter(l => l.ev && l.ev.a === 'sell' && l.side === 1).forEach((l, j) => setTimeout(() => flySell(1, l.ev.n, l.ev.k), 200 + j * 260));
+    const queued = queueOppMoves(1, n0, mk);
+    noteAIMoves(before, m0, n0, queued); afterAction();
+    if (!queued){ flyBuys(1, own0, mk); G.log.slice(n0).filter(l => l.ev && l.ev.a === 'sell' && l.side === 1).forEach((l, j) => setTimeout(() => flySell(1, l.ev.n, l.ev.k), 200 + j * 260)); }
   }, Math.max(650, (ui.dealUntil || 0) - performance.now() + 350));
+}
+/* OPPONENT ACTIONS, ONE AT A TIME. What the AI (or an online friend) buys and sells plays back in order, each as its
+   own beat you can read: the card holds in front of you for a second with a tag saying what happened ("AI bought · $2",
+   "AI sold · +$1"), then flies where it went. Actions done in quick succession wait their turn. A tap ends the current
+   card's hold early. Turn banners wait until the queue is done (turnWatch), so you see what happened before "Your turn".
+   Pass and play doesn't use it: there the other player just did it themselves on the same device. */
+const OPQ = {steps:[], running:false, idle:[], skip:null};
+const OPP_HOLD = 1000, OPP_GAP = 220, OPP_SETTLE = 450;
+function oppBusy(){ return OPQ.running || OPQ.steps.length > 0; }
+function oppOnIdle(f){ if (!oppBusy()) f(); else OPQ.idle.push(f); }
+async function oppRun(){
+  if (OPQ.running) return;
+  OPQ.running = true;
+  while (OPQ.steps.length){
+    const step = OPQ.steps.shift();
+    const fl = [...document.querySelectorAll('.turnflash.theirs:not(.out)')].filter(n => !n._closing);
+    fl.forEach(n => n._close ? n._close() : n.remove());   // their turn is over: its banner makes room for their cards
+    if (fl.length) await new Promise(r => setTimeout(r, 320));   // and is gone before the first card moves
+    try{ await step(); }catch(e){}
+    if (OPQ.steps.length) await new Promise(r => setTimeout(r, OPP_GAP));
+  }
+  await new Promise(r => setTimeout(r, OPP_SETTLE));   // a breath after the last card lands
+  OPQ.running = false;
+  if (oppBusy()){ oppRun(); return; }
+  OPQ.idle.splice(0).forEach(f => { try{ f(); }catch(e){} });
+}
+// queue every buy and sell side i made since log index `from` (mk: the market as it looked before, for where buys sat)
+function queueOppMoves(i, from, mk){
+  if (!G || reduceMotion() || (PP() && !G.net)) return false;
+  const evs = G.log.slice(from).filter(l => l.ev && l.side === i && (l.ev.a === 'buy' || l.ev.a === 'sell'));
+  if (!evs.length) return false;
+  for (const l of evs){ const ev = l.ev; OPQ.steps.push(() => ev.a === 'buy' ? oppBuyStep(i, ev, mk) : oppSellStep(i, ev)); }
+  setTimeout(oppRun, 0);   // after this action's redraw, so cards and buttons are measured where they now sit
+  return true;
+}
+const oppWho = i => PP() || G.net ? nm(i) : 'AI';
+const oppDeckBtn = i => [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.getClientRects().length);
+// the space between the bars where a card can be read: the middle of it, card-sized and a little larger
+function oppStage(w0, h0, sc){
+  const v = dealView($('view-play').querySelector('.mktp') || document.body), top = Math.max(v.top, 0) + 12, bot = Math.min(v.bottom, window.innerHeight) - 12;
+  const w = w0 * sc, h = h0 * sc;
+  return {left:(window.innerWidth - w) / 2, top:Math.max(top, (top + bot - h) / 2), width:w, height:h};
+}
+// a card copy held at rect `at` (scale at.width / w0), tagged, pulsing; resolves after the hold or a tap
+function oppHold(g, at, w0, h0, tag, side){
+  // the tag sits just under the card, outside it (its own element, so the card still clips its own text)
+  const t = document.createElement('span'); t.className = `optag s${VS(side)}${/ sold /.test(tag) ? ' sell' : ''}`; t.textContent = tag; t.setAttribute('aria-hidden', 'true');
+  Object.assign(t.style, {left:(at.left + at.width / 2) + 'px', top:(at.top + at.height + 6) + 'px', zIndex:g.style.zIndex || LAYER.flight});
+  document.body.appendChild(t);
+  if (!reduceMotion()) t.animate([{opacity:0, translate:'0 -4px'}, {opacity:1, translate:'0 0'}], {duration:200, easing:'ease-out'});
+  g.classList.add('oplinger');
+  const sc = at.width / w0;
+  const pulse = g.animate([{transform:`scale(${sc})`, filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'}, {transform:`scale(${sc * 1.04})`, filter:'drop-shadow(0 14px 17px rgba(0,0,0,.3))', offset:.3}, {transform:`scale(${sc})`, filter:'drop-shadow(0 10px 13px rgba(0,0,0,.25))'}], {duration:600, fill:'forwards', easing:'ease-out'});
+  return new Promise(res => {
+    let done = false; const end = () => { if (done) return; done = true; OPQ.skip = null; clearTimeout(tm); document.removeEventListener('pointerdown', end, true); pulse.cancel(); g.style.transform = `scale(${sc})`; t.remove(); res(); };
+    const tm = setTimeout(end, OPP_HOLD);
+    OPQ.skip = end; document.addEventListener('pointerdown', end, true);   // a tap anywhere ends the hold (and does what it would anyway)
+  });
+}
+// move g (base w0×h0, origin top left) so it sits at rect r
+function oppPlace(g, r, w0){ g.getAnimations().forEach(a => a.cancel()); g.style.setProperty('left', r.left + 'px', 'important'); g.style.setProperty('top', r.top + 'px', 'important'); g.style.transform = `scale(${r.width / w0})`; }
+// a buy: the card lifts where it sat in the market (or in the middle when that spot is off screen), holds, then flies into the buyer's deck button
+function oppBuyStep(i, ev, mk){
+  const src = (mk && (mk.get(ev.n) || mk.get("Mason's Guild") || mk.get('__deck_' + ev.k))) || null;
+  const ref = $('view-play').querySelector('.mktp .mcard:not(.ghost)'), rr = ref ? ref.getBoundingClientRect() : null;
+  const w0 = src && src.el ? src.r.width : rr && rr.width ? rr.width : 110, h0 = w0;   // held cards are square, like every card in the game
+  let g;
+  if (src && src.el){ g = src.el.cloneNode(true); }
+  else { g = document.createElement('div'); g.className = `mcard ${ev.k}`; try{ g.innerHTML = cardFace(ev.n, ev.k, 0, true); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(ev.n)}</span></div>`; } }
+  g.querySelectorAll('button, .stamps, .dealback, .ctag, .mirpop, .hgtok').forEach(x => x.remove());
+  g.classList.remove('cant', 'peeked', 'always', 'canbuy', 'leaving', 'ghost');
+  // it lifts out of its market slot (when that's on screen) and glides to the middle of the screen, growing, then holds there
+  const at = oppStage(w0, h0, 1.25);
+  const v = dealView(ref || document.body), r = src ? src.r : null;
+  const from = r && r.width && r.top + r.height / 2 >= v.top && r.top + r.height / 2 <= v.bottom ? {left:r.left + (r.width - Math.min(r.width, r.height)) / 2, top:r.top, width:Math.min(r.width, r.height), height:Math.min(r.width, r.height)} : null;
+  flyEl(g, from || at, w0, h0, 0, src && src.el ? src.el.parentElement : null); g.style.transformOrigin = '0 0';
+  const tag = `${oppWho(i)} bought · $${ev.price}${ev.on ? ` · leveled ${ev.on}` : ''}`;
+  try{ sfx.pick(); }catch(e){}
+  let moved;
+  if (from){
+    const s0 = from.width / w0, s1 = at.width / w0;
+    g.style.transform = `scale(${s0})`;
+    const mv = g.animate([
+      {transform:`translate(0,0) scale(${s0})`, filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'},
+      {transform:`translate(${(at.left - from.left) * .5}px,${(at.top - from.top) * .5 - 18}px) scale(${(s0 + s1) / 2 * 1.04})`, filter:'drop-shadow(0 18px 20px rgba(0,0,0,.3))', offset:.5},
+      {transform:`translate(${at.left - from.left}px,${at.top - from.top}px) scale(${s1})`, filter:'drop-shadow(0 10px 13px rgba(0,0,0,.25))'}],
+      {duration:520, easing:'cubic-bezier(.3,.7,.3,1)', fill:'forwards'});
+    moved = mv.finished.catch(() => {});
+  } else { g.animate([{opacity:0, transform:`scale(${at.width / w0 * .9})`}, {opacity:1, transform:`scale(${at.width / w0})`}], {duration:260, easing:'ease-out'}); moved = Promise.resolve(); }
+  return moved.then(() => { oppPlace(g, at, w0); return oppHold(g, at, w0, h0, tag, i); }).then(() => new Promise(res => {
+    const to = oppDeckBtn(i);
+    if (!to){ g.animate([{opacity:1}, {opacity:0}], {duration:250}).onfinish = () => { g.remove(); res(); }; return; }
+    g.style.zIndex = flyZ(to); g.style.transform = '';
+    cardFlight(g, at, to.getBoundingClientRect(), {w0, h0, dur:950, onLand:() => { g.remove(); bumpEl(to); try{ sfx.coin(0.35); }catch(e){} res(); }});
+  }));
+}
+// a sale: the card rises out of the seller's deck button to the middle, holds, then drops into the Salvage pile
+function oppSellStep(i, ev){
+  const vp = $('view-play'), from = oppDeckBtn(i);
+  const ref = vp.querySelector('.mktp .mcard:not(.ghost)'), rr = ref ? ref.getBoundingClientRect() : null;
+  const w0 = rr && rr.width ? rr.width : 110, h0 = w0;
+  const g = document.createElement('div'); g.className = `mcard ${ev.k}`;
+  try{ g.innerHTML = cardFace(ev.n, ev.k, 1, true); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(ev.n)}</span></div>`; }
+  const at = oppStage(w0, h0, 1.25);
+  return new Promise(res => {
+    const a = from ? from.getBoundingClientRect() : null;
+    flyEl(g, a || at, w0, h0);
+    const rise = a ? cardFlight(g, a, at, {w0, h0, keep:true, dur:650, onLand:() => {}}) : null;
+    const go = () => {
+      oppPlace(g, at, w0);
+      oppHold(g, at, w0, h0, `${oppWho(i)} sold · +$1`, i).then(() => {
+        const pile = ev.n === 'Field' ? [...vp.querySelectorAll('.mktp .mcard')].find(el => (el.querySelector('.nm') || {}).textContent === 'Field') : $('muster-pile');
+        const target = pile && (pile.querySelector('.mpcards') || pile);
+        if (!target || !target.getClientRects().length){ g.animate([{opacity:1}, {opacity:0}], {duration:250}).onfinish = () => { g.remove(); res(); }; return; }
+        g.style.zIndex = flyZ(target); g.style.transform = '';
+        cardFlight(g, at, target.getBoundingClientRect(), {w0, h0, dur:900, onLand:() => { g.remove(); bumpEl(target); res(); }});
+      });
+    };
+    if (rise) rise.finished.then(go, go); else go();
+  });
 }
 /* A sold card flies out of its owner's deck button into the Salvage pile (a sold Field back to the Field in the shop),
    growing to card size on the way and shrinking into the pile, which bumps as it lands. */
@@ -5459,16 +5635,43 @@ function flyCard(src, to, intoBtn){
   if (src.el){ g = src.el.cloneNode(true); g.querySelectorAll('.dealback').forEach(x => x.remove()); g.classList.remove('cant', 'peeked', 'always'); }
   else { g = to.cloneNode(true); }
   const w0 = src.el ? a.width : b.width, h0 = src.el ? a.height : b.height;
-  flyEl(g, a, w0, h0, flyZ(to));
+  flyEl(g, a, w0, h0, flyZ(to), src.el ? src.el.parentElement : null);
   if (!intoBtn) to.style.visibility = 'hidden';
   cardFlight(g, a, b, {w0, h0, keep:!intoBtn, onLand:() => { g.remove(); if (to.isConnected){ to.style.visibility = ''; bumpEl(to); } }});
 }
-// a card copy that flies over the page: fixed, at the start rect, card-sized and solid
-function flyEl(g, at, w0, h0, z){
+/* Flying copies of cards look exactly like the card they copy: each one is put inside a stand-in of the card's own
+   ancestors (same classes and attributes, no ids, no boxes: display:contents), so every rule that styles a card in its
+   spot ("the shop's compact face", buy button under it, its stamps) styles the copy the same way. With no spot to copy
+   (a card drawn for a sale), the copy takes a shop card's place, so every card in flight looks like a shop card. */
+const FLYHOSTS = new Map();
+// a flying copy's box, set firmly: the copied context's own placement rules (some !important) must not move or stretch it
+function pinFly(g, x, y, w, h){
+  for (const [k, v] of [['position','fixed'], ['left', x + 'px'], ['top', y + 'px'], ['right','auto'], ['bottom','auto'], ['width', w + 'px'], ['height', h + 'px'], ['margin','0'], ['min-height','0'], ['max-width','none']]) g.style.setProperty(k, v, 'important');
+}
+function flyHost(ctx){
+  if (!ctx || !ctx.isConnected) ctx = (($('view-play') || document).querySelector('.mktp .market .mcard:not(.ghost)') || {}).parentElement;
+  const chain = [];
+  for (let e = ctx; e && e !== document.body && e !== document.documentElement; e = e.parentElement) chain.unshift(e);
+  const key = chain.map(e => e.tagName + '.' + e.className + [...e.attributes].filter(a => a.name !== 'id' && a.name !== 'class').map(a => a.name + '=' + a.value).join(',')).join('>');
+  let h = FLYHOSTS.get(key);
+  if (h && h.root.isConnected) return h.leaf;
+  let root = null, leaf = document.body;
+  for (const e of chain){
+    const d = document.createElement('div');
+    for (const a of e.attributes) if (a.name !== 'id' && !a.name.startsWith('aria-') && a.name !== 'role' && a.name !== 'tabindex') d.setAttribute(a.name, a.value);
+    d.style.setProperty('display', 'contents', 'important'); d.setAttribute('aria-hidden', 'true'); d.classList.add('flyhost');
+    leaf.appendChild(d); leaf = d; if (!root) root = d;
+  }
+  if (FLYHOSTS.size > 24) FLYHOSTS.clear();
+  FLYHOSTS.set(key, {root: root || document.body, leaf});
+  return leaf;
+}
+// a card copy that flies over the page: fixed, at the start rect, card-sized and solid (ctx: where the card sat)
+function flyEl(g, at, w0, h0, z, ctx){
   g.removeAttribute('style'); g.classList.add('flying'); g.setAttribute('aria-hidden', 'true');
-  Object.assign(g.style, {position:'fixed', left:at.left + 'px', top:at.top + 'px', width:w0 + 'px', margin:'0', zIndex:z || LAYER.flight, pointerEvents:'none', transformOrigin:'0 0', background:'var(--card, var(--surface))', overflow:'hidden'});
-  g.style.setProperty('height', h0 + 'px', 'important');
-  document.body.appendChild(g);
+  Object.assign(g.style, {zIndex:z || LAYER.flight, pointerEvents:'none', transformOrigin:'0 0', overflow:'hidden'});
+  pinFly(g, at.left, at.top, w0, h0);
+  flyHost(ctx).appendChild(g);
   return g;
 }
 const bumpEl = el => { if (el && el.isConnected) el.animate([{transform:'scale(1)'}, {transform:'scale(1.12)'}, {transform:'none'}], {duration:320, easing:'ease-out'}); };
@@ -5485,10 +5688,10 @@ function cardFlight(g, from, to, o = {}){
   const at = (t, s, lift, rot, sy) => `translate(${ca[0] + (cb[0] - ca[0]) * t - w0 * s / 2 - from.left}px,${ca[1] + (cb[1] - ca[1]) * t - h0 * (sy || s) / 2 - lift - from.top}px) scale(${s},${sy || s}) rotate(${rot}deg)`;
   const end = o.keep ? at(1, to.width / w0, 0, 0, to.height / h0) : at(1, sB, 0, 0);
   const an = g.animate([
-    {transform:at(0, sA, 0, 0), opacity:grow ? 0 : 1, boxShadow:'0 0 0 rgba(0,0,0,0)'},
-    {transform:at(.08, grow ? sM : sA * 1.06, (grow ? 30 : 14) + (o.arc || 0) * .6, -3), opacity:1, boxShadow:'0 18px 40px rgba(0,0,0,.32)', offset:.2},
-    {transform:at(.78, o.keep ? (sA + to.width / w0) / 2 : sM, 20 + (o.arc || 0), 3), opacity:1, boxShadow:'0 14px 32px rgba(0,0,0,.28)', offset:.75},
-    {transform:end, opacity:o.keep ? 1 : 0, boxShadow:'0 2px 6px rgba(0,0,0,.12)'}],
+    {transform:at(0, sA, 0, 0), opacity:grow ? 0 : 1, filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'},
+    {transform:at(.08, grow ? sM : sA * 1.06, (grow ? 30 : 14) + (o.arc || 0) * .6, -3), opacity:1, filter:'drop-shadow(0 18px 20px rgba(0,0,0,.32))', offset:.2},
+    {transform:at(.78, o.keep ? (sA + to.width / w0) / 2 : sM, 20 + (o.arc || 0), 3), opacity:1, filter:'drop-shadow(0 14px 16px rgba(0,0,0,.28))', offset:.75},
+    {transform:end, opacity:o.keep ? 1 : 0, filter:'drop-shadow(0 2px 3px rgba(0,0,0,.12))'}],
     {duration:o.dur || 1100, delay:o.delay || 0, easing:'cubic-bezier(.45,.05,.35,1)', fill:'both'});
   const done = () => { if (o.onLand) o.onLand(); else g.remove(); };
   an.onfinish = done; an.oncancel = done;
@@ -5717,7 +5920,7 @@ function doMove(a){
 // apply every move both players have made that this page hasn't applied yet
 function netPump(){
   if (!NET || !NET.started || !G) return;
-  const flights = [], toasts = [];
+  const flights = [], toasts = [], oppMoves = [];
   let changed = false;
   for (let guard = 0; guard < 2000; guard++){
     if (G.over || NET.err) break;
@@ -5729,12 +5932,13 @@ function netPump(){
     if (G.phase === 'shop'){
       const i = cur(G), a = actsOf(i)[NET.applied[i]]; if (!a) break;
       if (a[0] === 'd'){ NET.err = 'The two games fell out of step. Leave the room and start a new one.'; break; }
-      const live = NET.live && !ui.battle, own0 = live ? snapOwn(i) : null, mk = live && !flights.length ? marketSnap() : null;
+      const live = NET.live && !ui.battle, own0 = live ? snapOwn(i) : null, mk = live && (!flights.length || i !== NET.seat) ? marketSnap() : null;
       const n0 = G.log.length;
       const ok = shopMove(i, netDecode(a), NET.live ? (i === NET.seat ? 1 : 0.45) : null, i === NET.seat); NET.applied[i]++; changed = true;
       if (NET.live){
-        if (ok && a[0] === 'b' && mk) flights.push({i, own0, mk});
-        if (i !== NET.seat) toasts.push(...G.log.slice(n0).filter(l => l.side === i).map(l => l.t));
+        if (i !== NET.seat && ok && mk && G.log.slice(n0).some(l => l.ev && l.side === i && (l.ev.a === 'buy' || l.ev.a === 'sell'))) oppMoves.push({i, n0, mk});
+        else if (ok && a[0] === 'b' && mk) flights.push({i, own0, mk});
+        if (i !== NET.seat) toasts.push(...G.log.slice(n0).filter(l => l.side === i && !(l.ev && (l.ev.a === 'buy' || l.ev.a === 'sell'))).map(l => l.t));
       }
     } else if (G.phase === 'mobilize'){
       const a0 = actsOf(0)[NET.applied[0]], a1 = actsOf(1)[NET.applied[1]];
@@ -5752,6 +5956,7 @@ function netPump(){
   }
   if (!changed && !NET.err) return;
   if (!NET.live) return;
+  for (const o of oppMoves) queueOppMoves(o.i, o.n0, o.mk);   // queued before the redraw, so its turn banner waits for them
   renderPlay();
   if (NET.battleNew){ NET.battleNew = false; toGame(); startAuto(); }
   for (const f of flights) flyBuys(f.i, f.own0, f.mk);
@@ -6437,7 +6642,19 @@ function dockHTML(){
   if (shopping && G.miracles){
     const mir = G.players[S].mir || [];
     const live = mir.some((_, j) => { const p = mirPlayable(j, 'shop'); return p.ok && !p.on; });
-    mirBtn = `<button type="button" class="mirb${live ? ' glow' : ''}${ui.mirTray ? ' on' : ''}" data-act="mir-tray" aria-expanded="${!!ui.mirTray}"><span class="ms" aria-hidden="true">✶</span><span class="dl">Miracles</span>${mir.length ? `<span class="mc">${mir.length}</span>` : ''}</button>`;
+    mirBtn = `<button type="button" class="mirb${live ? ' glow' : ''}${ui.mirTray ? ' on' : ''}" data-act="mir-tray" aria-expanded="${!!ui.mirTray}" aria-label="Miracles${mir.length ? ` (${mir.length})` : ''}"><span class="ms" aria-hidden="true">✶</span><span class="dl">Miracles</span>${mir.length ? `<span class="mc">${mir.length}</span>` : ''}</button>`;
+  }
+  // shop on phones: each side's tile is its deck button and carries its gold, income, unit and City counts;
+  // the buy pips share the last row with Miracles and Pass, so the top bar only needs the score
+  if (shopping){
+    const B = boardSnap();
+    const tile = i => {
+      const p = G.players[i], lab = PP() || G.net ? esc(nm(i)) : i === S ? 'Your deck' : 'Enemy';
+      const u = uniqueUnits(i === S ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots, inc = Math.max(0, B.inc[i]);
+      const aria = `${deckName(i)}: view cards. $${B.money[i]}, +$${inc} next shop. Units ${u} of ${uc}. City ${b} of ${bc}.${G.passed[i] ? ' Passed.' : ''}`;
+      return `<button type="button" class="dk tile s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(aria)}"><span class="tt" aria-hidden="true"><span class="dkic"><i></i><i></i></span><span class="tn">${lab}</span>${G.passed[i] ? '<span class="pbx">passed</span>' : ''}<span class="tm">$${B.money[i]}<i>+${inc}</i></span></span><span class="ts" aria-hidden="true"><span>Units<b class="${u >= uc ? 'full' : ''}">${u}<small>/${uc}</small></b></span><span>City<b class="${b >= bc ? 'full' : ''}">${b}<small>/${bc}</small></b></span></span></button>`;
+    };
+    return `<div class="dock${mine ? ' mine' : ''} ph-shop dshop" id="dock">${piles}<div class="dtiles">${tile(VS(0))}${tile(VS(1))}</div><div class="dbtns drow">${slotsHTML(true)}${mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
   }
   return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock">${piles}${body ? `<div class="dbar">${body}</div>` : ''}
     <div class="dbtns${shopping ? '' : ' tight'}">${deckBtn(VS(0))}${deckBtn(VS(1))}${mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
@@ -6459,6 +6676,7 @@ function pbarHTML(){
     return `<div class="pbs s${VS(i)}"><span class="pbn">${who}${shopping && G.passed[i] ? ' <span class="pbx">passed</span>' : ''}</span><span class="pbmo">$${B.money[i]} · +$${B.inc[i]}</span>${cap}</div>`;
   };
   const L = VS(0), Rt = VS(1);
+  if (shopping) return `<div class="gtop gs" id="gtop"><div class="pbsc"><span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>${ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : ''}</div>`;
   return `<div class="gtop" id="gtop"><div class="pbg">${side(L)}<div class="pbm"><div class="sc">${B.tot[L]} – ${B.tot[Rt]}</div><div class="rd">Round ${G.round} · first to ${G.target}</div></div>${side(Rt)}</div>
     <div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div></div>`;
 }
@@ -6515,7 +6733,7 @@ function ghostCard(g, kind){
     ${stampsHTML([[mine ? 'st-mine' : 'st-theirs', g.frz ? `✶ Frozen by ${mine ? (PP() && !G.net ? esc(nm(S)) : 'you') : PP() ? esc(nm(g.who)) : 'AI'}` : `${mine ? (PP() && !G.net ? `${esc(nm(S))} bought this` : 'You bought this') : `Taken by ${PP() ? esc(nm(g.who)) : 'AI'}`} · $${g.price}`]])}
   </div>`;
 }
-function noteAIMoves(before, money0, logN){
+function noteAIMoves(before, money0, logN, queued){
   if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
   // a sale adds $1 the opponent can see, so take it back out of what the AI paid
   const spent = money0 - G.players[1].money + G.log.slice(logN).filter(l => l.side === 1 && / sells /.test(l.t)).length * SELL_PRICE;
@@ -6528,7 +6746,8 @@ function noteAIMoves(before, money0, logN){
     ui.ghosts[k].push(frz ? {idx:pos, name:was[j], price:0, who:1, frz:true} : {idx:pos, name:was[j], price:spent, who:1});
   }
   const buys = G.log.slice(logN).filter(l => l.side === 1 && (/ buys /.test(l.t) || (l.ev && l.ev.a === 'freeze')));
-  if (buys.length){ showToast(buys.map(l => l.t).join(' ')); sfx.coin(0.45); }
+  const shown = queued ? buys.filter(l => l.ev && l.ev.a === 'freeze') : buys;   // queued buys hold on screen with their own tag
+  if (shown.length){ showToast(shown.map(l => l.t).join(' ')); sfx.coin(0.45); }
   else if (G.log.slice(logN).some(l => l.side === 1 && / passes\./.test(l.t))) sfx.wood();
 }
 let toastT = null;
@@ -7468,7 +7687,10 @@ function remindHTML(){
 let turnKey = null, turnBase = null, turnMarks = [null, null];
 function turnNewsCard(ev, side){
   const d = ev.k === 'u' ? DEFS[ev.n] : BDEFS[ev.n]; if (!d) return '';
-  const what = ev.a === 'buy' ? `Bought · $${ev.price}` : 'Sold · $1';
+  const what = ev.a === 'buy' ? `Bought · $${ev.price}` : 'Sold · +$1';
+  // the same card as in the shop (cardFace), with a stamp for what happened to it
+  let face = ''; try{ face = cardFace(ev.n, ev.k, 0, true); }catch(e){}
+  if (face) return `<div class="tfwrap"><div class="mcard ${ev.k} tfm ${ev.a}">${face}</div><span class="tftag ${ev.a} s${VS(side)}">${what}${ev.on ? ` · ${esc(ev.on)}` : ''}</span></div>`;
   return `<div class="tfcard ${ev.k} ${ev.a} s${VS(side)}"><span class="tfn">${esc(ev.n)}</span><span class="tfa">${what}${ev.on ? ` · leveled ${esc(ev.on)}` : ''}</span><span class="tft">${kwText(d.t.replace(/\{[^}]*\}/g, '…'))}</span></div>`;
 }
 function turnWatch(){
@@ -7502,11 +7724,19 @@ function turnWatch(){
   }
   if (who === S && noBuysLeft(G, S)){ autoNews = news; return; }   // out of buys: the auto-pass banner says so, with this news
   if (sticky && !news){ news = autoNews; autoNews = ''; }   // the opponent's buys from just before, shown with the auto-pass
-  turnFlash(big, small, side === S || (PP() && !G.net) ? 'mine' : 'theirs', side, news, sticky);
-  flashedNow = true;
-  if (who === S || (PP() && !G.net)){ sfx.turnMine(); if (navigator.vibrate) try{ navigator.vibrate([18, 60, 18]); }catch(e){} }
-  else sfx.turnTheirs();
+  const show = () => {
+    turnFlash(big, small, side === S || (PP() && !G.net) ? 'mine' : 'theirs', side, news, sticky);
+    flashedNow = true;
+    if (who === S || (PP() && !G.net)){ sfx.turnMine(); if (navigator.vibrate) try{ navigator.vibrate([18, 60, 18]); }catch(e){} }
+    else sfx.turnTheirs();
+  };
+  // the opponent's cards are still playing out: the banner comes once they've all landed (if it's still this turn)
+  if (oppBusy()){
+    pendingFlash = show;
+    oppOnIdle(() => { if (pendingFlash !== show) return; pendingFlash = null; if (turnKey !== key || !G || G.phase !== 'shop' || ui.battle) return; show(); shopNotes(); flashedNow = false; });
+  } else { pendingFlash = null; show(); }
 }
+var pendingFlash = null;
 
 /* ===== Shop streamlining: out of money, only Recruits/Fields left, out of buys =====
    All of it reads the same buy rules as the Buy buttons (buyQuote), so it can't disagree with them. */
@@ -7531,6 +7761,7 @@ function shopMoneyState(g, i){
   return null;
 }
 function shopNotes(){
+  if (pendingFlash) return;   // the turn banner is waiting for the opponent's cards; the notes come with it
   document.querySelectorAll('[data-act="pass"].passglow').forEach(b => b.classList.remove('passglow'));
   if (!G || ui.start || ui.roll) return;
   const ap = ui.autoPass;
@@ -7614,7 +7845,8 @@ function centerBattle(){
 function markGame(on){
   inGameView = on; document.body.classList.toggle('ingame', on);
   const k = !on ? null : ui.roll ? 'roll' : (G.round || 0) + ':' + (ui.battle ? 'battle' : G.over ? 'over' : G.phase);
-  if (on && k !== phaseKey) requestAnimationFrame(toGame);
+  // phase change: scroll there now (before the market deal measures where its cards land), and again next frame
+  if (on && k !== phaseKey){ toGame(); requestAnimationFrame(toGame); }
   phaseKey = k;
 }
 function renderPlay(){
@@ -7672,9 +7904,9 @@ function renderPlay(){
   flashedNow = false;
   turnWatch();
   shopNotes();
+  markGame(true);   // first, so the page has already scrolled when the deal measures each card's spot
   if (dealNow){ ui.dealt = G.round; dealMarket(); }
   dealPeeks(dealNow);
-  markGame(true);
 }
 /* Save and resume: a game in progress (against the AI or pass and play) is kept in this browser after every change,
    so a phone that reloads the tab (switching apps, locking the screen) comes back to the same spot. Online games
@@ -7748,7 +7980,7 @@ function leaveToPile(rows){
       const gh = document.createElement('div');
       gh.className = `mcard ${kind} leaving lghost`; gh.setAttribute('aria-hidden', 'true');
       gh.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div><span class="curve">${curveText(name, kind, 0)}</span><span class="tx">${cardTx(name, kind, 0)}</span>${shortHTML(name, kind, 0)}${hgToken()}`;
-      flyEl(gh, r, r.width, r.height, flyZ(pile));   // lands on the Salvage pile, over the bottom bar when the pile is in it
+      flyEl(gh, r, r.width, r.height, flyZ(pile), card.parentElement);   // lands on the Salvage pile, over the bottom bar when the pile is in it
       const delay = 120 + k++ * 220, dur = 1000;
       sfx.flick(delay / 1000 + 0.55);
       gh.style.transformOrigin = '0 0';
@@ -7801,10 +8033,9 @@ function dealFly(el, deck, delay, dur, o = {}){
   const g = el.cloneNode(true);
   g.querySelectorAll('.dealback, .mirpop').forEach(x => x.remove());
   g.classList.add('flying'); g.classList.remove('cant', 'peeked'); g.setAttribute('aria-hidden', 'true'); g.removeAttribute('id');
-  Object.assign(g.style, {position:'fixed', left:r.left + 'px', top:r.top + 'px', width:r.width + 'px', right:'auto', bottom:'auto', margin:'0', zIndex:flyZ(el), pointerEvents:'none'});
-  g.style.setProperty('height', r.height + 'px', 'important');
-  if (!o.plain) g.style.background = 'var(--card, var(--surface))';
-  document.body.appendChild(g);
+  Object.assign(g.style, {zIndex:flyZ(el), pointerEvents:'none'});
+  pinFly(g, r.left, r.top, r.width, r.height);
+  flyHost(el.parentElement).appendChild(g);   // styled exactly as the card in its spot
   // until its turn the copy is hidden (the deck and its count show through); then it appears exactly on the deck, the
   // size of its top card, lifts off, tilts, travels to its spot and flips over
   const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2);
@@ -7817,6 +8048,8 @@ function dealFly(el, deck, delay, dur, o = {}){
   if (!o.plain){
     const back = document.createElement('span'); back.className = 'dealback ' + (el.classList.contains('b') ? 'b' : 'u'); g.appendChild(back);
     back.animate([{opacity:1}, {opacity:1, offset:.8}, {opacity:0, offset:.801}, {opacity:0}], {duration:dur, delay, fill:'both'});
+    // face down, nothing of the face shows (not even text or a stamp past the card's edge); it all turns up with the flip
+    for (const c of g.children) if (c !== back) c.animate([{visibility:'hidden'}, {visibility:'hidden', offset:.8}, {visibility:'visible', offset:.801}, {visibility:'visible'}], {duration:dur, delay, fill:'both'});
   }
   an.onfinish = an.oncancel = () => g.remove();
   return delay + dur;
