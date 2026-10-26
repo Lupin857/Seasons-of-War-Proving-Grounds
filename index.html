@@ -1646,6 +1646,18 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
 @media (prefers-reduced-motion: reduce){ .mcard.writtgt{transition:none} .mcard.writtgt:hover{transform:none} }
 @media (max-width:640px){ .writmark{font-size:.6rem;bottom:5px;padding:1px 6px} .writbar{padding:8px 10px} }
 
+/* the pinned corner dock while picking (Salvage Writ, Mason's Guild, Freeze): Cancel and the confirm button never scroll away */
+.pickdock{position:fixed;right:max(16px, env(safe-area-inset-right,0px));bottom:max(16px, env(safe-area-inset-bottom,0px));z-index:62;display:flex;gap:8px;align-items:center;
+  padding:8px;border-radius:12px;background:var(--surface);border:1px solid var(--or);box-shadow:inset 0 3px 0 var(--or),0 8px 24px rgba(0,0,0,.22)}
+.pickdock button{min-height:44px;padding:10px 18px;font-weight:700}
+.pickdock button:not(.primary){font-weight:600}
+#view-play:has(.pickdock) .mirdock{display:none}
+@media (max-width:640px){ .pickdock{bottom:calc(var(--dockh,0px) + 10px);right:10px} }
+/* Mason's Guild: your buildings, shown under the bar to tap */
+.masonrow{display:flex;flex-direction:column;gap:6px}
+.masonrow .mcard.writtgt,.masonrow .mcard.writoff{position:relative}
+.mktp:has(.masonrow) .peekhint{visibility:hidden}
+
 /* Covenant: the card bought together with this one, named on a gold tag along the bottom */
 .pairtag{position:absolute;left:6px;right:6px;bottom:6px;z-index:5;pointer-events:none;display:block;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   font-size:.7rem;font-weight:700;line-height:1.3;padding:2px 6px;border-radius:999px;background:var(--or-soft);color:var(--ink);border:1px solid var(--or)}
@@ -6021,21 +6033,49 @@ function freezeMode(){
   if (!ui.freeze || !G || !canFreeze(G, seat())) { if (ui.freeze) ui.freeze = null; return false; }
   return true;
 }
-// the bar over the market while picking: what to do, what's picked, and Buy / Cancel
+// Mason's Guild targeting in progress: {src, idx, sel, price}, or null when not picking
+function masonMode(){
+  if (!ui.mason || !G || G.phase !== 'shop' || cur(G) !== seat()) return null;
+  const m = ui.mason, c = sourceCard(G, seat(), m.src, m.idx); if (!c || c.name !== "Mason's Guild") return null;
+  const info = buyInfo(G, seat(), c.name, c.kind, m.src, m.idx); if (!info.ok) return null;
+  const sel = m.sel && masonTargets(G.players[seat()]).includes(m.sel) ? m.sel : null;
+  return {src:m.src, idx:m.idx, sel, price:info.price};
+}
+// the confirm and cancel buttons while picking, pinned to the bottom corner so they never scroll away
+function pickDockHTML(btns){
+  return `<div class="pickdock" role="group" aria-label="Confirm or cancel">${btns}</div>`;
+}
+// the bar over the market while picking: what to do and what's picked (Buy / Cancel sit in the pinned corner dock)
 function writBarHTML(){
   if (freezeMode()) return `<div class="writbar" role="status">
     <span class="wbt"><b>✶ Freeze</b><br>Tap a card in the market to set it aside for you.</span>
     <span class="note">Its miracles go with it and its spot stays empty. This uses your turn.</span>
-    <span class="row"><button type="button" class="small" data-act="frz-cancel">Cancel</button></span>
-  </div>`;
+  </div>${pickDockHTML(`<button type="button" data-act="frz-cancel">Cancel</button>`)}`;
+  const mm = masonMode();
+  if (mm){
+    const me = G.players[seat()], own = Object.keys(me.city).filter(n => n !== 'Field' && me.city[n] > 0);
+    const lvOf = n => Math.min(me.city[n], BDEFS[n].lv.length);
+    const cards = own.map(n => { const L = lvOf(n), max = BDEFS[n].lv.length;
+      if (L >= max) return `<div class="mcard b writoff" aria-disabled="true">${cardFace(n, 'b', me.city[n])}<span class="writown" aria-hidden="true">${max > 1 ? 'Max level' : 'No levels'}</span></div>`;
+      const on = mm.sel === n, what = on ? 'Picked. Tap again to unpick it.' : `Tap to attach Mason's Guild here: Lv ${L} → ${L+1}.`;
+      return `<div class="mcard b writtgt${on ? ' on' : ''}" data-act="mason-tog" data-name="${esc(n)}" role="button" tabindex="0" aria-pressed="${on}" title="${esc(what)}" aria-label="${esc(n)}. ${esc(what)}">
+        ${cardFace(n, 'b', me.city[n])}
+        <span class="writmark" aria-hidden="true">${on ? '✓ Attach here' : ''}</span><span class="writown" aria-hidden="true">Lv ${L} → ${L+1}</span>
+      </div>`; }).join('');
+    return `<div class="writbar" role="status">
+      <span class="wbt"><b>✶ Mason's Guild</b> <span class="mono">${mm.sel ? 1 : 0}/1</span><br>Tap one of your buildings to attach it to.</span>
+      <span class="note">${mm.sel ? `Attaching to ${esc(mm.sel)}: Lv ${lvOf(mm.sel)} → ${lvOf(mm.sel) + 1}.` : 'It counts as one more copy, raising that building a level.'}</span>
+    </div>
+    <div class="masonrow"><span class="eyebrow">Your buildings</span><div class="market plain">${cards}</div></div>
+    ${pickDockHTML(`<button type="button" data-act="mason-cancel">Cancel</button><button type="button" class="primary" data-act="mason-go" ${mm.sel ? '' : 'disabled'}>${mm.sel ? `Buy $${mm.price}` : 'Pick a building'}</button>`)}`;
+  }
   const wm = writMode(); if (!wm) return '';
   const picked = wm.sel.map(j => (G.disp[j[0] === 'b' ? 'b' : 'u'][+j.slice(1)] || {}).name).filter(Boolean);
   const upTo = wm.n === 1 ? 'up to 1 other card' : `up to ${wm.n} other cards`;
   return `<div class="writbar" role="status">
     <span class="wbt"><b>✶ Salvage Writ</b> <span class="mono">${picked.length}/${wm.n}</span><br>Tap ${upTo} to send to the Salvage pile.</span>
     <span class="note">${picked.length ? `Moving ${picked.map(esc).join(' and ')}.` : 'Or pick none.'} Then you shop again.</span>
-    <span class="row"><button type="button" class="primary small" data-act="writ-go" data-src="${wm.src}" data-idx="${wm.idx}">Buy $${wm.price}</button><button type="button" class="small" data-act="writ-cancel">Cancel</button></span>
-  </div>`;
+  </div>${pickDockHTML(`<button type="button" data-act="writ-cancel">Cancel</button><button type="button" class="primary" data-act="writ-go" data-src="${wm.src}" data-idx="${wm.idx}">Buy $${wm.price}</button>`)}`;
 }
 function marketCard(name, kind, src, idx, side, always, mir){
   const S = seat(), me = G.players[S], myTurn = G.phase === 'shop' && cur(G) === S;
@@ -6043,22 +6083,10 @@ function marketCard(name, kind, src, idx, side, always, mir){
   const info = buyInfo(G, S, name, kind, src, idx);
   const own = kind === 'u' ? (me.hand[name] || 0) : (me.city[name] || 0);
   let extra = '';
-  // Mason's Guild: Buy opens a picker of your buildings on the card itself
-  if (name === "Mason's Guild" && ui.mason && ui.mason.src === src && ui.mason.idx === (idx ?? 0) && info.ok && myTurn){
-    const own = Object.keys(me.city).filter(n => n !== 'Field' && me.city[n] > 0);
-    return `<div class="mcard ${kind} masonpick">
-      <div class="top"><span class="nm">Mason's Guild</span><span class="cost">$${info.price}</span></div>
-      <span class="note">Attach it to which building? It counts as one more copy, raising that building a level.</span>
-      <div class="mlist">${own.map(n => { const L = Math.min(me.city[n], BDEFS[n].lv.length), max = BDEFS[n].lv.length;
-        return L < max ? `<button type="button" data-act="mason-to" data-name="${esc(n)}" data-src="${src}" data-idx="${idx ?? ''}">${esc(n)} <span class="mono">Lv ${L} → ${L+1}</span></button>`
-                       : `<button type="button" disabled>${esc(n)} <span class="mono">${max > 1 ? 'max level' : 'no levels'}</span></button>`; }).join('')}</div>
-      <button type="button" data-act="mason-cancel">Cancel</button>
-    </div>`;
-  }
   // Salvage Writ targeting: the card being bought is marked, every other display card is tapped to pick it, and
   // anything that can't be picked (Recruit, Field, the Salvage pile, Black Market, Vision) steps back
-  const fm = freezeMode(), wm = fm ? null : writMode(), disp = src === 'du' || src === 'db';
-  const wrole = fm ? (disp ? 'tgt' : 'off') : !wm ? '' : disp && wm.src === src && wm.idx === (idx ?? 0) ? 'src' : disp ? 'tgt' : 'off';
+  const fm = freezeMode(), mm = fm ? null : masonMode(), wm = fm || mm ? null : writMode(), disp = src === 'du' || src === 'db';
+  const wrole = fm ? (disp ? 'tgt' : 'off') : mm ? (mm.src === src && mm.idx === (idx ?? 0) ? 'src' : 'off') : !wm ? '' : disp && wm.src === src && wm.idx === (idx ?? 0) ? 'src' : disp ? 'tgt' : 'off';
   if (wrole === 'tgt' && fm){
     const what = 'Tap to set it aside for you.';
     const fcard = `<div class="mcard ${kind} writtgt${side ? ' leaving' : ''}" data-act="frz-pick" data-src="${src}" data-idx="${idx ?? 0}" role="button" tabindex="0" title="${esc(what)}" aria-label="${esc(name)}. ${esc(what)}">
@@ -7455,7 +7483,24 @@ function turnFlash(big, small, kind, side, news, sticky){
 var inGameView = false, phaseKey = null;
 function toGame(){
   const v = $('view-play'); if (!v || v.hidden || !G || ui.start || (NET && !NET.started)) return;
+  if (ui.battle && centerBattle()) return;
   window.scrollTo({top: Math.max(0, v.getBoundingClientRect().top + window.scrollY - 8)});
+}
+/* Battle: center the battle line (both sides' units, charges meeting in the middle) in the space left between the
+   pinned top bar and the bottom dock, so the fight is on screen without scrolling. If the line is taller than that
+   space, the clash between the two charging units sits in the middle of it instead. */
+function centerBattle(){
+  const v = $('view-play'), ln = v && v.querySelector('.stage .line'); if (!ln) return false;
+  const fixedH = el => { if (!el || !el.offsetHeight) return 0; const ps = getComputedStyle(el).position; return ps === 'sticky' || ps === 'fixed' ? el.getBoundingClientRect().height : 0; };
+  const safeTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
+  const top = safeTop + fixedH($('gtop')) + fixedH(v.querySelector('.battlectl'));   // where the pinned bars end once stuck
+  const dk = $('dock'), bot = window.innerHeight - (dk && fixedH(dk) ? dk.getBoundingClientRect().height : 0);
+  const r = ln.getBoundingClientRect(), room = bot - top, x = v.querySelector('.stage .clash');
+  let y;   // how far down the page to scroll
+  if (r.height <= room || !x) y = r.top - top - Math.max(8, (room - r.height) / 2);
+  else { const c = x.getBoundingClientRect(); y = (c.top + c.bottom) / 2 - (top + bot) / 2; }   // too tall: the charging units meet mid-screen
+  window.scrollTo({top: Math.max(0, y + window.scrollY)});
+  return true;
 }
 function markGame(on){
   inGameView = on; document.body.classList.toggle('ingame', on);
@@ -7771,6 +7816,10 @@ $('view-play').addEventListener('click', e => {
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
     case 'mason-cancel': sfx.soft(); ui.mason = null; renderPlay(); return;
+    case 'mason-tog': { const mm = masonMode(); if (!mm) return; const n = t.dataset.name;
+      if (!masonTargets(G.players[seat()]).includes(n)) return;
+      ui.mason.sel = mm.sel === n ? null : n; sfx.soft(); renderPlay(); return; }
+    case 'mason-go': { const mm = masonMode(); if (!mm || !mm.sel) return; ui.mason = null; doMove(['b', mm.src, mm.idx, mm.sel]); return; }
     case 'writ-cancel': sfx.soft(); ui.writ = null; renderPlay(); return;
     case 'frz-cancel': sfx.soft(); ui.freeze = null; renderPlay(); return;
     case 'frz-pick': { if (!freezeMode()) return; ui.freeze = null; doMove(['i', t.dataset.src, +t.dataset.idx]); return; }
@@ -7783,7 +7832,9 @@ $('view-play').addEventListener('click', e => {
     case 'buy': {
       const src = t.dataset.src, idx = t.dataset.idx === '' ? 0 : +t.dataset.idx;
       const nm0 = (sourceCard(G, seat(), src, idx) || {}).name;
-      if (act === 'buy' && nm0 === "Mason's Guild"){ sfx.pick(); ui.mason = {src, idx}; renderPlay(); return; }   // pick what it levels up first
+      if (act === 'buy' && nm0 === "Mason's Guild"){   // pick what it levels up first; Buy on the marked card confirms once one is picked
+        const mm = masonMode(); if (mm && mm.src === src && mm.idx === idx){ if (mm.sel){ ui.mason = null; doMove(['b', src, idx, mm.sel]); } return; }
+        sfx.pick(); ui.writ = null; ui.freeze = null; ui.mason = {src, idx, sel:null}; renderPlay(); return; }
       if (act === 'buy') ui.freeze = null;
       if (act === 'buy' && ui.writ && ui.writ.src === src && ui.writ.idx === idx){ const w = ui.writ; ui.writ = null; const names = w.sel.map(j => { const c = G.disp[j[0] === 'b' ? 'b' : 'u'][+j.slice(1)]; return c && c.name; }).filter(Boolean); doMove(['b', w.src, w.idx, null, names]); return; }
       if (act === 'buy' && mirOf(G, {src, idx}).some(m => MIRS[m].writ)){ sfx.pick(); ui.writ = {src, idx, sel:[]}; renderPlay(); return; }   // pick what Salvage Writ moves
