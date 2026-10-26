@@ -7740,10 +7740,7 @@ function leaveToPile(rows){
       const gh = document.createElement('div');
       gh.className = `mcard ${kind} leaving lghost`; gh.setAttribute('aria-hidden', 'true');
       gh.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div><span class="curve">${curveText(name, kind, 0)}</span><span class="tx">${cardTx(name, kind, 0)}</span>${shortHTML(name, kind, 0)}${hgToken()}`;
-      const mr = mktp.getBoundingClientRect();   // placed inside the Market panel, so scrolling mid-flight keeps it lined up
-      Object.assign(gh.style, {position:'absolute', left:(r.left - mr.left - mktp.clientLeft) + 'px', top:(r.top - mr.top - mktp.clientTop) + 'px', width:r.width + 'px', margin:'0', zIndex:'40', pointerEvents:'none'});
-      gh.style.setProperty('height', r.height + 'px', 'important');
-      mktp.appendChild(gh);
+      flyEl(gh, r, r.width, r.height);   // over the page and its bars, like a sale, so it is never hidden on the way to the pile
       const delay = 120 + k++ * 220, dur = 1000;
       sfx.flick(delay / 1000 + 0.55);
       gh.style.transformOrigin = '0 0';
@@ -7752,6 +7749,44 @@ function leaveToPile(rows){
     }
   });
   return end ? end + 120 : 0;
+}
+/* A card dealt face down out of a deck. A copy flies over everything (above the top bar, the bottom bar and any pop-up)
+   from the deck to the card's spot, flips face up and lands; the real card stays invisible until then, so nothing is
+   hidden behind the bars and nothing lands in the wrong place. A spot that can't be seen (scrolled off, or under a bar)
+   just appears. Returns when it lands (ms), or 0. o.plain: a miracle card behind a market card (no flip). */
+function dealView(el){
+  const pw = el.closest('.pkbody');
+  if (pw){ const r = pw.getBoundingClientRect(); return {top:r.top, bottom:r.bottom}; }
+  const tb = $('gtop'), dk = $('dock');
+  const top = tb && tb.offsetParent && getComputedStyle(tb).position === 'fixed' ? tb.getBoundingClientRect().bottom : 0;
+  const bottom = dk && dk.offsetParent ? dk.getBoundingClientRect().top : window.innerHeight;
+  return {top, bottom};
+}
+function dealFly(el, deck, delay, dur, o = {}){
+  if (!el || !deck || !el.isConnected) return 0;
+  const r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
+  if (!r.width || !dr.width) return 0;
+  const v = dealView(el), cy = r.top + r.height / 2;
+  if (cy < v.top || cy > v.bottom) return 0;
+  const g = el.cloneNode(true);
+  g.querySelectorAll('.dealback, .mirpop').forEach(x => x.remove());
+  g.classList.add('flying'); g.setAttribute('aria-hidden', 'true'); g.removeAttribute('id');
+  Object.assign(g.style, {position:'fixed', left:r.left + 'px', top:r.top + 'px', width:r.width + 'px', right:'auto', bottom:'auto', margin:'0', zIndex:72, pointerEvents:'none'});
+  g.style.setProperty('height', r.height + 'px', 'important');
+  if (!o.plain) g.style.background = 'var(--card, var(--surface))';
+  document.body.appendChild(g);
+  const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
+  el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});   // the real card waits, invisible, until the copy lands
+  const kf = o.plain
+    ? [{transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}]
+    : [{transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0}, {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62}, {transform:'scaleX(0.04)', offset:.8}, {transform:'none', offset:1}];
+  const an = g.animate(kf, {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'both'});
+  if (!o.plain){
+    const back = document.createElement('span'); back.className = 'dealback ' + (el.classList.contains('b') ? 'b' : 'u'); g.appendChild(back);
+    back.animate([{opacity:1}, {opacity:1, offset:.8}, {opacity:0, offset:.801}, {opacity:0}], {duration:dur, delay, fill:'both'});
+  }
+  an.onfinish = an.oncancel = () => g.remove();
+  return delay + dur;
 }
 /* Deal the market at the start of each shop: new cards fly face down out of the deck and flip over.
    Like real cards left on the table, unbought cards from last shop never move: they are already in the same spot
@@ -7790,37 +7825,20 @@ function dealMarket(){
   // 3) the new cards are dealt once the tokens have landed
   const dealBase = returning.length ? tokEnd + 160 : base;
   for (const el of cards){
-    const r = el.getBoundingClientRect();
     if (el.classList.contains('always')) continue;   // Recruit and Field never leave the table
     // miracles under this card: each is drawn and laid down first (farthest back first), then the card lands on top
     const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
     const backsEl = wrapEl ? [...wrapEl.querySelectorAll('.mirback')].reverse() : [];
     if (el.classList.contains('leaving')) continue;   // already slid in above
-    const {k:dk, dr, dcx, dcy} = from(el);
+    const {k:dk} = from(el);
+    const deck = decks[dk] || decks.u || decks.b;
     for (const b of backsEl){
-      const bd = dealBase + n++ * 160, br = b.getBoundingClientRect(); bobs[dk]++;
-      const bx = dcx - (br.left + br.width / 2), by = dcy - (br.top + br.height / 2), bs = Math.min(1, dr.width / br.width);
-      sfx.flick(bd / 1000 + 0.05);
-      b.animate([
-        {transform:`translate(${bx}px,${by}px) rotate(-14deg) scale(${bs})`, offset:0},
-        {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7},
-        {transform:'none', offset:1}
-      ], {duration:800, delay:bd, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
+      const bd = dealBase + n++ * 160;
+      if (dealFly(b, deck, bd, 800, {plain:true})){ bobs[dk]++; sfx.flick(bd / 1000 + 0.05); }
       end = Math.max(end, bd + 520);
     }
-    const delay = dealBase + n++ * 160 + (backsEl.length ? 400 : 0); bobs[dk]++;
-    const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
-    sfx.flick(delay / 1000 + 0.05);
-    const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
-    const dur = 900;
-    el.animate([
-      {transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0},
-      {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62},
-      {transform:'scaleX(0.04)', offset:.8},
-      {transform:'none', offset:1}
-    ], {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
-    back.animate([{opacity:1}, {opacity:1, offset:.8}, {opacity:0, offset:.801}, {opacity:0}], {duration:dur, delay, fill:'both'}).onfinish = () => back.remove();
-    end = Math.max(end, delay + dur);
+    const delay = dealBase + n++ * 160 + (backsEl.length ? 400 : 0);
+    if (dealFly(el, deck, delay, 900)){ bobs[dk]++; sfx.flick(delay / 1000 + 0.05); end = Math.max(end, delay + 900); }
   }
   ui.dealUntil = performance.now() + end;
   for (const k of ['u','b']) if (decks[k] && bobs[k]) decks[k].animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:170, iterations:bobs[k], delay:120});
@@ -7832,23 +7850,17 @@ function dealPeeks(skip){
     const key = row.dataset.key; if (peekSeen.has(key)) continue; peekSeen.add(key);
     if (skip || reduceMotion()) continue;
     const deck = $('view-play').querySelector(`.sdeck[data-k="${row.dataset.from}"] .dealdeck`); if (!deck) continue;
-    const dr = deck.getBoundingClientRect(), dcx = dr.left + dr.width / 2, dcy = dr.top + dr.height / 2;
-    let n = 0;
-    for (const el of row.querySelectorAll('.mcard')){
-      const r = el.getBoundingClientRect(); if (!r.width) continue;
-      const delay = 60 + n++ * 180, dur = 900;
-      const dx = dcx - (r.left + r.width / 2), dy = dcy - (r.top + r.height / 2), sc = Math.min(1, dr.width / r.width);
-      try{ sfx.flick(delay / 1000 + 0.05); }catch(e){}
-      const back = document.createElement('span'); back.className = 'dealback'; el.appendChild(back);
-      el.animate([
-        {transform:`translate(${dx}px,${dy}px) rotate(-14deg) scale(${sc})`, offset:0},
-        {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62},
-        {transform:'scaleX(0.04)', offset:.8},
-        {transform:'none', offset:1}
-      ], {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'backwards'});
-      back.animate([{opacity:1}, {opacity:1, offset:.8}, {opacity:0, offset:.801}, {opacity:0}], {duration:dur, delay, fill:'both'}).onfinish = () => back.remove();
-    }
-    if (n) deck.animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:150, iterations:n, delay:40});
+    const cards = [...row.querySelectorAll('.mcard')];
+    const go = () => {
+      if (!row.isConnected) return;
+      let n = 0;
+      for (const el of cards){ const delay = 60 + n * 180; if (dealFly(el, deck, delay, 900)){ n++; try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} } }
+      if (n) deck.animate([{transform:'none'}, {transform:'translateY(-2px)'}, {transform:'none'}], {duration:150, iterations:n, delay:40});
+    };
+    // in the peek window: wait until it has finished rising, so each card lands where it really sits
+    const sh = row.closest('.pksheet'), rising = sh ? sh.getAnimations() : [];
+    if (rising.length){ cards.forEach(el => el.style.opacity = '0'); Promise.all(rising.map(x => x.finished.catch(() => {}))).then(() => { cards.forEach(el => el.style.opacity = ''); go(); }); }
+    else go();
   }
 }
 // Lock in the deck being built at this screen (after a reminder about unused tokens, if any). Online it goes to the
