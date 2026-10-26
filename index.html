@@ -265,7 +265,6 @@ table.sticky .grp .g1,table.sticky .grp .g2,table.sticky .grp .g3{text-align:cen
 .mirhover.peekmir.below::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:var(--or)}
 .mirpop{position:absolute;inset:0;z-index:3;border-radius:8px;background:var(--surface);display:flex;flex-direction:column;gap:5px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer}
 .mirpop .eyebrow{color:var(--or)}
-@media (prefers-reduced-motion: no-preference){ .mirpop{animation:mirflip .18s ease-out} @keyframes mirflip{from{transform:rotateY(70deg);opacity:.4}to{transform:none;opacity:1}} }
 .mirs{display:flex;flex-direction:column;gap:3px}
 .mirseal{display:flex;flex-direction:column;gap:1px;font-size:.76rem;line-height:1.25;padding:4px 6px;border-radius:6px;background:var(--or-soft);border:1px dashed var(--or);color:var(--ink)}
 .mirseal b{color:var(--or);font-family:var(--f-display);font-weight:400;font-size:.9rem;letter-spacing:.02em}
@@ -7467,15 +7466,33 @@ function goFrame(k, glide){
     const grow = Math.abs(sx - 1) > 0.05 || Math.abs(sy - 1) > 0.05;
     if (grow) el.style.transformOrigin = 'top left';
     const a = el.animate(toGrave
-      ? [{transform:`translate(${dx}px,${dy}px) scale(2.2) rotateY(0deg)`, opacity:1, offset:0},
-         {transform:`translate(${dx * 0.45}px,${dy * 0.45}px) scale(1.6) rotateY(90deg)`, opacity:.9, offset:.45},
-         {transform:'none', opacity:1, offset:1}]
+      ? [{transform:`perspective(300px) translate(${dx}px,${dy}px) scale(2.2) rotateY(0deg)`, opacity:1, offset:0},
+         {transform:`perspective(300px) translate(${dx * 0.45}px,${dy * 0.45}px) scale(1.6) rotateY(90deg)`, opacity:.9, offset:.45},
+         {transform:'perspective(300px) translate(0,0) scale(1) rotateY(0deg)', opacity:1, offset:1}]
       : grow ? [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`}, {transform:'none'}]
              : [{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}],
       {duration: toGrave ? 760 : 620, easing:'cubic-bezier(.22,.9,.3,1.04)'});
     if (grow) a.addEventListener('finish', () => { el.style.transformOrigin = ''; });
     a.onfinish = a.oncancel = () => { el.style.zIndex = ''; el.style.position = ''; };
   }
+}
+/* Turning a market card over to see (or hide) the miracles behind it: a real 3D flip in perspective. The card turns
+   away to edge-on (the face foreshortens as it goes), the view switches, and the other side turns in from the far edge,
+   so neither side is ever mirrored. Clicks during the half-second turn are ignored. */
+function mirTurn(el, k, apply){
+  const done = () => { apply(); renderPlay(); };
+  if (!el || !el.animate || reduceMotion() || ui.mirTurning) { if (!ui.mirTurning) done(); return; }
+  ui.mirTurning = true;
+  const P = Math.max(360, el.offsetWidth * 3.4), T = (a, s) => `perspective(${P}px) rotateY(${a}deg) scale(${s})`;
+  const a = el.animate([{transform:T(0, 1), filter:'brightness(1)'}, {transform:T(90, 1.06), filter:'brightness(.78)'}],
+    {duration:160, easing:'cubic-bezier(.45,0,.75,.6)', fill:'forwards'});
+  a.oncancel = () => { ui.mirTurning = false; };
+  a.onfinish = () => {
+    done(); a.cancel();
+    const n = $('view-play').querySelector(`.mcard.hasmir[data-k="${CSS.escape(k)}"]`);
+    if (n) n.animate([{transform:T(-90, 1.06), filter:'brightness(.78)'}, {transform:T(0, 1), filter:'brightness(1)'}],
+      {duration:220, easing:'cubic-bezier(.25,.5,.4,1)'});
+  };
 }
 // A card that dies: a copy of it slides toward the graveyard, flips face down, and shrinks into its name in the list
 function deathFly(r0, nameEl){
@@ -7488,12 +7505,14 @@ function deathFly(r0, nameEl){
   const dx = (r1.left + r1.width / 2) - (r0.left + r0.width / 2), dy = (r1.top + r1.height / 2) - (r0.top + r0.height / 2);
   const sx = Math.max(0.1, r1.width / r0.width), sy = Math.max(0.05, r1.height / r0.height);
   const T = 760;
+  // perspective goes first so the turn reads as 3D: the near edge grows, the far edge and the face's text foreshorten
+  const P = Math.max(360, r0.width * 3.4), pf = `perspective(${P}px) `;
   const a = g.animate([
-    {transform:'translate(0,0) rotateY(0deg) scale(1)', offset:0},
-    {transform:`translate(${dx * 0.35}px,${dy * 0.35 - 14}px) rotateY(0deg) scale(.92)`, offset:.25},
-    {transform:`translate(${dx * 0.6}px,${dy * 0.6 - 8}px) rotateY(90deg) scale(.7)`, offset:.5},
-    {transform:`translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, opacity:.85, offset:.88},
-    {transform:`translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, opacity:0, offset:1}
+    {transform:pf + 'translate(0,0) rotateY(0deg) scale(1)', filter:'brightness(1)', offset:0},
+    {transform:pf + `translate(${dx * 0.35}px,${dy * 0.35 - 14}px) rotateY(0deg) scale(.92)`, filter:'brightness(1)', offset:.25},
+    {transform:pf + `translate(${dx * 0.6}px,${dy * 0.6 - 8}px) rotateY(90deg) scale(.7)`, filter:'brightness(.72)', offset:.5},
+    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:.85, offset:.88},
+    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:0, offset:1}
   ], {duration:T, easing:'cubic-bezier(.4,.1,.3,1)', fill:'forwards'});
   back.animate([{opacity:0}, {opacity:0, offset:.5}, {opacity:1, offset:.501}, {opacity:1}], {duration:T, fill:'forwards'});
   nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, fill:'backwards'});
@@ -8041,15 +8060,38 @@ function dealFly(el, deck, delay, dur, o = {}){
   const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2);
   const sx = dr.width / r.width, sy = dr.height / r.height, lift = Math.min(.5, Math.max(sx, sy) * 1.6);
   el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});   // the real card waits, invisible, until the copy lands
-  const kf = o.plain
-    ? [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.18}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}]
-    : [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.16}, {transform:'translate(0,0) rotate(2deg) scale(1)', offset:.62}, {transform:'scaleX(0.04)', offset:.8}, {transform:'none', offset:1}];
-  const an = g.animate(kf, {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'both'});
+  let kf, an, SWAP = 1;
+  if (o.plain){
+    kf = [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.18}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}];
+    an = g.animate(kf, {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'both'});
+  } else {
+    /* A real 3D flip. The card flies out face down and LANDS in its spot face down; a beat later it turns over about its
+       vertical axis in perspective (the near edge grows, the far edge shrinks, and the face's text foreshortens with it),
+       lifting toward you as it turns, then settles face up. Every keyframe uses the same transform list so the browser
+       interpolates each part on its own. The turn is split at the edge: 0→90° shows the back, then the face comes in from
+       −90°→0°, so the face is never mirrored. Perspective scales with the card so phone and desktop flips look alike. */
+    const P = Math.max(360, r.width * 3.4);
+    const T = (x, y, rot, ry, s1, s2 = s1) => `perspective(${P}px) translate(${x}px,${y}px) rotate(${rot}deg) rotateY(${ry}deg) scale(${s1},${s2})`;
+    SWAP = .78;
+    kf = [
+      {transform:T(dx, dy, 0, 0, sx, sy), opacity:0, filter:'brightness(1)', offset:0},
+      {transform:T(dx, dy, 0, 0, sx, sy), opacity:1, offset:.01},
+      {transform:T(dx * .85, dy * .85 - 24, -10, 0, lift), offset:.16, easing:'cubic-bezier(.3,.6,.35,1)'},
+      {transform:T(0, -4, 2, 0, 1.02), offset:.46, easing:'ease-out'},
+      {transform:T(0, 0, 0, 0, 1), offset:.52},                                         // landed, face down
+      {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', offset:.58, easing:'cubic-bezier(.45,0,.75,.6)'},   // a beat, then the turn
+      {transform:T(0, -10, 0, 90, 1.12), filter:'brightness(.78)', offset:SWAP, easing:'steps(1,end)'},       // edge on, lifted
+      {transform:T(0, -10, 0, -90, 1.12), filter:'brightness(.78)', offset:SWAP + .001, easing:'cubic-bezier(.25,.5,.4,1)'},
+      {transform:T(0, -2, 0, 0, 1.05), filter:'brightness(1)', offset:.93, easing:'ease-in-out'},              // face up, a touch big
+      {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', opacity:1, offset:1}         // settles to its true size
+    ];
+    an = g.animate(kf, {duration:dur, delay, easing:'linear', fill:'both'});
+  }
   if (!o.plain){
     const back = document.createElement('span'); back.className = 'dealback ' + (el.classList.contains('b') ? 'b' : 'u'); g.appendChild(back);
-    back.animate([{opacity:1}, {opacity:1, offset:.8}, {opacity:0, offset:.801}, {opacity:0}], {duration:dur, delay, fill:'both'});
+    back.animate([{opacity:1}, {opacity:1, offset:SWAP}, {opacity:0, offset:SWAP + .001}, {opacity:0}], {duration:dur, delay, fill:'both'});
     // face down, nothing of the face shows (not even text or a stamp past the card's edge); it all turns up with the flip
-    for (const c of g.children) if (c !== back) c.animate([{visibility:'hidden'}, {visibility:'hidden', offset:.8}, {visibility:'visible', offset:.801}, {visibility:'visible'}], {duration:dur, delay, fill:'both'});
+    for (const c of g.children) if (c !== back) c.animate([{visibility:'hidden'}, {visibility:'hidden', offset:SWAP}, {visibility:'visible', offset:SWAP + .001}, {visibility:'visible'}], {duration:dur, delay, fill:'both'});
   }
   an.onfinish = an.oncancel = () => g.remove();
   return delay + dur;
@@ -8110,7 +8152,7 @@ function dealMarket(){
       end = Math.max(end, bd + 520);
     }
     const delay = dealBase + n++ * 160 + (backsEl.length ? 400 : 0);
-    if (dealFly(el, deck, delay, 900)){ bobs[dk]++; starts[dk].push(delay + 60); sfx.flick(delay / 1000 + 0.05); end = Math.max(end, delay + 900); }
+    if (dealFly(el, deck, delay, 1100)){ bobs[dk]++; starts[dk].push(delay + 60); sfx.flick(delay / 1000 + 0.05); end = Math.max(end, delay + 1100); }
   }
   ui.dealUntil = performance.now() + end;
   for (const k of ['u','b']) deckCountdown(decks[k], starts[k]);
@@ -8126,7 +8168,7 @@ function dealPeeks(skip){
     const go = () => {
       if (!row.isConnected) return;
       let n = 0; const st = [];
-      for (const el of cards){ const delay = 60 + n * 180; if (dealFly(el, deck, delay, 900)){ n++; st.push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} } }
+      for (const el of cards){ const delay = 60 + n * 180; if (dealFly(el, deck, delay, 1100)){ n++; st.push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} } }
       deckCountdown(deck, st);
     };
     // in the peek window: wait until it has finished rising, so each card lands where it really sits
@@ -8256,7 +8298,7 @@ $('view-play').addEventListener('click', e => {
     case 'pk-open': ui.pkWin = 'peek'; ui.pkFocus = t.dataset.k; ui.pkPending = false; sfx.pick(); renderPlay(); return;
     case 'pk-close': if (t.classList.contains('pkwin') && e.target.closest('.pksheet')) return; ui.pkWin = null; ui.pkPending = false; sfx.soft(); renderPlay(); return;
     case 'mirm-use': { mirUse(); return; }
-    case 'mir-peek': ui.mirOpen = ui.mirOpen === t.dataset.k ? null : t.dataset.k; renderPlay(); return;
+    case 'mir-peek': { const k = t.dataset.k; mirTurn(t.closest('.mcard'), k, () => { ui.mirOpen = ui.mirOpen === k ? null : k; }); return; }
     case 'sell-u': case 'sell-b': {
       const kind = act === 'sell-u' ? 'u' : 'b', name = t.dataset.name, src = t.closest('.fcard, .mcard'), S = seat();
       const go = () => { const n0 = G.log.length; doMove(['s', kind, name]); if (G.net || G.log.length > n0) flySell(S, name, kind, src); };

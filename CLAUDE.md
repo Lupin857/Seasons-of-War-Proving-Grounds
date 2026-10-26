@@ -56,6 +56,11 @@ UI script.
 - Server sync (artifact only): `pushBrain` (AI in chunks `aibrain/c0..`, meta `ai/brain`),
   `loadPlayerStats` (`sync/*`), ratings `calibration/ladder`.
 - Workers: `aiWorkerMain`, `workerMain` (source = engine text + function).
+- Card flips (Oct 2026) are real 3D turns: `dealFly` (market deal: lands face down, then turns face up and settles),
+  `mirTurn` (a market card turning over to show/hide its miracles), `deathFly` (dying battle card to the graveyard).
+  Keep the pattern for any new flip: `perspective(~3.4× card width)` first in every keyframe's transform, the same
+  function list in each keyframe, darken a little at edge-on, and swap faces at 90° → −90° so no side is mirrored.
+  Never fake a flip with `scaleX`.
 
 ## Cheap habits
 - Search with Grep/`grep -n ... | cut -c1-250`, then read only the lines you need. Never read the whole file.
