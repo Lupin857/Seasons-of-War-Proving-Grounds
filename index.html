@@ -1027,7 +1027,6 @@ html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobi
 /* phones: the window sits just above the bottom bar, so the decks and Salvage stay in view and its cards visibly come
    out of them (the bar stays usable: Your deck and Miracles close the window) */
 @media (max-width:640px){
-  html.pk-open .dock{z-index:68}
   .pkwin{bottom:var(--dockh,0px)}
   .pkwin .pksheet{max-height:calc(100dvh - var(--dockh,0px) - 40px)}
   .pkwin .pkfoot{padding-bottom:12px}
@@ -5424,7 +5423,7 @@ function flySell(i, name, kind, srcCard){
   if (srcCard){ g = srcCard.cloneNode(true); g.querySelectorAll('button, .stamps, .dealback').forEach(x => x.remove()); g.className = `mcard ${kind}`; }
   else { g = document.createElement('div'); g.className = `mcard ${kind}`; try{ g.innerHTML = cardFace(name, kind, 1); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span></div>`; } }
   const a = from.getBoundingClientRect(), target = pile.querySelector('.mpcards') || pile;
-  flyEl(g, a, w0, h0);
+  flyEl(g, a, w0, h0, flyZ(target));
   const tb = target.getBoundingClientRect(), dk = $('dock'), inBar = !!(dk && dk.getClientRects().length && dk.contains(target));
   cardFlight(g, a, tb, {w0, h0, dur:inBar ? 1300 : 1150, arc:inBar ? Math.max(120, h0 + 40) : 0, onLand:() => { g.remove(); bumpEl(target); }});
 }
@@ -5467,7 +5466,7 @@ function flyCard(src, to, intoBtn){
 // a card copy that flies over the page: fixed, at the start rect, card-sized and solid
 function flyEl(g, at, w0, h0, z){
   g.removeAttribute('style'); g.classList.add('flying'); g.setAttribute('aria-hidden', 'true');
-  Object.assign(g.style, {position:'fixed', left:at.left + 'px', top:at.top + 'px', width:w0 + 'px', margin:'0', zIndex:z || FLY_Z, pointerEvents:'none', transformOrigin:'0 0', background:'var(--card, var(--surface))', overflow:'hidden'});
+  Object.assign(g.style, {position:'fixed', left:at.left + 'px', top:at.top + 'px', width:w0 + 'px', margin:'0', zIndex:z || LAYER.flight, pointerEvents:'none', transformOrigin:'0 0', background:'var(--card, var(--surface))', overflow:'hidden'});
   g.style.setProperty('height', h0 + 'px', 'important');
   document.body.appendChild(g);
   return g;
@@ -6611,7 +6610,7 @@ function peekWinHTML(){
     <div class="pkbody">${head}${body}</div>
     <div class="pkfoot"><p class="note">${foot}</p><button type="button" data-act="pk-close">Close</button></div></div></div>`;
 }
-function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); document.documentElement.classList.remove('pk-open'); ui.pkWin = null; ui.pkPending = false; renderPlay(); }
+function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); ui.pkWin = null; ui.pkPending = false; renderPlay(); }
 // Phones: the Units deck, the Salvage pile and the Buildings deck ride along the top of the bottom bar, square stacks
 // with their counts printed on them, so they're always in reach for Black Market and Salvage and the market has no headers.
 function dockPilesHTML(){
@@ -7641,7 +7640,6 @@ function renderPlay(){
   const vp0 = $('view-play'), oldPops = POPS.map(([b]) => { const e = vp0.querySelector(b); return e ? {e, r:e.getBoundingClientRect()} : null; });
   $('view-play').innerHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${ui.start || ui.roll ? '' : deckSheetHTML()}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
   document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.decksheet'));
-  document.documentElement.classList.toggle('pk-open', !!vp0.querySelector('.pkwin'));
   { const pw = vp0.querySelector('.pkwin'); if (pw) wireSwipe(pw.querySelector('.pksheet'), pw, pw.querySelector('.sheethead'), null,
       {open:() => pw.isConnected && !pw.dataset.gone, now:closePkWin, leave:() => { pw.dataset.gone = '1'; }, done:closePkWin}); }
   POPS.forEach(([b, x], k) => {
@@ -7750,7 +7748,7 @@ function leaveToPile(rows){
       const gh = document.createElement('div');
       gh.className = `mcard ${kind} leaving lghost`; gh.setAttribute('aria-hidden', 'true');
       gh.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div><span class="curve">${curveText(name, kind, 0)}</span><span class="tx">${cardTx(name, kind, 0)}</span>${shortHTML(name, kind, 0)}${hgToken()}`;
-      flyEl(gh, r, r.width, r.height);   // over the page and its bars, like a sale, so it is never hidden on the way to the pile
+      flyEl(gh, r, r.width, r.height, flyZ(pile));   // lands on the Salvage pile, over the bottom bar when the pile is in it
       const delay = 120 + k++ * 220, dur = 1000;
       sfx.flick(delay / 1000 + 0.55);
       gh.style.transformOrigin = '0 0';
@@ -7773,12 +7771,27 @@ function dealView(el){
   const bottom = shown(dk) ? dk.getBoundingClientRect().top : window.innerHeight;
   return {top, bottom};
 }
-/* Flying cards travel on the table: above the market but under the top bar (19), the bottom bar (20), banners and
-   pop-ups, so they slide out from under the bar a deck sits in and back under it into the Salvage pile or a deck button.
-   A card headed into a pop-up (the peek window, an open deck sheet) flies just above that pop-up instead; while the peek
-   window is open the bottom bar rises above it (html.pk-open), so its cards still come up from under the bar. */
-const FLY_Z = 18;
-function flyZ(dest){ return dest && dest.closest && dest.closest('.pkwin') ? 67 : dest && dest.closest && dest.closest('.decksheet, .dsheet') ? 66 : FLY_Z; }
+/* STACKING ORDER (z-index), back to front. Every layer on the play screen belongs to one of these; keep new UI in its band.
+     0–15   the page: market cards, miracle backs (4), battle columns (15)
+     19–20  the bars: top info bar (19), bottom bar with the decks, Salvage and buttons (20)
+     30     hover boxes on market cards (miracles behind a card)
+     40     FLYING CARDS: deals out of a deck, buys into a deck button, sells and unbought cards into Salvage.
+            Over both bars, so you always see a card leave or land on them; under everything below.
+     50     tooltips
+     60     floating controls and messages: the Miracles tab and tray, toasts
+     65–67  pop-ups: deck sheet (65), peek window (66), a card flying into one of those pop-ups (66 / 67)
+     70–72  the card pop-up (a card's full view, phone sheet), its miracles box
+     75     a dying battle card flying to the graveyard
+     80     dialogs: miracle pop-up, reminders
+     90     turn banners ("Your turn", "Pass the device"): always in front, nothing flies over them */
+const LAYER = {bars:20, flight:40, popup:65, peekWin:66, popupFlight:67, cardPop:70, banner:90};
+function flyZ(dest){
+  if (dest && dest.closest){
+    if (dest.closest('.pkwin')) return LAYER.popupFlight;           // a peek card dealt into the peek window
+    if (dest.closest('.decksheet, .dsheet')) return LAYER.peekWin;   // a buy landing in an open deck sheet
+  }
+  return LAYER.flight;
+}
 function dealFly(el, deck, delay, dur, o = {}){
   if (!el || !deck || !el.isConnected) return 0;
   const r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
