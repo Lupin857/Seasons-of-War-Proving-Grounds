@@ -1018,10 +1018,8 @@ html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobi
 .pkchip.sal{background:none;color:var(--muted);border:1.5px dashed var(--muted)}
 .pkttl{font-family:var(--f-display);font-weight:400;font-size:1.5rem;line-height:1.1;margin:0}
 .pksub{font-size:.95rem;color:var(--muted);line-height:1.35;margin:0 0 4px}
-.pkwin .market.pkgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
-.pkwin .mcard{height:auto!important;min-height:190px}
-.pkwin .mcard .tx{overflow:visible!important;max-height:none!important;display:block!important;-webkit-line-clamp:unset!important;-webkit-mask-image:none!important;mask-image:none!important;flex:1 1 auto}
-.pkwin .mcard>button{display:block!important;min-height:44px;font-size:.92rem}
+/* the cards are ordinary market cards, three across like the market's rows (tap one to read it in full) */
+.pkwin .market.pkgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .pkwin .mwrap{display:flex;min-width:0}
 .pkfoot{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);margin:0 -16px;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px))}
 .pkfoot .note{flex:1;margin:0}
@@ -1029,7 +1027,7 @@ html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobi
 @media (min-width:641px){
   .pkwin{align-items:center;padding:24px}
   .pkwin .pksheet{max-width:860px;max-height:min(86vh,900px);border-radius:14px}
-  .pkwin .market.pkgrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))!important}
+  .pkwin .market.pkgrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
 }
 .peekwrap.sheetwrap{display:flex;align-items:flex-end;justify-content:center;background:rgba(10,14,20,.38)}
 .sheet{width:100%;max-width:560px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;background:var(--surface);border-radius:16px 16px 0 0;
