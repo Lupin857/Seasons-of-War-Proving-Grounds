@@ -2021,14 +2021,14 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
 .ccost{display:none}
 /* ===== phones: art cards cropped to the type tab =====
    In the shop, Mobilize, the deck view and battle, a card with art shows everything down to the top of its text box
-   plus the bottom half of its type tab, cut out by art/tabmask.svg (traced from the card frame). The whole card
+   plus the bottom half of its type tab, cut out by the #tabclip clip path (traced from the card frame; added by oasis-mobile-crop-js). The whole card
    opens with a tap. The shape is 750 wide by 728 tall, so every card box on a phone uses that ratio. */
 @media (max-width:640px){
   :root{--crop:.9707}
-  .cface.art{aspect-ratio:750/728;border-radius:0;-webkit-mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat;mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat}
+  .cface.art{aspect-ratio:750/728;border-radius:0;clip-path:url(#tabclip)}
   .cface.art>img.cart{height:auto}
   /* the whole card again where a card is opened or inspected */
-  .peek .cface.art,.cardpop .cface.art,.oinsp .cface.art{aspect-ratio:750/1037;border-radius:5% / 3.6%;-webkit-mask:none;mask:none}
+  .peek .cface.art,.cardpop .cface.art,.oinsp .cface.art{aspect-ratio:750/1037;border-radius:5% / 3.6%;clip-path:none}
   .peek .cface.art>img.cart,.cardpop .cface.art>img.cart,.oinsp .cface.art>img.cart{height:100%}
   /* the shop uses nearly the full screen width: thin panel edges, no padding around the card art, tight rows */
   .mktp{margin-inline:-10px;padding:6px 4px!important;--card-sq:calc((100vw - 32px) / 3)}
@@ -2046,7 +2046,7 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .stack.dgrid>.mcard:has(> .cface.art):not(:last-child){box-shadow:none}
   .stack.dgrid>.mcard:has(> .cface.art){filter:drop-shadow(0 -1px 3px rgba(0,0,0,.35))}
   /* cards tucked behind a Mobilize card: same shape */
-  .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{aspect-ratio:750/728;border-radius:0;box-shadow:none;-webkit-mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat;mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat}
+  .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{aspect-ratio:750/728;border-radius:0;box-shadow:none;clip-path:url(#tabclip)}
   /* an explicit height: Safari otherwise sizes the box from the full-height picture inside it */
   .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{height:calc(var(--sc) * var(--crop))!important;min-height:0}
   .stack.dgrid>.mcard.drow>.pkhit.tuck>img{height:auto}
@@ -2062,11 +2062,11 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   :root{--bch:calc(var(--bcw) * var(--crop))}
   .table .card.hasart:not(.mini){background-color:transparent!important;background-size:0 0!important;border-radius:0!important}
   .table .card.hasart:not(.mini)>.cartbg{background-size:100% auto!important;background-position:center top!important;background-color:transparent!important;border-radius:0;
-    -webkit-mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat;mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat;filter:none}
+    clip-path:url(#tabclip);filter:none}
   .table .card.hasart:not(.mini){filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));box-shadow:none}
   .table .card.hasart:not(.mini)>.hprow{bottom:10%;padding:2px 5px}
   .table .card.hasart>.tk,.table .card.hasart[data-side="1"]>.tk{background-size:100% auto;background-position:center top;border-radius:0;box-shadow:none;
-    -webkit-mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat;mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat}
+    clip-path:url(#tabclip)}
   .table .card.hasart>.tk>img{object-fit:cover;object-position:center top}
 }
 </style>
@@ -11570,5 +11570,30 @@ if (!resumed){ ui.start = true; renderPlay(); }
   }
   document.addEventListener('mouseover', e => { if (!document.body.classList.contains('oasis-desk')) return; const w = which(e.target); if (w) show(w); }, true);
 })();
+</script>
+<script id="oasis-mobile-crop-js">
+/* Phones: the shape cards are cut to, as an inline clip path (0-1 units, so it scales with any card). An inline clip
+   applies at once; an external mask file is fetched after each redraw, and Safari hides the card until it arrives. */
+document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute;width:0;height:0" aria-hidden="true" focusable="false"><clipPath id="tabclip" clipPathUnits="objectBoundingBox"><path d="M 0,0.05495 Q 0,0 0.05333,0 H 0.94667 Q 1,0 1,0.05495 V 0.89354 Q 1,0.9375 0.95733,0.9375 H 0.68733 L 0.684,0.9478 L 0.676,0.96154 L 0.668,0.97527 L 0.66,0.98901 L 0.65867,0.99176 H 0.38733 L 0.38267,0.98626 L 0.37467,0.97527 L 0.36533,0.96154 L 0.356,0.9478 L 0.35267,0.9375 H 0.04267 Q 0,0.9375 0,0.89354 Z"/></clipPath></svg>');
+/* Every redraw rebuilds the Play view. Put the card pictures that were already on screen back in place of their new
+   copies, so a card that stays put keeps its decoded picture instead of blinking while it decodes again. */
+{
+  const rp = renderPlay;
+  renderPlay = function(){
+    const v = document.getElementById('view-play'), sel = 'img.cart, .pkhit.tuck > img', pool = new Map();
+    if (v) v.querySelectorAll(sel).forEach(i => { const k = i.getAttribute('src'); if (!pool.has(k)) pool.set(k, []); pool.get(k).push(i); });
+    const r = rp.apply(this, arguments);
+    if (v && pool.size) v.querySelectorAll(sel).forEach(n => {
+      const a = pool.get(n.getAttribute('src'));
+      if (!a || !a.length) return;
+      const o = a.shift();
+      if (o === n || o.isConnected) return;
+      o.className = n.className; o.alt = n.alt;
+      if (n.hasAttribute('aria-hidden')) o.setAttribute('aria-hidden', n.getAttribute('aria-hidden')); else o.removeAttribute('aria-hidden');
+      n.replaceWith(o);
+    });
+    return r;
+  };
+}
 </script>
 </body></html
