@@ -1575,7 +1575,7 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 /* ---- card art (every size) ---- */
 .cface.art{position:relative;width:100%;aspect-ratio:750/1037;border-radius:5% / 3.6%;overflow:hidden;flex:none;
   box-shadow:0 1px 2px rgba(0,0,0,.28),0 3px 9px rgba(0,0,0,.14);background:#2a2320}
-.cface.art>img.cart{width:100%;height:100%;display:block;-webkit-user-drag:none}
+.cface.art>:is(img,canvas).cart{width:100%;height:100%;display:block;-webkit-user-drag:none}
 .cface-txt{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 .mcard:has(> .cface.art),.mcard.peek:has(> .cface.art),.sheet .mcard.peek:has(> .cface.art){padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;gap:6px;overflow:visible}
 .mcard:has(> .cface.art) .zhw{display:none}
@@ -1628,7 +1628,7 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
   left:calc(var(--tkl) * -1 * (var(--j) + 1));top:calc(-1 * (var(--tkb, 0px) + var(--sc) * .175 * (var(--j) + 1)));
   border-radius:5% / 3.6%;overflow:hidden;background:#2a2320;box-shadow:0 0 0 1px rgba(20,16,14,.35),0 -2px 6px rgba(0,0,0,.18);cursor:pointer;font-size:inherit;line-height:0}
 .stack.dgrid>.mcard.drow>.pkhit.tuck::before{display:none}
-.stack.dgrid>.mcard.drow>.pkhit.tuck>img{width:100%;height:100%;display:block;object-fit:cover;-webkit-user-drag:none;pointer-events:none}
+.stack.dgrid>.mcard.drow>.pkhit.tuck>:is(img,canvas){width:100%;height:100%;display:block;object-fit:cover;-webkit-user-drag:none;pointer-events:none}
 .stack.dgrid>.mcard.drow>.pkhit.tuck:hover,.stack.dgrid>.mcard.drow>.pkhit.tuck:focus-visible{background:#2a2320;filter:brightness(1.12);box-shadow:0 0 0 2px var(--or),0 -2px 8px rgba(0,0,0,.25)}
 .stack.dgrid>.mcard.drow>.pkhit.tuck .tkx{position:absolute;right:5%;top:calc(var(--sc) * .175 / 2);transform:translateY(-50%);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   background:rgba(20,16,14,.85);color:#f3ead8;font:700 10px/1 var(--f-body);font-style:normal;opacity:0;transition:opacity .12s}
@@ -1651,7 +1651,7 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 .card.hasart>.tk,.card.hasart[data-side="1"]>.tk{position:absolute;display:block;width:100%;height:100%;padding:0;margin:0;right:auto;bottom:auto;
   left:calc(var(--tkl) * -1 * (var(--j) + 1));top:calc(var(--tky) * -1 * (var(--j) + 1));
   border-radius:5% / 3.6%;overflow:hidden;background:#2a2320 center / cover no-repeat;box-shadow:0 0 0 1px rgba(20,16,14,.35),0 -2px 6px rgba(0,0,0,.18);font-size:0;line-height:0;color:inherit}
-.card.hasart>.tk>img{width:100%;height:100%;display:block;object-fit:cover}
+.card.hasart>.tk>:is(img,canvas){width:100%;height:100%;display:block;object-fit:cover}
 .card.hasart>.pk.tk[data-k="arm"]{background-image:url('art/Might.webp')}
 .card.hasart>.pk.tk[data-k="tr"]{background-image:url('art/Training.webp')}
 .card.hasart>.pk.tk[data-k="sh"]{background-image:url('art/Shield.webp')}
@@ -2026,10 +2026,10 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
 @media (max-width:640px){
   :root{--crop:.9707}
   .cface.art{aspect-ratio:750/728;border-radius:0;clip-path:url(#tabclip)}
-  .cface.art>img.cart{height:auto}
+  .cface.art>:is(img,canvas).cart{height:auto}
   /* the whole card again where a card is opened or inspected */
   .peek .cface.art,.cardpop .cface.art,.oinsp .cface.art{aspect-ratio:750/1037;border-radius:5% / 3.6%;clip-path:none}
-  .peek .cface.art>img.cart,.cardpop .cface.art>img.cart,.oinsp .cface.art>img.cart{height:100%}
+  .peek .cface.art>:is(img,canvas).cart,.cardpop .cface.art>:is(img,canvas).cart,.oinsp .cface.art>:is(img,canvas).cart{height:100%}
   /* the shop uses nearly the full screen width: thin panel edges, no padding around the card art, tight rows */
   .mktp{margin-inline:-10px;padding:6px 4px!important;--card-sq:calc((100vw - 32px) / 3)}
   .mktp .market{column-gap:6px!important;row-gap:12px!important}
@@ -2049,7 +2049,7 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{aspect-ratio:750/728;border-radius:0;box-shadow:none;clip-path:url(#tabclip)}
   /* an explicit height: Safari otherwise sizes the box from the full-height picture inside it */
   .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{height:calc(var(--sc) * var(--crop))!important;min-height:0}
-  .stack.dgrid>.mcard.drow>.pkhit.tuck>img{height:auto}
+  .stack.dgrid>.mcard.drow>.pkhit.tuck>:is(img,canvas){height:auto}
   /* the water cost, which the cut leaves out: a chip in the gap right of the type tab */
   .mcard:has(> .cface.art){position:relative}
   .mcard:not(.peek):not(.cardpop)>.ccost{display:flex;position:relative;align-self:flex-end;margin:-17px 2% -1px 0;z-index:3;flex:none;align-items:center;gap:2px;height:16px;padding:0 5px;border-radius:9px;
@@ -2069,7 +2069,7 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .table .card.hasart:not(.mini)>.hprow{bottom:10%;padding:2px 5px}
   .table .card.hasart>.tk,.table .card.hasart[data-side="1"]>.tk{background-size:100% auto;background-position:center top;border-radius:0;box-shadow:none;
     clip-path:url(#tabclip)}
-  .table .card.hasart>.tk>img{object-fit:cover;object-position:center top}
+  .table .card.hasart>.tk>:is(img,canvas){object-fit:cover;object-position:center top}
 }
 </style>
 <script>/* PeerJS 1.5.5 (MIT) */
@@ -5612,7 +5612,39 @@ function artURL(name, kind){
   return 'art/' + encodeURIComponent(n) + '.webp';
 }
 const tokArtURL = k => TOK_ART[k] ? 'art/' + TOK_ART[k] + '.webp' : null;
-const artImg = (url, alt) => `<img class="cart" src="${url}" alt="${esc(alt || '')}" loading="lazy" draggable="false">`;
+const artImg = (url, alt) => `<img class="cart" src="${url}" alt="${esc(alt || '')}" draggable="false">`;
+/* Reusing loaded art. A copied <img> (a flying card, the pop-up) is a new picture the browser must decode again, and
+   until it has (Safari can take a while) the card shows blank. Instead, a copy gets a canvas painted from a picture
+   that is already loaded: painting is immediate, so a copy is never blank. A picture not loaded yet stays an <img>. */
+const ART_READY = new Map();
+document.addEventListener('load', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.naturalWidth){ const k = t.getAttribute('src'); if (k && k.startsWith('art/')) ART_READY.set(k, t); } }, true);
+function artReady(src){
+  const im = ART_READY.get(src);
+  if (im && im.complete && im.naturalWidth) return im;
+  for (const i of document.images) if (i.getAttribute('src') === src && i.complete && i.naturalWidth){ ART_READY.set(src, i); return i; }
+  return null;
+}
+// a canvas copy of a card picture, maxW pixels wide at most (the art's own size when not given); null when not loaded
+function artCanvas(img, maxW){
+  const src = img.getAttribute('src'), im = src && src.startsWith('art/') ? artReady(src) : null;
+  if (!im) return null;
+  const w = Math.max(1, Math.round(Math.min(im.naturalWidth, maxW || im.naturalWidth))), h = Math.max(1, Math.round(w * im.naturalHeight / im.naturalWidth));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  try{ const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, w, h); }catch(e){ return null; }
+  c.className = img.className; c.dataset.src = src; c.setAttribute('aria-hidden', 'true');
+  if (img.getAttribute('style')) c.setAttribute('style', img.getAttribute('style'));
+  return c;
+}
+// swap every card picture inside a copy for its canvas (cssW: about how wide the copy shows, in CSS pixels)
+function solidArt(g, cssW){
+  if (!g || !g.querySelectorAll) return g;
+  const maxW = cssW ? cssW * Math.min(3, window.devicePixelRatio || 1) * 1.3 : 0;
+  for (const i of g.querySelectorAll('img')){
+    i.loading = 'eager';
+    const c = artCanvas(i, maxW); if (c) i.replaceWith(c);
+  }
+  return g;
+}
 </script>
 <script>
 /* Safety net: if drawing a tab or starting the page hits an error, show it (with a way to copy it to Claude)
@@ -6513,6 +6545,7 @@ function flyCard(src, to, intoBtn){
 const FLYHOSTS = new Map();
 // a flying copy's box, set firmly: the copied context's own placement rules (some !important) must not move or stretch it
 function pinFly(g, x, y, w, h){
+  if (!g.dataset.solid){ g.dataset.solid = '1'; solidArt(g, w); }
   for (const [k, v] of [['position','fixed'], ['left', x + 'px'], ['top', y + 'px'], ['right','auto'], ['bottom','auto'], ['width', w + 'px'], ['height', h + 'px'], ['margin','0'], ['min-height','0'], ['max-width','none']]) g.style.setProperty(k, v, 'important');
 }
 function flyHost(ctx){
@@ -9545,7 +9578,7 @@ function dragMove(e){
     drag.dx = drag.x0 - r.left; drag.dy = drag.y0 - r.top;
     // the card being dragged is the same square card as in the stacks: it rides in a stand-in stack, so every rule
     // that draws a Mobilize card (size, text, hidden buttons, card color) applies to it unchanged
-    let g = drag.src.cloneNode(true); g.classList.add('dragghost'); g.classList.remove('lifted', 'tapping', 'sel', 'cansel', 'target', 'notarget', 'dragging', 'isvan'); g.removeAttribute('hidden');
+    let g = solidArt(drag.src.cloneNode(true), r.width); g.classList.add('dragghost'); g.classList.remove('lifted', 'tapping', 'sel', 'cansel', 'target', 'notarget', 'dragging', 'isvan'); g.removeAttribute('hidden');
     // a deck card carries its attached tokens: the token cards tucked behind it and their name tabs ride along
     if (drag.kind === 'deck' && drag.src.dataset.room && drag.src.style.boxShadow)
       g.style.setProperty('box-shadow', drag.src.style.boxShadow + ',0 14px 32px rgba(0,0,0,.3)', 'important');
@@ -11568,10 +11601,11 @@ if (!resumed){ ui.start = true; renderPlay(); }
   function show(w){
     const key = JSON.stringify(w && {n:w.n, k:w.k, tok:w.tok}); if (key === last) return; last = key;
     const big = box.querySelector('.ibig'), h = box.querySelector('h4'), tx = box.querySelector('.itx'), meta = box.querySelector('.imeta');
-    if (w.tok){ const u = tokArtURL(w.tok); big.innerHTML = u ? artImg(u, TOK_ART[w.tok]) : ''; h.textContent = TOK_ART[w.tok] || ''; tx.textContent = (typeof TOKRULES !== 'undefined' && TOKRULES[w.tok]) ? TOKRULES[w.tok].replace(/<[^>]+>/g, '') : ''; meta.textContent = 'Token'; return; }
+    if (w.tok){ const u = tokArtURL(w.tok); big.innerHTML = u ? artImg(u, TOK_ART[w.tok]) : ''; solidArt(big); h.textContent = TOK_ART[w.tok] || ''; tx.textContent = (typeof TOKRULES !== 'undefined' && TOKRULES[w.tok]) ? TOKRULES[w.tok].replace(/<[^>]+>/g, '') : ''; meta.textContent = 'Token'; return; }
     const d = w.k === 'u' ? DEFS[w.n] : BDEFS[w.n]; if (!d) return;
     const url = artURL(w.n, w.k);
     big.innerHTML = url ? artImg(url, dispName(w.n)) : `<div class="mcard ${w.k}">${cardFace(w.n, w.k, +w.own || 0)}</div>`;
+    solidArt(big);
     h.textContent = dispName(w.n);
     tx.textContent = oasisText(d.t || '');
     const type = w.k === 'u' ? (d.token ? 'Token' : 'Unit') : d.gear ? 'Gear' : 'Support';
@@ -11586,7 +11620,8 @@ if (!resumed){ ui.start = true; renderPlay(); }
    applies at once; an external mask file is fetched after each redraw, and Safari hides the card until it arrives. */
 document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="position:absolute;width:0;height:0" aria-hidden="true" focusable="false"><clipPath id="tabclip" clipPathUnits="objectBoundingBox"><path d="M 0,0.05495 Q 0,0 0.05333,0 H 0.94667 Q 1,0 1,0.05495 V 0.89354 Q 1,0.9375 0.95733,0.9375 H 0.68733 L 0.684,0.9478 L 0.676,0.96154 L 0.668,0.97527 L 0.66,0.98901 L 0.65867,0.99176 H 0.38733 L 0.38267,0.98626 L 0.37467,0.97527 L 0.36533,0.96154 L 0.356,0.9478 L 0.35267,0.9375 H 0.04267 Q 0,0.9375 0,0.89354 Z"/></clipPath></svg>');
 /* Every redraw rebuilds the Play view. Put the card pictures that were already on screen back in place of their new
-   copies, so a card that stays put keeps its decoded picture instead of blinking while it decodes again. */
+   copies, so a card that stays put keeps its decoded picture instead of blinking while it decodes again. The old
+   card gets the new copy in exchange: flights copy the old card (a card just bought), so it must keep its picture. */
 {
   const rp = renderPlay;
   renderPlay = function(){
@@ -11600,7 +11635,7 @@ document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="
       if (o === n || o.isConnected) return;
       o.className = n.className; o.alt = n.alt;
       if (n.hasAttribute('aria-hidden')) o.setAttribute('aria-hidden', n.getAttribute('aria-hidden')); else o.removeAttribute('aria-hidden');
-      n.replaceWith(o);
+      const ph = document.createTextNode(''); n.replaceWith(ph); o.replaceWith(n); ph.replaceWith(o);
     });
     return r;
   };
@@ -11611,7 +11646,7 @@ document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="
   const cp = cardPop;
   cardPop = function(card){
     const pk = cp.apply(this, arguments);
-    pk.querySelectorAll('img').forEach(i => { i.loading = 'eager'; i.decoding = 'sync'; });
+    pk.querySelectorAll('img').forEach(i => { i.loading = 'eager'; i.decoding = 'sync'; const c = artCanvas(i); if (c) i.replaceWith(c); });
     return pk;
   };
   const op = openPeek;
@@ -11620,7 +11655,7 @@ document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="
     const self = this, args = arguments;
     if (!compact()) return op.apply(self, args);
     let srcs = [];
-    try{ srcs = [...cp(card).querySelectorAll('img')].map(i => i.src).filter(Boolean); }catch(e){}
+    try{ srcs = [...cp(card).querySelectorAll('img')].filter(i => !artReady(i.getAttribute('src'))).map(i => i.src).filter(Boolean); }catch(e){}
     if (!srcs.length) return op.apply(self, args);
     const me = waiting = {};
     let done = false;
