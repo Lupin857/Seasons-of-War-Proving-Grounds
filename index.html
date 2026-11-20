@@ -2091,7 +2091,7 @@ const DEFS = {
   'Pikeman':{c:1,n:4,p:[1,2,3],v:[3,4,5],t:'If the enemy charging unit has more power, my attacks deal +3/4/5 damage.'},
   'Royal Watchman':{c:1,n:4,p:[1,2,3],v:[1,2,3],t:'Charge: if the enemy charging unit has more power than me, I gain 1/2/3 Shield tokens.'},
   'Desperate Infantry':{c:1,n:0,p:[1,2,3],v:[1,2,3],t:'On My Death: deal 1/2/3 damage to the enemy unit ahead of me.'},
-  'Slinger':{c:1,n:4,p:[1,2,3],v:[1,2,3],t:'Reveal: deal 1/2/3 damage to the enemy revealed unit.'},
+  'Slinger':{c:1,n:4,p:[1,2,3],v:[1,2,3],t:'Reveal: deal 1/2/3 damage to the enemy revealed unit (or their charging unit if they have none).'},
   'Strong Villager':{c:1,n:4,p:[2,4,6],t:'No ability.'},
   'Dutiful Squire':{c:1,n:4,p:[1,2,3],v:[1,2,3],t:'Reveal: your charging unit gains 1/2/3 Armaments.'},
   'Conscripted Farmhand':{c:1,n:4,p:[1,2,3],v:[1,2,3],tt:'Shop: if you own a Field, gain {$v} income.'},
@@ -2120,7 +2120,7 @@ const DEFS = {
   'Executioner':{c:2,n:3,p:[1,2,3],t:'My damage is Lethal.'},
   'Scholar':{c:3,n:2,p:[1,2,4],v:[1,2,2],tt:'Reveal and Charge: your other charging or revealed unit gains {v|a Training token|# Training tokens}.'},
   'Man-at-arms':{c:4,n:2,p:[4,6,6],v:[1,1,2],tt:'Charge: gain {v|a Shield|# Shields}.'},
-  'Halberd Knight':{c:4,n:2,p:[1,2,3],v:[3,4,5],t:'Reveal: deal 3/4/5 damage with Shieldbreak to the enemy charging unit. Move me to the back of your deck.'},
+  'Halberd Knight':{c:4,n:2,p:[1,2,3],v:[3,4,5],t:'Reveal: deal 3/4/5 damage with Shieldbreak to the enemy unit ahead of me. Move me to the back of your deck.'},
   'Dowser Oracle':{c:3,n:2,p:[1,2,3],v:[1,2,3],t:'Reveal: your charging unit gains 1/2/3 Shields.'},
   'Armored Knight':{c:4,n:2,p:[4,6,6],v:[1,1,2],tt:'I take {v} less damage from all sources.'},
   'Monk':{c:3,n:2,p:[3,5,7],t:'Charge: your revealed unit gains Might tokens equal to the difference between its power and mine.'},
@@ -2374,7 +2374,7 @@ function runBattle(cfgs, record){
     if (u.jFail) return;
     const N = record ? nameOf(u) : '', v = val(u);
     switch (key(u)){
-      case 'Slinger': { const t = top(1-p); if (t) hit(t, v, N, s); break; }
+      case 'Slinger': { const t = rearmost(1-p); if (t) hit(t, v, N, s); break; }   // the enemy revealed unit, or their charging unit if they have none
       case 'Dutiful Squire': { const c = P[p].charge; if (c && addArm(c, v, N, s)) log(`${N} gives ${nameOf(c)} ${v} ${plural(v, 'Armament')}.`, s, tokMeta(u, c, s, 'arm', v)); break; }
       case 'Musketeer': { const c = P[1-p].charge, t = top(1-p); if (c) hit(c, v, N, s); if (t) hit(t, v, N, s); break; }
       case 'Dark Knight': { const c = P[p].charge; if (c && c !== u) hit(c, v, N, s); break; }
@@ -2382,9 +2382,10 @@ function runBattle(cfgs, record){
       case 'White Knight': { const k1 = P[p].deck.indexOf(u), c = k1 > 0 ? P[p].deck[k1-1] : P[p].charge; if (c && addSh(c, v, s)){ log(`${N} gives ${nameOf(c)} ${many(v, 'a Shield', 'Shields')}.`, s, tokMeta(u, c, s, 'sh', v)); } break; }
       case 'Dowser Oracle': { const c = P[p].charge; if (c && c !== u && addSh(c, v, s)){ log(`${N} gives ${nameOf(c)} ${many(v, 'a Shield', 'Shields')}.`, s, tokMeta(u, c, s, 'sh', v)); } break; }
       case 'Halberd Knight': {
-        // Sand Sailor: Shieldbreak damage to the enemy charging unit, then I go to the back of the deck. If only
-        // Sand Sailors are behind me I stay put, so two of them can't cycle forever.
-        const t = P[1-p].charge; if (t) hit(t, v, N, s, true);
+        // Sand Sailor: Shieldbreak damage to the enemy unit ahead of me (their charging unit, or their revealed unit if
+        // none is charging), then I go to the back of the deck. If only Sand Sailors are behind me I stay put, so two
+        // of them can't cycle forever.
+        const t = enemyAhead(p); if (t) hit(t, v, N, s, true);
         const pl = P[p], k = pl.deck.indexOf(u);
         if (k >= 0 && pl.deck.slice(k + 1).some(x => key(x) !== 'Halberd Knight')){ pl.deck.splice(k, 1); pl.deck.push(u); log(`${N} moves to the back of the deck.`, s); }
         break; }
@@ -7103,10 +7104,10 @@ const SHORT_FIX = {
   'Monk':'Charge: revealed + ⟨arm⟩ = power difference',
   'Infirmary':'First unit defeated → deck bottom, no damage',
   'Knight':'Charge: +3 ⟨arm⟩', 'Fencer':'Before I attack: discard enemy charger’s ⟨arm⟩',
-  'Halberd Knight':'Reveal: 3/4/5 Shieldbreak dmg → enemy charger; me to deck back',
+  'Halberd Knight':'Reveal: 3/4/5 Shieldbreak dmg → enemy ahead; me to deck back',
   'Dowser Oracle':'Reveal: your charger +1/2/3 ⟨sh⟩', 'Study':'Mob: +1/2 ⟨tr⟩ in deck',
   'Marksman':'Revealed: I also hit enemy revealed (else charger)',
-  'Slinger':'Reveal: 1/2/3 dmg → enemy revealed',
+  'Slinger':'Reveal: 1/2/3 dmg → enemy revealed (else charger)',
   'Executioner':'My damage is Lethal',
   'Lancer':'My attacks have Overrun',
   'War College':'Shop: buy discard-pile duplicates free (uses a buy)',
