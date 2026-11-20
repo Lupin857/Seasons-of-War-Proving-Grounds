@@ -1706,6 +1706,7 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
         <li>Cathedral: +1 point while owned, but you can only win at the end of a battle phase in which you won the battle.</li>
         <li>Mason's Guild attaches to one of your buildings and counts as an extra copy of it. Black Market ($2) sets aside the top 3/4/5 cards of the unit deck or the building deck (your choice, not both) once per shop; you may buy one of them for $1/$2/$3 less (by its level), using a normal buy. Unbought cards go to the bottom.</li>
         <li>Miracles (optional, set at the start of a game): 14 in the unit deck and 8 in the building deck. A miracle is never shown alone: the next card from its deck is laid on top of it (more miracles stack). That card costs its price plus each miracle's surcharge (discounts apply to the total), and its buyer gets every miracle under it. Money miracles pay at once, and Discard Writ is used at once (up to 1 other display card goes to the discard pile and is replaced from its deck, then you take another shop turn before your opponent); the others go to your hand, which both players can see, and are played later: Divine Favor, Vision and Patronage on your shop turn (from the ✶ Miracles tab; a played Patronage takes $2 off your next buy), and Recruit, Armament and Training miracles at a Mobilize (from the Miracles panel: their Recruits or tokens go on your bench, and the miracle is discarded once you lock in with them placed). Unbought, a covered card goes sideways and leaves with its miracles. Black Market and Vision put a miracle they turn up on the bottom and look at one more card. Miracles can't be sold.</li>
+        <li>Automatic shop refills (optional, set at the start of a game): when you buy a card from the shop display, a new card from the same deck is dealt into its spot right away, so the display stays full all round.</li>
         <li>Battle miracles (optional, a second checkbox): Ambush, Second Wind and Silence are shuffled into the unit deck, Divine Shield and Sabotage into the building deck, and Mill and Restock leave to make room. A battle miracle goes to your hand. At a Mobilize you may place it anywhere in your deck; it isn't a unit, so your Vanguard and Rearguard are still your first and last units. It resolves the moment it becomes the top card of your deck (one placed ahead of your Vanguard at battle start, one behind your last unit when that unit charges), together with that step's Charge abilities and the other player's battle miracles; the card under it is revealed only after. Back-to-back battle miracles resolve one after another. "Unit ahead" means the charging unit, or the Vanguard at battle start. While Pigeon Hunter is revealed, the opponent's battle miracles don't trigger. Used or not, placed battle miracles are discarded after the battle.</li>
         <li>Discard pile and miracles: every miracle that is used up or discarded is laid face up in the discard pile, where it can't be bought.</li>
         <li>More miracles: Covenant deals one more card from the same deck on top of it when it is dealt, and the two are bought together for their combined price (one buy; two buildings need two City slots). Mill, when used, sends the top 3 units of the unit deck to the discard pile. Restock, when used, deals a card from the same deck into the display. Freeze goes to your hand: on your shop turn, play it as your turn to set aside a display card with its miracles; its spot stays empty, and only you can buy it, at its normal price with a normal buy, on any later shop turn. Upheaval goes to your hand: on your shop turn, discard it (without using your turn) to send every display card to the discard pile, then deal new cards until the display is full.</li>
@@ -2867,6 +2868,18 @@ function dealCard(g, k){
   for (const m of mir) deck.unshift(m);   // nothing left to cover them: they wait at the bottom
   return null;
 }
+// Automatic shop refills (optional, set at the start of a game): a bought display card is replaced right away from its
+// own deck, into its own spot, so the display stays full all shop long
+function refillRow(g, k){
+  if (!g.refill) return;
+  const size = k === 'u' ? RULES.unitDisplay : RULES.bldgDisplay, row = g.disp[k];
+  const used = new Set(row.filter(c => c.at != null).map(c => c.at));
+  while (row.length < size){
+    const c = dealCard(g, k); if (!c) break;
+    let a = 0; while (used.has(a)) a++; used.add(a); c.at = a;
+    const j = row.findIndex(x => x.at != null && x.at > a); if (j < 0) row.push(c); else row.splice(j, 0, c);
+  }
+}
 // take n cards off the top of a deck to look at; a miracle goes to the bottom and one more card is looked at
 function peekCards(deck, n){
   const cards = [], skip = [];
@@ -3063,11 +3076,11 @@ function farmhandIncome(p){ const c = (p.hand && p.hand['Conscripted Farmhand'])
 function total(p){ return p.score + (p.city.Cathedral ? 1 : 0); }
 function masonTargets(p){ return Object.keys(p.city).filter(n => n !== 'Field' && p.city[n] > 0 && p.city[n] < BDEFS[n].lv.length); }
 
-let MIRACLES_ON = true, BATTLE_MIR_ON = true;
+let MIRACLES_ON = true, BATTLE_MIR_ON = true, REFILL_ON = false;
 function newGame(o){
   o = o || {};
-  const rnd = o.rnd || Math.random, mo = o.miracles ?? MIRACLES_ON, bmo = !!(mo && (o.battleMir ?? BATTLE_MIR_ON));
-  return {rnd, miracles:mo, battleMir:bmo, spells:[[], []], salvMir:[], target:o.target || RULES.target, round:0, phase:'shop', winner:null, over:false,
+  const rnd = o.rnd || Math.random, mo = o.miracles ?? MIRACLES_ON, bmo = !!(mo && (o.battleMir ?? BATTLE_MIR_ON)), rf = !!(o.refill ?? REFILL_ON);
+  return {rnd, miracles:mo, battleMir:bmo, refill:rf, spells:[[], []], salvMir:[], target:o.target || RULES.target, round:0, phase:'shop', winner:null, over:false,
     uDeck:shuffle(unitPool().concat(mo ? mirPool('u', bmo) : []), rnd), bDeck:shuffle(bldPool().concat(mo ? mirPool('b', bmo) : []), rnd), mirShown:{},
     disp:{u:[], b:[]}, muster:[], log:[], labels:o.labels || ['Azure','Gules'],
     players:[0,1].map(i => ({id:i, money:0, score:0, hand:{}, city:{}, gear:{}, equip:{}, mir:[], prevDeck:null, genome:(o.genomes||[])[i] || null, bought:[], wonLast:false})),
@@ -3257,6 +3270,7 @@ function buy(g, i, src, idx, attach, writ){
   const extraFull = extra + (info.slot === 'fav' ? ' (Divine Favor)' : '') + (src === 'vis' ? ' (Vision)' : '') + (info.disc ? ` (${info.disc}, $${MIRS[info.disc].disc} off)` : '') + (info.chap ? ` (Chapel, $${info.chap} off)` : '') + '';
   g.log.push({t:`${g.labels[i]} ${src === 'mu' ? (g.labels[i]==='You'?'take':'takes') : g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''}${pairGot.length ? ` and ${pairGot.join(' and ')} (Covenant)` : ''} for $${info.price}${extraFull}${src === 'fz' ? ' (frozen)' : ''}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null, pair:pairGot.length ? pairGot : undefined}});
   const again = mir.length ? gainMiracles(g, i, mir, writ, spot) : false;
+  if (spot && (src === 'du' || src === 'db')) refillRow(g, spot.k);
   if (again) g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'take':'takes'} another shop turn (Discard Writ).`, side:i});
   else nextTurn(g);
   return true;
@@ -5856,14 +5870,21 @@ const LENS = [3, 4, 5];
 let LEN = LENS.includes(LS.get('sow-len')) ? LS.get('sow-len') : 3;
 MIRACLES_ON = LS.get('sow-mir') !== false;
 BATTLE_MIR_ON = LS.get('sow-bmir') !== false;
+REFILL_ON = LS.get('sow-refill') === true;
 // the Miracles checkbox: applies to the next game you start (and to AI training and stat games)
 function mirToggleHTML(){
   const live = G && !G.over && G.round > 0;
   const bOn = MIRACLES_ON && BATTLE_MIR_ON;
   return `<label class="mirtog note"><input type="checkbox" data-mir-toggle ${MIRACLES_ON ? 'checked' : ''}> <b>Miracles</b> in the shop decks${live && G.miracles !== MIRACLES_ON ? ' (from your next game)' : ''}</label>`
-    + `<label class="mirtog note${MIRACLES_ON ? '' : ' off'}" title="Ambush, Divine Shield, Second Wind, Silence and Sabotage: placed in your deck, they resolve in battle. Mill and Restock leave the decks to make room."><input type="checkbox" data-bmir-toggle ${BATTLE_MIR_ON ? 'checked' : ''} ${MIRACLES_ON ? '' : 'disabled'}> <b>Battle miracles</b>${live && !!G.battleMir !== bOn ? ' (from your next game)' : ''}</label>`;
+    + `<label class="mirtog note${MIRACLES_ON ? '' : ' off'}" title="Ambush, Divine Shield, Second Wind, Silence and Sabotage: placed in your deck, they resolve in battle. Mill and Restock leave the decks to make room."><input type="checkbox" data-bmir-toggle ${BATTLE_MIR_ON ? 'checked' : ''} ${MIRACLES_ON ? '' : 'disabled'}> <b>Battle miracles</b>${live && !!G.battleMir !== bOn ? ' (from your next game)' : ''}</label>`
+    + `<label class="mirtog note" title="A bought shop card is replaced right away from its own deck, so the shop stays full all round."><input type="checkbox" data-refill-toggle ${REFILL_ON ? 'checked' : ''}> <b>Automatic shop refills</b>${live && !!G.refill !== REFILL_ON ? ' (from your next game)' : ''}</label>`;
 }
 document.addEventListener('change', e => {
+  if (e.target.matches && e.target.matches('[data-refill-toggle]')){
+    REFILL_ON = !!e.target.checked; LS.set('sow-refill', REFILL_ON);
+    for (const el of document.querySelectorAll('[data-refill-toggle]')) el.checked = REFILL_ON;
+    if (G) renderPlay(); refreshViews(); return;
+  }
   if (e.target.matches && e.target.matches('[data-bmir-toggle]')){
     BATTLE_MIR_ON = !!e.target.checked; LS.set('sow-bmir', BATTLE_MIR_ON);
     for (const el of document.querySelectorAll('[data-bmir-toggle]')) el.checked = BATTLE_MIR_ON;
@@ -6710,11 +6731,11 @@ function peerJoin(name, o){
     link: () => link
   });
 }
-function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, at:Date.now()}); }
+function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, rf:NET.rf, at:Date.now()}); }
 function netPresence(){
   if (!NET || !NET.room || NET.seat == null) return;
   const pr = {app:'sow', v:NET_V, code:NET.code, seat:NET.seat, name:NET.name, hash:NET.hash, acts:NET.acts};
-  if (NET.seat === 0) Object.assign(pr, {seed:NET.seed, target:NET.target, mir:NET.mir !== false, bmir:NET.bmir === true});
+  if (NET.seat === 0) Object.assign(pr, {seed:NET.seed, target:NET.target, mir:NET.mir !== false, bmir:NET.bmir === true, rf:NET.rf === true});
   if (JSON.stringify(pr).length > 4000){ NET.err = 'This game has grown too long to keep in sync online.'; renderPlay(); return; }
   NET.room.presence(pr).catch(() => {});
 }
@@ -6724,7 +6745,7 @@ async function netOpen(opts){
   let r;
   try{ r = await room.join('sow-' + opts.code, {host:opts.seat === 0}); }
   catch(e){ ui.netErr = e && e.code === 'not_permitted' ? "Your access to this page doesn't include live rooms. Ask the page's owner to invite you by email from the Share menu." : "Couldn't open the room. Try again in a moment."; renderPlay(); return; }
-  NET = {code:opts.code, seat:opts.seat, name:opts.name, seed:opts.seed, target:opts.target, mir:opts.mir !== false, acts:opts.acts || [], peerActs:[], peer:null,
+  NET = {code:opts.code, seat:opts.seat, name:opts.name, seed:opts.seed, target:opts.target, mir:opts.mir !== false, bmir:opts.bmir === true, rf:opts.rf === true, acts:opts.acts || [], peerActs:[], peer:null,
     hash:netHash(), room:r, applied:[0, 0], started:false, here:false, err:'', since:Date.now(), needShop:false, live:false};
   ui.netErr = ''; ui.start = false;
   r.onPeers(netPeers, e => { if (NET && NET.room === r){ NET.err = (e && e.message) || 'Lost the connection to the room. Reload the page and rejoin it from Play online.'; renderPlay(); } });
@@ -6755,7 +6776,7 @@ function netPeers(ch){
     if (pr.v !== NET_V){ NET.err = 'Your friend has a different version of this page open. Both of you reload it and try again.'; renderPlay(); return; }
     if (pr.hash !== NET.hash){ NET.err = "Your card numbers don't match your friend's (custom balance or a different version). Both of you reload the page."; renderPlay(); return; }
     NET.peer = {name:String(pr.name || 'Friend').slice(0, 16), seed:pr.seed, target:pr.target};
-    if (NET.seat === 1){ NET.seed = pr.seed; NET.target = pr.target; NET.mir = pr.mir !== false; NET.bmir = pr.bmir === true; }
+    if (NET.seat === 1){ NET.seed = pr.seed; NET.target = pr.target; NET.mir = pr.mir !== false; NET.bmir = pr.bmir === true; NET.rf = pr.rf === true; }
     NET.peerActs = Array.isArray(pr.acts) ? pr.acts : [];
     if (!NET.started) netStart(); else { netPump(); netAfter(); }
     if (!wasHere && NET.started && G && !G.over && NET.since + 3000 < Date.now()) showToast(`${NET.peer.name} is here.`);
@@ -6766,7 +6787,7 @@ function netStart(){
   let names = NET.seat === 0 ? [NET.name, NET.peer.name] : [NET.peer.name, NET.name];
   if (names[0] === names[1]) names = [names[0] + ' 1', names[1] + ' 2'];
   stopTimers();
-  G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, miracles:NET.mir !== false, battleMir:NET.bmir === true, rnd:mulberry32(NET.seed)});
+  G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, miracles:NET.mir !== false, battleMir:NET.bmir === true, refill:NET.rf === true, rnd:mulberry32(NET.seed)});
   G.pp = true; G.net = true; G.opp = null;
   ui = freshUI({roll:null, mktTab:'u'});
   NET.started = true; NET.applied = [0, 0]; NET.needShop = false;
@@ -6929,8 +6950,8 @@ async function netStartClick(a, resign){
   if (resign && ui.resignArm !== 'net'){ ui.resignArm = 'net'; renderPlay(); return; }
   if (resign) recordResult(true);
   const name = (val('net-name') || 'Player').slice(0, 16); LS.set('sow-net-name', name);
-  if (a === 'st-net-rejoin'){ const sv = LS.get('sow-net'); if (!sv) return; netLeave(); await netOpen({code:sv.code, seat:sv.seat, name:sv.name || name, seed:sv.seed, target:sv.target, mir:sv.mir, acts:sv.acts}); return; }
-  if (a === 'st-net-host'){ netLeave(); await netOpen({code:netCode(), seat:0, name, seed:(Math.random() * 2147483647) | 0, target:LEN, mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, acts:[]}); return; }
+  if (a === 'st-net-rejoin'){ const sv = LS.get('sow-net'); if (!sv) return; netLeave(); await netOpen({code:sv.code, seat:sv.seat, name:sv.name || name, seed:sv.seed, target:sv.target, mir:sv.mir, bmir:sv.bmir, rf:sv.rf, acts:sv.acts}); return; }
+  if (a === 'st-net-host'){ netLeave(); await netOpen({code:netCode(), seat:0, name, seed:(Math.random() * 2147483647) | 0, target:LEN, mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON, acts:[]}); return; }
   if (a === 'st-net-join'){
     const code = val('net-code').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (code.length !== 6){ ui.netErr = 'Room codes are 6 letters and numbers.'; renderPlay(); return; }
@@ -9045,7 +9066,8 @@ function upgradeSave(g){
   delete g.bm; delete g.vis;
   for (const k of ['seen', 'mirSeen']) if (Array.isArray(g[k])) g[k] = g[k].map(x => x instanceof Set ? x : new Set(Array.isArray(x) ? x : []));
   if (!('battleMir' in g)) g.battleMir = false;   // a game saved before battle miracles existed
-  const d = newGame({rnd:Math.random, miracles:g.miracles, battleMir:g.battleMir, target:g.target, labels:g.labels});
+  if (!('refill' in g)) g.refill = false;   // a game saved before automatic shop refills existed
+  const d = newGame({rnd:Math.random, miracles:g.miracles, battleMir:g.battleMir, refill:g.refill, target:g.target, labels:g.labels});
   for (const k in d) if (!(k in g)) g[k] = d[k];
   g.players.forEach((p, i) => { for (const k in d.players[i]) if (!(k in p)) p[k] = d.players[i][k]; });
   return g;
@@ -9717,7 +9739,7 @@ function workerMain(){
     applyOverrides(m.ov);
     if (m.syn) SYN = m.syn;
     // the page's Miracles / Battle miracles checkboxes (a worker starts with both on)
-    if (m.mo !== undefined){ MIRACLES_ON = !!m.mo; BATTLE_MIR_ON = !!m.bmo; }
+    if (m.mo !== undefined){ MIRACLES_ON = !!m.mo; BATTLE_MIR_ON = !!m.bmo; REFILL_ON = !!m.rf; }
     if (m.cmd === 'syn'){ postMessage({id:m.id, score:synRows(m.as, m.n, m.seed), stats:{}, games:0}); return; }
     if (m.cmd === 'forced'){ postMessage({id:m.id, score:forcedCardGames(m.card, m.n, m.depth, m.once), stats:{}, games:0}); return; }
     if (m.cmd === 'free'){ postMessage({id:m.id, score:freeBuildingGames(m.b, m.l, m.n, m.depth) / m.n, stats:{}, games:0}); return; }
@@ -9789,7 +9811,7 @@ function pump(){
     if (w.busy || !queue.length) continue;
     const t = queue.shift(), id = nextId++;
     pending.set(id, t); w.busy = true; w.taskId = id;
-    w.postMessage(t.msg ? {mo:MIRACLES_ON, bmo:BATTLE_MIR_ON, ...t.msg, id, ov:t.ov, syn:SYN} : {cmd:'match', id, A:t.A, B:t.B, n:t.n, depth:t.depth, ov:ovLen(effOV(), LEN), syn:SYN, mo:MIRACLES_ON, bmo:BATTLE_MIR_ON});
+    w.postMessage(t.msg ? {mo:MIRACLES_ON, bmo:BATTLE_MIR_ON, rf:REFILL_ON, ...t.msg, id, ov:t.ov, syn:SYN} : {cmd:'match', id, A:t.A, B:t.B, n:t.n, depth:t.depth, ov:ovLen(effOV(), LEN), syn:SYN, mo:MIRACLES_ON, bmo:BATTLE_MIR_ON, rf:REFILL_ON});
   }
 }
 function task(msg, ov){ return new Promise(resolve => { queue.push({msg, ov: ov === undefined ? ovLen(effOV(), LEN) : ov, resolve, job}); pump(); }); }
@@ -11666,4 +11688,4 @@ document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="
   };
 }
 </script>
-</body></html
+</body></html>
