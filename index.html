@@ -2047,6 +2047,8 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .stack.dgrid>.mcard:has(> .cface.art){filter:drop-shadow(0 -1px 3px rgba(0,0,0,.35))}
   /* cards tucked behind a Mobilize card: same shape */
   .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{aspect-ratio:750/728;border-radius:0;box-shadow:none;-webkit-mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat;mask:url('art/tabmask.svg') 0 0/100% 100% no-repeat}
+  /* an explicit height: Safari otherwise sizes the box from the full-height picture inside it */
+  .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{height:calc(var(--sc) * var(--crop))!important;min-height:0}
   .stack.dgrid>.mcard.drow>.pkhit.tuck>img{height:auto}
   /* the water cost, which the cut leaves out: a chip in the gap right of the type tab */
   .mcard:has(> .cface.art){position:relative}
