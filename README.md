@@ -1,6 +1,6 @@
-# Seasons of War · Proving Grounds
+# Oasis (formerly Seasons of War)
 
-Play Seasons of War (SOW) in the browser: against a trained AI, pass-and-play on one device, or online against a friend.
+Play Oasis, the retheme of Seasons of War (SOW), in the browser: against a trained AI, pass-and-play on one device, or online against a friend.
 
 **Play:** https://lupin857.github.io/Seasons-of-War-Proving-Grounds/
 

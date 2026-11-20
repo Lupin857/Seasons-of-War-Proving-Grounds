@@ -1,9 +1,11 @@
 # Seasons of War (SOW) · Proving Grounds: notes for Claude
 
-This repo is the GitHub Pages copy of the **SOW Proving Grounds** artifact
-(https://claude.ai/code/artifact/8f48cb3f-5b65-4753-a023-809236a6c4e2). Everything is in `index.html`
-(about 1.8 MB, 9,000+ lines). Brian designs the game; he usually wants changes tested in the artifact first,
-then pushed here.
+This repo is the GitHub Pages copy of the **Oasis** artifact (slug `582be462-0f9f-408f-b686-c833c4db709b`,
+https://claude.ai/artifact/BtVWtsTBp4wSnfKSQqKfyc), the Oasis retheme of SOW. Before Nov 2026 the site ran the
+older **SOW Proving Grounds** artifact (8f48cb3f-5b65-4753-a023-809236a6c4e2). The game is in `index.html`
+(about 1 MB); card art is in `art/<Oasis name>.webp` (Brian's Dextrous card fronts, 750×1037), mirrored from the
+artifact's own `art/` folder. Brian designs the game; he usually wants changes tested in the artifact first,
+then pushed here. Discuss changes with him before pushing.
 
 ## Workflow for a change
 1. Get the live page: Artifact `read` with `path: "index.html"` saves it to a file without printing it.
@@ -12,6 +14,7 @@ then pushed here.
 3. Syntax-check every non-JSON `<script>` with `new Function(...)` in Node.
 4. Run the tests (below), publish the artifact, then copy the file here **without the trailing newline**
    (`head -c -1 page.html > index.html`), commit and push to `main`. Commit messages end with "(artifact vNNN)".
+   If card art changed in the artifact, copy the changed `art/*.webp` files here too.
 
 ## Tests (`tools/`)
 - `node tools/golden.mjs check` (~50 s): 1,000 seeded battles + 44 seeded AI-vs-AI games through the engine.
