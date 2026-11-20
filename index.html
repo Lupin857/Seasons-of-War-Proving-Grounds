@@ -2124,7 +2124,7 @@ const DEFS = {
   'Halberd Knight':{c:4,n:2,p:[1,2,3],v:[3,4,5],t:'Reveal: deal 3/4/5 damage with Shieldbreak to the enemy unit ahead of me. Move me to the back of your deck.'},
   'Dowser Oracle':{c:3,n:2,p:[1,2,3],v:[1,2,3],t:'Reveal: your charging unit gains 1/2/3 Shields.'},
   'Armored Knight':{c:4,n:2,p:[4,6,6],v:[1,1,2],tt:'I take {v} less damage from all sources.'},
-  'Monk':{c:3,n:2,p:[3,5,7],t:'Charge: your revealed unit gains Might tokens equal to the difference between its power and mine.'},
+  'Monk':{c:3,n:2,p:[3,5,7],t:'Charge: if your revealed unit has less power than me, it gains Might tokens equal to the difference.'},
   'Recruit':{c:1,n:0,p:[1,2,3],token:true,t:'Token. 1/2/3 power: it levels up with Training like any unit. Discarded after the battle phase.'},
 };
 // Gear lives in the building deck and is bought like a building, but goes to your hand. During Mobilize you equip
@@ -2422,8 +2422,8 @@ function runBattle(cfgs, record){
       case 'Man-at-arms': if (addSh(u, v, s)){ log(`${N} gains ${many(v, 'a Shield', 'Shields')}.`, s, tokMeta(u, u, s, 'sh', v)); } break;
       // Sump Guardsman: if the enemy charging unit has more power than me, I gain Shields
       case 'Royal Watchman': { const e = P[1-p].charge; if (e && power(e) > power(u) && addSh(u, v, s)){ log(`${N} faces a stronger charger and gains ${many(v, 'a Shield', 'Shields')}.`, s, tokMeta(u, u, s, 'sh', v)); } break; }
-      // Namaki Warleader: your revealed unit gains Might equal to the difference between its power and mine
-      case 'Monk': { const t = top(p); if (!t || t === u) break; const k = Math.abs(power(t) - power(u)); if (k > 0 && addArm(t, k, N, s)){ log(`${N} gives ${nameOf(t)} ${k} ${plural(k, 'Armament')}.`, s, tokMeta(u, t, s, 'arm', k)); } break; }
+      // Namaki Warleader: if your revealed unit is weaker than me, it gains Might equal to the difference
+      case 'Monk': { const t = top(p); if (!t || t === u) break; const k = power(u) - power(t); if (k > 0 && addArm(t, k, N, s)){ log(`${N} gives ${nameOf(t)} ${k} ${plural(k, 'Armament')}.`, s, tokMeta(u, t, s, 'arm', k)); } break; }
       case 'Recruiter': {
         const t = top(p);
         if (t && t.dmg > 0){ t.dmg = 0; log(`${nameOf(t)} is covered and its damage clears.`, s); }
@@ -7122,7 +7122,7 @@ const SHORT_FIX = {
   'Cowardly Squire':'Defeat: a ⟨rec⟩ takes my place, keeps tokens & gear',
   'Royal Watchman':'Charge: vs a stronger charger +1/2/3 ⟨sh⟩',
   'Sleepy Guard':'Revealed: ally ahead defeated → +2/3/3 ⟨arm⟩',
-  'Monk':'Charge: revealed + ⟨arm⟩ = power difference',
+  'Monk':'Charge: weaker revealed + ⟨arm⟩ = power difference',
   'Infirmary':'First unit defeated → deck bottom, no damage',
   'Knight':'Charge: +3 ⟨arm⟩', 'Fencer':'Before I attack: discard enemy charger’s ⟨arm⟩',
   'Halberd Knight':'Reveal: 3/4/5 Shieldbreak dmg → enemy ahead; me to deck back',
@@ -9048,6 +9048,7 @@ function renderPlay(){
   shopNotes();
   markGame(true);   // first, so the page has already scrolled when the deal measures each card's spot
   if (dealNow){ ui.dealt = G.round; dealMarket(); }
+  dealRefills(dealNow);
   dealPeeks(dealNow);
 }
 /* Save and resume: a game in progress (against the AI or pass and play) is kept in this browser after every change,
@@ -9281,6 +9282,57 @@ function dealMarket(){
   }
   ui.dealUntil = performance.now() + end;
   for (const k of ['u','b']) deckCountdown(decks[k], starts[k]);
+}
+/* Mid-shop deals (automatic refills, Discard Writ, Restock): a card that joins the display during the shop flies out of
+   its own deck and flips over in its spot, the same deal as at the start of the shop. Display cards are tracked by
+   identity, so only the ones this page hasn't shown yet are dealt. A refill after your own buy starts as the bought
+   card lifts away; after an opponent's buy it waits until their buy has played out, so the spot fills once it is empty. */
+const refillSeen = new WeakSet(); let refillG = null, refillWait = [];
+function dealRefills(skip){
+  if (!G || !G.disp) return;
+  const fresh = refillG !== G; refillG = G;
+  const show = !fresh && !skip && !ui.battle && G.phase === 'shop' && !reduceMotion(), got = [];
+  for (const k of ['u','b']) (G.disp[k] || []).forEach((c, i) => { if (!c || typeof c !== 'object' || refillSeen.has(c)) return; refillSeen.add(c); if (show) got.push({k, c, i}); });
+  const find = ({k, c, i}) => {
+    const row = $('view-play').querySelector(`.mktp .msec[data-k="${k}"] .market`); if (!row) return null;
+    let node = c.at != null ? row.querySelector(`:scope > [data-at="${c.at}"]`) : null;
+    if (!node) node = [...row.querySelectorAll('.mcard:not(.ghost):not(.always)')][i] || null;
+    if (!node) return null;
+    const el = node.classList.contains('mcard') ? node : node.querySelector('.mcard');
+    const wrap = el && el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
+    return el ? {k, el, backs:wrap ? [...wrap.querySelectorAll('.mirback')].reverse() : []} : null;
+  };
+  // a redraw while an opponent's buy plays out: cards still waiting for their deal stay hidden
+  if (refillWait.length && oppBusy()) for (const it of refillWait.map(find).filter(Boolean)){ it.el.style.opacity = '0'; for (const b of it.backs) b.style.opacity = '0'; }
+  if (!got.length) return;
+  const go = (items, base) => {
+    const starts = {u:[], b:[]}; let n = 0, end = 0;
+    for (const it of items){
+      const deck = $('view-play').querySelector(`.sdeck[data-k="${it.k}"] .dealdeck`) || $('view-play').querySelector('.sdeck .dealdeck');
+      if (!deck || !it.el.isConnected) continue;
+      for (const b of it.backs){
+        const bd = base + n++ * 160;
+        if (dealFly(b, deck, bd, 800, {plain:true})){ starts[it.k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); }catch(e){} }
+        end = Math.max(end, bd + 520);
+      }
+      const delay = base + n++ * 160 + (it.backs.length ? 400 : 0);
+      if (dealFly(it.el, deck, delay, 1100)){ starts[it.k].push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} end = Math.max(end, delay + 1100); }
+    }
+    ui.dealUntil = Math.max(ui.dealUntil || 0, performance.now() + end);
+    for (const k of ['u','b']) deckCountdown($('view-play').querySelector(`.sdeck[data-k="${k}"] .dealdeck`), starts[k]);
+  };
+  if (oppBusy()){
+    // an opponent's buy is still playing out: keep the new cards out of sight, then deal them once the spot is clear
+    refillWait.push(...got);
+    const now = got.map(find).filter(Boolean);
+    for (const it of now){ it.el.style.opacity = '0'; for (const b of it.backs) b.style.opacity = '0'; }
+    oppOnIdle(() => {
+      refillWait = refillWait.filter(w => !got.includes(w));
+      for (const it of got.map(find).filter(Boolean)){ it.el.style.opacity = ''; for (const b of it.backs) b.style.opacity = ''; }
+      if (!G || G.phase !== 'shop' || ui.battle) return;
+      go(got.map(find).filter(Boolean), 60);   // measured again: the page may have redrawn while it waited
+    });
+  } else go(got.map(find).filter(Boolean), 260);
 }
 /* Black Market and Vision: the peeked cards come off the top of the deck they were taken from */
 const peekSeen = new Set();
@@ -11688,4 +11740,4 @@ document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="
   };
 }
 </script>
-</body></html>
+</body></html
