@@ -2104,7 +2104,7 @@ const DEFS = {
   'Studious Squire':{c:2,n:3,p:[2,3,6],v:[1,2,2],t:'While I\'m Revealed: when the ally ahead of me attacks, I gain 1/2/2 Might tokens.'},
   'Aging Master':{c:2,n:3,p:[2,3,6],x:[1,2,2],t:'When I Attack: your revealed unit gains 1/2/2 Might tokens.'},
   'Barber-Surgeon':{c:3,n:2,p:[2,3,5],v:[1],tt:'While Revealed: {v|once|# times} per battle, if your charging unit would die, instead remove all damage from it and move it with its attachments to the back of your deck.'},
-  'Pigeon Hunter':{c:3,n:2,p:[2,4,6],t:'Reveal: swap both players’ charging and revealed units. While I am charging or revealed, your opponent’s units are Silenced.'},
+  'Pigeon Hunter':{c:3,n:2,p:[2,4,6],t:'Your opponent’s units’ abilities are Silenced.'},
   'Brawler':{c:3,n:2,p:[3,5,7],t:'When I survive an attack, remove all damage from me.'},
   'Fencer':{c:2,n:2,p:[3,5,7],t:'Before I Attack: discard all Might tokens from the enemy charging unit.'},
   'Sleepy Guard':{c:2,n:3,p:[2,3,5],v:[2,3,3],t:'While I\'m Revealed: when the ally ahead of me is defeated, gain 2/3/3 Might tokens.'},
@@ -2360,7 +2360,7 @@ function runBattle(cfgs, record){
   // Pigeon Hunter (while charging or revealed): the opponent's units are Silenced, so their abilities do nothing
   const hush = p => phActive(1 - p);
   function hushed(u, p, what){ const h = hush(p); if (!h) return false; withAb(abU(h, 1-p), () => log(`${nameOf(u)}'s ${what} doesn't trigger: ${nameOf(h)} silences it.`, 1-p)); return true; }
-  const REVEALS = new Set(['Halberd Knight','Dowser Oracle','Slinger','Dutiful Squire','Musketeer','Dark Knight','Cannon','White Knight','Pigeon Hunter','Scholar','Jester']);
+  const REVEALS = new Set(['Halberd Knight','Dowser Oracle','Slinger','Dutiful Squire','Musketeer','Dark Knight','Cannon','White Knight','Scholar','Jester']);
   function doReveal(u, p){ if (hush(p)){ if (!u.jFail && REVEALS.has(key(u))) hushed(u, p, 'Reveal'); return; } return withAb(abU(u, p), () => asSrc(u, () => doReveal0(u, p))); }
   function doReveal0(u, p){
     const s = p;
@@ -2389,18 +2389,6 @@ function runBattle(cfgs, record){
         const t = enemyAhead(p); if (t) hit(t, v, N, s, true);
         const pl = P[p], k = pl.deck.indexOf(u);
         if (k >= 0 && pl.deck.slice(k + 1).some(x => key(x) !== 'Halberd Knight')){ pl.deck.splice(k, 1); pl.deck.push(u); log(`${N} moves to the back of the deck.`, s); }
-        break; }
-      case 'Pigeon Hunter': {
-        // enemy side first: their front two trade places; I am still revealed, so neither triggers anything
-        const e = P[1-p], ec = e.charge, et = top(1-p);
-        if (ec && et){ e.deck[0] = ec; e.charge = et; e.revealed = ec.uid; log(`${N} swaps ${nameOf(et)} into the charge and ${nameOf(ec)} back to revealed; their abilities don't trigger.`, s); }
-        // own side: I take the charge, and the unit I replace goes back to revealed (its Reveal triggers again)
-        const me = P[p], mc = me.charge, k = me.deck.indexOf(u);
-        if (mc && mc !== u && k === 0){
-          me.charge = u; me.deck[0] = mc; me.revealed = mc.uid;
-          log(`${N} steps into the charge; ${nameOf(mc)} falls back to revealed.`, s);
-          if (key(mc) !== 'Pigeon Hunter'){ log(`${nameOf(mc)} is revealed again.`, s); doReveal(mc, p); }
-        }
         break; }
       case 'Scholar': { const c = P[p].charge; if (c && c !== u) for (let i = 0; i < v; i++) train(c, N, s); break; }
     }
@@ -2495,13 +2483,12 @@ function runBattle(cfgs, record){
     return did;
   }
   // Both players' newly revealed units trigger together. Who is hushed by a revealed Pigeon Hunter is settled before
-  // anything moves, and Pigeon Hunter's swap comes first. A Silence waiting on a side blanks its next reveal;
+  // anything moves. A Silence waiting on a side blanks its next reveal;
   // War Drums makes the next revealed unit trigger its Reveal once more (wasted on a unit without one).
-  const isPH = u => !!u && u.name === 'Pigeon Hunter';
   function revealRound(pe){
     round(() => {
       const hs = pe.map((u, p) => u ? hush(p) : null);
-      const order = [0,1].filter(p => isPH(pe[p])).concat([0,1].filter(p => pe[p] && !isPH(pe[p])));
+      const order = [0,1].filter(p => pe[p]);
       for (const p of order){
         const u = pe[p], pl = P[p], dr = pl.drums; pl.drums = 0;
         if (!pl.deck.includes(u)) continue;
@@ -2860,7 +2847,7 @@ function dealCard(g, k){
   const deck = k === 'u' ? g.uDeck : g.bDeck, mir = [];
   while (deck.length){ const n = deck.pop(); if (isMir(n)) mir.push(n); else {
     if (mir.length && g.mirShown) for (const m of mir) g.mirShown[m] = (g.mirShown[m] || 0) + 1;
-    const c = {name:n, side:false, mir};
+    const c = {name:n, side:false, mir, id:g.cid = (g.cid || 0) + 1};   // id: which physical card this is, so the screen can follow it
     // Covenant: one more card from the same deck is dealt on top; the two are bought together
     const nCov = mir.reduce((s, m) => s + (MIRS[m].cov || 0), 0);
     if (nCov){ const extra = peekCards(deck, nCov); if (extra.length) c.pair = extra; }
@@ -2869,16 +2856,14 @@ function dealCard(g, k){
   return null;
 }
 // Automatic shop refills (optional, set at the start of a game): a bought display card is replaced right away from its
-// own deck, into its own spot, so the display stays full all shop long
-function refillRow(g, k){
-  if (!g.refill) return;
+// own deck, into the spot it was bought from (only that spot: a gap left by Freeze stays empty)
+function refillRow(g, k, at){
+  if (!g.refill || at == null) return;
   const size = k === 'u' ? RULES.unitDisplay : RULES.bldgDisplay, row = g.disp[k];
-  const used = new Set(row.filter(c => c.at != null).map(c => c.at));
-  while (row.length < size){
-    const c = dealCard(g, k); if (!c) break;
-    let a = 0; while (used.has(a)) a++; used.add(a); c.at = a;
-    const j = row.findIndex(x => x.at != null && x.at > a); if (j < 0) row.push(c); else row.splice(j, 0, c);
-  }
+  if (row.length >= size || row.some(c => c.at === at)) return;   // full, or Restock already filled the spot
+  const c = dealCard(g, k); if (!c) return;
+  c.at = at;
+  const j = row.findIndex(x => x.at != null && x.at > at); if (j < 0) row.push(c); else row.splice(j, 0, c);
 }
 // take n cards off the top of a deck to look at; a miracle goes to the bottom and one more card is looked at
 function peekCards(deck, n){
@@ -3236,7 +3221,8 @@ function buy(g, i, src, idx, attach, writ){
   const sc = sourceCard(g, i, src, idx); if (!sc) return false;
   const info = buyInfo(g, i, sc.name, sc.kind, src, idx); if (!info.ok) return false;
   const p = g.players[i], b = g.buys[i], mir = mirOf(g, {src, idx, who:i}).slice(), pair = pairOf(g, {src, idx, who:i}).slice();
-  const spot = src === 'du' || src === 'db' ? {k:src === 'du' ? 'u' : 'b', at:(slotOf(g, {src, idx}) || {}).at} : src === 'fz' ? {k:sc.kind, at:null} : null;
+  const scObj = slotOf(g, {src, idx, who:i}), cid = scObj && scObj.id != null ? scObj.id : null;
+  const spot = src === 'du' || src === 'db' ? {k:src === 'du' ? 'u' : 'b', at:(scObj || {}).at} : src === 'fz' ? {k:sc.kind, at:null} : null;
   // the situation at the moment of buying (before paying), for situational card opinions
   if (sc.name === "Mason's Guild"){ const ts = masonTargets(p); if (!ts.includes(attach)) attach = ts[0]; }
   p.money -= info.price;
@@ -3268,9 +3254,9 @@ function buy(g, i, src, idx, attach, writ){
   }
   const extra = (info.slot === 'extra' ? ' (extra buy, +$1)' : info.slot === 'carp' ? " (Carpenter's Guild)" : '') + (src === 'bm' ? ` (Black Market, $${bmOff(p)} off)` : '') + (src === 'mu' ? ' from the discard pile (War College)' : '');
   const extraFull = extra + (info.slot === 'fav' ? ' (Divine Favor)' : '') + (src === 'vis' ? ' (Vision)' : '') + (info.disc ? ` (${info.disc}, $${MIRS[info.disc].disc} off)` : '') + (info.chap ? ` (Chapel, $${info.chap} off)` : '') + '';
-  g.log.push({t:`${g.labels[i]} ${src === 'mu' ? (g.labels[i]==='You'?'take':'takes') : g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''}${pairGot.length ? ` and ${pairGot.join(' and ')} (Covenant)` : ''} for $${info.price}${extraFull}${src === 'fz' ? ' (frozen)' : ''}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null, pair:pairGot.length ? pairGot : undefined}});
+  g.log.push({t:`${g.labels[i]} ${src === 'mu' ? (g.labels[i]==='You'?'take':'takes') : g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''}${pairGot.length ? ` and ${pairGot.join(' and ')} (Covenant)` : ''} for $${info.price}${extraFull}${src === 'fz' ? ' (frozen)' : ''}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null, pair:pairGot.length ? pairGot : undefined, src, idx, id:cid, at:spot ? spot.at : null}});
   const again = mir.length ? gainMiracles(g, i, mir, writ, spot) : false;
-  if (spot && (src === 'du' || src === 'db')) refillRow(g, spot.k);
+  if (spot && (src === 'du' || src === 'db')) refillRow(g, spot.k, spot.at);
   if (again) g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'take':'takes'} another shop turn (Discard Writ).`, side:i});
   else nextTurn(g);
   return true;
@@ -3376,8 +3362,8 @@ function useFreeze(g, i, src, idx){
   const p = g.players[i], j = p.mir.findIndex(n => MIRS[n] && MIRS[n].frz), fn = p.mir[j];
   p.mir.splice(j, 1); toSal(g, [fn]); row.splice(idx, 1);
   g.frozen = g.frozen || [[], []];
-  g.frozen[i].push({name:c.name, kind:src === 'du' ? 'u' : 'b', mir:c.mir || [], pair:c.pair});
-  g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} ${fn}: ${c.name}${c.pair && c.pair.length ? ` (with ${c.pair.join(' and ')})` : ''} is set aside for ${g.labels[i]==='You'?'you':g.labels[i]}.`, side:i, ev:{a:'freeze', n:c.name}});
+  g.frozen[i].push({name:c.name, kind:src === 'du' ? 'u' : 'b', mir:c.mir || [], pair:c.pair, id:c.id});
+  g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'use':'uses'} ${fn}: ${c.name}${c.pair && c.pair.length ? ` (with ${c.pair.join(' and ')})` : ''} is set aside for ${g.labels[i]==='You'?'you':g.labels[i]}.`, side:i, ev:{a:'freeze', n:c.name, k:src === 'du' ? 'u' : 'b', id:c.id, at:c.at}});
   nextTurn(g);
   return true;
 }
@@ -3553,7 +3539,7 @@ function endShop(g){
   g.leaving = {u:[], b:[]};
   for (const k of ['u','b']) g.disp[k].forEach((c, j) => { if (c.side) g.leaving[k].push({name:c.name, j, at:c.at}); });
   // unbought cards go sideways with their miracles; ones already sideways leave with theirs
-  for (const k of ['u','b']) g.disp[k] = g.disp[k].filter(c => !c.side).map(c => ({name:c.name, side:true, mir:c.mir || [], at:c.at, ...(c.pair ? {pair:c.pair} : {})}));
+  for (const k of ['u','b']) g.disp[k] = g.disp[k].filter(c => !c.side).map(c => ({name:c.name, side:true, mir:c.mir || [], at:c.at, id:c.id, ...(c.pair ? {pair:c.pair} : {})}));
   g.phase = 'mobilize'; g.decks = [null,null];
 }
 function validateDeck(g, i, spec){
@@ -4028,7 +4014,7 @@ for (const n in BDEFS) if (BDEFS[n].gear) BATTLE_BLDGS.add(n);   // gear is judg
    deck (used by every order the search tries, and by the imagined players). tuneGear then improves the real choice
    with test battles against the AI's guesses at the enemy deck. */
 const GEAR_RANK = ['Poison Oil','Lance','Heirloom Blade','Zweihander','War Banner','Battle Axe','Healing Balm','War Horn','War Drums'];
-const DRUM_FIT = new Set(['Slinger','Dutiful Squire','Musketeer','Cannon','Dowser Oracle','Scholar','Jester','Halberd Knight','Pigeon Hunter','Dark Knight']);   // units with a Reveal ability
+const DRUM_FIT = new Set(['Slinger','Dutiful Squire','Musketeer','Cannon','Dowser Oracle','Scholar','Jester','Halberd Knight','Dark Knight']);   // units with a Reveal ability
 const DRUM_CHARGE = new Set(['Knight','Dark Knight','Scholar','Man-at-arms','Recruiter']);   // units with a Charge ability
 function gearList(p){ const out = []; const gh = (p && p.gear) || {}; for (const n of GEAR_RANK) for (let k = 0; k < (gh[n] || 0); k++) out.push(n); for (const n in gh) if (!GEAR_RANK.includes(n)) for (let k = 0; k < gh[n]; k++) out.push(n); return out; }
 const unitStr = u => u.name === 'Recruit' ? Math.min(1 + (u.tr || 0), 3) + (u.arm || 0) : strengthU(u.name, armyLvl(u)) + (u.arm || 0);
@@ -6365,14 +6351,13 @@ function scheduleAI(){
     aiBusy = true; let r = null;
     try{ r = await aiThink('shop', {depth:AI_DEPTH()}); } finally { aiBusy = false; }
     if (G !== g0 || G.phase !== 'shop' || cur(G) !== 1) return;   // the game moved on while it thought
-    const own0 = snapOwn(1), mk = marketSnap();
+    snapNow();   // where every card sits before the AI moves, so its buys fly from the right spot
     if (r && !r.error && r.acts){
       for (const a of r.acts){ if (a.why) G._why = a.why; const f = window[a.fn]; if (typeof f === 'function') f(G, ...a.args); }
     }
     if (G.log.length === n0 && G.phase === 'shop' && cur(G) === 1) aiShopTurn(G, 1, AI_DEPTH());   // no worker, or nothing usable came back
-    const queued = queueOppMoves(1, n0, mk);
+    const queued = motionFrom(1, n0);
     noteAIMoves(before, m0, n0, queued); afterAction();
-    if (!queued){ flyBuys(1, own0, mk); G.log.slice(n0).filter(l => l.ev && l.ev.a === 'sell' && l.side === 1).forEach((l, j) => setTimeout(() => flySell(1, l.ev.n, l.ev.k), 200 + j * 260)); }
   }, Math.max(650, (ui.dealUntil || 0) - performance.now() + 350));
 }
 /* OPPONENT ACTIONS, ONE AT A TIME. What the AI (or an online friend) buys and sells plays back in order, each as its
@@ -6400,15 +6385,6 @@ async function oppRun(){
   if (oppBusy()){ oppRun(); return; }
   OPQ.idle.splice(0).forEach(f => { try{ f(); }catch(e){} });
 }
-// queue every buy and sell side i made since log index `from` (mk: the market as it looked before, for where buys sat)
-function queueOppMoves(i, from, mk){
-  if (!G || reduceMotion() || (PP() && !G.net)) return false;
-  const evs = G.log.slice(from).filter(l => l.ev && l.side === i && (l.ev.a === 'buy' || l.ev.a === 'sell'));
-  if (!evs.length) return false;
-  for (const l of evs){ const ev = l.ev; OPQ.steps.push(() => ev.a === 'buy' ? oppBuyStep(i, ev, mk) : oppSellStep(i, ev)); }
-  setTimeout(oppRun, 0);   // after this action's redraw, so cards and buttons are measured where they now sit
-  return true;
-}
 const oppWho = i => PP() || G.net ? nm(i) : 'AI';
 const oppDeckBtn = i => [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.getClientRects().length);
 // the space between the bars where a card can be read: the middle of it, card-sized and a little larger
@@ -6435,33 +6411,28 @@ function oppHold(g, at, w0, h0, tag, side){
 }
 // move g (base w0×h0, origin top left) so it sits at rect r
 function oppPlace(g, r, w0){ g.getAnimations().forEach(a => a.cancel()); g.style.setProperty('left', r.left + 'px', 'important'); g.style.setProperty('top', r.top + 'px', 'important'); g.style.transform = `scale(${r.width / w0})`; }
-// a buy: the card lifts where it sat in the market (or in the middle when that spot is off screen), holds, then flies into the buyer's deck button
-function oppBuyStep(i, ev, mk){
-  const src = (mk && (mk.get(ev.n) || mk.get("Mason's Guild") || mk.get('__deck_' + ev.k))) || null;
-  const ref = $('view-play').querySelector('.mktp .mcard:not(.ghost)'), rr = ref ? ref.getBoundingClientRect() : null;
-  const w0 = src && src.el ? src.r.width : rr && rr.width ? rr.width : 110, h0 = w0;   // held cards are square, like every card in the game
-  let g;
-  if (src && src.el){ g = src.el.cloneNode(true); }
-  else { g = document.createElement('div'); g.className = `mcard ${ev.k}`; try{ g.innerHTML = cardFace(ev.n, ev.k, 0, true); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(ev.n)}</span></div>`; } }
-  g.querySelectorAll('button, .stamps, .dealback, .ctag, .mirpop, .hgtok').forEach(x => x.remove());
-  g.classList.remove('cant', 'peeked', 'always', 'canbuy', 'leaving', 'ghost');
-  // it lifts out of its market slot (when that's on screen) and glides to the middle of the screen, growing, then holds there
+// a buy: the card lifts where it sat in the market (or rises from its deck when it never showed, or appears in the
+// middle when its spot is off screen), holds, then flies into the buyer's deck button
+function oppBuyStep(i, ev, src){
+  const sz = src && src.el ? {w:src.r.width, h:src.r.height} : cardSize(), w0 = sz.w, h0 = sz.h;
+  const {g, ctx} = flyer(src && src.el ? src.el : ev.n, ev.k);
   const at = oppStage(w0, h0, 1.25);
-  const v = dealView(ref || document.body), r = src ? src.r : null;
-  const from = r && r.width && r.top + r.height / 2 >= v.top && r.top + r.height / 2 <= v.bottom ? {left:r.left + (r.width - Math.min(r.width, r.height)) / 2, top:r.top, width:Math.min(r.width, r.height), height:Math.min(r.width, r.height)} : null;
-  flyEl(g, from || at, w0, h0, 0, src && src.el ? src.el.parentElement : null); g.style.transformOrigin = '0 0';
-  const tag = `${oppWho(i)} bought · $${ev.price}${ev.on ? ` · leveled ${ev.on}` : ''}`;
+  const v = dealView($('view-play').querySelector('.mktp') || document.body), r = src ? src.r : null;
+  const from = r && r.width && r.top + r.height / 2 >= v.top && r.top + r.height / 2 <= v.bottom ? r : null;
+  flyEl(g, from || at, w0, h0, 0, ctx); g.style.transformOrigin = '0 0';
+  const tag = `${oppWho(i)} bought · $${ev.price}${ev.on ? ` · leveled ${dispName(ev.on)}` : ''}`;
   try{ sfx.pick(); }catch(e){}
   let moved;
-  if (from){
-    const s0 = from.width / w0, s1 = at.width / w0;
-    g.style.transform = `scale(${s0})`;
+  if (from && src.el){
+    const s1 = at.width / w0;
     const mv = g.animate([
-      {transform:`translate(0,0) scale(${s0})`, filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'},
-      {transform:`translate(${(at.left - from.left) * .5}px,${(at.top - from.top) * .5 - 18}px) scale(${(s0 + s1) / 2 * 1.04})`, filter:'drop-shadow(0 18px 20px rgba(0,0,0,.3))', offset:.5},
+      {transform:'translate(0,0) scale(1)', filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'},
+      {transform:`translate(${(at.left - from.left) * .5}px,${(at.top - from.top) * .5 - 18}px) scale(${(1 + s1) / 2 * 1.04})`, filter:'drop-shadow(0 18px 20px rgba(0,0,0,.3))', offset:.5},
       {transform:`translate(${at.left - from.left}px,${at.top - from.top}px) scale(${s1})`, filter:'drop-shadow(0 10px 13px rgba(0,0,0,.25))'}],
       {duration:520, easing:'cubic-bezier(.3,.7,.3,1)', fill:'forwards'});
     moved = mv.finished.catch(() => {});
+  } else if (from){
+    moved = cardFlight(g, from, at, {w0, h0, keep:true, dur:650, onLand:() => {}}).finished.catch(() => {});
   } else { g.animate([{opacity:0, transform:`scale(${at.width / w0 * .9})`}, {opacity:1, transform:`scale(${at.width / w0})`}], {duration:260, easing:'ease-out'}); moved = Promise.resolve(); }
   return moved.then(() => { oppPlace(g, at, w0); return oppHold(g, at, w0, h0, tag, i); }).then(() => new Promise(res => {
     const to = oppDeckBtn(i);
@@ -6473,10 +6444,7 @@ function oppBuyStep(i, ev, mk){
 // a sale: the card rises out of the seller's deck button to the middle, holds, then drops into the discard pile
 function oppSellStep(i, ev){
   const vp = $('view-play'), from = oppDeckBtn(i);
-  const ref = vp.querySelector('.mktp .mcard:not(.ghost)'), rr = ref ? ref.getBoundingClientRect() : null;
-  const w0 = rr && rr.width ? rr.width : 110, h0 = w0;
-  const g = document.createElement('div'); g.className = `mcard ${ev.k}`;
-  try{ g.innerHTML = cardFace(ev.n, ev.k, 1, true); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(ev.n)}</span></div>`; }
+  const {w:w0, h:h0} = cardSize(), {g} = flyer(ev.n, ev.k, {own:1});
   const at = oppStage(w0, h0, 1.25);
   return new Promise(res => {
     const a = from ? from.getBoundingClientRect() : null;
@@ -6514,51 +6482,111 @@ function flySell(i, name, kind, srcCard, lifted){
     return;
   }
   if (!from || !pile || !pile.offsetParent) return;
-  const ref = vp.querySelector('.mktp .mcard:not(.ghost)'), rr = ref ? ref.getBoundingClientRect() : null;
-  const w0 = rr && rr.width ? rr.width : 110, h0 = rr && rr.height ? rr.height : 154;
-  let g;
-  if (srcCard){ g = srcCard.cloneNode(true); g.querySelectorAll('button, .stamps, .dealback').forEach(x => x.remove()); g.className = `mcard ${kind}`; }
-  else { g = document.createElement('div'); g.className = `mcard ${kind}`; try{ g.innerHTML = cardFace(name, kind, 1); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span></div>`; } }
+  const {w:w0, h:h0} = cardSize(), {g} = flyer(srcCard || name, kind, {own:1});
+  if (srcCard) g.className = `mcard ${kind}`;
   const a = from.getBoundingClientRect(), target = pile.querySelector('.mpcards') || pile;
   flyEl(g, a, w0, h0, flyZ(target));
   const tb = target.getBoundingClientRect(), dk = $('dock'), inBar = !!(dk && dk.getClientRects().length && dk.contains(target));
   cardFlight(g, a, tb, {w0, h0, dur:inBar ? 1300 : 1150, arc:inBar ? Math.max(120, h0 + 40) : 0, onLand:() => { g.remove(); bumpEl(target); }});
 }
-/* A bought card flies from the market to the forces it joins, shrinking to its new size on the way. */
-const snapOwn = i => ({u:{...G.players[i].hand}, b:{...G.players[i].city}});
-function marketSnap(){
-  const m = new Map();
-  for (const el of $('view-play').querySelectorAll('.mktp .mcard:not(.ghost)')){
-    const n = el.querySelector('.nm'); const name = n && n.textContent.trim();
-    if (name && !m.has(name)) m.set(name, {el, r:el.getBoundingClientRect()});
-  }
-  for (const k of ['u','b']){ const dk = $('view-play').querySelector(`.sdeck[data-k="${k}"] .dealdeck`); if (dk) m.set('__deck_' + k, {el:null, r:dk.getBoundingClientRect()}); }
-  return m;
+/* ===================== CARD MOTION (shop) =====================
+   Every card that moves on the shop screen is built from the same few pieces, so a change to one fixes it everywhere:
+   - cardKey / data-ck: which physical card a market element shows. Display and frozen cards are followed by their id
+     ('c12'), never by name (names repeat, and the screen shows the Oasis name while the rules use the sheet name);
+     cards without an id (Drifter, Moisture Harvester, Black Market, Vision) by source and index ('bm:0').
+   - snapNow / SPOTS: where each keyed card sat on screen just before a move (taken by every path that makes one).
+   - flyer: the flying copy of a card, made one way: a clone of its element or a fresh face, stripped, real size.
+   - motions: cardFlight (from one place to another), dealFly (out of a deck, flipping face up), and for an opponent's
+     move oppBuyStep / oppSellStep (the card held in the middle with a tag).
+   - motionFrom: after any shop move, turns its log events into flights (an opponent's go on the queue, one at a time).
+   - syncShop: after every redraw, compares the cards in play with the last redraw (from the rules' state, not the
+     page): a new display card is dealt from its deck, a card that moved (Freeze) slides, and a card that left without
+     being bought (Discard Writ) goes to the discard pile. While an opponent's moves play out, these wait in the same
+     queue, so a refill deals into its spot only after the bought card has left it. */
+function cardKey(src, idx, who){
+  const c = src === 'du' || src === 'db' || src === 'fz' ? slotOf(G, {src, idx:idx ?? 0, who:who ?? seat()}) : null;
+  return c && c.id != null ? 'c' + c.id : `${src}:${idx ?? 0}`;
 }
-function flyBuys(i, before, mk){
-  if (!G || G.phase !== 'shop' || reduceMotion()) return;
-  const p = G.players[i], side = i === seat() ? ':not(.ai)' : '.ai', got = [];
-  for (const [k, now] of [['u', p.hand], ['b', p.city]]) for (const n in now) if ((now[n] || 0) > (before[k][n] || 0)) got.push(n);
-  got.forEach((n, j) => {
-    const tos = $('view-play').querySelectorAll(`.dsheet.s${VS(i)} .fcard${side}[data-card="${CSS.escape(n)}"]`), to = tos[tos.length - 1];
-    const src = mk.get(dispName(n)) || mk.get(n) || mk.get(dispName("Mason's Guild")) || mk.get('__deck_' + cardKind(n)) || mk.get('__deck_u');
-    if (to && src) setTimeout(() => flyCard(src, to), j * 220);
-    else if (src && src.el){ const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => flyCard(src, db, true), j * 220); }
-    else { const db = [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.offsetParent); if (db) setTimeout(() => db.animate([{transform:'scale(1)'}, {transform:'scale(1.07)', background:'var(--or-soft)'}, {transform:'none'}], {duration:520, easing:'ease-out'}), 380 + j * 140); }
+const tagCk = (html, ck) => html.replace('<div class="mcard', `<div data-ck="${ck}" class="mcard`);
+const evKey = ev => ev.id != null ? 'c' + ev.id : `${ev.src}:${ev.idx ?? 0}`;
+const deckEl = k => $('view-play').querySelector(`.sdeck[data-k="${k}"] .dealdeck`);
+const deckBtnOf = i => [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.getClientRects().length);
+const pileEl = () => { const p = $('muster-pile'); return p && p.getClientRects().length ? (p.querySelector('.mpcards') || p) : null; };
+const ckEl = ck => { for (const el of $('view-play').querySelectorAll(`.mcard[data-ck="${ck}"]`)) if (el.getClientRects().length) return el; return null; };
+const backsOf = el => { const w = el && el.parentElement; return w && w.classList.contains('mirwrap') ? [...w.querySelectorAll('.mirback')] : []; };
+let SPOTS = new Map();
+function snapNow(){
+  const m = new Map(), vp = $('view-play');
+  if (vp) for (const el of vp.querySelectorAll('.mcard[data-ck]')){ const ck = el.dataset.ck; if (!m.has(ck) && el.getClientRects().length) m.set(ck, {el, r:el.getBoundingClientRect()}); }
+  return (SPOTS = m);
+}
+// where a bought card comes from: its spot (as it was before the move); else the discard pile or its deck, as a small start
+function evSource(ev){
+  const s = SPOTS.get(evKey(ev)); if (s) return s;
+  const d = ev.src === 'mu' ? pileEl() : deckEl(ev.k);
+  return d && d.getClientRects().length ? {el:null, r:d.getBoundingClientRect()} : null;
+}
+// the size of a card on this screen (a shop card's, as a stand-in when there is no element to measure)
+function cardSize(el){
+  const r = el && el.getBoundingClientRect && el.getBoundingClientRect(); if (r && r.width) return {w:r.width, h:r.height};
+  const ref = $('view-play').querySelector('.mktp .market .mcard:not(.ghost)'), rr = ref && ref.getBoundingClientRect();
+  return rr && rr.width ? {w:rr.width, h:rr.height} : {w:110, h:152};
+}
+/* The flying copy of a card. src: the card's element (cloned, so it looks just like it) or a card name (a fresh face).
+   exact: keep everything the card shows in its spot (a deal lands on the real card, so it must match it exactly);
+   otherwise buttons, stamps, tags and state marks come off, as for a card that has left its spot. */
+const FLY_STRIP = 'button, .stamps, .dealback, .ctag, .mirpop, .hgtok, .writmark, .writown';
+const FLY_STATE = ['cant', 'peeked', 'always', 'canbuy', 'leaving', 'ghost', 'lvup', 'writtgt', 'writsrc', 'writoff', 'on', 'full', 'oplinger'];
+function flyer(src, kind, o = {}){
+  let g, ctx = null;
+  if (src && src.nodeType === 1){ g = src.cloneNode(true); ctx = src.parentElement; }
+  else { g = document.createElement('div'); g.className = `mcard ${kind}`; try{ g.innerHTML = cardFace(src, kind, o.own || 0, true); }catch(e){ g.innerHTML = `<div class="top"><span class="nm">${esc(src)}</span></div>`; } }
+  g.querySelectorAll(o.exact ? '.dealback, .mirpop' : FLY_STRIP).forEach(x => x.remove());
+  if (!o.exact) g.classList.remove(...FLY_STATE);
+  for (const a of o.exact ? ['id', 'data-ck'] : ['id', 'data-ck', 'data-act', 'data-at', 'role', 'tabindex']) g.removeAttribute(a);
+  return {g, ctx};
+}
+/* One card from a place to another: from = {r, el} (el: the card to copy, or none for a fresh face named o.name);
+   to: the element it lands on. A landing spot (a deck sheet card, a moved card's new spot) is hidden until it arrives;
+   intoBtn: it shrinks into a button or pile and fades, which bumps. */
+function flyTo(from, to, o = {}){
+  if (!from || !from.r || !from.r.width || !to || !to.isConnected) return 0;
+  const b = to.getBoundingClientRect(); if (!b.width) return 0;
+  const sz = from.el ? {w:from.r.width, h:from.r.height} : cardSize();
+  const {g, ctx} = flyer(from.el || o.name, o.kind, o);
+  flyEl(g, from.r, sz.w, sz.h, flyZ(to), ctx);
+  if (!o.intoBtn) to.style.visibility = 'hidden';
+  cardFlight(g, from.r, b, {w0:sz.w, h0:sz.h, keep:!o.intoBtn, delay:o.delay, dur:o.dur, arc:o.arc, onLand:() => {
+    g.remove(); if (to.isConnected){ to.style.visibility = ''; bumpEl(to); } if (o.onLand) o.onLand(); }});
+  return (o.delay || 0) + (o.dur || 1100);
+}
+// your own buy: from its spot to the card it joins in the open deck sheet, else into your deck button. Covenant cards
+// come along from the same spot; Mason's Guild flies to the building it levels.
+function buyFlight(i, ev, src, j){
+  const vp = $('view-play'), side = i === seat() ? ':not(.ai)' : '.ai';
+  const list = [{look:ev.n, dest:ev.on || ev.n, el:src && src.el}, ...(ev.pair || []).map(n => ({look:n, dest:n, el:null}))];
+  list.forEach((x, m) => {
+    const tos = vp.querySelectorAll(`.dsheet.s${VS(i)} .fcard${side}[data-card="${CSS.escape(x.dest)}"]`), to = tos[tos.length - 1], btn = deckBtnOf(i);
+    const from = src ? {r:src.r, el:x.el} : null;
+    if (!from) return;
+    flyTo(from, to || btn, {name:x.look, kind:ev.k, intoBtn:!to, delay:(j + m) * 220});
   });
 }
-// into a deck button (when the deck sheet is closed): the card drops into the button and fades, then the button bumps
-function flyCard(src, to, intoBtn){
-  if (!to.isConnected) return;
-  const a = src.r, b = to.getBoundingClientRect();
-  if (!a.width || !b.width) return;
-  let g;
-  if (src.el){ g = src.el.cloneNode(true); g.querySelectorAll('.dealback').forEach(x => x.remove()); g.classList.remove('cant', 'peeked', 'always'); }
-  else { g = to.cloneNode(true); }
-  const w0 = src.el ? a.width : b.width, h0 = src.el ? a.height : b.height;
-  flyEl(g, a, w0, h0, flyZ(to), src.el ? src.el.parentElement : null);
-  if (!intoBtn) to.style.visibility = 'hidden';
-  cardFlight(g, a, b, {w0, h0, keep:!intoBtn, onLand:() => { g.remove(); if (to.isConnected){ to.style.visibility = ''; bumpEl(to); } }});
+// after any shop move by side i since log index n0: what it bought or sold flies (an opponent's, one at a time, on the
+// queue; this screen's own buys with the redraw that follows). Returns true when it queued something.
+function motionFrom(i, n0){
+  if (!G) return false;
+  const evs = G.log.slice(n0).filter(l => l.ev && l.side === i && (l.ev.a === 'buy' || l.ev.a === 'sell')).map(l => l.ev);
+  for (const ev of evs) if (ev.a === 'buy' && ev.id != null) MOT.bought.add('c' + ev.id);   // left the display by being bought
+  if (!evs.length || reduceMotion()) return false;
+  if (i !== seat() && !(PP() && !G.net)){
+    for (const ev of evs){ const src = ev.a === 'buy' ? evSource(ev) : null; OPQ.steps.push(() => ev.a === 'buy' ? oppBuyStep(i, ev, src) : oppSellStep(i, ev)); }
+    setTimeout(oppRun, 0);   // after this move's redraw, so cards and buttons are measured where they now sit
+    MOT.afterOpp = true;     // and what else the move changed in the display waits its turn behind them
+    return true;
+  }
+  for (const ev of evs) if (ev.a === 'buy') MOT.fly.push({i, ev, src:evSource(ev)});
+  return false;
 }
 /* Flying copies of cards look exactly like the card they copy: each one is put inside a stand-in of the card's own
    ancestors (same classes and attributes, no ids, no boxes: display:contents), so every rule that styles a card in its
@@ -6818,6 +6846,15 @@ function applyMove(i, a){
 }
 // Upheaval: the old display flies to the discard pile and a new one is dealt (the round's ghosts belonged to the old one)
 function redealSeen(){ ui.ghosts = {round:G.round, u:[], b:[]}; ui.dealt = -1; }
+// The ghosts a player's shop moves leave, read from the log (each buy and Freeze names the spot its card sat in).
+// A spot a refill (or Restock) filled again shows the new card instead: marketRow only draws ghosts in empty spots.
+function ghostsFrom(i, n0){
+  for (const l of G.log.slice(n0)){
+    const ev = l.ev; if (!ev || l.side !== i || ev.at == null) continue;
+    if (ev.a === 'buy' && (ev.src === 'du' || ev.src === 'db')) addGhost(ev.k, ev.at, ev.n, ev.price, i);
+    else if (ev.a === 'freeze') addGhost(ev.k, ev.at, ev.n, 0, i, true);
+  }
+}
 // the faded "bought" card a market buy leaves behind for the rest of the round
 function addGhost(k, idx, name, price, who, frz){
   if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
@@ -6827,11 +6864,10 @@ const MOVE_SOUND = {i:() => sfx.rustle(), b:v => sfx.coin(v), s:() => sfx.sell()
 // Make a shop move for player i, plus what the screen does around it: the ghost card and a sound.
 // vol: how loud a successful move sounds (null: silent); own: a failed move is this screen's player's, so it buzzes.
 function shopMove(i, a, vol, own){
-  const k = a[0] === 'b' || a[0] === 'i' ? (a[1] === 'du' ? 'u' : a[1] === 'db' ? 'b' : null) : null;
-  const dc = k && G.disp[k][a[2]], name = dc ? dc.name : null, pos = k ? (dc && dc.at != null ? dc.at : mergedPos(k, a[2])) : -1, m0 = G.players[i].money;
+  const n0 = G.log.length;
   const ok = applyMove(i, a);
-  if (ok && k && name) addGhost(k, pos, name, m0 - G.players[i].money, i, a[0] === 'i');
   if (ok && a[0] === 'r') redealSeen();
+  if (ok) ghostsFrom(i, n0);
   if (vol != null){ if (ok) MOVE_SOUND[a[0]](vol); else if (own) sfx.err(); }
   return ok;
 }
@@ -6839,15 +6875,17 @@ function shopMove(i, a, vol, own){
 // otherwise it happens here, and a bought card flies to its new owner.
 function doMove(a){
   if (G.net){ netDo(netEncode(a)); return; }
-  const S = seat(), fly = a[0] === 'b' ? {own0:snapOwn(S), mk:marketSnap()} : null;
+  const S = seat(), n0 = G.log.length;
+  snapNow();
   const ok = shopMove(S, a, 1, true);
+  if (ok) motionFrom(S, n0);   // its flights start with the redraw below
   if (a[0] === 'b' || a[0] === 'p' || a[0] === 'i') afterAction(); else renderPlay();
-  if (ok && fly) flyBuys(S, fly.own0, fly.mk);
 }
 // apply every move both players have made that this page hasn't applied yet
 function netPump(){
   if (!NET || !NET.started || !G) return;
-  const flights = [], toasts = [], oppMoves = [];
+  const motion = [], toasts = [];
+  let snapped = false;
   let changed = false;
   for (let guard = 0; guard < 2000; guard++){
     if (G.over || NET.err) break;
@@ -6859,12 +6897,12 @@ function netPump(){
     if (G.phase === 'shop'){
       const i = cur(G), a = actsOf(i)[NET.applied[i]]; if (!a) break;
       if (a[0] === 'd'){ NET.err = 'The two games fell out of step. Leave the room and start a new one.'; break; }
-      const live = NET.live && !ui.battle, own0 = live ? snapOwn(i) : null, mk = live && (!flights.length || i !== NET.seat) ? marketSnap() : null;
+      const live = NET.live && !ui.battle;
+      if (live && !snapped){ snapNow(); snapped = true; }   // the screen doesn't change until the redraw below
       const n0 = G.log.length;
       const ok = shopMove(i, netDecode(a), NET.live ? (i === NET.seat ? 1 : 0.45) : null, i === NET.seat); NET.applied[i]++; changed = true;
       if (NET.live){
-        if (i !== NET.seat && ok && mk && G.log.slice(n0).some(l => l.ev && l.side === i && (l.ev.a === 'buy' || l.ev.a === 'sell'))) oppMoves.push({i, n0, mk});
-        else if (ok && a[0] === 'b' && mk) flights.push({i, own0, mk});
+        if (ok && live) motion.push({i, n0});
         if (i !== NET.seat) toasts.push(...G.log.slice(n0).filter(l => l.side === i && !(l.ev && (l.ev.a === 'buy' || l.ev.a === 'sell'))).map(l => l.t));
       }
     } else if (G.phase === 'mobilize'){
@@ -6876,17 +6914,17 @@ function netPump(){
         return spec.some(u => !DEFS[u.name] && !isBat(u.name)) || validateDeck(G, i, spec) ? [] : spec;
       });
       const res = playBattle(specs[0], specs[1]); NET.applied[0]++; NET.applied[1]++; changed = true;
-      if (NET.live){ stopAuto(); stopAnim(); showBattle(res); ui.bannerOff = false; ui.remind = null; flights.length = 0; NET.battleNew = true; }
+      if (NET.live){ stopAuto(); stopAnim(); showBattle(res); ui.bannerOff = false; ui.remind = null; NET.battleNew = true; }
       else ui.lastNetBattle = res;
       if (!G.over) NET.needShop = true;
     } else break;
   }
   if (!changed && !NET.err) return;
   if (!NET.live) return;
-  for (const o of oppMoves) queueOppMoves(o.i, o.n0, o.mk);   // queued before the redraw, so its turn banner waits for them
+  // queued before the redraw, so its turn banner waits for them (your own buys don't fly once a battle has started)
+  for (const m of motion) if (m.i !== NET.seat || !NET.battleNew) motionFrom(m.i, m.n0);
   renderPlay();
   if (NET.battleNew){ NET.battleNew = false; toGame(); startAuto(); }
-  for (const f of flights) flyBuys(f.i, f.own0, f.mk);
   if (toasts.length) showToast(toasts.join(' '));
 }
 // after any change: make sure a deck draft exists when it's time to mobilize, then draw
@@ -7113,7 +7151,7 @@ function mirSealHTML(n, tight){
 // Numbers are kept from the full text, so balance changes carry over. Unknown wording falls back to the first 40 characters.
 const SHORT_N = '(\\$?\\d+(?:/\\$?\\d+)*)';
 const SHORT_FIX = {
-  'Pigeon Hunter':'Enemy units Silenced. Reveal: swap both sides’ charger & revealed',
+  'Pigeon Hunter':'Enemy units’ abilities Silenced',
   'Assassin':'I attack enemy revealed instead of their charger',
   'Pikeman':'Vs a stronger charger: +3/4/5 dmg',
   'Studious Squire':'Revealed: ally ahead attacks → +1/2/2 ⟨arm⟩',
@@ -7311,7 +7349,9 @@ function writBarHTML(){
     <span class="note">${picked.length ? `Moving ${picked.map(esc).join(' and ')}.` : 'Or pick none.'} Then you shop again.</span>
   </div>${pickDockHTML(`<button type="button" data-act="writ-cancel">Cancel</button><button type="button" class="primary" data-act="writ-go" data-src="${wm.src}" data-idx="${wm.idx}">Buy $${wm.price}</button>`)}`;
 }
-function marketCard(name, kind, src, idx, side, always, mir){
+// every market card carries its key (data-ck), so animations follow the card itself (see CARD MOTION)
+function marketCard(name, kind, src, idx, side, always, mir){ return tagCk(marketCard0(name, kind, src, idx, side, always, mir), cardKey(src, idx)); }
+function marketCard0(name, kind, src, idx, side, always, mir){
   const S = seat(), me = G.players[S], myTurn = G.phase === 'shop' && cur(G) === S;
   const d = kind === 'u' ? DEFS[name] : BDEFS[name];
   const info = buyInfo(G, S, name, kind, src, idx);
@@ -7717,7 +7757,7 @@ function frozenHTML(S){
   if (!mine.length && !theirs.length) return '';
   const who = PP() || G.net ? esc(nm(1 - S)) : 'AI';
   const row = mine.map((c, i) => marketCard(c.name, c.kind, 'fz', i, false, false, c.mir)).join('');
-  const their = theirs.map(c => `<div class="mcard ${c.kind} ghost theirs hasst">${cardFace(c.name, c.kind, 0, true)}${pairTagHTML(c.pair, c.kind)}${stampsHTML([['st-theirs', `✶ Set aside by ${who}`]])}</div>`).join('');
+  const their = theirs.map(c => `<div${c.id != null ? ` data-ck="c${c.id}"` : ''} class="mcard ${c.kind} ghost theirs hasst">${cardFace(c.name, c.kind, 0, true)}${pairTagHTML(c.pair, c.kind)}${stampsHTML([['st-theirs', `✶ Set aside by ${who}`]])}</div>`).join('');
   return `<span class="eyebrow">✶ Set aside with Freeze</span><div class="market plain peekrow frozenrow">${row}${their}</div>`;
 }
 // a card that was bought this shop: still readable, marked with who took it
@@ -7731,18 +7771,8 @@ function ghostCard(g, kind){
 }
 function noteAIMoves(before, money0, logN, queued){
   if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
-  // a sale adds $1 the opponent can see, so take it back out of what the AI paid
-  const spent = money0 - G.players[1].money + G.log.slice(logN).filter(l => l.side === 1 && / sells /.test(l.t)).length * SELL_PRICE;
-  const redealt = G.log.slice(logN).some(l => l.side === 1 && l.ev && l.ev.a === 'redeal');
-  if (redealt) redealSeen();
-  for (const k of redealt ? [] : ['u','b']){
-    const was = before[k], now = G.disp[k].map(c => c.name);
-    if (now.length >= was.length) continue;
-    let j = 0; while (j < now.length && now[j] === was[j]) j++;
-    const pos = before.at && before.at[k][j] != null ? before.at[k][j] : mergedPos(k, j);
-    const frz = G.log.slice(logN).some(l => l.side === 1 && l.ev && l.ev.a === 'freeze' && l.ev.n === was[j]);
-    ui.ghosts[k].push(frz ? {idx:pos, name:was[j], price:0, who:1, frz:true} : {idx:pos, name:was[j], price:spent, who:1});
-  }
+  if (G.log.slice(logN).some(l => l.side === 1 && l.ev && l.ev.a === 'redeal')) redealSeen();
+  ghostsFrom(1, logN);
   const buys = G.log.slice(logN).filter(l => l.side === 1 && (/ buys /.test(l.t) || (l.ev && (l.ev.a === 'freeze' || l.ev.a === 'redeal'))));
   const shown = queued ? buys.filter(l => l.ev && (l.ev.a === 'freeze' || l.ev.a === 'redeal')) : buys;   // queued buys hold on screen with their own tag
   if (shown.length){ showToast(shown.map(l => l.t).join(' ')); sfx.coin(0.45); }
@@ -8991,6 +9021,7 @@ function markGame(on){
   phaseKey = k;
 }
 function renderPlay(){
+  try{ if (!drag || !drag.on) clearGhosts(); }catch(e){}   // no lifted card should outlive its drag
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale; it sinks away
   if (NET && !NET.started && !ui.start){ markGame(false); $('view-play').innerHTML = netLobbyHTML(); return; }
@@ -9047,8 +9078,7 @@ function renderPlay(){
   turnWatch();
   shopNotes();
   markGame(true);   // first, so the page has already scrolled when the deal measures each card's spot
-  if (dealNow){ ui.dealt = G.round; dealMarket(); }
-  dealRefills(dealNow);
+  syncShop(dealNow);   // deals the market at the start of the shop, and plays every change to it after that
   dealPeeks(dealNow);
 }
 /* Save and resume: a game in progress (against the AI or pass and play) is kept in this browser after every change,
@@ -9071,6 +9101,8 @@ function upgradeSave(g){
   const d = newGame({rnd:Math.random, miracles:g.miracles, battleMir:g.battleMir, refill:g.refill, target:g.target, labels:g.labels});
   for (const k in d) if (!(k in g)) g[k] = d[k];
   g.players.forEach((p, i) => { for (const k in d.players[i]) if (!(k in p)) p[k] = d.players[i][k]; });
+  // a game saved before display cards had ids: give them one
+  for (const c of [...(g.disp.u || []), ...(g.disp.b || []), ...(g.frozen || []).flat()]) if (c && typeof c === 'object' && c.id == null) c.id = g.cid = (g.cid || 0) + 1;
   return g;
 }
 function saveGame(){ clearTimeout(saveT); saveT = setTimeout(saveNow, 300); }
@@ -9122,9 +9154,7 @@ function leaveToPile(rows){
       const card = slot.classList.contains('mcard') ? slot : slot.querySelector('.mcard') || slot;
       const r = card.getBoundingClientRect(); if (!r.width) continue;
       const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) continue;
-      const gh = document.createElement('div');
-      gh.className = `mcard ${kind} leaving lghost`; gh.setAttribute('aria-hidden', 'true');
-      gh.innerHTML = `<div class="top"><span class="nm">${esc(name)}</span><span class="cost">${'$'.repeat(d.c)}</span></div><span class="curve">${curveText(name, kind, 0)}</span><span class="tx">${cardTx(name, kind, 0)}</span>${shortHTML(name, kind, 0)}${hgToken()}`;
+      const {g:gh} = flyer(name, kind); gh.classList.add('leaving', 'lghost'); gh.setAttribute('aria-hidden', 'true');   // the card's own face
       flyEl(gh, r, r.width, r.height, flyZ(pile), card.parentElement);   // lands on the discard pile, over the bottom bar when the pile is in it
       const delay = 120 + k++ * 220, dur = 1000;
       sfx.flick(delay / 1000 + 0.55);
@@ -9175,9 +9205,8 @@ function dealFly(el, deck, delay, dur, o = {}){
   if (!r.width || !dr.width) return 0;
   const v = dealView(el), cy = r.top + r.height / 2;
   if (cy < v.top || cy > v.bottom) return 0;
-  const g = el.cloneNode(true);
-  g.querySelectorAll('.dealback, .mirpop').forEach(x => x.remove());
-  g.classList.add('flying'); g.classList.remove('cant', 'peeked'); g.setAttribute('aria-hidden', 'true'); g.removeAttribute('id');
+  const {g} = flyer(el, null, {exact:true});
+  g.classList.add('flying'); g.classList.remove('cant', 'peeked'); g.setAttribute('aria-hidden', 'true');
   Object.assign(g.style, {zIndex:flyZ(el), pointerEvents:'none'});
   pinFly(g, r.left, r.top, r.width, r.height);
   flyHost(el.parentElement).appendChild(g);   // styled exactly as the card in its spot
@@ -9234,24 +9263,17 @@ function deckCountdown(deck, starts){
 function dealMarket(){
   if (reduceMotion()) return;
   const vp = $('view-play'), rows = ['u','b'].map(k => vp.querySelector(`.mktp .msec[data-k="${k}"] .market`));
-  const decks = {u:vp.querySelector('.sdeck[data-k="u"] .dealdeck'), b:vp.querySelector('.sdeck[data-k="b"] .dealdeck')};
-  if (!(decks.u || decks.b) || !rows.some(Boolean)) return;
-  const bobs = {u:0, b:0}, starts = {u:[], b:[]};
-  // every card is dealt from its own row's deck: units from the unit deck, buildings from the building deck
-  const from = el => { const k = (el.closest('.msec') || {}).dataset?.k === 'b' ? 'b' : 'u', d = decks[k] || decks.u || decks.b, r = d.getBoundingClientRect();
-    return {k, dr:r, dcx:r.left + r.width / 2, dcy:r.top + r.height / 2}; };
+  if (!(deckEl('u') || deckEl('b')) || !rows.some(Boolean)) return;
   // first, the cards that left the shop fly from their old slots into the discard pile; then the deal starts
   const base = 120 + leaveToPile(rows);
-  let n = 0, end = 0;
   const cards = rows.filter(Boolean).flatMap(row => [...row.querySelectorAll('.mcard')]).filter(el => !el.classList.contains('ghost') && el.offsetParent);
   // 1) cards left over from last shop never moved: they sit in their spots from the start (no animation)
   const returning = cards.filter(el => el.classList.contains('leaving') && !el.classList.contains('always'));
-  const slideEnd = base;
   // 2) each one's hourglass token drops onto its corner like a stamp
-  let tokEnd = slideEnd;
+  let tokEnd = base;
   returning.forEach((el, i) => {
     const tok = el.querySelector('.hgtok'); if (!tok) return;
-    const delay = slideEnd + 160 + i * 280;
+    const delay = base + 160 + i * 280;
     setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + 450);
     tok.animate([
       {transform:'translate(14px,-46px) scale(2.1) rotate(-25deg)', opacity:0, offset:0},
@@ -9261,78 +9283,90 @@ function dealMarket(){
     ], {duration:700, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'backwards'});
     tokEnd = Math.max(tokEnd, delay + 700);
   });
-  end = tokEnd;
-  // 3) the new cards are dealt once the tokens have landed
-  const dealBase = returning.length ? tokEnd + 160 : base;
-  for (const el of cards){
-    if (el.classList.contains('always')) continue;   // Recruit and Field never leave the table
-    // miracles under this card: each is drawn and laid down first (farthest back first), then the card lands on top
-    const wrapEl = el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
-    const backsEl = wrapEl ? [...wrapEl.querySelectorAll('.mirback')].reverse() : [];
-    if (el.classList.contains('leaving')) continue;   // already slid in above
-    const {k:dk} = from(el);
-    const deck = decks[dk] || decks.u || decks.b;
-    for (const b of backsEl){
-      const bd = dealBase + n++ * 160;
-      if (dealFly(b, deck, bd, 800, {plain:true})){ bobs[dk]++; starts[dk].push(bd + 60); sfx.flick(bd / 1000 + 0.05); }
+  // 3) the new cards are dealt once the tokens have landed (Recruit and Field never leave the table)
+  const fresh = cards.filter(el => !el.classList.contains('always') && !el.classList.contains('leaving'));
+  const end = dealIn(fresh, returning.length ? tokEnd + 160 : base);
+  ui.dealUntil = performance.now() + Math.max(tokEnd, end);
+}
+/* Deal cards into their spots: each flies face down out of its own row's deck and flips over (miracles under a card
+   are drawn and laid down first, farthest back first, then the card lands on top). The deck's count drops as each
+   lifts off. Used for the deal at the start of the shop and for every card that joins the display during it.
+   Returns how long it takes (ms). */
+function dealIn(els, base){
+  const starts = {u:[], b:[]}; let n = 0, end = 0;
+  for (const el of els){
+    if (!el || !el.isConnected) continue;
+    const k = (el.closest('.msec') || {}).dataset?.k === 'b' ? 'b' : 'u', deck = deckEl(k) || deckEl('u') || deckEl('b'); if (!deck) continue;
+    const backs = backsOf(el).reverse();
+    for (const b of backs){
+      b.style.opacity = '';
+      const bd = base + n++ * 160;
+      if (dealFly(b, deck, bd, 800, {plain:true})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); }catch(e){} }
       end = Math.max(end, bd + 520);
     }
-    const delay = dealBase + n++ * 160 + (backsEl.length ? 400 : 0);
-    if (dealFly(el, deck, delay, 1100)){ bobs[dk]++; starts[dk].push(delay + 60); sfx.flick(delay / 1000 + 0.05); end = Math.max(end, delay + 1100); }
-  }
-  ui.dealUntil = performance.now() + end;
-  for (const k of ['u','b']) deckCountdown(decks[k], starts[k]);
-}
-/* Mid-shop deals (automatic refills, Discard Writ, Restock): a card that joins the display during the shop flies out of
-   its own deck and flips over in its spot, the same deal as at the start of the shop. Display cards are tracked by
-   identity, so only the ones this page hasn't shown yet are dealt. A refill after your own buy starts as the bought
-   card lifts away; after an opponent's buy it waits until their buy has played out, so the spot fills once it is empty. */
-const refillSeen = new WeakSet(); let refillG = null, refillWait = [];
-function dealRefills(skip){
-  if (!G || !G.disp) return;
-  const fresh = refillG !== G; refillG = G;
-  const show = !fresh && !skip && !ui.battle && G.phase === 'shop' && !reduceMotion(), got = [];
-  for (const k of ['u','b']) (G.disp[k] || []).forEach((c, i) => { if (!c || typeof c !== 'object' || refillSeen.has(c)) return; refillSeen.add(c); if (show) got.push({k, c, i}); });
-  const find = ({k, c, i}) => {
-    const row = $('view-play').querySelector(`.mktp .msec[data-k="${k}"] .market`); if (!row) return null;
-    let node = c.at != null ? row.querySelector(`:scope > [data-at="${c.at}"]`) : null;
-    if (!node) node = [...row.querySelectorAll('.mcard:not(.ghost):not(.always)')][i] || null;
-    if (!node) return null;
-    const el = node.classList.contains('mcard') ? node : node.querySelector('.mcard');
-    const wrap = el && el.parentElement && el.parentElement.classList.contains('mirwrap') ? el.parentElement : null;
-    return el ? {k, el, backs:wrap ? [...wrap.querySelectorAll('.mirback')].reverse() : []} : null;
-  };
-  // a redraw while an opponent's buy plays out: cards still waiting for their deal stay hidden
-  if (refillWait.length && oppBusy()) for (const it of refillWait.map(find).filter(Boolean)){ it.el.style.opacity = '0'; for (const b of it.backs) b.style.opacity = '0'; }
-  if (!got.length) return;
-  const go = (items, base) => {
-    const starts = {u:[], b:[]}; let n = 0, end = 0;
-    for (const it of items){
-      const deck = $('view-play').querySelector(`.sdeck[data-k="${it.k}"] .dealdeck`) || $('view-play').querySelector('.sdeck .dealdeck');
-      if (!deck || !it.el.isConnected) continue;
-      for (const b of it.backs){
-        const bd = base + n++ * 160;
-        if (dealFly(b, deck, bd, 800, {plain:true})){ starts[it.k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); }catch(e){} }
-        end = Math.max(end, bd + 520);
-      }
-      const delay = base + n++ * 160 + (it.backs.length ? 400 : 0);
-      if (dealFly(it.el, deck, delay, 1100)){ starts[it.k].push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} end = Math.max(end, delay + 1100); }
+    el.style.opacity = '';
+    const delay = base + n++ * 160 + (backs.length ? 400 : 0);
+    if (dealFly(el, deck, delay, 1100)){
+      starts[k].push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){}
+      end = Math.max(end, delay + 1100);
+      el.dataset.dealt = '1'; if (el.dataset.ck) MOT.busy.set(el.dataset.ck, performance.now() + delay + 1100);
     }
-    ui.dealUntil = Math.max(ui.dealUntil || 0, performance.now() + end);
-    for (const k of ['u','b']) deckCountdown($('view-play').querySelector(`.sdeck[data-k="${k}"] .dealdeck`), starts[k]);
-  };
-  if (oppBusy()){
-    // an opponent's buy is still playing out: keep the new cards out of sight, then deal them once the spot is clear
-    refillWait.push(...got);
-    const now = got.map(find).filter(Boolean);
-    for (const it of now){ it.el.style.opacity = '0'; for (const b of it.backs) b.style.opacity = '0'; }
-    oppOnIdle(() => {
-      refillWait = refillWait.filter(w => !got.includes(w));
-      for (const it of got.map(find).filter(Boolean)){ it.el.style.opacity = ''; for (const b of it.backs) b.style.opacity = ''; }
-      if (!G || G.phase !== 'shop' || ui.battle) return;
-      go(got.map(find).filter(Boolean), 60);   // measured again: the page may have redrawn while it waited
-    });
-  } else go(got.map(find).filter(Boolean), 260);
+  }
+  ui.dealUntil = Math.max(ui.dealUntil || 0, performance.now() + end);
+  for (const k of ['u','b']) deckCountdown(deckEl(k), starts[k]);
+  return end;
+}
+// the cards in play that the screen follows, from the rules' own state: key -> where it is (a display row or a frozen row)
+function cardsInPlay(){
+  const m = new Map();
+  for (const k of ['u','b']) for (const c of (G.disp[k] || [])) if (c && c.id != null) m.set('c' + c.id, k);
+  (G.frozen || []).forEach((L, w) => (L || []).forEach(c => { if (c && c.id != null) m.set('c' + c.id, 'fz' + w); }));
+  return m;
+}
+const MOT = {g:null, state:null, wait:new Set(), busy:new Map(), bought:new Set(), fly:[], afterOpp:false};
+// after every redraw (see the CARD MOTION notes): this screen's buys fly, then whatever else changed in the display plays
+function syncShop(dealNow){
+  if (!G){ MOT.g = null; return; }
+  if (MOT.g !== G){ MOT.g = G; MOT.state = null; MOT.wait.clear(); MOT.busy.clear(); MOT.bought.clear(); MOT.fly = []; }
+  const now = cardsInPlay(), prev = MOT.state; MOT.state = now;
+  const motion = !ui.battle && !reduceMotion(), fly = MOT.fly.splice(0);
+  if (motion) fly.forEach((f, j) => buyFlight(f.i, f.ev, f.src, j));
+  if (dealNow){ ui.dealt = G.round; dealMarket(); }
+  else if (prev && motion && G.phase === 'shop'){
+    const fresh = [], moved = [], gone = [];
+    for (const [ck, w] of now){ const p = prev.get(ck); if (p == null) fresh.push(ck); else if (p !== w) moved.push(ck); }
+    for (const ck of prev.keys()) if (!now.has(ck) && !MOT.bought.has(ck)) gone.push(ck);
+    if (fresh.length || moved.length || gone.length){
+      const from = new Map([...moved, ...gone].map(ck => [ck, SPOTS.get(ck)]));
+      if (MOT.afterOpp && oppBusy()){
+        // an opponent's move is playing out: what it brought stays out of sight until its turn in the queue
+        for (const ck of [...fresh, ...moved]) MOT.wait.add(ck);
+        OPQ.steps.push(() => { for (const ck of [...fresh, ...moved]) MOT.wait.delete(ck); return shopChanges(fresh, moved, gone, from, 60); });
+      } else shopChanges(fresh, moved, gone, from, fly.length ? 260 : 120);   // after your buy lifts away
+    }
+  }
+  MOT.bought.clear(); MOT.afterOpp = false;
+  rehide();
+  snapNow();
+}
+// play a set of display changes; resolves when the last card has landed
+function shopChanges(fresh, moved, gone, from, base){
+  let end = 0;
+  const pile = pileEl();
+  gone.forEach((ck, j) => { const f = from.get(ck); if (f && pile) end = Math.max(end, flyTo(f, pile, {delay:j * 200, dur:1000, intoBtn:true})); });
+  moved.forEach((ck, j) => { const f = from.get(ck), el = ckEl(ck); if (f && el){ for (const e of [el, ...backsOf(el)]) e.style.opacity = ''; end = Math.max(end, flyTo(f, el, {delay:j * 200, dur:900})); } });
+  end = Math.max(end, dealIn(fresh.map(ckEl).filter(Boolean), base + (gone.length ? 200 : 0)));
+  return new Promise(res => setTimeout(res, end));
+}
+// a redraw makes new elements: ones still waiting for their deal stay hidden, and ones mid-deal stay hidden until it lands
+function rehide(){
+  const t = performance.now();
+  for (const ck of MOT.wait){ const el = ckEl(ck); if (el) for (const e of [el, ...backsOf(el)]) e.style.opacity = '0'; }
+  for (const [ck, until] of MOT.busy){
+    const left = until - t; if (left <= 0){ MOT.busy.delete(ck); continue; }
+    const el = ckEl(ck); if (!el || el.dataset.dealt) continue;
+    for (const e of [el, ...backsOf(el)]) e.animate([{opacity:0}, {opacity:0}], {duration:left});
+  }
 }
 /* Black Market and Vision: the peeked cards come off the top of the deck they were taken from */
 const peekSeen = new Set();
@@ -9627,12 +9661,16 @@ function placeGap(zone, at){
   slideFrom(rects, rows);
 }
 $('view-play').addEventListener('pointerdown', e => {
+  if (!drag || !drag.on) clearGhosts();   // any tap sweeps away a stranded card, in any phase
   if (!G || G.phase !== 'mobilize' || ui.battle || ui.planning || e.button > 0) return;
+  // one card at a time: a second finger (or a stray touch) while a card is lifted doesn't start another drag
+  if (drag && drag.on) return;
+  clearGhosts();
   const src = e.target.closest('[data-drag]'); if (!src || e.target.closest('button,select,input')) return;
   // a finger picks a card up by holding it still for a moment (a quick swipe still scrolls the page); tokens and the mouse go right away
   const hold = false;
   if (drag && drag.t) clearTimeout(drag.t);
-  drag = {src, kind:src.dataset.drag, tok:src.dataset.tok, i:+src.dataset.i, name:src.dataset.name, x0:e.clientX, y0:e.clientY, on:false, ghost:null, line:null, at:-1, zone:null, row:-1, hold, armed:!hold, t:null};
+  drag = {pid:e.pointerId, src, kind:src.dataset.drag, tok:src.dataset.tok, i:+src.dataset.i, name:src.dataset.name, x0:e.clientX, y0:e.clientY, on:false, ghost:null, line:null, at:-1, zone:null, row:-1, hold, armed:!hold, t:null};
   if (hold) drag.t = setTimeout(() => {
     if (!drag || drag.on || drag.src !== src) return;
     drag.armed = true; drag.t = null; src.classList.add('lifted'); sfx.pick();
@@ -9641,8 +9679,10 @@ $('view-play').addEventListener('pointerdown', e => {
 });
 // once a card is held, moving the finger drags it instead of scrolling the page
 document.addEventListener('touchmove', e => { if (drag && (drag.armed && drag.hold || drag.on)) e.preventDefault(); }, {passive:false});
+// drop any lifted-card copy left floating on the page (the one being dragged right now stays)
+function clearGhosts(){ for (const n of document.querySelectorAll('body > .dragwrap, body > .dragghost')) if (!drag || n !== drag.ghost) n.remove(); }
 function dragMove(e){
-  if (!drag) return;
+  if (!drag || e.pointerId !== drag.pid) return;
   if (!drag.on){
     const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
     if (!drag.armed){ if (dist > 8){ clearTimeout(drag.t); drag = null; } return; }   // moved before the hold: it's a scroll
@@ -9770,8 +9810,12 @@ function dragEnd(){
   }
 }
 window.addEventListener('pointermove', dragMove, {passive:false});
-window.addEventListener('pointerup', dragEnd);
-window.addEventListener('pointercancel', () => { if (drag && drag.on){ drag.zone = null; drag.at = -1; } dragEnd(); });
+window.addEventListener('pointerup', e => { if (drag && e.pointerId !== drag.pid) return; dragEnd(); });
+// a cancelled drag (the browser took the touch, the app went to the background) puts the card back where it was
+const cancelDrag = () => { if (drag && drag.on){ drag.zone = null; drag.at = -1; drag.row = -1; } dragEnd(); clearGhosts(); };
+window.addEventListener('pointercancel', e => { if (drag && e.pointerId !== drag.pid) return; cancelDrag(); });
+window.addEventListener('blur', cancelDrag);
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelDrag(); });
 // a drag that ends on a row must not also count as a click on it
 $('view-play').addEventListener('click', e => { if (document.body.classList.contains('just-dragged')) e.stopPropagation(); }, true);
 $('view-play').addEventListener('toggle', e => { if (e.target.id === 'chron-panel') ui.chronOpen = e.target.open; }, true);
@@ -11740,4 +11784,4 @@ document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="
   };
 }
 </script>
-</body></html
+</body></html>
