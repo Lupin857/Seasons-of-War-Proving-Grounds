@@ -2056,6 +2056,8 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
     background:#1f2b35;border:1px solid #7fb0d4;color:#e3f0fa;font:800 11px/1 var(--f-body);pointer-events:none}
   .mcard>.ccost svg{width:7px;height:10px;fill:#7fb0d4}
   .stack .mcard>.ccost{display:none!important}
+  /* the returning-card hourglass moves to the top right, clear of the cost chip */
+  .hgtok{top:-6px;bottom:auto;right:-6px}
 
   /* battle: card boxes are the cropped shape; the picture goes on the card's art layer, which carries the mask, so
      power, health and the tucked cards stay outside the cut */
