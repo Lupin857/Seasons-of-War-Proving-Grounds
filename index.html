@@ -31,9 +31,168 @@ html body .card>.trigglow{position:absolute;inset:0;border-radius:5% / 3.6%;poin
 .abghost .abbox,.abwin.kept .abbox{animation:none;pointer-events:none}
 .abghost .ablines{z-index:5}
 html body .abcol{scrollbar-width:none} html body .abcol::-webkit-scrollbar{display:none}
+/* battle board: nothing moves between steps. Each zone fills its (reserved) row; its label stays on the player's
+   edge of the table and its cards stay anchored toward the middle, so stacks and graveyards change without pushing
+   anything else. The top player's graveyard lists down from its label. */
+html body .table .trow,html body .table .trow.s1,html body .table .trow.s0{align-items:stretch}
+html body .table .trow.s1 .tz>.tzc{margin-top:auto}
+html body .table .trow.s1 .grz>.tzc{margin-top:0}
+html body .table .trow.s0 .tz>.tzc{margin-bottom:auto}
+/* room for the most copies/tokens a card spot holds this battle, so the card face never shifts (see reserveRows) */
+html body .stage .table .tz.rsv .tzc>.card.hasart:not(.mini),
+html body .stage .table .tz.rsv .charge>.card.hasart:not(.mini){margin-top:var(--rsvT,0px)!important}
+html body .stage .table .tz.rsv.deckz .tzc>.card.hasart:not(.mini){margin-left:var(--rsvL,0px)!important}
+/* the result row's space is held from the first step */
+.stage + .row.tailwait{visibility:hidden}
+html body .battlectl .note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 /* the cube layer: over the table, under the sticky bars */
 .cubegl{position:fixed;left:0;top:0;right:0;bottom:0;width:100%;height:100%;pointer-events:none;z-index:7;display:block}
 </style>
+<style id="lab-css">
+/* ===== Battle UI lab ===== */
+/* --- switches panel (battle only) --- */
+body:not(.lab-inbattle) .labbar{display:none!important}
+.labbar{position:fixed;right:14px;bottom:14px;z-index:96;width:300px;max-height:calc(100vh - 28px);overflow:auto;background:#1d1712;color:#f3ead8;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:500 13px/1.3 var(--f-body);padding:10px 12px 12px}
+.labbar.shut{width:auto;padding:0;background:none;box-shadow:none;overflow:visible}
+.labbar.shut .labin{display:none}
+.labbar .labhd{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.labbar .labhd b{font:400 17px/1 Marcellus,serif;letter-spacing:.02em}
+.labbar .labtog{font:700 12px var(--f-body);padding:7px 12px;border-radius:999px;border:1px solid #8a6d43;background:#1d1712;color:#f3ead8;cursor:pointer;min-height:32px}
+.labbar fieldset{border:0;margin:10px 0 0;padding:0}
+.labbar legend{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#bfa77a;font-weight:800;margin-bottom:5px}
+.labbar .seg{display:flex;flex-wrap:wrap;gap:4px}
+.labbar .seg button,.labbar .labbtn{flex:1 1 auto;font:600 12px var(--f-body);padding:6px 8px;border-radius:8px;border:1px solid #6e5634;background:transparent;color:#f3ead8;cursor:pointer;min-height:30px}
+.labbar .seg button[aria-pressed="true"]{background:#e8cf95;color:#1d1712;border-color:#e8cf95}
+.labbar label.chk{display:flex;align-items:center;gap:7px;margin-top:4px;cursor:pointer}
+.labbar input[type=range]{width:100%;accent-color:#e8cf95}
+.labbar .rowb{display:flex;gap:6px;margin-top:12px}
+.labbar .labbtn{background:#2c241c}
+@media (max-width:640px){ .labbar{right:6px;left:6px;width:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-height:60vh} .labbar.shut{left:auto} }
+
+/* --- card stock: a dark side edge under the face plus a contact and a soft shadow, drawn by a layer shaped like the face --- */
+.labsh,.lablt{display:none}
+body.lab-stock .table .card.hasart:not(.mini){filter:none!important}
+body.lab-stock .labsh{display:block;position:absolute;inset:0;z-index:0;pointer-events:none;filter:drop-shadow(0 1px 0 #3b2d23) drop-shadow(0 1px 0 #2c2119) drop-shadow(0 3px 2px rgba(0,0,0,.35)) drop-shadow(0 10px 14px rgba(0,0,0,.22))}
+.labsh>i{position:absolute;inset:0;background:#2c2119;border-radius:5% / 3.6%}
+body.lab-stock .card.hasart>.tk{filter:brightness(.84);box-shadow:0 0 0 1px rgba(20,16,14,.4),0 -1px 5px rgba(0,0,0,.32)}
+/* --- light: a rim highlight on the top edge and a soft gloss falling off toward the bottom --- */
+body.lab-light .lablt{display:block;position:absolute;inset:0;z-index:1;pointer-events:none;border-radius:5% / 3.6%;
+  background:linear-gradient(160deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 28%,rgba(0,0,0,0) 62%,rgba(0,0,0,.22) 100%);mix-blend-mode:soft-light}
+body.lab-light .lablt::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 3px rgba(0,0,0,.35)}
+
+/* --- card size: cropped (the phone crop) or full, on any screen --- */
+html body.lab-crop{--bch:calc(var(--bcw) * .9707)!important}
+body.lab-crop .table .card.hasart:not(.mini){background-color:transparent!important;background-size:0 0!important;border-radius:0!important}
+body.lab-crop .table .card.hasart:not(.mini)>.cartbg{background-size:100% auto!important;background-position:center top!important;background-color:transparent!important;border-radius:0!important;clip-path:url(#tabclip)}
+body.lab-crop .table .card.hasart>.tk{background-size:100% auto;background-position:center top;border-radius:0!important;clip-path:url(#tabclip)}
+body.lab-crop .table .card.hasart>.tk>:is(img,canvas){object-fit:cover;object-position:center top}
+body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .gart{border-radius:0!important;clip-path:url(#tabclip)}
+html body.lab-full{--bch:calc(var(--bcw) * 1.3827)!important}
+body.lab-full .table .card.hasart:not(.mini){border-radius:5% / 3.6%!important}
+body.lab-full .table .card.hasart:not(.mini)>.cartbg{clip-path:none!important;border-radius:5% / 3.6%!important;background-size:100% 100%!important}
+body.lab-full .table .card.hasart>.tk{clip-path:none!important;border-radius:5% / 3.6%!important}
+
+/* --- splay: how the copies, gear and tokens behind a unit fan out --- */
+body.lab-sp-up .stage{--tkl:0px}
+body.lab-sp-diag .card.hasart>.tk{left:calc(var(--tky) * .45 * (var(--j) + 1))!important}
+@media (max-width:640px){ body.lab-sp-diag .card.hasart>.tk{left:calc(var(--tky) * .3 * (var(--j) + 1))!important} }
+body.lab-sp-fanL .card.hasart>.tk,body.lab-sp-fanR .card.hasart>.tk{left:0!important;top:0!important;transform-origin:50% 100%}
+body.lab-sp-fanL .card.hasart>.tk{transform:rotate(calc(-7deg * (var(--j) + 1))) translateY(calc(var(--tky) * -.55 * (var(--j) + 1)))}
+body.lab-sp-fanR .card.hasart>.tk{transform:rotate(calc(7deg * (var(--j) + 1))) translateY(calc(var(--tky) * -.55 * (var(--j) + 1)))}
+/* identical tokens stack into one tucked card with a count */
+.card.hasart>.tk>.tkn{position:absolute;right:7%;top:calc(var(--tky) * .14);z-index:2;background:#2b211a;color:#fff;font:800 10px/14px var(--f-body);padding:0 5px;border-radius:999px;font-size:10px;line-height:14px}
+
+/* --- the deck: the revealed unit is the top card of a pile; thickness shows as card edges under it --- */
+.table .deckz .slot.labempty,.table .grz .labempty{display:flex;align-items:center;justify-content:center;border:2px dashed rgba(110,80,40,.35);border-radius:8px;background:none;color:var(--muted);font-size:12px;font-weight:700;box-sizing:border-box;width:var(--bcw);height:var(--bch)}
+.labcnt{position:static;display:inline-block;vertical-align:middle;margin-left:6px;letter-spacing:0;text-transform:none;z-index:6;padding:1px 9px;border-radius:999px;background:linear-gradient(#cfae6e,#a8843f);border:1px solid #6e5223;color:#2b1d0c;font:400 12px/18px Marcellus,serif;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.3);cursor:pointer;min-height:20px}
+.labcnt i{font-style:normal;font-size:11px;margin-left:4px;color:#5a3a8a}
+.table .zl.labzl{cursor:pointer}
+/* --- the graveyard: last defeated unit on top, lit like the others, art muted, with a count --- */
+.table .grave.labgpile{width:auto!important;background:none!important;padding:0!important;min-height:0!important;display:block;cursor:pointer}
+.gcard{display:block!important;position:relative;width:var(--bcw);height:var(--bch);isolation:isolate}
+.gcard .gart{position:absolute;inset:0;z-index:0;background:#2a2320 center top / 100% auto no-repeat;border-radius:5% / 3.6%;filter:grayscale(.45) brightness(.86) sepia(.12)}
+body.lab-full .gcard .gart{background-size:100% 100%}
+.gcard .gplain{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;font:400 13px/1.15 Marcellus,serif;color:var(--ink);background:var(--sunk);border-radius:8px}
+.gcard .gn{position:absolute;right:-8px;top:-10px;z-index:6;background:#6b6258;color:#fff;font:800 11px/16px var(--f-body);padding:0 7px;border-radius:999px}
+
+/* --- zones as mats printed on the table (lean and table views) --- */
+body.lab-v-lean .table .tz,body.lab-v-table .table .tz{background:rgba(120,90,50,.10);box-shadow:inset 0 0 0 1.5px rgba(110,80,40,.28),inset 0 2px 6px rgba(80,55,25,.18);border-radius:12px;padding:8px 10px}
+body.lab-v-lean .table .tz .zl,body.lab-v-table .table .tz .zl{color:#6e5a3e;font-weight:800}
+body.lab-v-lean .line.table,body.lab-v-table .line.table{background:radial-gradient(ellipse at 50% 45%,#e9dfcc 0%,#d9ccb3 60%,#c8b897 100%);box-shadow:inset 0 0 60px rgba(80,55,25,.25);border-radius:18px;padding:18px 14px 22px}
+/* lean: each zone's cards lean back on their own; labels stay flat */
+body.lab-v-lean .table .tz>.tzc{transform:perspective(700px) rotateX(calc(var(--tilt, 24deg) * .9));transform-origin:50% 100%}
+/* table: the whole table tips back */
+body.lab-v-table .line.table{position:relative;transform:perspective(1500px) rotateX(var(--tilt, 24deg));transform-origin:50% 60%}
+@media (max-width:640px){ body.lab-v-table .line.table{transform:perspective(900px) rotateX(calc(var(--tilt, 24deg) * .92));transform-origin:50% 55%} body.lab-v-lean .line.table,body.lab-v-table .line.table{padding:10px 6px 14px} body.lab-v-lean .table .tz,body.lab-v-table .table .tz{padding:5px 5px} }
+/* mats hug their cards, pushed toward the middle of the table */
+body.lab-v-lean .table .trow>.tz,body.lab-v-table .table .trow>.tz{width:max-content;max-width:100%;box-sizing:border-box}
+body.lab-v-lean .table .trow>.tz:first-child,body.lab-v-table .table .trow>.tz:first-child{justify-self:end}
+body.lab-v-lean .table .trow>.tz:last-child,body.lab-v-table .table .trow>.tz:last-child{justify-self:start}
+body.lab-v-lean .table .trow>.tz:nth-child(2),body.lab-v-table .table .trow>.tz:nth-child(2){justify-self:center}
+/* the charge spot is part of the mat, not a grey box */
+body.lab-v-lean .stage .table .charge,body.lab-v-table .stage .table .charge{background:none!important;box-shadow:none!important;border:0!important}
+body.lab-v-lean .table .charge>.note,body.lab-v-table .table .charge>.note{display:flex;align-items:center;justify-content:center;width:var(--bcw);height:var(--bch);border:2px dashed rgba(110,80,40,.35);border-radius:8px;box-sizing:border-box}
+/* lean: one camera for the whole table, so the far row (the AI's) sits deeper and looks smaller, like a real table */
+body.lab-v-lean .line.table{perspective:1100px;perspective-origin:50% 30%}
+body.lab-v-lean .line.table>.trow.s1{transform:translateZ(calc(var(--ldepth, 260px) * -1))}
+body.lab-v-lean .line.table>.clash{transform:translateZ(calc(var(--ldepth, 260px) * -.5))}
+body.lab-v-lean .line.table>.city.s1{transform:translateZ(calc(var(--ldepth, 260px) * -1.5))}
+body.lab-v-lean .line.table>.city.s0{transform:translateZ(calc(var(--ldepth, 260px) * .25))}
+@media (max-width:640px){ body.lab-v-lean .line.table{perspective:700px;perspective-origin:50% 30%} }
+/* the crop as an inline mask (the clip path could fail to apply inside the tilted views, leaving square corners) */
+:root{--labmask:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA3NTAgNzI4JyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSdub25lJz48cGF0aCBmaWxsPScjMDAwJyBkPSdNMCw0MCBRMCwwIDQwLDAgSDcxMCBRNzUwLDAgNzUwLDQwIFY2NTAuNSBRNzUwLDY4Mi41IDcxOCw2ODIuNSBINTE1LjUgTDUxMyw2OTAgTDUwNyw3MDAgTDUwMSw3MTAgTDQ5NSw3MjAgTDQ5NCw3MjIgSDI5MC41IEwyODcsNzE4IEwyODEsNzEwIEwyNzQsNzAwIEwyNjcsNjkwIEwyNjQuNSw2ODIuNSBIMzIgUTAsNjgyLjUgMCw2NTAuNSBaJy8+PC9zdmc+")}
+body.lab-crop .table .card.hasart:not(.mini)>.cartbg,body.lab-crop .table .card.hasart>.tk,body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .gart{clip-path:none!important;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
+/* a breaking Shield token: its shards come from the cropped card too */
+body.lab-crop .shpiece.artpc{background-size:100% auto!important;background-position:center top!important;border-radius:0!important;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
+/* battle arrows, their labels, and ability notes with their lines draw above the damage cubes */
+#view-play .stage .arrows{z-index:8}
+#view-play .stage .ablines{z-index:9}
+#view-play .stage .abwin,.abghost{z-index:10}
+/* --- performance: depth drawn without filter chains or blend modes, so moving cards stay smooth ---
+   the card edge is solid layers under the face; one soft shadow sits on a plain rounded box; tucked cards darken with
+   an overlay instead of a filter; the light is a normal-blend gradient */
+body.lab-stock .labsh{filter:none!important}
+body.lab-stock .labsh>i{box-shadow:0 4px 4px rgba(0,0,0,.3),0 11px 16px rgba(0,0,0,.2)}
+body.lab-stock .labsh>b{position:absolute;inset:0;border-radius:5% / 3.6%}
+body.lab-crop.lab-stock .labsh>i{box-shadow:none}
+body.lab-crop.lab-stock .labsh::before{content:"";position:absolute;inset:4% 2% 7% 2%;border-radius:8px;box-shadow:0 4px 5px rgba(0,0,0,.3),0 12px 18px rgba(0,0,0,.2)}
+body.lab-crop.lab-stock .labsh>b{position:absolute;inset:0;background:#2c2119;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
+body.lab-stock .labsh>b{transform:translateY(var(--o,2px))}
+body.lab-stock .card.hasart>.tk{filter:none!important}
+body.lab-stock .card.hasart>.tk::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.17);pointer-events:none}
+body.lab-light .lablt{mix-blend-mode:normal!important;background:linear-gradient(160deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 30%,rgba(0,0,0,0) 60%,rgba(0,0,0,.16) 100%)!important}
+.table .card.hasart:not(.mini){will-change:transform}
+.cubegl.inframe{position:absolute!important;left:0;top:0;width:100%!important;height:100%!important;z-index:7}
+
+/* --- deck view sheet --- */
+.labsheet{position:fixed;inset:0;z-index:120;background:rgba(20,16,12,.38);display:flex;align-items:center;justify-content:center}
+.labsheet .lsbox{width:min(760px,94vw);max-height:86vh;background:#f7f7f8;border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.3);padding:16px;display:flex;gap:16px;box-sizing:border-box}
+.labsheet .lslist{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.labsheet .lshd{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.labsheet .lshd h2{margin:0;font:400 22px/1 Marcellus,serif}
+.labsheet .lshd span{font-size:13px;color:var(--muted)}
+.labsheet .lsrow{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.labsheet .lsrow[aria-pressed="true"]{background:#fff8e8;border-color:#c9a45c}
+.labsheet .lsrow .n{flex:none;width:22px;font-weight:800;color:var(--muted)}
+.labsheet .lsrow .nm{font:400 17px/1.1 Marcellus,serif}
+.labsheet .lsrow.mir .nm{font-style:italic;color:#6a4f8a}
+.labsheet .lsrow .tg{font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--azure)}
+.labsheet .lsrow .chips{display:flex;gap:5px;flex-wrap:wrap}
+.labsheet .lsrow .chips span{font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:#efe9dd;border:1px solid #d8ccb4;color:#5a4630}
+.labsheet .lsrow .lv{margin-left:auto;flex:none;padding:0 6px;border-radius:999px;border:1px solid #a7834b;color:#6b4e22;background:#fff;font-weight:800;font-size:10px;line-height:15px}
+.labsheet .lsart{flex:none;width:250px;display:flex;flex-direction:column;gap:8px}
+.labsheet .lsart img{width:100%;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.labsheet .lsclose{align-self:flex-start;font:700 13px var(--f-body);padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer}
+@media (max-width:640px){
+  .labsheet{align-items:flex-end}
+  .labsheet .lsbox{width:100%;max-height:78vh;border-radius:18px 18px 0 0;flex-direction:column;padding:12px 12px 20px}
+  .labsheet .lsart{width:auto;align-items:center}
+  .labsheet .lsart img{width:62%}
+  .labsheet .lsbox.showart .lslist{display:none}
+  .labsheet .lsbox:not(.showart) .lsart{display:none}
+}
+</style>
+
 </head><body>
 <title>Oasis</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -6299,9 +6458,9 @@ function lineHTML0(f, names){
   const T = VS(1), M = VS(0), sn = [a, b];   // T: the side drawn across the top; M: the side drawn along the bottom
   return `<div class="linewrap"><div class="line table">
     ${cityRow(T)}
-    <div class="trow s1">${graveZone(sn[T], T)}${chargeZone(sn[T], T)}${deckZone(sn[T], T)}</div>
+    <div class="trow s1">${labGrave(sn[T], T, names)}${chargeZone(sn[T], T)}${labDeck(sn[T], T, names)}</div>
     <div class="clash" aria-hidden="true">⚔︎</div>
-    <div class="trow s0">${deckZone(sn[M], M)}${chargeZone(sn[M], M)}${graveZone(sn[M], M)}</div>
+    <div class="trow s0">${labDeck(sn[M], M, names)}${chargeZone(sn[M], M)}${labGrave(sn[M], M, names)}</div>
     ${cityRow(M)}
   </div></div>`;
 }
@@ -8410,12 +8569,13 @@ function battleHTML(){
   const res = ui.battle, f = res.frames[ui.frame], w = res.result.w, last = res.frames.length - 1, atEnd = ui.frame === last;
   const wc = VS(w)===0 ? 'a' : VS(w)===1 ? 'b' : 'd';
   let tail;
-  if (!atEnd) tail = '';
+  if (false) tail = '';
   else if (G.over){
     const msg = G.winner < 0 ? 'The game ends in a draw.' : PP() ? `${esc(nm(G.winner))} wins the game.` : G.winner === 0 ? 'You win the game.' : 'The AI wins the game.';
     tail = `<div class="row"><span class="verdict ${VS(G.winner)===0?'a':VS(G.winner)===1?'b':'d'}">${msg}</span><span class="note">${esc(res.result.why)}</span>${ratingNoteHTML()}<span class="grow"></span>${G.rec ? '<button type="button" data-act="rec-copy">Copy match for Claude</button>' : ''}<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button></div>`;
   } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
+  if (!atEnd) tail = tail.replace('<div class="row">', '<div class="row tailwait" aria-hidden="true" inert>');
   return `<div class="panel">
     <div class="row battlectl"><button type="button" data-act="b-first" ${ui.frame===0?'disabled':''}>Start</button><button type="button" data-act="b-prev" ${ui.frame===0?'disabled':''}>Back</button><button type="button" class="primary" data-act="b-next" ${atEnd?'disabled':''}>Next step</button>${atEnd ? '<button type="button" data-act="b-replay">Replay fight</button>' : '<button type="button" data-act="b-last">Skip to end</button>'}<button type="button" class="autobtn" data-act="b-auto" aria-pressed="${autoOn() ? 'true' : 'false'}" title="Play the battle step by step on its own">${autoLabel()}</button><button type="button" class="abtog" data-act="b-abwin" aria-pressed="${abOn() ? 'true' : 'false'}" title="Show a note for each ability that triggers in this step">Ability notes</button><button type="button" class="speedbtn" data-act="b-speed" aria-pressed="${autoFast() ? 'true' : 'false'}" title="Auto-play speed" aria-label="Auto-play speed">${speedLabel()}</button><span class="note">${ui.frame+1} / ${res.frames.length} · ${esc(f.label)}</span></div>
     <div class="stage">${lineHTML(f, PP() ? [poss(0), poss(1)] : ['Your','AI'])}${banner}</div>
@@ -8660,7 +8820,8 @@ function mountAbWin(){
   tick();
 }
 function abSrcEl(stage, ab){
-  if (ab.sh){ const c = stage.querySelector(`.card[data-uid="${ab.u}"]`); const s0 = c && c.querySelector(':scope > .pk.shhit'); return c ? (s0 ? (s0.querySelector('.tkband') || s0) : c) : null; }
+  // a Shield note always points at the Shield token itself (from the first moment, not only once the board redraws)
+  if (ab.sh){ const c = stage.querySelector(`.card[data-uid="${ab.u}"]`); const s0 = c && (c.querySelector(':scope > .pk.shhit') || c.querySelector(':scope > .pk[data-k="sh"]')); return c ? (s0 ? (s0.querySelector('.tkband') || s0) : c) : null; }
   if (ab.g){ const c = stage.querySelector(`.card[data-uid="${ab.u}"]`); if (c){ const t = c.querySelector('.gtk'); return t ? (t.querySelector('.tkband') || t) : (c.querySelector('.cgear') || c); } }
   return ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`) || stage.querySelector(`[data-uid="${ab.u}"]`))
               : stage.querySelector(`.city[data-side="${VS(ab.s)}"] .citycard[data-b="${CSS.escape(ab.n)}"]`);
@@ -8760,6 +8921,12 @@ function autoTick(){
 function stopAnim(){ if (ui.animT){ clearTimeout(ui.animT); ui.animT = null; } }
 // Reserve each side's row at the tallest it gets during this battle (decks shrink, graveyards grow): every frame is
 // laid out once in a hidden copy of the table and measured. Redone when the battle or the table's width changes.
+function applyRsv(root, rsv){
+  for (const r of root.querySelectorAll('.trow')) for (const z of r.querySelectorAll(':scope > .chz, :scope > .deckz')){
+    const m = rsv[(r.classList.contains('s1') ? 's1' : 's0') + (z.classList.contains('chz') ? 'c' : 'd')]; if (!m) continue;
+    z.classList.add('rsv'); z.style.setProperty('--rsvT', m[0] + 'px'); z.style.setProperty('--rsvL', m[1] + 'px');
+  }
+}
 function reserveRows(){
   const st = $('view-play').querySelector('.stage'), line = st && st.querySelector('.line.table');
   if (!st || !line || !ui.battle) return;
@@ -8769,14 +8936,24 @@ function reserveRows(){
     probe.className = 'stage'; probe.setAttribute('aria-hidden', 'true');
     probe.style.cssText = `position:absolute;left:-10000px;top:0;width:${w}px;visibility:hidden;pointer-events:none`;
     st.parentNode.appendChild(probe);
-    const names = PP() ? [poss(0), poss(1)] : ['Your', 'AI'], mx = [0, 0];
+    const names = PP() ? [poss(0), poss(1)] : ['Your', 'AI'], mx = [0, 0], rsv = {};
+    const zones = root => [...root.querySelectorAll('.trow')].flatMap(r => [...r.querySelectorAll(':scope > .chz, :scope > .deckz')].map(z => ({z, k:(r.classList.contains('s1') ? 's1' : 's0') + (z.classList.contains('chz') ? 'c' : 'd')})));
+    const face = z => z.querySelector('.charge > .card.hasart:not(.mini), .tzc > .card.hasart:not(.mini)');
+    // pass 1: the most room the copies and tokens behind each card spot ever need
     for (const fr of ui.battle.frames){
       probe.innerHTML = lineHTML(fr, names);
+      for (const {z, k} of zones(probe)){ const c = face(z); if (!c) continue; const cs = getComputedStyle(c), m = rsv[k] || (rsv[k] = [0, 0]);
+        m[0] = Math.max(m[0], parseFloat(cs.marginTop) || 0); m[1] = Math.max(m[1], parseFloat(cs.marginLeft) || 0); }
+    }
+    // pass 2: row heights with that room held
+    for (const fr of ui.battle.frames){
+      probe.innerHTML = lineHTML(fr, names); applyRsv(probe, rsv);
       probe.querySelectorAll('.trow').forEach(r => { const i = r.classList.contains('s1') ? 1 : 0; mx[i] = Math.max(mx[i], r.getBoundingClientRect().height); });
     }
     probe.remove();
-    ui.battle.rowH = mx; ui.battle.rowKey = key;
+    ui.battle.rowH = mx; ui.battle.rsv = rsv; ui.battle.rowKey = key;
   }
+  applyRsv(line, ui.battle.rsv || {});
   const [h0, h1] = ui.battle.rowH;
   const r0 = line.querySelector('.trow.s0'), r1 = line.querySelector('.trow.s1');
   if (r0) r0.style.minHeight = Math.ceil(h0) + 'px';
@@ -8820,6 +8997,7 @@ function goFrame(k, glide){
     const toGrave = el.tagName === 'B' && !r0.wasB;   // just died (a name already in the list only slides)
     if (toGrave && r0.clone){ deathFly(r0, el); continue; }
     el.style.position = 'relative'; el.style.zIndex = 5;
+    const tzUp = el.closest('.tz'); if (tzUp){ tzUp.style.position = 'relative'; tzUp.style.zIndex = 20; }
     // a card that grew or shrank (a stack strip becoming the revealed card, say) also eases between sizes
     const sx = r1.width ? r0.width / r1.width : 1, sy = r1.height ? r0.height / r1.height : 1;
     const grow = Math.abs(sx - 1) > 0.05 || Math.abs(sy - 1) > 0.05;
@@ -8828,11 +9006,11 @@ function goFrame(k, glide){
       ? [{transform:`perspective(300px) translate(${dx}px,${dy}px) scale(2.2) rotateY(0deg)`, opacity:1, offset:0},
          {transform:`perspective(300px) translate(${dx * 0.45}px,${dy * 0.45}px) scale(1.6) rotateY(90deg)`, opacity:.9, offset:.45},
          {transform:'perspective(300px) translate(0,0) scale(1) rotateY(0deg)', opacity:1, offset:1}]
-      : grow ? [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`}, {transform:'none'}]
+      : grow ? [{transform:`translate(${dx}px,${dy}px) scale(${sx})`, opacity:.35}, {opacity:1, offset:.55}, {transform:'none', opacity:1}]
              : [{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}],
-      {duration: toGrave ? 500 : 620, easing:'cubic-bezier(.22,.9,.3,1.04)'});
+      {duration: toGrave ? 500 : 680, easing: toGrave ? 'cubic-bezier(.22,.9,.3,1.04)' : 'cubic-bezier(.5,0,.2,1)'});
     if (grow) a.addEventListener('finish', () => { el.style.transformOrigin = ''; });
-    a.onfinish = a.oncancel = () => { el.style.zIndex = ''; el.style.position = ''; };
+    a.onfinish = a.oncancel = () => { el.style.zIndex = ''; el.style.position = ''; if (tzUp){ tzUp.style.zIndex = ''; tzUp.style.position = ''; } };
   }
 }
 /* Turning a market card over to see (or hide) the miracles behind it: a real 3D flip in perspective. The card turns
@@ -9040,9 +9218,9 @@ function stepForward(){
   const root = $('view-play');
   // where everything sits before the charging units lunge, so the arrows aim at resting cards
   const rest = new Map(); for (const el of root.querySelectorAll('.stage [data-uid]')) rest.set(el.dataset.uid, el.getBoundingClientRect());
-  if (fought) for (const side of [0, 1]){ const el = root.querySelector(`.charge .card[data-side="${side}"]`); if (el) el.classList.add('lunge' + side); }
+  const hitT = fought ? labClash(root) : 0;   // the charging units rush in and collide; hits land at the impact
   if (!fought && !hits.length) sfx.tick();
-  if (fought) setTimeout(() => sfx.clash(), 150);
+  if (fought) setTimeout(() => sfx.clash(), Math.max(0, hitT - 30));
   ui.pendingFrame = to;
   ui.animT = setTimeout(() => {
     drawArrows(arrows, true, rest); ui.arrowsFor = to;
@@ -9065,7 +9243,7 @@ function stepForward(){
     // sitting through the hit timer with an empty board; token arrows from a defeat still get time to read
     const wait = koOnly ? (arrows.length ? 1000 : 150) : (tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260);
     ui.animT = setTimeout(() => { ui.animT = null; if (koOnly) sfx.ko(); goFrame(to, true); }, Math.max(wait, cubeT));
-  }, fought ? 190 : 0);
+  }, fought ? hitT : 0);
 }
 /* Reminders: before you pass with money you could still spend, or lock in a deck with things left on the bench */
 function shopLeftovers(){
@@ -12311,6 +12489,7 @@ function cubeSync(){
   const gf = goFrame; goFrame = function(k, glide){
     ui.abFrame = null;
     if (glide && window.OasisCubes) try{ OasisCubes.koNow(); }catch(e){}   // a defeated card's cubes lift off as it flips away
+    else if (window.OasisCubes && OasisCubes.settle) try{ OasisCubes.settle(); }catch(e){}   // a jump (back, start, end): finish any cube still moving, so the redraw can match the cubes to the step
     const r = gf.apply(this, arguments);
 
     // a heal: the bar shows the hit first, then refills as the cubes are swept off
@@ -12341,5 +12520,271 @@ function glowStep(f){   // every unit whose ability fires in this step
 }
 window.__cubesReady = () => { try{ cubeSync(); }catch(e){} };
 </script>
+<script id="lab-js">
+/* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
+const LAB_DEF = {view:'flat', tilt:24, size:'auto', splay:'up', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:100, open:false};
+let LAB = {...LAB_DEF};
+try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
+const labSave = () => { try{ localStorage.setItem('oasisBoard', JSON.stringify(LAB)); }catch(e){} };
+const labCrop = () => LAB.size === 'crop' || (LAB.size === 'auto' && compact());
+let LABPILE = 0;
+// solid edge layers under a card face: 2 for any card, more for the cards hidden under a deck's top card
+const labEdges = n => { const k = 2 + Math.min(n || 0, 8) * 1, c = ['#3b2d23', '#5a4636']; let h = ''; for (let i = k; i >= 1; i--) h += `<b style="--o:${(i * 1.5).toFixed(1)}px;background:${c[i % 2]}"></b>`; return h; };
+
+// every art card gets a card-stock layer under its face and a light layer over it
+{
+  const ch = cardHTML;
+  cardHTML = function(u, side, mode){
+    const h = ch.apply(this, arguments); if (!h) return h;
+    return h.replace('<span class="cartbg" aria-hidden="true"></span>',
+      `<span class="labsh" aria-hidden="true">${labEdges(LABPILE)}<i></i></span><span class="cartbg" aria-hidden="true"></span><span class="lablt" aria-hidden="true"></span>`);
+  };
+}
+// Arena-style stacking: copies, then gear, then each kind of token once with a count, raised a name band each;
+// the room kept around the card follows the splay
+pokeArt = function(t, side, hit, art){
+  const nc = t.filter(k => k === 'cp').length, g = art.gear ? 1 : 0, cnt = {}, kinds = [];
+  for (const k of t) if (k !== 'cp'){ if (!(k in cnt)){ cnt[k] = 0; kinds.push(k); } cnt[k]++; }
+  const n = nc + g + kinds.length, sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';
+  const up = fan ? `calc(var(--tky) * ${(n * .55).toFixed(2)} + ${n ? 10 : 0}px)` : `calc(var(--tky) * ${n})`;
+  const wide = `calc(var(--bcw) * ${Math.min(.32, .1 * n).toFixed(2)})`;
+  const lf = sp === 'now' ? `calc(var(--tkl) * ${n})` : sp === 'fanL' ? wide : '0px';
+  const rt = sp === 'diag' ? `calc(var(--tky) * ${((compact() ? .3 : .45) * n).toFixed(2)})` : sp === 'fanR' ? wide : '0px';
+  const room = {marginTop:up, marginLeft:lf, marginRight:rt, '--rt':up, '--rl':lf};
+  const tuck = j => `style="--j:${j};z-index:${-1 - j}"`;
+  let html = '';
+  for (let j = 0; j < nc; j++) html += `<span class="tk ctk" ${tuck(j)} aria-hidden="true">${art.unitArt ? `<img src="${art.unitArt}" alt="" draggable="false">` : ''}<i class="tkband"></i></span>`;
+  if (g) html += `<span class="tk gtk${art.gearArt ? '' : ' plain'}" ${tuck(nc)} data-tuck-gear="${esc(art.gear)}"${art.gearArt ? ` data-art="1"` : ''} aria-hidden="true">${art.gearArt ? `<img src="${art.gearArt}" alt="" draggable="false">` : tuckPlainGear(art.gear)}<i class="tkband"></i></span>`;
+  html += kinds.map((k, j) => `<span class="pk tk${hit && k === 'sh' ? ' shhit' : ''}" data-k="${k}" data-tuck-tok="${k}" ${tuck(nc + g + j)} aria-hidden="true"><i class="tkband"></i>${cnt[k] > 1 ? `<b class="tkn">×${cnt[k]}</b>` : ''}</span>`).join('');
+  return {shadow:`inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})`, room, html};
+};
+const labArt = u => { const nm = u.name.replace(/^Jester → .*/, 'Jester'); return typeof artURL === 'function' ? (DEFS[nm] && DEFS[nm].token ? artURL('Recruit', 'u') : artURL(nm, 'u')) : null; };
+// the deck: the revealed unit is the top card; the cards under it stay hidden, their edges drawn under its face
+function labDeck(sd, side, names){
+  const rev = sd.deck[0], rest = sd.deck.length - 1;
+  const nsp = sd.deck.reduce((a, u) => a + (u.sp || []).length, 0) + (sd.tail || []).length;
+  let top;
+  if (rev){
+    const k = Math.min(rest, 8), cols = ['#5a4636', '#3b2d23'];
+    LABPILE = k;
+    try{ top = cardHTML(rev, side, 'revealed'); } finally { LABPILE = 0; }
+  } else top = '<div class="slot labempty">Deck empty</div>';
+  // the count lives in the zone's label (click it for the deck view), not on the cards
+  const cnt = `<button type="button" class="labcnt" data-labdeck="${side}" title="See the whole deck">${sd.deck.length} in deck${nsp ? `<i>✶ ${nsp}</i>` : ''}</button>`;
+  return `<div class="tz deckz"><span class="zl labzl" data-labdeck="${side}">${names[side]} deck ${sd.deck.length ? cnt : ''}${sd.sil ? ' · next reveal silenced' : ''}</span><div class="tzc">${top}</div></div>`;
+}
+// the graveyard: a face-up pile, the last unit defeated on top, lit like the rest, art muted, with a count. The cards
+// below stay in the pile (a little crooked), so a unit dying onto it lands on the one before instead of replacing it.
+function labGcard(u, side, top, k){
+  const url = labArt(u), rot = top ? 0 : (((u.uid * 37) % 9) - 4) * .8, dx = top ? 0 : (((u.uid * 53) % 7) - 3);
+  const tag = top ? 'b' : 'span';
+  return `<${tag} class="gcard${top ? '' : ' gunder'}"${top ? ` data-uid="${side}-${u.uid}"` : ''}${top ? '' : ` style="position:absolute;left:${dx}px;top:${k * 1.5}px;transform:rotate(${rot}deg);z-index:${-1 - k}"`}><span class="labsh" aria-hidden="true">${labEdges(0)}<i></i></span>${url ? `<span class="gart" style="background-image:url('${url}')"></span>` : `<span class="gplain">${esc(u.name)}</span>`}<span class="lablt" aria-hidden="true"></span></${tag}>`;
+}
+function labGrave(sd, side, names){
+  const g = sd.grave, last = g[g.length - 1];
+  let inner = '<div class="labempty">Empty</div>';
+  if (last){
+    const under = g.slice(-4, -1).reverse().map((u, k) => labGcard(u, side, false, k)).join('');
+    inner = `<div class="grave labgpile" data-labgrave="${side}" role="button" tabindex="0" title="See the graveyard" style="position:relative;isolation:isolate">${under}${labGcard(last, side, true, 0).replace(/<\/b>$/, (g.length > 1 ? `<span class="gn">${g.length}</span>` : '') + '</b>')}</div>`;
+  }
+  return `<div class="tz grz"><span class="zl labzl" data-labgrave="${side}">${names[side]} graveyard${g.length ? ' · ' + g.length : ''}</span><div class="tzc">${inner}</div></div>`;
+}
+// the deck view (and graveyard list): compact rows, top to bottom; tap a row for the full card
+function labSheet(side, kind){
+  const f = ui.battle && ui.battle.frames[ui.frame]; if (!f) return;
+  const sd = f.snap[side], names = PP() ? [poss(0), poss(1)] : ['Your', 'AI'], rows = [];
+  if (kind === 'deck'){
+    sd.deck.forEach((u, i) => { for (const n of u.sp || []) rows.push({mir:n}); rows.push({u, tag:i === 0 ? 'Revealed' : u.rear ? 'Rearguard' : ''}); });
+    for (const n of sd.tail || []) rows.push({mir:n});
+  } else sd.grave.slice().reverse().forEach(u => rows.push({u, tag:''}));
+  const chips = u => [u.gear, u.arm ? `Might ${u.arm}` : '', u.tr ? `Training ${u.tr}` : '', u.sh ? `Shield ${u.sh}` : ''].filter(Boolean).map(c => `<span>${esc(c)}</span>`).join('');
+  const row = (r, i) => r.mir
+    ? `<button type="button" class="lsrow mir" data-i="${i}"><span class="n">${i + 1}</span><span class="nm">✶ ${esc(r.mir)}</span></button>`
+    : `<button type="button" class="lsrow" data-i="${i}"><span class="n">${i + 1}</span><span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="display:flex;align-items:center;gap:8px"><span class="nm">${esc(r.u.name)}</span>${r.tag ? `<span class="tg">${r.tag}</span>` : ''}</span>${chips(r.u) ? `<span class="chips">${chips(r.u)}</span>` : ''}</span><span class="lv">LV ${r.u.lvl}</span></button>`;
+  const el = document.createElement('div'); el.className = 'labsheet'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  el.innerHTML = `<div class="lsbox"><div class="lslist"><div class="lshd"><h2>${esc(names[side])} ${kind === 'deck' ? 'deck' : 'graveyard'}</h2><span>${kind === 'deck' ? 'top to bottom · tap a card to read it' : 'most recent first'}</span></div>${rows.length ? rows.map(row).join('') : '<p class="note">Empty.</p>'}</div><div class="lsart"><button type="button" class="lsclose" data-x="back">Back to the list</button><div class="lsimg"></div></div></div>`;
+  const close = () => { el.remove(); removeEventListener('keydown', esc1, true); };
+  const esc1 = e => { if (e.key === 'Escape'){ e.stopPropagation(); close(); } };
+  addEventListener('keydown', esc1, true);
+  el.addEventListener('click', e => {
+    if (e.target === el) return close();
+    if (e.target.closest('[data-x="back"]')){ el.querySelector('.lsbox').classList.remove('showart'); return; }
+    const b = e.target.closest('.lsrow'); if (!b) return;
+    el.querySelectorAll('.lsrow').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    const r = rows[+b.dataset.i], url = r.u ? labArt(r.u) : (typeof artURL === 'function' ? artURL(r.mir, 'b') : null);
+    el.querySelector('.lsimg').innerHTML = url ? `<img src="${url}" alt="${esc(r.u ? r.u.name : r.mir)}">` : `<p class="note">${esc(r.u ? r.u.name : r.mir)}: no card art yet.</p>`;
+    el.querySelector('.lsbox').classList.add('showart');
+  });
+  document.body.appendChild(el);
+  const first = el.querySelector('.lsrow'); if (first && !compact()) first.click(); else if (first) first.focus();
+}
+addEventListener('click', e => {
+  const d = e.target.closest('[data-labdeck]'), g = e.target.closest('[data-labgrave]');
+  if (!d && !g) return;
+  e.preventDefault(); e.stopPropagation();
+  labSheet(+(d || g).dataset[d ? 'labdeck' : 'labgrave'], d ? 'deck' : 'grave');
+}, true);
+
+// the cube layer draws inside the tipped table, so cubes lie on the slanted cards
+window.__cubeFrame = () => LAB.view === 'table' ? document.querySelector('#view-play .stage .line.table') : null;
+// the table's camera, matching its CSS (perspective, tilt, transform origin), so the cube scene tips the same way
+window.__cubeTilt = () => ({P:compact() ? 900 : 1500, a:(compact() ? LAB.tilt * .92 : LAB.tilt) * Math.PI / 180, fx:.5, fy:compact() ? .55 : .6});
+
+// switches
+const LAB_OPTS = [
+  ['view', 'Table', [['flat', 'Flat'], ['lean', 'Cards lean'], ['table', 'Table tipped']]],
+  ['size', 'Card size', [['crop', 'Cropped'], ['full', 'Full'], ['auto', 'Cropped on phone']]],
+  ['splay', 'Splay', [['up', 'Up'], ['now', 'Up-left (now)'], ['diag', 'Stepped right'], ['fanL', 'Fan left'], ['fanR', 'Fan right']]],
+];
+{ const rpL = renderPlay; renderPlay = function(){ const r = rpL.apply(this, arguments); document.body.classList.toggle('lab-inbattle', !!(ui && ui.battle)); return r; }; }
+function labApply(redraw = true){
+  const b = document.body, cl = b.classList;
+  for (const c of [...cl]) if (c.startsWith('lab-') && c !== 'lab-inbattle') cl.remove(c);
+  cl.add('lab-v-' + LAB.view, 'lab-sp-' + LAB.splay, labCrop() ? 'lab-crop' : 'lab-full');
+  if (LAB.stock) cl.add('lab-stock');
+  if (LAB.light) cl.add('lab-light');
+  b.style.setProperty('--tilt', LAB.tilt + 'deg');
+  b.style.setProperty('--bcw', Math.round((compact() ? 98 : 150) * LAB.zoom / 100) + 'px');   // zoom: card width (height, tucks and gaps follow)
+  b.style.setProperty('--ldepth', Math.round(LAB.tilt * (compact() ? 7 : 11)) + 'px');   // how far back the far row sits
+  if (redraw && ui.battle){ ui.battle.rowKey = null; renderPlay(); }
+  labPanel();
+}
+function labPanel(){
+  let p = document.querySelector('.labbar');
+  if (!p){
+    p = document.createElement('div'); p.className = 'labbar'; document.body.appendChild(p);
+    p.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.o){ LAB[b.dataset.o] = b.dataset.v; labSave(); labApply(); }
+      else if (b.dataset.t === 'tog'){ LAB.open = !LAB.open; labSave(); labPanel(); }
+      else if (b.dataset.t === 'reset'){ LAB = {...LAB_DEF}; labSave(); labApply(); }
+    });
+    p.addEventListener('change', e => { const i = e.target; if (i.dataset.z){ labSave(); labApply(); return; } if (i.dataset.c){ LAB[i.dataset.c] = i.checked; labSave(); labApply(); } });
+    p.addEventListener('input', e => { const i = e.target; if (i.dataset.z){ LAB.zoom = +i.value; p.querySelector('.zoomv').textContent = LAB.zoom + '%'; document.body.style.setProperty('--bcw', Math.round((compact() ? 98 : 150) * LAB.zoom / 100) + 'px'); return; } if (i.dataset.r){ LAB.tilt = +i.value; labSave(); document.body.style.setProperty('--tilt', LAB.tilt + 'deg'); document.body.style.setProperty('--ldepth', Math.round(LAB.tilt * (compact() ? 7 : 11)) + 'px'); p.querySelector('.tiltv').textContent = LAB.tilt + '°'; try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){} } });
+  }
+  p.classList.toggle('shut', !LAB.open);
+  const seg = ([k, lab, vals]) => `<fieldset><legend>${lab}</legend><div class="seg">${vals.map(([v, t]) => `<button type="button" data-o="${k}" data-v="${v}" aria-pressed="${LAB[k] === v}">${t}</button>`).join('')}</div></fieldset>`;
+  p.innerHTML = `<div class="labhd">${LAB.open ? '<b>Board settings</b>' : ''}<button type="button" class="labtog" data-t="tog" aria-expanded="${LAB.open}">${LAB.open ? 'Hide' : 'Board settings'}</button></div>
+  <div class="labin">${seg(LAB_OPTS[0])}
+  <fieldset><legend>Zoom <span class="zoomv">${LAB.zoom}%</span></legend><input type="range" min="60" max="150" step="5" value="${LAB.zoom}" data-z="zoom" aria-label="Zoom"></fieldset>
+  <fieldset${LAB.view === 'flat' ? ' disabled style="opacity:.45"' : ''}><legend>Tilt <span class="tiltv">${LAB.tilt}°</span></legend><input type="range" min="8" max="40" step="1" value="${LAB.tilt}" data-r="tilt" aria-label="Tilt angle"></fieldset>
+  ${seg(LAB_OPTS[1])}${seg(LAB_OPTS[2])}
+  <fieldset><legend>Impact</legend><label class="chk"><input type="checkbox" data-c="freeze" ${LAB.freeze ? 'checked' : ''}> Brief freeze</label><label class="chk"><input type="checkbox" data-c="dust" ${LAB.dust ? 'checked' : ''}> Dust puff</label><label class="chk"><input type="checkbox" data-c="squash" ${LAB.squash ? 'checked' : ''}> Squash</label><label class="chk"><input type="checkbox" data-c="jolt" ${LAB.jolt ? 'checked' : ''}> Knock-back jolt</label></fieldset>
+  <fieldset><legend>Depth</legend><label class="chk"><input type="checkbox" data-c="stock" ${LAB.stock ? 'checked' : ''}> Card stock</label><label class="chk"><input type="checkbox" data-c="light" ${LAB.light ? 'checked' : ''}> Light</label></fieldset>
+  <div class="rowb"><button type="button" class="labbtn" data-t="reset">Reset switches</button></div></div>`;
+}
+let labWasCompact = compact();
+addEventListener('resize', () => { if (compact() !== labWasCompact){ labWasCompact = compact(); if (LAB.size === 'auto') labApply(); } });
+
+
+// a newly revealed unit: the cards attached to it (copies, gear, tokens) slide out from behind it into their splay
+const labRevealed = f => f ? f.snap.map(sd => sd.deck[0] ? sd.deck[0].uid : null) : [null, null];
+function labSplayIn(el, delay){
+  if (!el || reduceMotion()) return;
+  const tks = [...el.querySelectorAll(':scope > .tk')]; if (!tks.length) return;
+  const cs = getComputedStyle(el), tky = parseFloat(cs.getPropertyValue('--tky')) || 26, fan = LAB.splay === 'fanL' ? 1 : LAB.splay === 'fanR' ? -1 : 0;
+  tks.forEach((t, i) => {
+    const j = parseInt(t.style.getPropertyValue('--j')) || i;
+    const x = -t.offsetLeft, y = -t.offsetTop + (fan ? tky * .55 * (j + 1) : 0);
+    t.animate([{translate:`${x}px ${y}px`, rotate:`${fan * 7 * (j + 1)}deg`}, {translate:'0px 0px', rotate:'0deg'}],
+      {duration:480, delay:delay + 80 * i, easing:'cubic-bezier(.2,.8,.3,1)', fill:'backwards'});
+  });
+}
+function labSplayRevealed(prev, delay){
+  if (!ui.battle) return;
+  const now = labRevealed(ui.battle.frames[ui.frame]);
+  now.forEach((uid, side) => {
+    if (uid == null || uid === prev[side]) return;
+    const el = document.querySelector(`#view-play .deckz .card[data-uid="${side}-${uid}"]`);
+    labSplayIn(el, delay);
+    // its health bar fades in once the card that was on top has charged off it
+    const hp = el && el.querySelector(':scope > .hprow');
+    if (hp && !reduceMotion()) hp.animate([{opacity:0}, {opacity:1}], {duration:320, delay:delay + 460, easing:'ease-out', fill:'backwards'});
+  });
+}
+{
+  const gf = goFrame;
+  goFrame = function(k, glide){
+    const before = ui.battle ? labRevealed(ui.battle.frames[ui.frame]) : [null, null];
+    const r = gf.apply(this, arguments);
+    if (glide) labSplayRevealed(before, 220);   // starts as the card on top lifts off it
+    labPrep();
+    return r;
+  };
+}
+
+/* ---- the clash: both charging units rush at each other, collide at the middle, and spring back (like Hearthstone).
+   Impact options (lab switches): a brief freeze, a dust puff, a squash, a knock-back jolt. Returns when the hit lands. */
+function labClash(root){
+  const a = root.querySelector('.charge .card[data-side="1"]'), b = root.querySelector('.charge .card[data-side="0"]');
+  if (!a || !b || !a.animate){ for (const [el, s] of [[a, 1], [b, 0]]) if (el) el.classList.add('lunge' + s); return 190; }
+  const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+  // they meet where they really touch: the top of whatever is tucked behind the near card (its copies and tokens peek
+  // up toward the far one), not its face
+  const edge = (el, r, up) => [...el.querySelectorAll(':scope > .tk')].reduce((m, t) => { const q = t.getBoundingClientRect(); return up ? Math.min(m, q.top) : Math.max(m, q.bottom); }, up ? r.top : r.bottom);
+  const gap = Math.max(0, edge(b, rb, true) - edge(a, ra, false)), meet = gap / 2 + 2;   // each travels half the gap, overlapping a touch
+  const wind = 130, rush = 110, hold = LAB.freeze ? 85 : 0, back = 300, T = wind + rush + hold + back, hitT = wind + rush;
+  const o = x => +(x / T).toFixed(4);
+  for (const [el, r, dir] of [[a, ra, 1], [b, rb, -1]]){
+    const k = el.offsetHeight / Math.max(1, r.height);   // screen px to the card's own (tilted) px
+    const d = meet * k * dir, pull = -7 * k * dir, jolt = LAB.jolt ? -10 * k * dir : 0;
+    const sq = LAB.squash ? ' scale(1.05,.9)' : ' scale(1.03)';
+    el.style.transformOrigin = dir > 0 ? '50% 100%' : '50% 0%';
+    const prevZ = el.style.zIndex; el.style.zIndex = 6;
+    const tz = el.closest('.tz'); if (tz){ tz.style.position = 'relative'; tz.style.zIndex = 15; }
+    const an = el.animate([
+      {transform:'none', offset:0},
+      {transform:`translateY(${pull}px) scale(1.04)`, offset:o(wind), easing:'cubic-bezier(.6,0,.9,.4)'},
+      {transform:`translateY(${d}px)${sq}`, offset:o(hitT)},
+      {transform:`translateY(${d}px)${sq}`, offset:o(hitT + hold), easing:'cubic-bezier(.2,.7,.3,1)'},
+      ...(jolt ? [{transform:`translateY(${jolt}px) scale(1)`, offset:o(hitT + hold + back * .45), easing:'cubic-bezier(.3,.6,.4,1)'}] : []),
+      {transform:'none', offset:1}
+    ], {duration:T});
+    an.onfinish = an.oncancel = () => { el.style.transformOrigin = ''; el.style.zIndex = prevZ; if (tz){ tz.style.zIndex = ''; tz.style.position = ''; } };
+  }
+  try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){}   // the cube layer keeps drawing while the cards move
+  if (LAB.dust) setTimeout(() => labDust((ra.left + ra.right + rb.left + rb.right) / 4, (edge(a, ra, false) + edge(b, rb, true)) / 2, (ra.width + rb.width) / 2), hitT);
+  return hitT;
+}
+// a puff of sand where the cards meet: grains thrown out mostly sideways along the table, and a soft cloud
+function labDust(x, y, w){
+  if (reduceMotion()) return;
+  const g = document.createElement('div'); g.setAttribute('aria-hidden', 'true');
+  g.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:0;height:0;z-index:11;pointer-events:none`;
+  const cloud = document.createElement('span');
+  cloud.style.cssText = `position:absolute;left:${-w * .35}px;top:-14px;width:${w * .7}px;height:28px;border-radius:50%;background:radial-gradient(closest-side,rgba(214,192,148,.75),rgba(214,192,148,0))`;
+  g.appendChild(cloud);
+  cloud.animate([{transform:'scale(.3)', opacity:.9}, {transform:'scale(1.25,1)', opacity:0}], {duration:620, easing:'cubic-bezier(.2,.7,.3,1)', fill:'forwards'});
+  for (let i = 0; i < 16; i++){
+    const p = document.createElement('span'), side = i % 2 ? 1 : -1, ang = (Math.random() * .9 - .45), dist = w * (.25 + Math.random() * .45), sz = 3 + Math.random() * 5;
+    const tx = Math.cos(ang) * dist * side, ty = Math.sin(ang) * dist * .45 - 6;
+    p.style.cssText = `position:absolute;left:${-sz / 2}px;top:${-sz / 2}px;width:${sz}px;height:${sz}px;border-radius:50%;background:${['#cdb68a', '#b99d6c', '#e2d2ac'][i % 3]}`;
+    g.appendChild(p);
+    p.animate([{transform:'translate(0,0) scale(1)', opacity:.95}, {transform:`translate(${tx}px,${ty}px) scale(.6)`, opacity:0}], {duration:420 + Math.random() * 260, easing:'cubic-bezier(.15,.7,.3,1)', fill:'forwards'});
+  }
+  document.body.appendChild(g);
+  setTimeout(() => g.remove(), 800);
+}
+
+// work out the next step's cube drops while this step is on screen (when the browser is idle), so the hit doesn't stall
+let labPrepH = 0;
+function labPrep(){
+  if (labPrepH && window.cancelIdleCallback) cancelIdleCallback(labPrepH);
+  const f = ui.battle && ui.battle.frames[ui.frame + 1]; if (!f || !window.OasisCubes || !OasisCubes.prepare) return;
+  const by = new Map();
+  for (const x of (f.hits || [])){
+    const el = document.querySelector(`#view-play .card[data-uid$="-${x.uid}"]:not(.mini)`); if (!el) continue;
+    if (x.from != null && document.querySelector(`#view-play .card[data-uid$="-${x.from}"]:not(.mini)`)) continue;   // Overrun cubes move, they don't drop
+    const e = by.get(el.dataset.uid) || {id:el.dataset.uid, drops:[]}; e.drops.push(x.a); by.set(e.id, e);
+  }
+  if (!by.size) return;
+  const run = () => { labPrepH = 0; try{ OasisCubes.prepare([...by.values()]); }catch(e){} };
+  labPrepH = window.requestIdleCallback ? requestIdleCallback(run, {timeout:1200}) : setTimeout(run, 300);
+}
+addEventListener('load', () => setTimeout(() => labApply(false), 50));
+// get the cube graphics and physics ready while the page settles, so the first drop doesn't stall
+addEventListener('load', () => setTimeout(() => { try{ window.OasisCubes && OasisCubes.warm && OasisCubes.warm(); }catch(e){} }, 1200));
+</script>
+
 <script src="cubes.js" defer></script>
-</body></html>
+</body></html
