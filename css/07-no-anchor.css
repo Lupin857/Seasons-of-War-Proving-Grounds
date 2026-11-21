@@ -1,0 +1,4 @@
+
+/* Safari "scroll anchoring" moved the whole page a few pixels on battle steps (it tracked a card or zone that was changing).
+   The Play view keeps its own scroll, so turn anchoring off while it is showing. */
+html:has(#view-play:not([hidden])), #view-play{overflow-anchor:none}

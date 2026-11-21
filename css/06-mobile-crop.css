@@ -1,0 +1,54 @@
+
+.ccost{display:none}
+/* ===== phones: art cards cropped to the type tab =====
+   In the shop, Mobilize, the deck view and battle, a card with art shows everything down to the top of its text box
+   plus the bottom half of its type tab, cut out by the #tabclip clip path (traced from the card frame; added by oasis-mobile-crop-js). The whole card
+   opens with a tap. The shape is 750 wide by 728 tall, so every card box on a phone uses that ratio. */
+@media (max-width:640px){
+  :root{--crop:.9707}
+  .cface.art{aspect-ratio:750/728;border-radius:0;clip-path:url(#tabclip)}
+  .cface.art>:is(img,canvas).cart{height:auto}
+  /* the whole card again where a card is opened or inspected */
+  .peek .cface.art,.cardpop .cface.art,.oinsp .cface.art{aspect-ratio:750/1037;border-radius:5% / 3.6%;clip-path:none}
+  .peek .cface.art>:is(img,canvas).cart,.cardpop .cface.art>:is(img,canvas).cart,.oinsp .cface.art>:is(img,canvas).cart{height:100%}
+  /* the shop uses nearly the full screen width: thin panel edges, no padding around the card art, tight rows */
+  .mktp{margin-inline:-10px;padding:6px 4px!important;--card-sq:calc((100vw - 32px) / 3)}
+  .mktp .market{column-gap:6px!important;row-gap:12px!important}
+  .mktp .market .mcard:not(.peek):has(> .cface.art){padding:0!important}
+  /* card boxes take the cropped shape */
+  .mktp .mcard:not(.peek):not(.masonpick),.mktp .mirwrap>.mcard:not(.peek),.fcards .mcard:not(.peek),.dgrid:not(.stack) .mcard:not(.peek){aspect-ratio:750/728!important;height:auto!important}
+  .stack.dgrid>.mcard:not(.peek),.stack.dgrid>.dropgap{height:calc(var(--sc) * var(--crop))!important;aspect-ratio:auto!important}
+  .stack.dgrid>*:not(:last-child){margin-bottom:calc(var(--strip) - var(--sc) * var(--crop))!important}
+  /* highlights follow the cut-out shape instead of a box around it */
+  .mcard:has(> .cface.art).canbuy>.cface.art{box-shadow:none}
+  .mcard:has(> .cface.art).canbuy{filter:drop-shadow(0 0 1.5px var(--azure)) drop-shadow(0 0 1.5px var(--azure))}
+  .mcard:has(> .cface.art).writtgt.on>.cface.art{box-shadow:none}
+  .mcard:has(> .cface.art).writtgt.on{filter:drop-shadow(0 0 1.5px var(--gules)) drop-shadow(0 0 2px var(--gules))}
+  .stack.dgrid>.mcard:has(> .cface.art):not(:last-child){box-shadow:none}
+  .stack.dgrid>.mcard:has(> .cface.art){filter:drop-shadow(0 -1px 3px rgba(0,0,0,.35))}
+  /* cards tucked behind a Mobilize card: same shape */
+  .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{aspect-ratio:750/728;border-radius:0;box-shadow:none;clip-path:url(#tabclip)}
+  /* an explicit height: Safari otherwise sizes the box from the full-height picture inside it */
+  .stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{height:calc(var(--sc) * var(--crop))!important;min-height:0}
+  .stack.dgrid>.mcard.drow>.pkhit.tuck>:is(img,canvas){height:auto}
+  /* the water cost, which the cut leaves out: a chip in the gap right of the type tab */
+  .mcard:has(> .cface.art){position:relative}
+  .mcard:not(.peek):not(.cardpop)>.ccost{display:flex;position:relative;align-self:flex-end;margin:-17px 2% -1px 0;z-index:3;flex:none;align-items:center;gap:2px;height:16px;padding:0 5px;border-radius:9px;
+    background:#1f2b35;border:1px solid #7fb0d4;color:#e3f0fa;font:800 11px/1 var(--f-body);pointer-events:none}
+  .mcard>.ccost svg{width:7px;height:10px;fill:#7fb0d4}
+  .stack .mcard>.ccost{display:none!important}
+  /* the returning-card hourglass moves to the top right, clear of the cost chip */
+  .hgtok{top:-6px;bottom:auto;right:-6px}
+
+  /* battle: card boxes are the cropped shape; the picture goes on the card's art layer, which carries the mask, so
+     power, health and the tucked cards stay outside the cut */
+  :root{--bch:calc(var(--bcw) * var(--crop))}
+  .table .card.hasart:not(.mini){background-color:transparent!important;background-size:0 0!important;border-radius:0!important}
+  .table .card.hasart:not(.mini)>.cartbg{background-size:100% auto!important;background-position:center top!important;background-color:transparent!important;border-radius:0;
+    clip-path:url(#tabclip);filter:none}
+  .table .card.hasart:not(.mini){filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));box-shadow:none}
+  .table .card.hasart:not(.mini)>.hprow{bottom:10%;padding:2px 5px}
+  .table .card.hasart>.tk,.table .card.hasart[data-side="1"]>.tk{background-size:100% auto;background-position:center top;border-radius:0;box-shadow:none;
+    clip-path:url(#tabclip)}
+  .table .card.hasart>.tk>:is(img,canvas){object-fit:cover;object-position:center top}
+}

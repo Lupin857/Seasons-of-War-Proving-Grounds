@@ -1,0 +1,95 @@
+
+/* ---- card art (every size) ---- */
+.cface.art{position:relative;width:100%;aspect-ratio:750/1037;border-radius:5% / 3.6%;overflow:hidden;flex:none;
+  box-shadow:0 1px 2px rgba(0,0,0,.28),0 3px 9px rgba(0,0,0,.14);background:#2a2320}
+.cface.art>:is(img,canvas).cart{width:100%;height:100%;display:block;-webkit-user-drag:none}
+.cface-txt{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.mcard:has(> .cface.art),.mcard.peek:has(> .cface.art),.sheet .mcard.peek:has(> .cface.art){padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;gap:6px;overflow:visible}
+.mcard:has(> .cface.art) .zhw{display:none}
+.mcard:has(> .cface.art).canbuy>.cface.art{box-shadow:0 0 0 2px var(--azure),0 4px 12px rgba(0,0,0,.2)}
+.mcard:has(> .cface.art).cant>.cface.art{filter:saturate(.35) brightness(.92)}
+.mcard:has(> .cface.art).writoff>.cface.art{opacity:.4}
+.mcard:has(> .cface.art).writtgt.on>.cface.art{box-shadow:0 0 0 3px var(--gules)}
+.mcard:has(> .cface.art)>button{width:100%}
+.mcard.cardpop:has(> .cface.art){padding:0!important}
+.mirwrap:has(.cface.art) .mirback{z-index:0}
+/* battle cards with art: the picture, with live power and health on top */
+.card.hasart{padding:0!important;background-color:#2a2320!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;border:0!important;border-radius:5% / 3.6%!important;position:relative;overflow:visible}
+.card.hasart>.ctop,.card.hasart>.zh{opacity:0;pointer-events:none}
+.card.hasart>.ctop{position:absolute;inset:0}
+.card.hasart .livepow{position:absolute;top:3%;left:3%;min-width:26%;aspect-ratio:1;border-radius:50%;background:rgba(20,16,14,.82);color:#f3ead8;
+  font:600 clamp(11px, calc(var(--bcw, 140px) * .13), 22px) var(--f-mono);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #f1e8d8;z-index:2}
+.card.hasart .livepow.up{background:var(--ok)} .card.hasart .livepow.down{background:var(--gules)}
+.card.hasart>.hprow{position:absolute;left:5%;right:5%;bottom:2.5%;z-index:2;background:rgba(20,16,14,.82);border-radius:6px;padding:3px 6px;color:#f3ead8;display:flex;align-items:center;gap:6px}
+.card.hasart>.hprow .hpn,.card.hasart>.hprow .hpn b{color:#f3ead8!important} .card.hasart>.hprow .hpn.hurt b{color:#ff9c8f!important}
+.card.hasart>.hprow .hp{flex:1}
+.card.hasart>.cgear{position:absolute;right:-4px;top:42%;z-index:3}
+/* ---- the card panel beside the game (desktop) ---- */
+.oinsp{display:none}
+@media (min-width:1200px){
+  body.oasis-desk .wrap{max-width:1500px;margin:0 auto;padding-right:356px}
+  body.oasis-desk .oinsp{display:flex;position:fixed;top:16px;bottom:16px;right:max(16px, calc((100vw - 1500px) / 2 + 16px));width:324px;flex-direction:column;gap:10px;
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;overflow:auto;z-index:40}
+  .oinsp .ilbl{font:700 10px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .oinsp .ibig{width:100%;aspect-ratio:750/1037;border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.25);background:var(--sunk);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;text-align:center;padding:0}
+  .oinsp .ibig img{width:100%;height:100%;display:block}
+  .oinsp .ibig .mcard{width:100%;height:100%;margin:0;font-size:1.1rem;overflow:auto}
+  .oinsp h4{margin:0;font:400 19px var(--f-display)}
+  .oinsp .imeta{font-size:13px;color:var(--muted);line-height:1.45}
+  .oinsp .itx{font-size:13.5px;line-height:1.45;color:var(--ink)}
+  /* the shop: cards at a size you can read the art at, decks and discard pile at the row ends */
+  body.oasis-desk .market{grid-template-columns:minmax(0,1fr) 2px repeat(5,minmax(0,1fr));column-gap:12px;row-gap:12px}
+  /* every card is portrait, art or not, so the rows line up */
+  body.oasis-desk .mktp .mcard:not(.peek):not(.masonpick),body.oasis-desk .fcards .mcard:not(.peek),body.oasis-desk .dgrid .mcard:not(.peek),
+  body.oasis-desk .mktp .mirwrap>.mcard:not(.peek){height:auto!important;aspect-ratio:750/1037!important}
+  body.oasis-desk .mktp .mcard:not(.peek):has(> .cface.art) .stamps{top:calc(100% + 36px)}
+  body.oasis-desk .mktp .market{row-gap:56px!important}
+  /* the battle table: portrait cards, a bit bigger; Caravan cards smaller */
+  body.oasis-desk{--bcw:150px;--bch:207px}
+  body.oasis-desk .table .card.citycard{width:92px!important;height:127px!important}
+}
+
+/* ---- gear and tokens tucked behind a deck card: real cards, each a step up and a little left, banner showing ---- */
+.stack.dgrid{--tkl:5px}
+.stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{position:absolute;display:block;right:auto;bottom:auto;width:100%;height:auto;aspect-ratio:750/1037;padding:0;margin:0;
+  left:calc(var(--tkl) * -1 * (var(--j) + 1));top:calc(-1 * (var(--tkb, 0px) + var(--sc) * .175 * (var(--j) + 1)));
+  border-radius:5% / 3.6%;overflow:hidden;background:#2a2320;box-shadow:0 0 0 1px rgba(20,16,14,.35),0 -2px 6px rgba(0,0,0,.18);cursor:pointer;font-size:inherit;line-height:0}
+.stack.dgrid>.mcard.drow>.pkhit.tuck::before{display:none}
+.stack.dgrid>.mcard.drow>.pkhit.tuck>:is(img,canvas){width:100%;height:100%;display:block;object-fit:cover;-webkit-user-drag:none;pointer-events:none}
+.stack.dgrid>.mcard.drow>.pkhit.tuck:hover,.stack.dgrid>.mcard.drow>.pkhit.tuck:focus-visible{background:#2a2320;filter:brightness(1.12);box-shadow:0 0 0 2px var(--or),0 -2px 8px rgba(0,0,0,.25)}
+.stack.dgrid>.mcard.drow>.pkhit.tuck .tkx{position:absolute;right:5%;top:calc(var(--sc) * .175 / 2);transform:translateY(-50%);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,16,14,.85);color:#f3ead8;font:700 10px/1 var(--f-body);font-style:normal;opacity:0;transition:opacity .12s}
+.stack.dgrid>.mcard.drow>.pkhit.tuck:hover .tkx,.stack.dgrid>.mcard.drow>.pkhit.tuck:focus-visible .tkx{opacity:1}
+@media (pointer:coarse){ .stack.dgrid>.mcard.drow>.pkhit.tuck .tkx{opacity:.85} }
+/* a gear card the game draws itself (no matching art): parchment with the same banner */
+.pkhit.tuck .tkplain{position:absolute;inset:0;background:linear-gradient(#e9dfcb,#d9cdb3);display:flex;align-items:flex-start;gap:4%;padding:3% 4%;line-height:1.1;box-sizing:border-box}
+.pkhit.tuck .tkplain .tkpm{flex:none;min-width:22%;text-align:center;padding:2% 0;border-radius:999px;background:#3a302a;color:#f3ead8;font:600 11px var(--f-mono)}
+.pkhit.tuck .tkplain .tkpn{flex:1;padding:2% 5%;border-radius:4px;background:#f6f0e2;color:#2a2320;font:600 11px var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* a plain-drawn unit with cards tucked behind it: its face goes on a layer above them */
+.stack.dgrid>.mcard.drow:has(>.pkhit.tuck):not(:has(>.cface.art)){background:transparent!important;border-color:transparent!important}
+.stack.dgrid>.mcard.drow:has(>.pkhit.tuck):not(:has(>.cface.art))::before{content:"";position:absolute;inset:-1px;border-radius:inherit;background:var(--bg);border:1px solid var(--line);z-index:-1;pointer-events:none}
+.tokfly.artfly{padding:0!important;border:0!important;background:#2a2320!important;border-radius:6px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.3)!important}
+.tokfly.artfly img{width:100%;height:100%;display:block;object-fit:cover}
+
+/* ---- battle table: gear and tokens tucked behind art cards, a step up and a little left, banners showing ---- */
+.stage{--tky:calc(var(--bcw) * .175);--tkl:5px}
+.card.hasart{isolation:isolate}
+.card.hasart>.cartbg{position:absolute;inset:0;background:inherit;border-radius:inherit;z-index:0;pointer-events:none}
+.card.hasart>.tk,.card.hasart[data-side="1"]>.tk{position:absolute;display:block;width:100%;height:100%;padding:0;margin:0;right:auto;bottom:auto;
+  left:calc(var(--tkl) * -1 * (var(--j) + 1));top:calc(var(--tky) * -1 * (var(--j) + 1));
+  border-radius:5% / 3.6%;overflow:hidden;background:#2a2320 center / cover no-repeat;box-shadow:0 0 0 1px rgba(20,16,14,.35),0 -2px 6px rgba(0,0,0,.18);font-size:0;line-height:0;color:inherit}
+.card.hasart>.tk>:is(img,canvas){width:100%;height:100%;display:block;object-fit:cover}
+.card.hasart>.pk.tk[data-k="arm"]{background-image:url('../art/Might.webp')}
+.card.hasart>.pk.tk[data-k="tr"]{background-image:url('../art/Training.webp')}
+.card.hasart>.pk.tk[data-k="sh"]{background-image:url('../art/Shield.webp')}
+.card.hasart>.tk .tkband{position:absolute;left:0;right:0;top:0;height:var(--tky);display:block}
+.card.hasart>.pk.tk.shhit{filter:none;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--muted),0 -2px 6px rgba(0,0,0,.18)}
+.card.hasart>.pk.tk.tknew{animation:tkin .42s cubic-bezier(.2,.8,.3,1.15) backwards}
+@keyframes tkin{from{transform:translate(calc(var(--tkl) * (var(--j) + 1)), calc(var(--tky) * (var(--j) + 1)));opacity:.4}}
+@media (prefers-reduced-motion: reduce){ .card.hasart>.pk.tk.tknew{animation:none} }
+.card.hasart.tokanim{transition:box-shadow .42s cubic-bezier(.2,.8,.25,1.15), margin .42s cubic-bezier(.2,.8,.3,1)}
+.shpiece.artpc{position:absolute;inset:0;background:#2a2320 center / cover no-repeat}
+/* the charge spot grows to fit the cards tucked behind its unit, so they never reach into the other player's charge */
+.stage .table .charge{height:auto!important;min-height:calc(var(--bch) + 20px)!important}
+.stage .table .charge>.card.hasart{margin:var(--rt, 0px) 0 0 0!important}
+@media (max-width:640px){ .stage .table .charge{min-height:calc(var(--bch) + 8px)!important} }

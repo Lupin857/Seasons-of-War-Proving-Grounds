@@ -1,0 +1,376 @@
+/* Turning a market card over to see (or hide) the miracles behind it: a real 3D flip in perspective. The card turns
+   away to edge-on (the face foreshortens as it goes), the view switches, and the other side turns in from the far edge,
+   so neither side is ever mirrored. Clicks during the half-second turn are ignored. */
+function mirTurn(el, k, apply){
+  const done = () => { apply(); renderPlay(); };
+  if (!el || !el.animate || reduceMotion() || ui.mirTurning) { if (!ui.mirTurning) done(); return; }
+  ui.mirTurning = true;
+  const P = Math.max(360, el.offsetWidth * 3.4), T = (a, s) => `perspective(${P}px) rotateY(${a}deg) scale(${s})`;
+  const a = el.animate([{transform:T(0, 1), filter:'brightness(1)'}, {transform:T(90, 1.06), filter:'brightness(.78)'}],
+    {duration:160, easing:'cubic-bezier(.45,0,.75,.6)', fill:'forwards'});
+  a.oncancel = () => { ui.mirTurning = false; };
+  a.onfinish = () => {
+    done(); a.cancel();
+    const n = $('view-play').querySelector(`.mcard.hasmir[data-k="${CSS.escape(k)}"]`);
+    if (n) n.animate([{transform:T(-90, 1.06), filter:'brightness(.78)'}, {transform:T(0, 1), filter:'brightness(1)'}],
+      {duration:220, easing:'cubic-bezier(.25,.5,.4,1)'});
+  };
+}
+// A card that dies: a copy of it slides toward the graveyard, flips face down, and shrinks into its name in the list
+function deathFly(r0, nameEl){
+  const g = r0.clone, r1 = nameEl.getBoundingClientRect();
+  g.classList.remove('shake', 'lunge0', 'lunge1'); g.classList.add('deathfly');
+  for (const f of g.querySelectorAll('.float')) f.remove();
+  Object.assign(g.style, {left:r0.left + 'px', top:r0.top + 'px', width:r0.width + 'px', height:r0.height + 'px'});
+  const back = document.createElement('span'); back.className = 'dfback'; g.appendChild(back);
+  document.body.appendChild(g);
+  // the page can give fixed elements an offset container (a transformed or contained ancestor); line the clone up
+  // with where the card really was before it flies
+  { const gr = g.getBoundingClientRect(); if (Math.abs(gr.left - r0.left) > 1 || Math.abs(gr.top - r0.top) > 1){
+      g.style.left = (2 * r0.left - gr.left) + 'px'; g.style.top = (2 * r0.top - gr.top) + 'px'; } }
+  const dx = (r1.left + r1.width / 2) - (r0.left + r0.width / 2), dy = (r1.top + r1.height / 2) - (r0.top + r0.height / 2);
+  const sx = Math.max(0.1, r1.width / r0.width), sy = Math.max(0.05, r1.height / r0.height);
+  const T = 500;
+  // perspective goes first so the turn reads as 3D: the near edge grows, the far edge and the face's text foreshorten
+  const P = Math.max(360, r0.width * 3.4), pf = `perspective(${P}px) `;
+  const a = g.animate([
+    {transform:pf + 'translate(0,0) rotateY(0deg) scale(1)', filter:'brightness(1)', offset:0},
+    {transform:pf + `translate(${dx * 0.25}px,${dy * 0.25 - 12}px) rotateY(0deg) scale(.93)`, filter:'brightness(1)', offset:.14},
+    {transform:pf + `translate(${dx * 0.55}px,${dy * 0.55 - 8}px) rotateY(90deg) scale(.7)`, filter:'brightness(.72)', offset:.45},
+    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:.85, offset:.88},
+    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:0, offset:1}
+  ], {duration:T, easing:'cubic-bezier(.4,.1,.3,1)', fill:'forwards'});
+  back.animate([{opacity:0}, {opacity:0, offset:.45}, {opacity:1, offset:.451}, {opacity:1}], {duration:T, fill:'forwards'});
+  nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, fill:'backwards'});
+  a.onfinish = a.oncancel = () => g.remove();
+}
+// The card moves the engine recorded for a step (see mvs in runBattle)
+const frameMoves = f => f ? f.lines.flatMap(l => l.mv || []) : [];
+// A saved unit goes back into its deck instead of vanishing: it slides straight from where it was into its deck,
+// under the top card (the deck is held face up, so the bottom of the deck is under the pile). The copy moves inside
+// the deck zone itself, beneath the top card the whole way, so it never crosses over the pile.
+function bDeckEl(side){
+  const row = document.querySelector(`#view-play .stage .trow.s${VS(side)}`), dz = row && row.querySelector('.deckz');
+  return dz && (dz.querySelector(`.tzc > .card[data-side="${side}"]:not(.mini):not(.deckfly)`) || dz.querySelector('.tzc > .slot'));
+}
+function deckFly(r0, side){
+  const tgt = bDeckEl(side), dz = tgt && tgt.closest('.deckz'), box = tgt && tgt.parentNode;
+  if (!tgt || !dz || !box || !r0.clone || !tgt.animate) return;
+  const g = r0.clone, W = tgt.offsetWidth, H = tgt.offsetHeight;
+  g.removeAttribute('data-uid'); g.removeAttribute('id');
+  g.classList.remove('shake', 'lunge0', 'lunge1', 'tokanim'); g.classList.add('deckfly');
+  for (const f of g.querySelectorAll('.float, .trigglow, .hprow')) f.remove();   // (its health bar stays behind: the deck has its own)
+  g.setAttribute('aria-hidden', 'true'); g.setAttribute('data-keep', '');   // a redraw mid-slide leaves it alone
+  const prev = {pos:dz.style.position, z:dz.style.zIndex, iso:box.style.isolation, bpos:box.style.position};
+  dz.style.position = 'relative'; dz.style.zIndex = 20; box.style.isolation = 'isolate';
+  if (getComputedStyle(box).position === 'static') box.style.position = 'relative';   // before reading offsets: they're from here
+  const rt = tgt.getBoundingClientRect();
+  if (!rt.width || !W){ dz.style.position = prev.pos; dz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; return; }
+  for (const [k, v] of [['position', 'absolute'], ['margin', '0'], ['left', tgt.offsetLeft + 'px'], ['top', tgt.offsetTop + 'px'],
+    ['width', W + 'px'], ['height', H + 'px'], ['pointer-events', 'none'], ['transform-origin', '50% 50%'], ['z-index', '-1']]) g.style.setProperty(k, v, 'important');
+  // screen px to the zone's own px (the table is tilted and zoomed)
+  const kx = W / rt.width, ky = H / rt.height;
+  const dx = ((r0.left + r0.width / 2) - (rt.left + rt.width / 2)) * kx, dy = ((r0.top + r0.height / 2) - (rt.top + rt.height / 2)) * ky;
+  const s0 = Math.max(.5, Math.min(2, r0.width / rt.width));
+  box.insertBefore(g, tgt);   // before the top card, and under it
+  const T = 620;
+  const a = g.animate([
+    {transform:`translate(${dx}px,${dy}px) scale(${s0})`, filter:'brightness(1)'},
+    {transform:'translate(0px,0px) scale(1)', filter:'brightness(.85)'}
+  ], {duration:T, easing:'cubic-bezier(.5,0,.2,1)', fill:'forwards'});
+  setTimeout(() => { try{ sfx.flick(); }catch(e){} }, T * .7);   // as it slips under the pile
+  a.onfinish = a.oncancel = () => { g.remove(); dz.style.position = prev.pos; dz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; };
+}
+// Ability notes for a save (Infirmary Tent, Field Medic, Second Wind) point into the deck the unit went back into
+const abIsSave = g => g.lines.some(l => (l.mv || []).some(m => m.k === 'save'));
+// New tokens slide out from behind their card one at a time (yours and the AI's in the order they were given),
+// right after the step lands; no extra clicks
+function animateTokens(prevF, curF){
+  clearTimeout(ui.tokT); if (!prevF || !curF || reduceMotion()) return;
+  const counts = u => ({arm:u.arm || 0, tr:u.tr || 0, sh:u.sh || 0});
+  const before = new Map();
+  prevF.snap.forEach((sd, side) => { for (const u of [sd.charge, ...sd.deck]) if (u) before.set(`${side}-${u.uid}`, counts(u)); });
+  const queue = [];
+  curF.snap.forEach((sd, side) => {
+    for (const u of [sd.charge, ...sd.deck]){
+      if (!u) continue;
+      const id = `${side}-${u.uid}`, b = before.get(id); if (!b) continue;
+      const now = counts(u), kept = {cp:u.cp || 0}, added = [];
+      for (const k of ['arm', 'tr', 'sh']){ kept[k] = Math.min(b[k], now[k]); for (let n = b[k]; n < now[k]; n++) added.push(k); }
+      if (!added.length) continue;
+      const el = $('view-play').querySelector(`.stage .card:not(.mini)[data-uid="${id}"]`); if (!el) continue;
+      const order = tokenList(kept).concat(added).slice(0, el.classList.contains('hasart') ? 99 : pokeCap()), start = Math.min(tokenList(kept).length, order.length);
+      if (start >= order.length) continue;
+      const set = (n, pop) => {
+        const ua = (el.querySelector(':scope > .ctk img') || {}).src || (typeof artURL === 'function' ? artURL(u.name.replace(/^Jester → .*/, 'Jester'), 'u') : null);
+        const art = el.classList.contains('hasart') ? {...artInfo(u), unitArt:ua} : null;
+        const pp = pokeParts(order.slice(0, n), VS(side), 0, art);
+        el.style.boxShadow = pp.shadow;
+        if (art) applyRoom(el, pp.room); else Object.assign(el.style, {marginLeft:'', marginRight:'', marginTop:'', marginBottom:''}, n ? pp.room : {});
+        for (const x of el.querySelectorAll(':scope > .pk, :scope > .gtk, :scope > .ctk')) x.remove();
+        const bg = el.querySelector(':scope > .cartbg');
+        bg ? bg.insertAdjacentHTML('afterend', pp.html) : el.insertAdjacentHTML('afterbegin', pp.html);
+        if (pop){ const all = el.querySelectorAll(':scope > .pk'), last = all[all.length - 1]; if (last) last.classList.add(art ? 'tknew' : 'pknew'); }
+      };
+      set(start, false);              // back to how it looked before this step...
+      void el.offsetWidth; el.classList.add('tokanim');
+      for (let n = start + 1; n <= order.length; n++) queue.push(() => set(n, true));   // ...then each new one slides in
+    }
+  });
+  let i = 0;
+  const next = () => { if (i >= queue.length) return; queue[i++](); try{ sfx.tick(); }catch(e){} ui.tokT = setTimeout(next, 240); };
+  if (queue.length) ui.tokT = setTimeout(next, 140);
+}
+// Moving on from a step where a Shield blocked a hit: the shield (its token card peeking out behind the unit, and its
+// icon) cracks, splits and falls away. Measured from the board before it is redrawn without that shield.
+function shieldsToBreak(){
+  const out = [];
+  for (const pk of $('view-play').querySelectorAll('.stage .card > .pk.shhit')){
+    const card = pk.parentElement, cr = card.getBoundingClientRect(), pr = pk.getBoundingClientRect(); if (!cr.width) continue;
+    const cs = getComputedStyle(card), px = parseFloat(cs.getPropertyValue('--px')) || 12, py = parseFloat(cs.getPropertyValue('--py')) || 8;
+    const j = +pk.style.getPropertyValue('--j') || 0, side = +card.dataset.side, sg = side === 1 ? -1 : 1;
+    if (pk.classList.contains('tk')){ const ty = parseFloat(cs.getPropertyValue('--tky')) || 26, tl = parseFloat(cs.getPropertyValue('--tkl')) || 5;
+      out.push({art:true, cr, pr, ty, tl, side, rad:cs.borderRadius, uid:card.dataset.uid, z:+(pk.style.zIndex || -1)}); continue; }
+    out.push({cr, pr, dx:sg * px * (j + 1), dy:-sg * py * (j + 1), sx:sg * px, sy:-sg * py, side, icon:pk.innerHTML, rad:cs.borderRadius});
+  }
+  return out;
+}
+function breakShields(list){
+  if (reduceMotion()) return;
+  try{ sfx.tick(); }catch(e){}
+  for (const b of list){
+    if (b.art){ breakArtShield(b); continue; }
+    const {cr, dx, dy, sx, sy} = b, W = cr.width, H = cr.height;
+    // the visible sliver of the shield's token card: the one-token-wide edge that sticks out past the card (or token)
+    // just inside it, an L shape
+    const L = sx > 0 ? [[0,0],[W,0],[W,H],[W-sx,H],[W-sx,-sy],[0,-sy]] : [[0,0],[-sx,0],[-sx,H-sy],[W,H-sy],[W,H],[0,H]];
+    const wrap = document.createElement('div'); wrap.className = 'shbreak'; wrap.setAttribute('aria-hidden', 'true');
+    wrap.style.cssText = `left:${cr.left + dx}px;top:${cr.top + dy}px;width:${W}px;height:${H}px`;
+    // the sliver splits along a crack into two pieces that fall away
+    const mid = W / 2, cut = H / 2;
+    const half = (keepLeft) => L.map(([x, y]) => [keepLeft ? Math.min(x, mid + (y < cut ? 6 : -6)) : Math.max(x, mid + (y < cut ? 6 : -6)), y]);
+    for (const [keepLeft, rot, tx] of [[true, -14, -16], [false, 12, 16]]){
+      const pc = document.createElement('div'); pc.className = 'shpiece s' + b.side; pc.style.borderRadius = b.rad;
+      pc.style.clipPath = `polygon(${half(keepLeft).map(([x, y]) => `${x}px ${y}px`).join(',')})`;
+      wrap.appendChild(pc);
+      pc.animate([{transform:'none', opacity:1}, {transform:'translateX(0) rotate(0)', opacity:1, offset:.25},
+                  {transform:`translate(${tx}px, 34px) rotate(${rot}deg)`, opacity:0}], {duration:620, delay:120, easing:'cubic-bezier(.5,0,.75,.4)', fill:'forwards'});
+    }
+    // the icon cracks: a jolt, then its two halves fly apart
+    const ic = b.pr, iw = ic.width, ih = ic.height;
+    for (const [clip, tx, rot] of [[`polygon(0 0,55% 0,40% 45%,58% 60%,45% 100%,0 100%)`, -10, -30], [`polygon(55% 0,100% 0,100% 100%,45% 100%,58% 60%,40% 45%)`, 10, 30]]){
+      const h = document.createElement('span'); h.className = 'shicon'; h.innerHTML = b.icon;
+      h.style.cssText = `left:${ic.left - cr.left - dx}px;top:${ic.top - cr.top - dy}px;width:${iw}px;height:${ih}px;clip-path:${clip}`;
+      wrap.appendChild(h);
+      h.animate([{transform:'scale(1)', opacity:1}, {transform:'scale(1.35)', opacity:1, offset:.18}, {transform:'scale(1.2)', opacity:1, offset:.3},
+                 {transform:`translate(${tx}px, 22px) rotate(${rot}deg) scale(1)`, opacity:0}], {duration:640, easing:'ease-in', fill:'forwards'});
+    }
+    const crack = document.createElement('span'); crack.className = 'shflash';
+    crack.style.cssText = `left:${ic.left - cr.left - dx + iw / 2}px;top:${ic.top - cr.top - dy + ih / 2}px`;
+    wrap.appendChild(crack);
+    crack.animate([{transform:'translate(-50%,-50%) scale(.2)', opacity:.9}, {transform:'translate(-50%,-50%) scale(1.6)', opacity:0}], {duration:360, easing:'ease-out', fill:'forwards'});
+    document.body.appendChild(wrap);
+    setTimeout(() => wrap.remove(), 900);
+  }
+}
+// a Shield token card tucked behind an art card: its visible part (the banner strip and the sliver down the left)
+// splits along a crack and the halves fall away
+function breakArtShield(b){
+  const {pr, ty, tl} = b, W = pr.width, H = pr.height;
+  const L = [[0,0],[W,0],[W,ty],[tl,ty],[tl,H],[0,H]];
+  const wrap = document.createElement('div'); wrap.className = 'shbreak'; wrap.setAttribute('aria-hidden', 'true');
+  // the pieces go inside the card, behind its face, so they fall away behind it instead of across it
+  const card = b.uid && document.querySelector(`#view-play .card[data-uid="${b.uid}"]:not(.mini)`);
+  if (card) wrap.style.cssText = `position:absolute;left:${pr.left - b.cr.left}px;top:${pr.top - b.cr.top}px;width:${W}px;height:${H}px;z-index:${b.z}`;
+  else wrap.style.cssText = `left:${pr.left}px;top:${pr.top}px;width:${W}px;height:${H}px`;
+  const mid = W * .45;
+  const half = keepLeft => L.map(([x, y]) => [keepLeft ? Math.min(x, mid + (y < ty / 2 ? 8 : -8)) : Math.max(x, mid + (y < ty / 2 ? 8 : -8)), y]);
+  for (const [keepLeft, rot, tx] of [[true, -14, -18], [false, 12, 18]]){
+    const pc = document.createElement('div'); pc.className = 'shpiece artpc'; pc.style.borderRadius = b.rad;
+    pc.style.backgroundImage = `url('${tokArtURL('sh')}')`;
+    pc.style.clipPath = `polygon(${half(keepLeft).map(([x, y]) => `${x}px ${y}px`).join(',')})`;
+    wrap.appendChild(pc);
+    pc.animate([{transform:'none', opacity:1}, {transform:'translateX(0) rotate(0)', opacity:1, offset:.25},
+                {transform:`translate(${tx}px, 34px) rotate(${rot}deg)`, opacity:0}], {duration:620, delay:120, easing:'cubic-bezier(.5,0,.75,.4)', fill:'forwards'});
+  }
+  const crack = document.createElement('span'); crack.className = 'shflash';
+  crack.style.cssText = `left:${mid}px;top:${ty / 2}px`;
+  wrap.appendChild(crack);
+  crack.animate([{transform:'translate(-50%,-50%) scale(.2)', opacity:.9}, {transform:'translate(-50%,-50%) scale(1.6)', opacity:0}], {duration:360, easing:'ease-out', fill:'forwards'});
+  (card || document.body).appendChild(wrap);
+  setTimeout(() => wrap.remove(), 900);
+}
+// break the shields now and redraw those cards without them (the next step's arrows then aim at the board as it is)
+function breakShieldsNow(){
+  const list = shieldsToBreak(); if (!list.length) return;
+  breakShields(list);
+  const units = unitsOf(ui.battle.frames[ui.frame], ['charge', 'deck']);
+  for (const card of new Set([...$('view-play').querySelectorAll('.stage .card > .pk.shhit')].map(x => x.parentElement))){
+    const u = units.get(card.dataset.uid), side = +card.dataset.side; if (!u) continue;
+    const ua = (card.querySelector(':scope > .ctk img') || {}).src || null;
+    const art = card.classList.contains('hasart') ? {...artInfo(u), unitArt:ua} : null;
+    const t = art ? tokenList(u) : tokenList(u).slice(0, pokeCap()), pp = pokeParts(t, side, 0, art);
+    card.style.boxShadow = t.length || art ? pp.shadow : '';
+    // the card eases into its new spot as the stack behind it shrinks, instead of jumping
+    if (art){ card.classList.add('tokanim'); applyRoom(card, pp.room); setTimeout(() => card.classList.remove('tokanim'), 480); try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){} }
+    for (const x of card.querySelectorAll(':scope > .pk, :scope > .gtk, :scope > .ctk')) x.remove();
+    const bg = card.querySelector(':scope > .cartbg');
+    bg ? bg.insertAdjacentHTML('afterend', pp.html) : card.insertAdjacentHTML('afterbegin', pp.html);
+  }
+}
+function stepForward(){
+  if (!ui.battle) return;
+  const last = ui.battle.frames.length - 1;
+  // a click while a step is still animating finishes that step at once and goes straight on to the next one,
+  // so every click moves exactly one step however fast you click
+  if (ui.animT) goFrame(ui.pendingFrame);
+  if (ui.frame >= last) return;
+  breakShieldsNow();   // a shield that blocked a hit in the step on screen breaks as soon as you move on
+  const prev = ui.battle.frames[ui.frame], next = ui.battle.frames[ui.frame + 1], to = ui.frame + 1;
+  try{ glowStep(next); ui.abFrame = to; mountAbWin(); }catch(e){}   // abilities firing this step glow, and their notes show, as it begins
+  if (reduceMotion()){ goFrame(to, true); return; }
+  const before = unitsOf(prev, ['charge', 'deck']), after = unitsOf(next, ['charge', 'deck']), grave = unitsOf(next, ['grave']);
+  const hits = [], saved = new Set(frameMoves(next).filter(m => m.to === 'deck-bottom').map(m => m.u));   // saves and Sand Sailor: back under the deck
+  for (const [id, u] of before){
+    const hpOf = v => Math.max(0, Math.min(100, (v.pow - v.dmg) / Math.max(1, v.pow) * 100));
+    if (saved.has(id)) hits.push({id, t:'Saved', ko:true, save:true, hp:100});   // its cubes lift off as it goes back into the deck
+    else if (after.has(id)){ const v = after.get(id), ev = (next.hits || []).filter(x => `${id}`.endsWith('-' + x.uid)), heal = ev.reduce((a, x) => a + x.heal, 0), d = v.dmg + heal - u.dmg;
+      if (d > 0){ const pre = {...v, dmg:v.dmg + heal}; hits.push({id, t:`−${d}`, hp:hpOf(pre), cur:Math.max(0, pre.pow - pre.dmg), max:v.pow, heal, after:hpOf(v)}); } }
+    else if (grave.has(id)) hits.push({id, t:'Defeated', ko:true, hp:0});
+  }
+  const fought = next.lines.some(l => / fight\.$/.test(l.t));
+  const arrows = next.lines.filter(l => l.to);
+  const heals = (next.hits || []).some(x => x.heal > 0);
+  if (!fought && !hits.length && !arrows.length && !heals){ goFrame(to, true); return; }
+  const root = $('view-play');
+  // where everything sits before the charging units lunge, so the arrows aim at resting cards
+  const rest = new Map(); for (const el of root.querySelectorAll('.stage [data-uid]')) rest.set(el.dataset.uid, el.getBoundingClientRect());
+  const hitT = fought ? labClash(root) : 0;   // the charging units rush in and collide; hits land at the impact
+  if (!fought && !hits.length) sfx.tick();
+  if (fought) setTimeout(() => sfx.clash(), Math.max(0, hitT - 30));
+  ui.pendingFrame = to;
+  ui.animT = setTimeout(() => {
+    drawArrows(arrows, true, rest); ui.arrowsFor = to;
+    const koOnly = hits.length && hits.every(h => h.ko) && !fought && !heals;   // a casualty step: nothing lands, cards just leave
+    if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.some(h => !h.save) && !koOnly) sfx.ko();
+    for (const h of hits){
+      const el = root.querySelector(`.card[data-uid="${h.id}"]`); if (!el) continue;
+      // health bar drains to its new level
+      const bar = el.querySelector('.hp i'); if (bar){ bar.style.transition = 'width .6s cubic-bezier(.3,.6,.3,1) .12s'; bar.style.width = h.hp + '%'; }
+      // the hp readout ticks down to its new value
+      if (h.cur != null){
+        const hn = el.querySelector('.hpn');
+        if (hn){ hn.classList.add('hurt'); hn.innerHTML = `<b>${h.cur}</b>/${h.max}<span class="hpu"> hp</span>`;
+          hn.animate([{opacity:0, transform:'scale(1.3)'}, {opacity:1, transform:'none'}], {duration:450, delay:150, easing:'ease-out', fill:'backwards'}); }
+      }
+    }
+    const tokOnly = arrows.length && arrows.every(a => a.tok) && !hits.length && !fought;
+    const cubeT = cubeStep(next, hits, prev);   // drops, heals and the defeat sweep; a defeated card waits until its cubes are off
+    // defeats with nothing else to watch go almost at once (the KO sound plays as the card starts to fly), instead of
+    // sitting through the hit timer with an empty board; token arrows from a defeat still get time to read
+    const wait = koOnly ? (arrows.length ? 1000 : 150) : (tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260);
+    ui.animT = setTimeout(() => { ui.animT = null; if (koOnly && !hits.every(h => h.save)) sfx.ko(); goFrame(to, true); }, Math.max(wait, cubeT));
+  }, fought ? hitT : 0);
+}
+/* Reminders: before you pass with money you could still spend, or lock in a deck with things left on the bench */
+function shopLeftovers(){
+  if (!G || G.phase !== 'shop' || cur(G) !== seat() || G.passed[seat()]) return null;
+  const S = seat(), me = G.players[S], names = [];
+  for (const o of aiShopOptions(G, S)){ const info = buyInfo(G, S, o.name, o.kind, o.src, o.idx); if (info.ok && !names.includes(o.name)) names.push(o.name); }
+  const bm = bVal(me, 'Black Market') && !G.bmUsed[S];
+  if (!names.length && !bm) return null;
+  const items = [];
+  if (names.length) items.push(`You still have <b>$${me.money}</b>, enough for ${names.length > 4 ? `${names.slice(0, 4).map(esc).join(', ')} and ${names.length - 4} more` : names.map(esc).join(', ').replace(/, ([^,]*)$/, ' or $1')}.`);
+  if (bm) items.push(`You haven't looked at your <b>Black Market</b> this shop (tap the glowing unit or building deck).`);
+  return items;
+}
+function mobilizeLeftovers(){
+  if (!G || G.phase !== 'mobilize' || !ui.draft) return null;
+  const me = G.players[seat()], d = ui.draft, items = [];
+  const arm = bVal(me, 'Smithy') - d.reduce((s, u) => s + (u.arm||0), 0);
+  const tr = bVal(me, 'Study') - d.reduce((s, u) => s + (u.tr||0), 0);
+  const shl = shAllow(me) - d.reduce((s, u) => s + (u.sh||0), 0);
+  const recLeft = recBase(me) - d.filter(u => u.name === 'Recruit').length;   // miracle Recruits can wait in hand
+  const bench = Object.keys(me.hand).filter(n => n !== 'Recruit' && !d.some(u => u.name === n));
+  const room = deckCap(me) - d.filter(u => !exemptUnit(u.name) && !isBat(u.name)).length;
+  const plural = (n, a, b) => `${n} ${n === 1 ? a : b}`;
+  if (arm > 0 && d.length) items.push(`<b>${plural(arm, 'Armament', 'Armaments')}</b> not placed (+1 power each).`);
+  if (shl > 0 && d.length) items.push(`<b>${plural(shl, 'Shield', 'Shields')}</b> not placed (each blocks a hit).`);
+  if (tr > 0 && d.some(u => !tokBlock('tr', u))) items.push(`<b>${plural(tr, 'Training token', 'Training tokens')}</b> not placed (+1 level each).`);
+  const gl = gearLeft(me, d), gn = Object.keys(gl).filter(n => gl[n] > 0 && isGear(n));
+  if (gn.length && d.some(u => !isBat(u.name) && !u.gear)) items.push(`<b>${gn.map(n => esc(n) + (gl[n] > 1 ? ` ×${gl[n]}` : '')).join(', ')}</b> not equipped. Gear only works on a unit in your deck.`);
+  if (recLeft > 0) items.push(`<b>${plural(recLeft, 'Recruit', 'Recruits')}</b> left on the bench. ${recLeft === 1 ? "It's" : "They're"} discarded after this battle either way.`);
+  const merc = bench.filter(exemptUnit);
+  if (merc.length) items.push(`<b>${merc.map(esc).join(', ')}</b> on the bench. ${merc.length === 1 ? "It doesn't" : "They don't"} count toward your unit limit.`);
+  const reg = bench.filter(n => !exemptUnit(n));
+  if (room > 0 && reg.length) items.push(`Room for <b>${plural(Math.min(room, reg.length), 'more unit', 'more units')}</b>, and ${reg.length > 3 ? `${reg.slice(0, 3).map(esc).join(', ')} and ${reg.length - 3} more are` : reg.map(esc).join(', ').replace(/, ([^,]*)$/, ' and $1') + (reg.length === 1 ? ' is' : ' are')} on the bench.`);
+  return items.length ? items : null;
+}
+function remindHTML(){
+  const r = ui.remind; if (!r) return '';
+  const pass = r.kind === 'pass';
+  return `<div class="remind" role="dialog" aria-modal="true" aria-labelledby="remind-h"><div class="remindbox">
+    <h3 id="remind-h">${pass ? 'Pass with money left?' : 'Lock in with things left over?'}</h3>
+    <ul>${r.items.map(t => `<li>${t}</li>`).join('')}</ul>
+    <label class="row note"><input type="checkbox" id="remind-off"> Don't remind me again this game</label>
+    <div class="row"><button type="button" data-act="remind-back">${pass ? 'Keep shopping' : 'Go back'}</button><span class="grow"></span><button type="button" class="primary" data-act="remind-go">${pass ? 'Pass anyway' : 'Lock in anyway'}</button></div>
+  </div></div>`;
+}
+
+/* Turn reminders: whenever the shop turn changes hands, a banner sweeps across the screen ("Your turn" in your
+   color, "Opponent's turn" in theirs) with a chime, and the tab title says so too. The deck buttons on the scoreboard
+   carry a standing "Your turn" / "Their turn" / "Passed" chip and the active player's button glows. */
+let turnKey = null, turnBase = null, turnMarks = [null, null];
+function turnNewsCard(ev, side){
+  const d = ev.k === 'u' ? DEFS[ev.n] : BDEFS[ev.n]; if (!d) return '';
+  const what = ev.a === 'buy' ? `Bought · $${ev.price}` : 'Sold · +$1';
+  // the same card as in the shop (cardFace), with a stamp for what happened to it
+  let face = ''; try{ face = cardFace(ev.n, ev.k, 0, true); }catch(e){}
+  if (face) return `<div class="tfwrap"><div class="mcard ${ev.k} tfm ${ev.a}">${face}</div><span class="tftag ${ev.a} s${VS(side)}">${what}${ev.on ? ` · ${esc(ev.on)}` : ''}</span></div>`;
+  return `<div class="tfcard ${ev.k} ${ev.a} s${VS(side)}"><span class="tfn">${esc(ev.n)}</span><span class="tfa">${what}${ev.on ? ` · leveled ${esc(ev.on)}` : ''}</span><span class="tft">${kwText(d.t.replace(/\{[^}]*\}/g, '…'))}</span></div>`;
+}
+function turnWatch(){
+  if (turnBase === null) turnBase = document.title.replace(/^● [^·]+· /, '');
+  const shop = G && !ui.start && !ui.roll && !ui.battle && !G.over && G.phase === 'shop';
+  const S = shop ? seat() : 0, who = shop ? cur(G) : -1;
+  const mine = shop && who === S && !G.passed[S];
+  document.title = shop ? `● ${mine ? 'Your turn' : PP() && !G.net ? `${nm(who)}’s turn` : 'Opponent’s turn'} · ${turnBase}` : turnBase;
+  const key = shop ? `${G.round}|${who}` : null;
+  const first = turnKey === null; if (first) turnKey = '';
+  if (!shop) dismissTurnFlash();   // the shop is over (Mobilize, battle, game over): a leftover turn banner goes away
+  if (!shop || key === turnKey) return;
+  turnKey = key;
+  if (first){ turnMarks = [G.log.length, G.log.length]; return; }   // a reload or a resumed game: no announcement
+  const otherPassed = G.passed[1 - who];
+  // a player who ran out of buys was passed automatically: say so instead of the usual line
+  const ap = ui.autoPass && ui.autoPass.round === G.round && !ui.autoPass.shown ? ui.autoPass : null;
+  const oppOut = otherPassed && noBuysLeft(G, 1 - who, true);
+  let big, small = '', side = who, sticky = false;
+  if (PP() && !G.net){ big = `${nm(who)}’s turn`; small = ap && ap.who === 1 - who ? `${nm(1 - who)} has no buys left this round and passes. Pass the device.` : otherPassed ? `${nm(1 - who)} has passed` : 'Pass the device'; if (ap) ap.shown = true; }
+  else if (who === S){ big = 'Your turn'; small = otherPassed ? `${PP() || G.net ? nm(1 - S) : 'Opponent'} ${oppOut ? 'is out of buys and passed' : 'passed'}. Keep shopping or pass.` : 'Buy a card or pass'; }
+  else if (ap && ap.who === S){ ap.shown = true; big = 'Out of buys'; small = 'You have no buys left this round and pass your turn.'; side = S; sticky = true; }
+  else { big = G.net ? `${nm(who)}’s turn` : 'Opponent’s turn'; small = G.passed[S] ? 'You passed. They’re finishing up.' : 'Wait for them to buy or pass'; }
+  // what the other player bought and sold since this player last had the turn
+  let news = '';
+  if (who === S || (PP() && !G.net)){
+    const from = turnMarks[who] == null ? G.log.length : turnMarks[who];
+    const evs = G.log.slice(from).filter(l => l.ev && l.side === 1 - who);
+    turnMarks[who] = G.log.length;
+    if (evs.length) news = `<div class="tfnews"><span class="eyebrow">Since ${who === S && !(PP() && !G.net) ? 'your' : 'their'} last turn, ${esc(PP() || G.net ? nm(1 - who) : 'Opponent')}:</span><div class="tfcards mktp">${evs.map(l => turnNewsCard(l.ev, 1 - who)).join('')}</div></div>`;
+  }
+  if (who === S && noBuysLeft(G, S)){ autoNews = news; return; }   // out of buys: the auto-pass banner says so, with this news
+  if (sticky && !news){ news = autoNews; autoNews = ''; }   // the opponent's buys from just before, shown with the auto-pass
+  const show = () => {
+    turnFlash(big, small, side === S || (PP() && !G.net) ? 'mine' : 'theirs', side, news, sticky);
+    flashedNow = true;
+    if (who === S || (PP() && !G.net)){ sfx.turnMine(); if (navigator.vibrate) try{ navigator.vibrate([18, 60, 18]); }catch(e){} }
+    else sfx.turnTheirs();
+  };
+  // the opponent's cards are still playing out: the banner comes once they've all landed (if it's still this turn)
+  if (oppBusy()){
+    pendingFlash = show;
+    oppOnIdle(() => { if (pendingFlash !== show) return; pendingFlash = null; if (turnKey !== key || !G || G.phase !== 'shop' || ui.battle) return; show(); shopNotes(); flashedNow = false; });
+  } else { pendingFlash = null; show(); }
+}
+var pendingFlash = null;
+

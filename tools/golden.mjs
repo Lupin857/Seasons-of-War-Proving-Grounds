@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Golden-master test for the SOW engine.
 //
-// Loads the <script id="engine"> block straight out of index.html, then runs:
+// Loads the engine (js/engine.js, found through index.html; older inline pages work too), then runs:
 //   - seeded random battles (runBattle with the replay log on), and
 //   - seeded full AI-vs-AI games (shop, mobilize, battle every round).
 // `record` saves every result to golden.json. `check` reruns them and reports any difference.
@@ -17,6 +17,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './page-files.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -32,9 +33,7 @@ if (mode !== 'record' && mode !== 'check'){
 }
 
 /* ---------- load the engine ---------- */
-const html = fs.readFileSync(HTML, 'utf8');
-const m = /<script id="engine">([\s\S]*?)<\/script>/.exec(html);
-if (!m){ console.error(`No <script id="engine"> block found in ${HTML}`); process.exit(2); }
+const ENGINE = engineSource(HTML);
 
 // The same generator the engine uses, so this file needs nothing from it to drive Math.random.
 const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -46,7 +45,7 @@ const SeededMath = Object.create(Math);
 SeededMath.random = () => mathRnd();
 const ctx = vm.createContext({ Math: SeededMath, console });
 const EXPORTS = ['runBattle', 'newGame', 'autoRound', 'baseGenome', 'DEPTH', 'DEFS', 'BDEFS', 'mulberry32'];
-vm.runInContext(m[1] + `\n;globalThis.__E = {${EXPORTS.join(',')}};`, ctx, { filename: 'engine' });
+vm.runInContext(ENGINE + `\n;globalThis.__E = {${EXPORTS.join(',')}};`, ctx, { filename: 'engine' });
 const E = ctx.__E;
 const reseed = s => { mathRnd = mulberry(s ^ 0x5eed); };
 

@@ -36,7 +36,7 @@ Brian designs the game. Read this file first; open the linked docs only when the
 
 ## Names: internal vs. display
 The code keeps the **old SOW names internally** (`Recruit`, `Armament`, `Field`, `Pigeon Hunter`, `city`...).
-`OASIS_NAMES` (in `<script id="oasis-names">`) renames everything players read, live, through a MutationObserver.
+`OASIS_NAMES` (in `js/names.js`) renames everything players read, live, through a MutationObserver.
 **Never rename internal names in code** (it breaks the snapshot, saved games, stats and the golden test). To change
 what players see, edit `OASIS_NAMES`. Full list and wording style: docs/terminology.md.
 
@@ -50,33 +50,40 @@ what players see, edit `OASIS_NAMES`. Full list and wording style: docs/terminol
   GitHub site, phone or desktop, before running big test batches.
 
 ## Workflow for a change
-1. Get the live page: Artifact `read` with `path: "index.html"` saves it to a file without printing it.
-   Before publishing, a plain `read` (no path) is required as a version check. It prints about 16 KB of CSS, so do
-   it once, right before publishing.
-2. Bump `OASIS_BUILD` (next to `LAB_DEF`) to the publish number this publish will get (the current `seq` + 1;
-   the publish result reports the real `seq`: if it differs, fix the label and republish). Then edit a copy in the scratchpad (a Python or Node script with exact-match replacements, asserting each matches once).
-3. Run `node tools/check-page.mjs <page>` (a few seconds): every script block must parse, and no global name may be
-   declared in two blocks (see Tests).
-4. Run the tests (below), publish the artifact, then copy the file here byte for byte (`cp page.html index.html`;
-   strip a trailing newline only if the saved copy has one: the artifact's file ends in `</html>` with none, and an
-   unconditional `head -c -1` cut off that final `>` before Nov 2026). If card art changed in the artifact, copy the
-   changed `art/*.webp` files too.
+Since v57 the artifact and this repo hold the same file tree (index.html, css/, js/, cubes.js, art/; see
+docs/code-map.md), and the repo clone is the working copy.
+1. Sync: `get_artifact` for the version, then `list_files` and compare each text file's sha256 with the clone
+   (`sha256sum index.html css/* js/*.js js/*/*.js`). If any differ, another chat published without pushing: fetch
+   those files with `read_file` `paths` (saves them to disk), copy them in, and tell Brian before going on.
+2. Edit the files in the clone. Small exact-match edits (Edit tool, or a script asserting each match is unique).
+   Bump `OASIS_BUILD` (js/board-settings.js, next to `LAB_DEF`) to the publish number this publish will get (the
+   current `seq` + 1; the publish result reports the real `seq`: if it differs, fix the label and republish).
+3. Run `node tools/check-page.mjs` (seconds) and the other tests that apply (below).
+4. Right before publishing, `get_artifact` again: if the version changed, another chat is working on it; tell Brian
+   and merge onto the newest files, never over them. Publish with `publish_files` (default patch mode), listing only
+   the files that changed (`git status --short`), with `as` = the same relative path. New files are listed the same
+   way; deleted files go in `remove`. Art changes: list the changed `art/*.webp` too.
 5. After Brian approves: commit and push to `main`. Commit messages end with "(artifact vNNN)".
 
 ## Tests (`tools/`)
-- `node tools/check-page.mjs` (seconds): every `<script>` parses, and no function/const/let/class name is declared in
-  two script blocks. All blocks share one global scope, so a second `function foo` silently replaces the first for
-  every caller (Nov 2026: the screen's `doMove` replaced the engine's and broke the AI's main-thread search). Run it
-  before every publish, UI changes included. When you add a top-level function, give it a name that says which layer
-  it belongs to.
+- `node tools/check-page.mjs` (seconds): every script parses; no function/const/let/class name is declared in two
+  files (all scripts share one global scope, so a second `function foo` silently replaces the first for every
+  caller: in Nov 2026 the screen's `doMove` replaced the engine's and broke the AI's main-thread search); and no
+  top-level code uses a name declared in a later file (see "Rules for the split files" in docs/code-map.md). Run it
+  before every publish, UI changes included. Give new top-level functions names that say which area they belong to.
+- `node tools/screens.mjs <build dir> <out dir> [--phone]` (~2.5 min) plays a seeded game against the AI and opens
+  the designer tabs, saving 18 screenshots; `node tools/screens-diff.mjs <before> <after>` compares two runs.
+  For refactors (anything meant to look the same), run both on a copy of the old build and on the new one, desktop
+  and `--phone`; expect 0% everywhere. It serves the build over http itself (no background server needed).
 - `node tools/golden.mjs check` (~50 s): 1,000 seeded battles + 44 seeded AI-vs-AI games through the engine.
   Pure refactors must PASS. For an intended rule change, run `record` instead and say so in the commit.
   Run it only when the engine, rules or AI code changed; skip it for UI-only changes.
 - There is no UI golden test anymore (dropped Oct 2026; don't bring it back). Check UI changes with headless
   screenshots, at the layout you changed (and the other one if shared code changed).
 - Headless screenshots: Playwright is global (`createRequire(\`${npm root -g}/\`)('playwright')`), Chromium at
-  `/opt/pw-browsers/chromium`. Under file:// the page drops to player view; for the designer view run
-  `canAdmin = true; playerPreview = false; applyRole()` after load.
+  `/opt/pw-browsers/chromium`. Serve the page over http (see tools/screens.mjs): under file:// the AI's workers can't
+  load js/engine.js and fall back to thinking on the main page. Outside claude.ai the page drops to player view; for
+  the designer view run `canAdmin = true; playerPreview = false; applyRole()` after load.
 
 ## Refresh the snapshot (keeps the site in sync)
 The site can't reach the artifact's database, so it plays from the JSON in
@@ -99,14 +106,15 @@ golden test ran (and passed or was re-recorded), and which docs were updated. Th
 - The AI judges every choice by **chance of winning the game**; difficulty = thinking budget, not random mistakes.
 
 ## Linked docs (read only when relevant)
-- `docs/code-map.md`: map of index.html and cubes.js, the stacked-wrapper pattern, the reuse list
+- `docs/code-map.md`: which file holds what, load-order rules, the stacked-wrapper pattern, the reuse list
 - `docs/ui.md`: phone/desktop layout rules, animation and card-motion rules, board settings
 - `docs/terminology.md`: internal → display names, card-wording style
 - `docs/rules.md`: current rules and battle step order
 - `docs/ai.md`: AI evaluation, difficulty ladder, training
 
 ## Cheap habits
-- Search with `grep -n ... | cut -c1-250`, then read only the lines you need. Never read the whole file.
+- Search with `grep -rn ... js css | cut -c1-250`, then read only the lines you need. Open the one file for the area
+  you're changing; never read the big ones (engine.js, css/03-main.css) whole.
 - The `#snapshot` JSON is one long line (about 13 KB in Nov 2026; it grows with stats): **never grep it without `| cut -c1-200`**.
 - Read database documents with `out_dir`, not inline.
 - If a rule seems unclear, ask Brian rather than inferring it from the code.

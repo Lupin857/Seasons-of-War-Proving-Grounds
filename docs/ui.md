@@ -27,7 +27,7 @@
 - Teaches the physical setup: deck face up, top card = revealed unit, copies peeking above with names showing, gear
   and tokens tucked behind, health bar under the card with an "LV 2" tag at its left. Card font: Marcellus.
 - The open Board settings panel shows the game version (`OASIS_BUILD`, the artifact publish number, e.g. `v55`).
-- Board settings (lab-js, `LAB_DEF`): default table view tipped 15°, zoom 115%, AI's side further back and smaller,
+- Board settings (js/board-settings.js, `LAB_DEF`): default table view tipped 15°, zoom 115%, AI's side further back and smaller,
   splay up-left (`'now'`; everyone was switched to it once via `localStorage.oasisBoardSplayUL`).
 - **Nothing on the board moves.** Every charge and deck spot always keeps room for the biggest stack a card can have
   (`STACK_MAX` = 5 bands: copies, gear, Might, Training, Shield), on desktop and phone, in every splay

@@ -1,6 +1,6 @@
 # Terminology
 
-Internal names (code, snapshot, saves, stats) stay as they are. `OASIS_NAMES` in `<script id="oasis-names">` maps them
+Internal names (code, snapshot, saves, stats) stay as they are. `OASIS_NAMES` in `js/names.js` maps them
 to what players read. **Brian's Google Sheets are canon**: if this table, `OASIS_NAMES` and the Sheets disagree,
 flag it.
 

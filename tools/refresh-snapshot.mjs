@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { engineSource } from './page-files.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -41,7 +42,7 @@ const fin = doc('balance', 'final');
 if (fin){
   let patches = fin.patches;
   if (!Array.isArray(patches)){
-    const eng = html.match(/<script id="engine">([\s\S]*?)<\/script>/)[1];
+    const eng = engineSource(HTML);
     const ctx = vm.createContext({ Math, console });
     vm.runInContext(eng + '\n;globalThis.__seed = seedPatches;', ctx);
     patches = ctx.__seed(fin);

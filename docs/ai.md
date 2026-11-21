@@ -1,6 +1,6 @@
 # AI
 
-All AI code is in `<script id="engine">` (banners from `AI` through `Situational opinions`), so it also runs in Web
+All AI code is in `js/engine.js` (banners from `AI` through `Situational opinions`), so it also runs in Web
 Workers and in `tools/golden.mjs`. Any AI change needs the golden test (`check` for refactors, `record` + a note in the
 commit for intended behavior changes).
 

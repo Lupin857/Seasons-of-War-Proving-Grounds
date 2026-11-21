@@ -1,0 +1,1630 @@
+
+/* Layout: a war-table header with the score, three tabs (Play, Train, Card stats).
+   Play stacks market → your forces → enemy forces; the battle view reuses the sandbox's battle line. */
+:root{
+  --bg:#ECEEF1; --surface:#F8F9FB; --sunk:#E2E6EB; --ink:#1B2130; --muted:#5B6474; --line:#CDD3DC;
+  --azure:#2B579C; --gules:#A33A2F; --or:#C8950A; --or-soft:#FCF0C6; --ok:#2E7A4F;
+  --f-display:"IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --f-body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151C; --surface:#181E27; --sunk:#0D1117; --ink:#E3E7ED; --muted:#97A0AE; --line:#2B3340;
+  --azure:#7FA6E4; --gules:#E58476; --or:#EBC45C; --or-soft:#3A2F12; --ok:#6CC495; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#11151C; --surface:#181E27; --sunk:#0D1117; --ink:#E3E7ED; --muted:#97A0AE; --line:#2B3340;
+  --azure:#7FA6E4; --gules:#E58476; --or:#EBC45C; --or-soft:#3A2F12; --ok:#6CC495; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.7rem,3.4vw,2.4rem)}
+h2{font-size:1.3rem}
+h3{font-size:1.05rem}
+p{margin:0}
+.sub{color:var(--muted);max-width:70ch;margin-top:4px}
+.note{font-size:.86rem;color:var(--muted)}
+.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 12px}
+button:hover:not(:disabled){border-color:var(--muted)}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button.small{padding:2px 8px;font-size:.85rem}
+button:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--or);outline-offset:2px}
+select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 6px}
+textarea{width:100%;font-family:var(--f-mono);font-size:.78rem;min-height:90px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grow{flex:1}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs button{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 14px;font-weight:700;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--or)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:10px}
+
+/* scoreboard */
+.board{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.side{display:flex;flex-direction:column;gap:2px;min-width:0}
+.side.ai{text-align:right}
+.side .who{font-family:var(--f-display);font-size:1.4rem}
+.side.you .who{color:var(--azure)} .side.ai .who{color:var(--gules)}
+.side .meta{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.mid{text-align:center}
+.mid .sc{font-family:var(--f-mono);font-size:1.8rem;font-weight:600;font-variant-numeric:tabular-nums}
+.mid .rd{font-size:.8rem;color:var(--muted)}
+.turn{padding:8px 12px;border-radius:8px;background:var(--or-soft);color:var(--ink);font-weight:700}
+.turn.ai{background:var(--sunk);color:var(--muted)}
+
+/* market */
+.market{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px}
+.mcard{border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:8px 9px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.mcard.b{border-style:solid;box-shadow:inset 0 3px 0 var(--or)}
+.mcard.u{box-shadow:inset 0 3px 0 var(--muted)}
+.mcard .top{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.mcard .nm{font-weight:700;line-height:1.15}
+.mcard .cost{font-family:var(--f-mono);font-weight:600;color:var(--or)}
+.mcard .curve{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.mcard .tx{font-size:.8rem;color:var(--muted);line-height:1.3;flex:1}
+.mcard .own{font-size:.75rem;font-weight:700;color:var(--ok)}
+.mcard .side-tag{font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.mcard select{font-size:.8rem;padding:2px 4px}
+.forces{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px}
+.list{display:flex;flex-direction:column;gap:4px}
+.li{display:flex;gap:8px;align-items:center;padding:4px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--line);font-size:.9rem}
+.li .nm{font-weight:700;flex:1;min-width:0}
+.li .mono{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.log{font-size:.86rem;display:flex;flex-direction:column;gap:2px;max-height:220px;overflow:auto}
+.log .a{color:var(--azure)} .log .b{color:var(--gules)}
+
+/* mobilize */
+.drow{display:grid;grid-template-columns:3.2em 1fr auto;gap:4px 8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.opinions{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 16px;max-height:340px;overflow:auto;margin:8px 0}
+.opinions>div{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid var(--line, rgba(0,0,0,.08))}
+.opinions span{flex:1;min-width:0}
+.opinions b{font-family:var(--f-mono);font-weight:500}
+.flag{display:inline-block;font-family:var(--f-body);font-size:.7rem;line-height:1.3;padding:1px 6px;border-radius:999px;border:1px solid currentColor;vertical-align:1px}
+.flag.hot{color:var(--gules)}
+.flag.trap{color:var(--muted)}
+.drow .pos{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);text-align:center}
+.drow .tok{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.85rem;color:var(--muted)}
+.drow .tok span{display:inline-flex;gap:4px;align-items:center}
+.tag{font-family:var(--f-mono);font-size:.68rem;padding:1px 5px;border-radius:4px;background:var(--or-soft);color:var(--or);font-weight:600}
+.err{color:var(--gules);font-weight:700}
+
+/* battle line (from sandbox) */
+.verdict{font-family:var(--f-display);font-size:1.5rem}
+.verdict.a{color:var(--azure)} .verdict.b{color:var(--gules)} .verdict.d{color:var(--muted)}
+.linewrap{overflow-x:auto;padding-bottom:6px}
+.line{display:flex;align-items:stretch;gap:8px;min-width:max-content}
+.zone{display:flex;flex-direction:column;gap:4px}
+.zone .zl{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:center}
+.zone .cards{display:flex;gap:6px;align-items:stretch;min-height:118px}
+.grave{width:112px;background:var(--sunk);border-radius:8px;padding:6px;font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.grave b{color:var(--ink);font-weight:500}
+.clash{display:flex;align-items:center;justify-content:center;font-family:var(--f-display);font-size:1.1rem;color:var(--muted);padding:0 4px}
+.charge{padding:4px;border-radius:10px;background:var(--sunk);min-width:112px;display:flex;justify-content:center;align-items:center}
+.card{width:104px;border-radius:8px;border:1px solid var(--line);background:var(--bg);padding:6px 7px;display:flex;flex-direction:column;gap:3px;position:relative}
+.card[data-side="0"]{box-shadow:inset 0 3px 0 var(--azure)}
+.card[data-side="1"]{box-shadow:inset 0 3px 0 var(--gules)}
+.card.hidden{opacity:.55;border-style:dashed}
+.card.charging{border-width:2px}
+.card[data-side="0"].charging{border-color:var(--azure)}
+.card[data-side="1"].charging{border-color:var(--gules)}
+.card .cn{font-weight:700;font-size:.82rem;line-height:1.15;min-height:2.3em}
+.card .pw{display:flex;align-items:baseline;gap:4px;font-variant-numeric:tabular-nums}
+.card .pw .big{font-family:var(--f-mono);font-size:1.25rem;font-weight:600}
+.card .pw .dm{font-family:var(--f-mono);font-size:.78rem;color:var(--gules)}
+
+.card .vr{position:absolute;top:4px;right:5px;font-family:var(--f-mono);font-size:.62rem;color:var(--muted)}
+.card .st{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+/* Chinese names: each card carries its name as a xiangqi-style chip, two carved rings filled with the card's own color */
+:root{--f-zh:"LXGW WenKai TC","Kaiti TC","STKaiti","KaiTi",serif}
+.zh{position:relative;flex:none;align-self:center;width:var(--chip,46px);height:var(--chip,46px);box-sizing:border-box;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center}
+.zh::after{content:"";position:absolute;inset:2.5px;border:1px solid currentColor;border-radius:50%;pointer-events:none}
+.zh span{writing-mode:vertical-rl;text-orientation:upright;font-family:var(--f-zh);font-weight:700;line-height:1;letter-spacing:-.04em;font-size:calc(var(--chip,46px) * .56)}
+.zh[data-n="2"] span{font-size:calc(var(--chip,46px) * .38)}
+.zh[data-n="3"] span{font-size:calc(var(--chip,46px) * .27)}
+/* battle cards: name with power at the top right, the chip, then health; the zone label names the slot */
+.card .ctop{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
+.card .ctop .cn{flex:1;min-width:0;min-height:2.2em;font-size:.78rem;line-height:1.1}
+.card .cpw{display:flex;flex-direction:column;align-items:flex-end;line-height:1;font-variant-numeric:tabular-nums}
+.card .cpw b{font-family:var(--f-mono);font-size:1.15rem;font-weight:600}
+.card .cpw i{font-style:normal;font-family:var(--f-mono);font-size:.6rem;color:var(--muted);margin-top:2px;white-space:nowrap}
+.card .zh{--chip:62px;margin:2px auto 4px}
+.card[data-side="0"] .zh{color:var(--azure)} .card[data-side="1"] .zh{color:var(--gules)}
+@media (max-width:640px){ .card .zh{--chip:56px} }
+/* market cards: name and cost, power curve, the chip, then the rules */
+.mcard .zh{--chip:46px;margin:3px auto;color:var(--ink)}
+.mcard.b .zh{color:var(--or)}
+@media (max-width:860px){ .mcard .zh{--chip:40px;margin:2px auto} }
+@media (max-width:480px){ .mcard .zh{--chip:36px} }
+@media (max-width:640px){ .mcard .zh{--chip:34px;margin:1px auto} }
+.hp{height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
+.hp i{display:block;height:100%;background:var(--ok)}
+.chron{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.fr{border-radius:8px;padding:6px 10px;cursor:pointer;border:1px solid transparent}
+.fr:hover{border-color:var(--line)}
+.fr.on{background:var(--or-soft);border-color:var(--or)}
+.fr.future{opacity:.45}
+.fr h3{font-family:var(--f-body);font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.fr ul{margin:4px 0 0;padding-left:18px;font-size:.88rem}
+.fr li.a{color:var(--azure)} .fr li.b{color:var(--gules)}
+.battlegrid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+
+/* training + stats */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kpi .v{font-family:var(--f-mono);font-size:1.35rem;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:.78rem;color:var(--muted)}
+.spark{width:100%;height:120px;display:block}
+.prog{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.prog .top{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.prog .top b{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.pbar{height:10px;border-radius:5px;background:var(--sunk);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--azure);transition:width .4s ease-out}
+.pbar.sub{height:6px} .pbar.sub i{background:var(--or)}
+.smeter{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg, color-mix(in srgb, var(--gules) 55%, var(--sunk)), var(--sunk) 50%, color-mix(in srgb, var(--ok) 55%, var(--sunk)))}
+.smeter i{position:absolute;top:-3px;width:4px;height:16px;border-radius:2px;background:var(--ink);transform:translateX(-50%);transition:left .4s ease-out}
+.smeter-l{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)}
+.prog .rows{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;font-size:.82rem}
+.prog .rows .mono{font-family:var(--f-mono);color:var(--muted);text-align:right}
+@media (prefers-reduced-motion: reduce){ .pbar i,.smeter i{transition:none} }
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;user-select:none}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.bar{display:inline-block;height:8px;border-radius:2px;background:var(--azure);vertical-align:middle}
+.bar.lo{background:var(--gules)}
+.weights{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 16px;font-size:.88rem}
+.weights div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line);padding:2px 0}
+.weights b{font-family:var(--f-mono);font-weight:600}
+input[type=text],input[type=number]{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font-family:var(--f-mono);font-size:.85rem}
+input.chg{border-color:var(--or);background:var(--or-soft)}
+td input{margin:0}
+/* hover help */
+.tipmark{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:4px;border-radius:50%;border:1px solid var(--muted);font-size:.6rem;font-weight:700;color:var(--muted);vertical-align:1px;letter-spacing:0;text-transform:none}
+[data-tip]{cursor:help}
+th[data-sort][data-tip]{cursor:pointer}
+.tip{position:fixed;z-index:50;background:var(--ink);color:var(--bg);font-size:.82rem;line-height:1.4;padding:8px 10px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.2);pointer-events:none;text-transform:none;letter-spacing:0;font-weight:400}
+/* touch screens and phones: larger, easier-to-read help popups and bigger "?" marks to tap */
+@media (pointer:coarse), (max-width:640px){
+  .tip{font-size:1.05rem;line-height:1.5;padding:12px 15px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.3)}
+  .tipmark{width:20px;height:20px;font-size:.78rem;margin-left:6px}
+}
+/* stats tables: header and card names stay visible while scrolling */
+.stickywrap{overflow:auto;max-height:72vh;border:1px solid var(--line);border-radius:8px}
+/* stats table: collapsible column groups and a column picker */
+.grpbtn{border:none;background:none;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;white-space:nowrap}
+.grpbtn:hover{color:var(--ink)}
+table.sticky .gstub{background:var(--sunk);border-left:1px solid var(--line);padding:0 6px}
+table.sticky tbody tr:nth-child(even) td.gstub, table.sticky tbody tr:hover td.gstub{background:var(--sunk)}
+.colpick{font-size:.88rem}
+.colpick summary{cursor:pointer;color:var(--muted);font-weight:700}
+.colpick .cols{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px;align-items:flex-start}
+.colpick fieldset{border:1px solid var(--line);border-radius:6px;padding:4px 10px 6px;margin:0;display:flex;flex-wrap:wrap;gap:2px 12px}
+.colpick legend{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:0 4px}
+.colpick label{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+table.sticky{border-collapse:separate;border-spacing:0}
+table.sticky thead th{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--line)}
+table.sticky thead tr.grp th{font-size:.68rem;padding-top:6px;padding-bottom:2px;border-bottom:none}
+table.sticky thead tr:nth-child(2) th{top:22px}
+table.sticky .first{position:sticky;left:0;z-index:1;background:var(--surface);border-right:1px solid var(--line);min-width:150px}
+table.sticky thead .first{z-index:3}
+table.sticky tbody tr:nth-child(even) td, table.sticky tbody tr:nth-child(even) .first{background:var(--bg)}
+table.sticky tbody tr:hover td, table.sticky tbody tr:hover .first{background:var(--or-soft)}
+table.sticky tbody th{text-align:left;font-weight:700;text-transform:none;letter-spacing:0;font-size:.9rem;color:var(--ink);cursor:default}
+table.sticky .cname{display:block}
+table.sticky .ckind{display:block;font-size:.7rem;color:var(--muted);font-weight:400}
+table.sticky .g1,table.sticky .g2,table.sticky .g3{border-left:1px solid var(--line)}
+table.sticky .grp .g1,table.sticky .grp .g2,table.sticky .grp .g3{text-align:center;color:var(--muted)}
+.up{color:var(--ok);font-weight:700} .down{color:var(--gules);font-weight:700} .dim{color:var(--muted);opacity:.7}
+.pts{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end;min-width:5.5em}
+.bar{background:var(--ok)} .bar.lo{background:var(--gules)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:none;border-radius:0;padding:5px 10px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+@media (max-width:560px){ .board{grid-template-columns:1fr 1fr} .mid{grid-column:1 / 3;grid-row:1} }
+
+/* miracles: a gold seal under a market card, and the hand */
+.mcard.hasmir{cursor:pointer}
+/* miracles under a market card: gold cards stacked behind it, up and to the right like extra copies, each with its
+   surcharge (or a ✶ when it adds nothing) on the corner that peeks out. The wrapper keeps the card's slot size. */
+.mirwrap{position:relative;min-width:0;height:220px;display:flex;flex-direction:column;--ms:24px;padding-top:calc(var(--n) * var(--ms));padding-right:calc(var(--n) * 6px)}
+.mirwrap > .mcard{position:relative;z-index:4;flex:1;height:auto!important;min-height:0}
+.mirback{position:absolute;border-radius:8px;border:1px solid var(--or);background:var(--or-soft);pointer-events:none;
+  top:calc((var(--n) - var(--j)) * var(--ms));left:calc(var(--j) * 6px);right:calc((var(--n) - var(--j)) * 6px);bottom:calc(var(--j) * var(--ms));z-index:calc(4 - var(--j))}
+.mirback .mt{position:absolute;top:0;left:0;right:0;height:var(--ms);display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 9px}
+.mirback .mn{font-weight:700;line-height:1.15;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mirback .ms{font-family:var(--f-mono);font-weight:600;color:var(--or);flex:none}
+@media (max-width:480px){ .mirback .mn{font-size:.84rem} .mirback .ms{font-size:.8rem} .mirback .mt{padding:0 6px} }
+@media (max-width:640px){ .mirwrap{--ms:20px} }
+/* hovering a covered card (mouse only): what's behind it opens in its own box just above the card */
+.mirhover{display:none;position:absolute;left:var(--mhx,0px);bottom:calc(100% + 8px);width:max-content;max-width:calc(100vw - 32px);z-index:30;pointer-events:none;
+  flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:8px}
+.mirhover .mirseal{width:var(--mhw,200px);flex:none;padding:9px 11px!important;gap:4px!important}
+.mirhover .mirseal b{font-size:.98rem!important}
+.mirhover .mirseal .sur{font-size:.88rem!important}
+.mirhover .mirseal .mtx{font-size:.84rem!important;line-height:1.35!important}
+.mirhover .eyebrow{color:var(--or)}
+.mirhover::after{content:"";position:absolute;left:calc(24px - var(--mhx,0px));top:100%;margin-top:-1px;border:7px solid transparent;border-top-color:var(--or)}
+@media (hover:hover) and (pointer:fine){ .mirwrap:hover .mirhover{display:flex} .mirwrap:has(.mirpop) .mirhover{display:none} }
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion: no-preference){ .mirwrap:hover .mirhover{animation:mirhov .14s ease-out} @keyframes mirhov{from{opacity:0;transform:translateY(4px)}} }
+@media (max-width:860px){ .mirwrap{height:200px} }
+@media (max-width:480px){ .mirwrap{height:214px} }
+@media (max-width:640px){ .mirwrap{height:154px} }
+/* press-and-hold view: the same box, above the full-size card (below it if there's no room) */
+.mirhover.peekmir{display:flex;position:fixed;bottom:auto;z-index:72;font-size:1rem}
+.mirhover.peekmir::after{left:var(--mha,24px)}
+.mirhover.peekmir.below::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:var(--or)}
+.mirpop{position:absolute;inset:0;z-index:3;border-radius:8px;background:var(--surface);display:flex;flex-direction:column;gap:5px;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer}
+.mirpop .eyebrow{color:var(--or)}
+.mirs{display:flex;flex-direction:column;gap:3px}
+.mirseal{display:flex;flex-direction:column;gap:1px;font-size:.76rem;line-height:1.25;padding:4px 6px;border-radius:6px;background:var(--or-soft);border:1px dashed var(--or);color:var(--ink)}
+.mirseal b{color:var(--or);font-family:var(--f-display);font-weight:400;font-size:.9rem;letter-spacing:.02em}
+.mirseal .sur{font-family:var(--f-mono);font-size:.7rem;color:var(--or);font-weight:600;flex:none}
+.mirseal .mtop{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.mirseal .mtop b{min-width:0}
+/* miracle popups (hover, press-and-hold, tap, phone sheet): each miracle looks like a card at full reading size */
+.mirhover .mirseal,.mirpop .mirseal,.sheetmir .mirseal{gap:6px;padding:12px 14px;border-radius:8px;border:1px solid var(--or);border-style:solid;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.2),inset 0 3px 0 var(--or)}
+.mirhover .mirseal b,.mirpop .mirseal b,.sheetmir .mirseal b{font-size:1.1rem;line-height:1.2}
+.mirhover .mirseal .sur,.mirpop .mirseal .sur,.sheetmir .mirseal .sur{font-size:1rem}
+.mirhover .mirseal .mtx,.mirpop .mirseal .mtx,.sheetmir .mirseal .mtx{font-size:.95rem;line-height:1.4}
+.mirpop .mirseal{box-shadow:inset 0 3px 0 var(--or);padding:8px 9px}
+.mirpop .mirseal b{font-size:1rem}
+.mirpop .mirseal .mtx{font-size:.85rem;line-height:1.3}
+.mcard .cost .plus{font-size:.75rem;margin-left:2px}
+.mirhand{display:flex;flex-wrap:wrap;gap:6px}
+.mirhand .mirseal{min-width:170px;flex:1 1 170px;max-width:280px}
+.mirhand .row{gap:4px;margin-top:3px}
+.mirlive{white-space:nowrap;flex:none;font-family:var(--f-body);font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border-radius:999px;background:var(--or);color:var(--bg);vertical-align:1px}
+/* miracles in hand: the shop tab (bottom corner), its tray, the Mobilize panel and the big popup */
+.mircard{display:flex;flex-direction:column;gap:3px;text-align:left;padding:6px 7px;width:var(--card-sq);aspect-ratio:1/1;overflow:hidden;font:inherit;border-radius:8px;border:1px solid var(--or);background:var(--or-soft);box-shadow:inset 0 3px 0 var(--or);min-width:0;color:var(--ink)}
+.mircard .mtop{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.mircard b{color:var(--ink);font-family:var(--f-body);font-weight:700;font-size:.8rem;line-height:1.15;min-width:0}
+.mircard .mseal{position:relative;flex:none;align-self:center;width:40px;height:40px;margin:auto 0 2px;border-radius:50%;border:1.5px solid var(--or);color:var(--or);display:flex;align-items:center;justify-content:center;font-size:1.25rem;line-height:1}
+.mircard .mseal::after{content:"";position:absolute;inset:2.5px;border:1px solid var(--or);border-radius:50%}
+.mircard.plain{opacity:1!important}
+.mircard .mtx{font-size:.68rem;line-height:1.25;color:var(--muted);margin-top:auto;overflow:hidden}
+.mircard:not(.glow):not(.live):not(.big){opacity:.7}
+.mircard.live{border-width:2px}
+.mircard.glow,.mirtab.glow{animation:mirglow 1.6s ease-in-out infinite}
+@keyframes mirglow{0%,100%{box-shadow:inset 0 3px 0 var(--or),0 0 0 0 color-mix(in srgb, var(--or) 0%, transparent)}50%{box-shadow:inset 0 3px 0 var(--or),0 0 14px 3px color-mix(in srgb, var(--or) 70%, transparent)}}
+@media (prefers-reduced-motion: reduce){ .mircard.glow,.mirtab.glow{animation:none;box-shadow:inset 0 3px 0 var(--or),0 0 0 3px color-mix(in srgb, var(--or) 55%, transparent)} }
+.mirgrid{display:grid;grid-template-columns:repeat(auto-fill,var(--card-sq));gap:8px}
+.mirdock{position:fixed;right:max(16px, env(safe-area-inset-right,0px));bottom:max(16px, env(safe-area-inset-bottom,0px));z-index:60;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.mirdock > *{pointer-events:auto}
+.mirtab{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:999px;border:1px solid var(--or);background:var(--surface);font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+.mirtab .ms,.mobmirp .ms{color:var(--or);font-size:1.1rem;line-height:1}
+.mirtab .mc{font-family:var(--f-mono);font-size:.78rem;min-width:1.5em;padding:0 5px;border-radius:999px;background:var(--or);color:var(--bg);text-align:center}
+.mirdock.open .mirtab{background:var(--or-soft)}
+.mirtray{width:min(calc(var(--card-sq) * 3 + 46px), calc(100vw - 32px));max-height:min(60vh, 520px);overflow:auto;box-shadow:0 10px 32px rgba(0,0,0,.25)}
+.mobright{display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (max-width:640px){ .mirdock{bottom:calc(var(--dockh,0px) + 10px);right:10px} .mirtab{padding:7px 12px} }
+.mirmodal{position:fixed;inset:0;z-index:80;background:rgba(10,12,18,.5);display:flex;align-items:center;justify-content:center;padding:16px}
+.mirmbox{width:min(420px,100%);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 16px 48px rgba(0,0,0,.35)}
+.mircard.big{width:auto;aspect-ratio:auto;padding:18px 18px 20px;cursor:default;opacity:1}
+.mircard.big b{font-family:var(--f-display);font-weight:400;color:var(--or)}
+.mircard.big b{font-size:1.6rem}
+.mircard.big .mtx{font-size:1.05rem;line-height:1.45;color:var(--ink)}
+.mirmbox .row button{padding:9px 16px}
+@media (prefers-reduced-motion: no-preference){ .mirmbox{animation:mirpopin .16s ease-out} @keyframes mirpopin{from{transform:scale(.94);opacity:0}} }
+@media (max-width:640px){ .mircard .mseal{width:32px;height:32px;font-size:1rem} }
+.mirtog{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.mirtog input{margin:0}
+.mirtog.off{opacity:.55}
+/* battle miracles: a dashed gold card in the deck and on the bench, and a dashed gold strip in the battle's deck stack */
+.mcard.spellc{background:color-mix(in srgb, var(--or) 7%, var(--card))!important;border-style:dashed!important;border-color:var(--or)!important;box-shadow:inset 0 3px 0 var(--or),var(--card-sh)!important}
+.mcard.spellc .nm{color:var(--or)}
+.mcard.spellc .spcurve{font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.dord.spl b{color:var(--or)}
+.card.mini.spell{border-style:dashed;border-color:var(--or);background:color-mix(in srgb, var(--or) 8%, var(--card))}
+.card.mini.spell .cn{color:var(--or)}
+/* shop: budget bar, affordability, level jump, AI buys */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.budget{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.purse{display:flex;align-items:center;gap:10px}
+.purse .amt{font-family:var(--f-mono);font-size:2.1rem;font-weight:600;color:var(--or);font-variant-numeric:tabular-nums;line-height:1}
+.purse .nx{font-size:.8rem;color:var(--muted);line-height:1.3}
+.purse .nx b{color:var(--ink);font-family:var(--f-mono);font-weight:600}
+.slots{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.slotg{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.slotg .pips{display:inline-flex;gap:4px;margin-left:3px}
+.pip{width:15px;height:15px;border-radius:3px;border:2px solid var(--azure);background:var(--azure)}
+.pip.used{background:transparent;border-color:var(--line)}
+.pip.x{border-color:var(--or);background:var(--or);border-radius:50%}
+.pip.x.used{background:transparent;border-color:var(--line)}
+.mcard.cant{opacity:.62}
+.mcard.cant .cost{color:var(--gules)}
+.need{align-self:flex-start;white-space:nowrap;font-size:.7rem;font-weight:700;padding:1px 7px;border-radius:999px;border:1px solid var(--gules);color:var(--gules)}
+.curve .lv,.tx .lv{padding:0 3px;border-radius:3px}
+.tx .lv{padding:0 2px}
+.curve .lv.now,.tx .lv.now{background:var(--azure);color:var(--bg);font-weight:600}
+.curve .lv.next,.tx .lv.next{outline:1px dashed var(--ok);outline-offset:-1px;color:var(--ok);font-weight:600}
+.jump{font-size:.8rem;font-weight:700;color:var(--ok)}
+.mcard.ghost.theirs .lv.now{background:var(--gules);color:var(--bg)}
+.mcard.ghost{border-style:dashed;background:transparent;box-shadow:none}
+.mcard.ghost.theirs{border-color:var(--gules)}
+.mcard.ghost.mine{border-color:var(--azure)}
+.mcard.ghost .nm,.mcard.ghost .cost{color:var(--muted)}
+.mcard.ghost .taken{align-self:flex-start;font-size:.7rem;font-weight:700;letter-spacing:.04em;padding:1px 7px;border-radius:999px;color:var(--bg)}
+.mcard.ghost.theirs .taken{background:var(--gules)}
+.mcard.ghost.mine .taken{background:var(--azure)}
+/* market cards are one fixed size, whatever tags or buttons they show */
+/* five cards per row, always: units on one row, buildings on the next; narrow screens scroll the row sideways */
+.market{grid-template-columns:minmax(0,1fr) 2px repeat(5,minmax(0,1fr));column-gap:10px;row-gap:10px;padding-bottom:4px}
+.mcard{width:auto;height:220px;overflow:hidden;gap:3px}
+.ownrow{display:flex;flex-wrap:wrap;gap:0 10px;align-items:baseline}
+.mcard .tx{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.mcard>button{margin-top:auto;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcard>*{flex-shrink:0}
+.mcard>.tx{flex-shrink:1}
+.mcard select{max-width:100%}
+.mcard.always{background:var(--sunk);border-style:dotted}
+.mcard.masonpick{border-color:var(--or);box-shadow:inset 0 3px 0 var(--or)}
+.mcard.masonpick .note{font-size:.76rem;line-height:1.3}
+.mlist{display:flex;flex-direction:column;gap:4px;overflow-y:auto;min-height:0;flex:1 1 auto}
+.mlist button{display:flex;justify-content:space-between;gap:6px;padding:4px 8px;text-align:left}
+.mlist button:not(:disabled):hover{border-color:var(--or);background:var(--or-soft)}
+.mlist .mono{font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+.mdiv{align-self:stretch;width:2px;border-radius:1px;background:var(--line)}
+.muster{display:flex;flex-direction:column;gap:8px}
+.musterbtn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:8px 12px;border-radius:8px;background:var(--bg)}
+.musterbtn .mlbl{flex:1;min-width:0}
+.musterbtn .mhit{color:var(--or);font-weight:700}
+.musterbtn .mchev{color:var(--muted)}
+.mstack{position:relative;width:30px;height:24px;flex:none}
+.mstack span{position:absolute;width:18px;height:24px;border-radius:3px;border:1px solid var(--muted);background:var(--surface)}
+.mstack span:nth-child(1){left:0;transform:rotate(-10deg)} .mstack span:nth-child(2){left:6px} .mstack span:nth-child(3){left:12px;transform:rotate(9deg)}
+.musterbtn.glow{border-color:var(--or);animation:musterglow 1.6s ease-in-out infinite}
+.musterbtn.glow .mstack span{border-color:var(--or);background:var(--or-soft)}
+@keyframes musterglow{0%,100%{box-shadow:0 0 0 1px var(--or),0 0 6px 0 color-mix(in srgb,var(--or) 45%,transparent)}50%{box-shadow:0 0 0 1px var(--or),0 0 18px 4px color-mix(in srgb,var(--or) 60%,transparent)}}
+.mwrap{display:flex;min-width:0}.mwrap>.mcard{flex:1}
+.mwrap.hit>.mcard{border-color:var(--or);box-shadow:0 0 0 1px var(--or),0 0 12px 1px color-mix(in srgb,var(--or) 45%,transparent)}
+@media (prefers-reduced-motion: reduce){.musterbtn.glow{animation:none;box-shadow:0 0 0 2px var(--or)}}
+.market.plain{grid-template-columns:repeat(6,minmax(0,1fr));column-gap:8px}
+
+.newb{font-size:.62rem;font-weight:700;letter-spacing:.08em;padding:1px 6px;border-radius:999px;background:var(--gules);color:var(--bg)}
+.li.isnew{border-color:var(--gules);box-shadow:inset 3px 0 0 var(--gules)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;border-left:5px solid var(--gules);box-shadow:0 6px 24px rgba(0,0,0,.25);font-weight:700;max-width:calc(100% - 32px);animation:toastin .25s ease-out}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,10px)}}
+
+/* battle: side-colored health, hits, end banner */
+.card[data-side="0"] .hp i{background:var(--azure)}
+.card[data-side="1"] .hp i{background:var(--gules)}
+.linewrap{padding-top:44px;padding-bottom:46px}
+.stage{position:relative}
+.card.lunge0{animation:lungeR .4s ease-in-out}
+.card.lunge1{animation:lungeL .4s ease-in-out}
+@keyframes lungeR{45%{transform:translateX(22px) scale(1.06)}}
+@keyframes lungeL{45%{transform:translateX(-22px) scale(1.06)}}
+.card.shake{animation:shake .38s ease-in-out;border-color:var(--gules)}
+@keyframes shake{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+.card.lunge0.shake{animation:lungeR .4s ease-in-out,shake .38s .18s ease-in-out}
+.card.lunge1.shake{animation:lungeL .4s ease-in-out,shake .38s .18s ease-in-out}
+.float{position:absolute;left:50%;top:22%;z-index:3;font-family:var(--f-mono);font-weight:700;font-size:1.7rem;color:var(--gules);text-shadow:0 0 4px var(--bg),0 0 8px var(--bg);pointer-events:none;white-space:nowrap;animation:floatup 1.1s ease-out forwards}
+.float.ko{font-size:1.1rem;letter-spacing:.06em;text-transform:uppercase}
+@keyframes floatup{from{opacity:0;transform:translate(-50%,8px) scale(.85)}35%{opacity:1;transform:translate(-50%,-8px) scale(1.08)}70%{opacity:1}to{opacity:0;transform:translate(-50%,-34px) scale(1)}}
+.banner{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(10,14,20,.28);cursor:pointer;animation:peekbg .3s ease-out;border:none;width:100%;padding:0}
+.banner .bx{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 30px;border-radius:10px;background:var(--surface);border:2px solid currentColor;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.banner.a{color:var(--azure)} .banner.b{color:var(--gules)} .banner.d{color:var(--muted)}
+.banner b{font-family:var(--f-display);font-weight:400;font-size:clamp(1.8rem,5vw,3rem);line-height:1.1}
+.banner .note{color:var(--muted)}
+@keyframes bannerin{from{opacity:0}}
+.finalbox{display:flex;flex-direction:column;gap:6px;border:1px solid var(--or);background:var(--or-soft);border-radius:8px;padding:10px 12px}
+.finalbox .li{background:var(--surface)}
+.finalbox summary{cursor:pointer}
+.patches{display:flex;flex-direction:column;gap:4px;max-height:420px;overflow:auto}
+.patch{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.patch[open]{border-color:var(--or)}
+.patchlist{margin:6px 0 4px;padding-left:18px;font-size:.88rem;display:flex;flex-direction:column;gap:2px}
+.li.draft{border-style:dashed}
+.startp .me{display:flex;flex-direction:column;gap:2px}
+.startp .me .big{font-family:var(--f-mono);font-size:2rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--azure)}
+.pick{display:flex;flex-direction:column;gap:6px;max-width:640px}
+/* New game: mode tiles, then a setup screen (opponent + rules) */
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-height:120px}
+.mode:hover:not(:disabled){border-color:var(--ink);background:var(--surface)}
+.mode .mh{font-family:var(--f-display);font-size:1.25rem}
+.mode .mx{margin-top:auto;font-size:.78rem;font-weight:700;color:var(--azure)}
+.suhead h2{margin-left:2px}
+.subk{padding:4px 10px}
+.suopp{display:flex;flex-wrap:wrap;gap:12px 32px;align-items:flex-end}
+.suopp .pick{flex:1 1 320px}
+.startp .me.compact .big{font-size:1.5rem}
+.surules{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.subar{gap:8px 10px}
+.subadge{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:99px;border:1px solid}
+.subadge.ok{color:var(--ok);border-color:var(--ok)}
+.subadge.cu{color:var(--or);border-color:var(--or);background:var(--or-soft)}
+.suswitch{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700;cursor:pointer}
+.sugrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sufs{border:1px solid var(--line);border-radius:8px;padding:6px 12px 10px;margin:0;min-width:0;display:flex;flex-direction:column;gap:2px;background:var(--bg)}
+.sufs.suwide{grid-row:span 2}
+.sufs legend{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:0 4px}
+.surow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.surow:last-of-type{border-bottom:none}
+.surow.two{grid-template-columns:minmax(0,1fr) 112px 112px}
+.surow.such{border-bottom:none;padding-bottom:0}
+.surow.such .eyebrow{text-align:center}
+.surow.such .s0{color:var(--azure)} .surow.such .s1{color:var(--gules)}
+.sul{display:flex;flex-direction:column;font-size:.92rem;line-height:1.25}
+.sul .note{font-size:.76rem}
+.sucell{display:flex;justify-content:center}
+.sustep{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.sustep button{border:none;border-radius:0;padding:2px 9px;font-size:1rem;line-height:1;min-width:30px;min-height:30px}
+.sustep input{width:2.6em;border:none;border-inline:1px solid var(--line);text-align:center;font-family:var(--f-mono);font-size:.9rem;background:none;color:inherit;-moz-appearance:textfield;appearance:textfield}
+.sustep input::-webkit-inner-spin-button,.sustep input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.sucell.chg .sustep{border-color:var(--or);box-shadow:0 0 0 1px var(--or)}
+.sufs .mirtog{display:flex;align-items:center;gap:6px;padding:4px 0}
+.pkgs{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-start;padding:2px 0}
+.surow.two .pkgs{flex-direction:column;align-items:stretch}
+.surow.pkr{grid-template-columns:auto minmax(0,1fr)}
+.pkg{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--surface)}
+.pkg button{border:none;border-radius:0;padding:3px 10px;font-size:.8rem;background:none}
+.pkg .pkx{padding:3px 8px;border-left:1px solid var(--line);color:var(--muted)}
+.pkg.on{border-color:var(--ink)} .pkg.on button:first-child{background:var(--ink);color:var(--bg)}
+.pkadd{border-style:dashed;border-radius:99px;padding:3px 10px;font-size:.8rem;color:var(--muted)}
+.r1{margin-top:4px}
+.sugo{gap:10px}
+.sujoin{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+details.ladder{border-top:1px solid var(--line);padding-top:8px}
+details.ladder > summary{cursor:pointer}
+details.ladder[open]{display:flex;flex-direction:column;gap:10px}
+.sulobby{display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--bg)}
+.sulobby ul{margin:0;padding-left:18px;font-size:.9rem}
+.suchipw{position:relative;display:inline-flex}
+.suchip{font-size:.8rem;font-weight:700;color:var(--or);border-color:var(--or);background:var(--or-soft);border-radius:99px;padding:3px 10px}
+.supop{position:absolute;bottom:calc(100% + 6px);left:0;z-index:70;display:flex;flex-direction:column;gap:4px;min-width:240px;max-width:min(360px,86vw);padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:.86rem}
+@media (max-width:720px){
+  .sugrid{grid-template-columns:minmax(0,1fr)}
+  .sufs.suwide{grid-row:auto}
+  .surow.two{grid-template-columns:minmax(0,1fr) 100px 100px}
+  .sustep button{min-width:28px;padding:2px 6px}
+  .sustep input{width:2.2em}
+  .mode{min-height:0}
+}
+
+.pick input[type=range]{width:100%;accent-color:var(--gules)}
+.pickr{font-family:var(--f-mono);font-size:1.7rem;font-weight:600;color:var(--gules);font-variant-numeric:tabular-nums}
+.pickn{font-family:var(--f-display);font-size:1.4rem}
+.brackets{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.bk{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);position:relative;min-width:0}
+.bk.on{border-color:var(--gules);box-shadow:inset 0 3px 0 var(--gules)}
+.bk .mono{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.bk .note{font-size:.74rem}
+.bk .you{position:absolute;top:6px;right:8px;font-size:.62rem;font-weight:700;letter-spacing:.08em;padding:1px 6px;border-radius:999px;background:var(--azure);color:var(--bg)}
+@media (max-width:640px){ .brackets{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.grip{display:inline-block;color:var(--muted);cursor:grab;touch-action:none;user-select:none;padding:0 4px 0 0;font-size:1rem;line-height:1}
+.drow .pos{display:flex;align-items:center;gap:2px;justify-content:flex-start}
+[data-drag]{cursor:grab}
+.drow[data-drag],.li[data-drag]{user-select:none;-webkit-user-select:none}
+.dragging{opacity:.35}
+.dragghost{position:fixed!important;z-index:70;pointer-events:none;margin:0;box-shadow:0 10px 30px rgba(0,0,0,.25);transform:rotate(-1.5deg);background:var(--surface)}
+.dropgap{border:2px dashed var(--or);background:var(--or-soft);border-radius:8px;box-sizing:border-box}
+.arrows{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:3}
+.arw{fill:none;stroke-width:3;stroke-linecap:round;animation:arwdraw .35s ease-out forwards}
+.arw.s0{stroke:var(--azure)} .arw.s1{stroke:var(--gules)}
+.ah0{fill:var(--azure)} .ah1{fill:var(--gules)}
+@keyframes arwdraw{to{stroke-dashoffset:0}}
+.arl{font-family:var(--f-mono);font-weight:700;font-size:13px;text-anchor:middle;paint-order:stroke;stroke:var(--bg);stroke-width:4px;opacity:0;animation:arlin .2s ease-out forwards}
+.arl.s0{fill:var(--azure)} .arl.s1{fill:var(--gules)}
+@keyframes arlin{to{opacity:1}}
+.arrows.still{animation:arrowsin .3s .25s ease-out backwards}
+.arrows.still .arw{animation:none}
+.arrows.still .arl{animation:none;opacity:1}
+.arrows.quiet .arw{animation:none}
+.arrows.quiet .arl{animation:none;opacity:1}
+@keyframes arrowsin{from{opacity:0}}
+.dropzone{min-height:48px;border-radius:8px;transition:background .12s}
+.dropzone.over{background:var(--or-soft);outline:2px dashed var(--or);outline-offset:3px}
+body.is-dragging, body.is-dragging *{cursor:grabbing!important}
+@media (prefers-reduced-motion: reduce){ .dragghost{transform:none} .dropzone{transition:none} .arw{animation:none;stroke-dashoffset:0!important} .arrows.still{animation:none} .arl{animation:none;opacity:1} }
+details.panel>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+details.panel[open]>summary::before{transform:rotate(90deg)}
+@media (prefers-reduced-motion: reduce){
+  .card.lunge0,.card.lunge1,.card.shake,.float,.banner,.toast,details.panel>summary::before{animation:none!important;transition:none!important}
+}
+
+/* hp readout on battle cards */
+.hprow{display:flex;align-items:center;gap:6px}
+.hprow .hp{flex:1}
+.hpn{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;display:inline-block}
+.hpn b{font-weight:600;color:var(--ink);font-size:.82rem}
+.hpn.hurt b{color:var(--gules)}
+
+/* mobilize: tokens live in the bench and get tucked behind units */
+.forces.mob{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.sidecol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.tokbench{display:flex;flex-wrap:wrap;gap:8px;padding:6px;min-height:44px;border:1px dashed var(--line);border-radius:8px;align-items:center}
+.tokchip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px 5px 6px;border-radius:999px;font-size:.82rem;font-weight:700;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border:2px solid;line-height:1.1;background:var(--surface)}
+.tokchip .ico{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:.75rem;color:var(--bg)}
+.tokchip .fx{font-weight:400;color:var(--muted);font-size:.74rem}
+.tokchip.arm{border-color:var(--or);color:var(--or)} .tokchip.arm .ico{background:var(--or)}
+.tokchip.tr{border-color:var(--azure);color:var(--azure)} .tokchip.tr .ico{background:var(--azure);border-radius:4px}
+.tokchip.sh{border-color:var(--muted);color:var(--muted)} .tokchip.sh .ico{background:var(--muted)}
+.tokchip.picked{background:var(--or-soft);box-shadow:0 0 0 3px var(--or-soft),0 0 0 5px currentColor}
+.tokchip.dragghost{transform:rotate(-4deg) scale(1.1);width:auto!important}
+.drow{position:relative}
+.drow .behind{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:5px;padding-top:2px}
+.drow .behind .tokchip{font-size:.72rem;padding:2px 8px 2px 3px}
+.drow .behind .tokchip .ico{width:16px;height:16px;font-size:.62rem}
+.drow.target{border-color:var(--or);border-style:dashed;cursor:copy}
+.drow.notarget{opacity:.55}
+.drow.tokover{background:var(--or-soft);border-style:solid;box-shadow:0 0 0 2px var(--or)}
+.pickhint{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.85rem;font-weight:700;color:var(--or);background:var(--or-soft);border-radius:8px;padding:6px 10px}
+
+/* touch: bigger targets */
+@media (pointer:coarse){
+  button.small{min-width:36px;min-height:34px;padding:4px 10px}
+  .grip{font-size:1.35rem;padding:6px 8px 6px 2px}
+  .tokchip{padding:8px 12px 8px 8px}
+  .drow .behind .tokchip{padding:5px 10px 5px 5px}
+}
+
+/* phones */
+@media (max-width:640px){
+  body{padding-block:12px 40px;font-size:14.5px}
+  .wrap{gap:12px}
+  .sub{font-size:.9rem}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-inline:-4px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{white-space:nowrap;padding:8px 10px;flex:none}
+  .panel{padding:10px}
+  .board{padding:8px 12px;gap:4px 10px}
+  .side .who{font-size:1.15rem}
+  .mid .sc{font-size:1.5rem}
+  .budget{padding:8px 12px;gap:8px 18px}
+  .purse .amt{font-size:1.7rem}
+  /* mobilize: bench first so you can drag down into the deck right below it */
+  .forces.mob{display:flex;flex-direction:column}
+  .forces.mob .sidecol{display:contents}
+  .forces.mob .benchp{order:-1}
+  .forces.mob .aip{order:2}
+  .drow{grid-template-columns:auto 1fr;padding:6px}
+  .drow .dbtn{grid-column:1 / 3;justify-content:flex-end;margin-top:-2px}
+  .drow .behind{grid-column:1 / 3}
+  .drow .dinfo .note{font-size:.8rem}
+  /* battle: stack the line (you on top, the clash in the middle, the AI below) so both charges fit on screen */
+  .battlectl{position:sticky;top:0;z-index:8;background:var(--surface);margin:-10px -10px 0;padding:8px 10px;border-bottom:1px solid var(--line);border-radius:10px 10px 0 0}
+  .battlectl button{flex:1;padding:8px 6px}
+  .battlectl .note{flex-basis:100%}
+  .linewrap{overflow:visible;padding-top:30px;padding-bottom:30px}
+  .line{display:grid;min-width:0;gap:10px 6px;grid-template-columns:1fr auto 1fr;grid-template-areas:"g0 g0 g0" "d0 d0 d0" "c0 x c1" "d1 d1 d1" "g1 g1 g1"}
+  .zone{min-width:0}
+  .zg0{grid-area:g0} .zd0{grid-area:d0} .zc0{grid-area:c0} .clash{grid-area:x} .zc1{grid-area:c1} .zd1{grid-area:d1} .zg1{grid-area:g1}
+  .zone .zl{text-align:left}
+  .zc0 .zl,.zc1 .zl{text-align:center}
+  .zone .cards{min-height:0;flex-wrap:wrap}
+  .zd0 .cards{justify-content:flex-end}
+  .zc0 .cards,.zc1 .cards{justify-content:center}
+  .grave{width:100%;flex-direction:row;flex-wrap:wrap;gap:2px 10px;padding:4px 8px;min-height:0}
+  .charge{min-width:0;width:100%}
+  .card{width:96px;padding:5px 6px}
+  .card .cn{font-size:.78rem}
+  .card .pw .big{font-size:1.1rem}
+  .clash{padding:0;font-size:1.3rem;align-self:center;padding-top:14px}
+  .float{font-size:1.4rem}
+  .chron{max-height:50vh}
+  .stickywrap{max-height:65vh}
+  .brackets{grid-template-columns:repeat(2,minmax(0,1fr))}
+  select{max-width:100%}
+  .battlectl button{white-space:nowrap;font-size:.9rem}
+}
+
+/* narrower screens: each market row wraps to 3 across so every card fits without sideways scrolling */
+@media (max-width:860px){
+  .market,.market.plain{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .market .mdiv{display:none}
+  .mcard{height:200px;padding:7px 8px}
+  .mcard>button{font-size:.8rem;padding:5px 6px}
+}
+@media (max-width:480px){
+  .market,.market.plain{gap:6px}
+  .mcard{height:214px;padding:6px 6px;gap:2px}
+  .mcard .nm{font-size:.84rem}
+  .mcard .cost{font-size:.8rem}
+  .mcard .curve{font-size:.68rem}
+  .mcard .tx{font-size:.72rem;line-height:1.25}
+  .mcard .side-tag{font-size:.56rem;letter-spacing:.06em}
+  .mcard .own,.mcard .jump,.need{font-size:.66rem}
+  .mcard>button{font-size:.74rem;padding:5px 3px;min-height:32px}
+  .mcard .top{flex-wrap:wrap;gap:0 4px}
+}
+
+/* opening dice roll */
+.rollp{align-items:center;text-align:center;gap:16px;padding:22px 16px}
+.rollrow{display:flex;align-items:center;justify-content:center;gap:clamp(14px,5vw,48px);flex-wrap:wrap}
+.rollside{display:flex;flex-direction:column;align-items:center;gap:8px}
+.rollside .who{font-family:var(--f-display);font-size:1.4rem}
+.rollside.s0 .who{color:var(--azure)} .rollside.s1 .who{color:var(--gules)}
+.dice{display:flex;gap:10px}
+.die{width:58px;height:58px;border-radius:11px;background:var(--surface);border:2px solid currentColor;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:7px;gap:2px;box-shadow:0 3px 0 currentColor}
+.die.s0{color:var(--azure)} .die.s1{color:var(--gules)}
+.die i{border-radius:50%;margin:2px}
+.die i.on{background:currentColor}
+.die:not([data-v]) i, .die[data-v=""] i{background:none}
+.dice.tumbling .die{animation:tumble .18s linear infinite}
+.dice.tumbling .die:nth-child(2){animation-direction:reverse;animation-duration:.22s}
+@keyframes tumble{0%{transform:rotate(0) translateY(0)}25%{transform:rotate(14deg) translateY(-6px)}50%{transform:rotate(-8deg) translateY(0)}75%{transform:rotate(10deg) translateY(-3px)}100%{transform:rotate(0)}}
+.rtot{font-family:var(--f-mono);font-size:1.6rem;font-weight:600;font-variant-numeric:tabular-nums;min-height:1.4em}
+.rvs{font-family:var(--f-display);font-size:1.2rem;color:var(--muted)}
+.rmsg{font-weight:700;font-size:1.05rem;min-height:1.5em}
+.rmsg.a{color:var(--azure)} .rmsg.b{color:var(--gules)}
+button.big{font-size:1.05rem;padding:10px 22px}
+@media (max-width:480px){ .die{width:48px;height:48px;padding:6px} .rollrow{gap:14px} }
+@media (prefers-reduced-motion: reduce){ .dice.tumbling .die{animation:none} }
+
+/* market deal */
+.mkthead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* Discard pile: a face-up stack next to the shop deck */
+.mpile{position:relative;display:flex;align-items:center;gap:6px;padding:2px 4px 2px 2px;border:none;background:none;border-radius:8px;flex:none}
+.mpile:not(:disabled):hover{background:var(--sunk)}
+.mpile:disabled{opacity:1;cursor:default}
+.mpcards{position:relative;width:38px;height:46px;flex:none}
+.mpc{position:absolute;left:0;top:0;width:34px;height:46px;border-radius:5px;border:1px solid var(--muted);background:var(--surface);
+  transform:translate(calc(var(--k) * 2px), calc(var(--k) * 2px));overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.mpc.mpe{border-style:dashed;background:transparent;box-shadow:none}
+.mpface{position:absolute;left:0;top:0;width:34px;height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;pointer-events:none}
+.mplbl{font-size:.46rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;line-height:1}
+.mpcount{font-family:var(--f-mono);font-size:.95rem;line-height:1;color:var(--ink)}
+.mpile.empty .mpcount{color:var(--muted)}
+.mpile.glow .mpc{border-color:var(--or);background:var(--or-soft)}
+.mpile.glow .mpcards{animation:pileglow 1.6s ease-in-out infinite;border-radius:6px}
+@keyframes pileglow{0%,100%{filter:drop-shadow(0 0 1px var(--or))}50%{filter:drop-shadow(0 0 6px var(--or))}}
+@media (prefers-reduced-motion: reduce){ .mpile.glow .mpcards{animation:none;filter:drop-shadow(0 0 2px var(--or))} }
+.mphit{position:absolute;top:-4px;left:26px;min-width:16px;height:16px;border-radius:8px;padding:0 4px;background:var(--or);color:var(--surface);font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.mpile[aria-expanded="true"] .mpc{border-color:var(--ink)}
+.muster.open{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg)}
+.dealdeck{position:relative;width:34px;height:46px;flex:none;margin-right:6px}
+.dealdeck .cb,.dealback{background:var(--azure);background-image:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--bg) 22%,transparent) 5px 7px);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
+.dealdeck .cb{position:absolute;inset:0;border-radius:5px}
+.dealdeck .cb:nth-child(1){transform:translate(4px,4px)} .dealdeck .cb:nth-child(2){transform:translate(2px,2px)}
+.dealdeck.b .cb,.mcard.b .dealback{background-color:var(--or)}
+.mshead{display:flex;align-items:center;gap:8px;min-height:30px}
+.sdeck{display:inline-flex;align-items:center;gap:8px;padding:3px 6px 3px 4px;border-radius:8px;border:1px solid transparent;background:none;color:var(--muted)}
+.sdeck .dealdeck{width:26px;height:35px;margin-right:4px}
+.sdeck .dkn{font-family:var(--f-mono);font-size:.78rem;font-variant-numeric:tabular-nums}
+button.sdeck.bmready{border-color:var(--or);background:var(--or-soft);color:var(--ink)}
+button.sdeck.bmready:hover{border-color:var(--ink)}
+.sdeck.bmready .dealdeck{animation:pileglow 1.6s ease-in-out infinite;border-radius:6px}
+.bmtag{font-size:.8rem;font-weight:700;white-space:nowrap}
+.bmtag b{font-family:var(--f-mono);font-weight:600;font-size:.74rem;color:var(--or)}
+.peekhead.u{color:var(--azure)} .peekhead.b{color:var(--or)}
+@media (prefers-reduced-motion: reduce){ .sdeck.bmready .dealdeck{animation:none;filter:drop-shadow(0 0 3px var(--or))} }
+.mcard{position:relative}
+.dealback{position:absolute;inset:-1px;border-radius:8px;z-index:5;pointer-events:none}
+header{position:relative}
+.rolebar{margin-top:8px;gap:6px 12px}
+.lenrow{gap:6px 12px}
+.sndbtn{position:absolute;top:0;right:0;display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);padding:4px 10px}
+.sndbtn svg{width:16px;height:16px}
+.sndbtn[aria-pressed="false"]{opacity:.7}
+@media (max-width:560px){.sndbtn .lbl{display:none}}
+
+/* ---- phone shop: sticky scoreboard, units/buildings switch, short cards with press-and-hold, bottom bar ---- */
+.mswitch,.dock,.dockspace,.peekhint{display:none}
+.msec{display:flex;flex-direction:column;gap:10px}
+.peekwrap{position:fixed;inset:0;z-index:70;background:rgba(10,14,20,.28);animation:peekbg .16s ease-out}
+@keyframes peekbg{from{background:rgba(10,14,20,0)}}
+.mcard.peek{position:fixed;height:auto!important;background:var(--surface)!important;opacity:1!important;max-height:calc(100vh - 32px);overflow:auto;z-index:71;padding:12px 14px!important;gap:6px!important;
+  box-shadow:0 18px 48px rgba(0,0,0,.35),inset 0 3px 0 var(--muted);font-size:1rem}
+.mcard.peek.b{box-shadow:0 18px 48px rgba(0,0,0,.35),inset 0 3px 0 var(--or)}
+.mcard.peek .nm{font-size:1.1rem!important}
+.mcard.peek .cost{font-size:1rem!important}
+.mcard.peek .curve{font-size:.85rem!important}
+.mcard.peek .tx{font-size:.95rem!important;line-height:1.4!important;overflow:visible!important;-webkit-mask-image:none!important;mask-image:none!important}
+.mcard.peek>button{font-size:.9rem!important;min-height:40px}
+.mktp .mcard{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+@media (max-width:640px){
+  .board{position:sticky;top:0;z-index:10;grid-template-columns:1fr auto 1fr;padding:6px 10px;gap:0 8px;box-shadow:0 4px 14px rgba(0,0,0,.08)}
+  .board .mid{grid-column:auto;grid-row:auto}
+  .board .side .who{font-size:1rem;line-height:1.1}
+  .board .side .meta{font-size:.7rem}
+  .board .side .meta:nth-child(3){display:none}
+  .board .mid .sc{font-size:1.25rem;line-height:1.1}
+  .board .mid .rd{font-size:.66rem;line-height:1.2}
+  .battlectl{top:var(--bh,0px)}
+  .budget{display:none}
+  .turnrow .passbtn{display:none}
+  .mkthead{gap:10px}
+  .msec{display:flex;flex-direction:column;gap:6px}
+  .peekhint{display:block;font-size:.76rem;color:var(--muted);margin-top:-4px}
+  .mcard{height:154px}
+  .mcard .tx{overflow:hidden}
+  .mcard.more .tx{-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+  .mcard>button{min-height:30px;padding:4px 3px}
+  .dock{display:flex;flex-direction:column;position:fixed;left:0;right:0;bottom:0;z-index:20;gap:7px;
+    padding:8px max(14px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));
+    background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(0,0,0,.1)}
+  .dock.mine{border-top:3px solid var(--or);background:color-mix(in srgb, var(--or-soft) 55%, var(--surface))}
+  .dock .dhint{display:flex;align-items:baseline;gap:8px;font-size:.92rem;line-height:1.3;color:var(--muted)}
+  .dock.mine .dhint{color:var(--ink);font-weight:600}
+  .dock .dhint b{font-weight:700;color:var(--ink)}
+  .dock .dphase{flex:none;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--sunk);color:var(--muted);position:relative;top:-1px}
+  .dock.mine .dphase{background:var(--or);color:var(--surface)}
+  .dock .dtxt{min-width:0}
+  .dock .dbar{display:flex;align-items:center;gap:10px}
+  .dock .purse .amt{font-size:1.55rem}
+  .dock .purse .nx{font-size:.72rem}
+  .dock .slots{gap:4px 10px;flex:1;min-width:0}
+  .dock .slotg{font-size:.6rem;letter-spacing:.05em;gap:3px}
+  .dock .pip{width:12px;height:12px}
+  .dock button{padding:10px 18px;font-weight:700;flex:none;min-height:44px}
+  .dock .dbar button:not(.primary){font-weight:600}
+  .dock .dbar button.primary:only-child,.dock .dbar .grow+button.primary{margin-left:auto}
+  .dockspace{display:block;height:calc(var(--dockh,100px) + 8px)}
+  .toast{bottom:calc(var(--dockh,100px) + 12px)}
+  /* the bar says whose turn it is and carries the main buttons, so the in-page copies step aside */
+  .turnrow .turn{display:none}
+  .turnrow{display:none}
+  .battlectl [data-act="b-first"],.battlectl [data-act="b-next"],.battlectl [data-act="b-prev"]{display:none}
+  .dock.ph-battle .dbar button,.dock.ph-mobilize .dbar button.primary{flex:1 1 0}
+  .dock.ph-mobilize .dbar .grow{display:none}
+  .benchp .mobhelp{display:none}
+  .alwaysw .alab{font-size:.56rem!important;letter-spacing:.02em!important}
+  .stage + .row [data-act="continue"],.stage + .row [data-act="newgame"]{display:none}
+  .deckp > .row:last-child [data-act="lock"]{display:none}
+}
+
+/* owned cards in Your forces / AI forces */
+.fcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.mcard.fcard{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.mcard.fcard.isnew{border-color:var(--gules)}
+.mcard.fcard.ai .own{color:var(--gules)}
+.fcard .curve .lv.next,.fcard .tx .lv.next{outline:none;color:inherit;font-weight:inherit}
+.fcard.ai .curve .lv.now,.fcard.ai .tx .lv.now{background:var(--gules)}
+@media (max-width:640px){ .fcards{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px} }
+
+/* reminders before passing / locking in */
+.remind{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,20,.28);animation:peekbg .16s ease-out}
+.remindbox{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--or);border-radius:10px;padding:16px 18px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.remindbox h3{font-size:1.25rem}
+.remindbox ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.remindbox label{gap:6px;cursor:pointer}
+@media (prefers-reduced-motion: reduce){ .remind{animation:none} }
+
+/* ---- battle table: the AI across the top (rotated), you along the bottom, charges meeting in the middle ---- */
+.linewrap{overflow:visible}
+.line.table{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0;padding:0}
+.table .trow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:start}
+.table .trow.s1{align-items:end}
+.table .tz{display:flex;flex-direction:column;gap:4px;min-width:0}
+.table .trow.s0 .tz{flex-direction:column-reverse}   /* labels on each player's own edge of the table */
+.table .tz .zl{font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.table .deckz{align-items:flex-end;text-align:right} .table .trow.s1 .deckz{align-items:flex-start;text-align:left}
+.table .grz{align-items:flex-start} .table .trow.s1 .grz{align-items:flex-end;text-align:right}
+.table .chz{align-items:center}
+.table .card{text-align:left}
+.table .tzc{display:flex;flex-direction:column;align-items:inherit;gap:0}
+.table .charge{min-width:112px;min-height:132px}
+.table .slot{width:104px;min-height:60px;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:var(--muted)}
+.table .clash{padding:0;font-size:1.4rem;line-height:1;height:22px;align-self:center}
+/* splayed stack */
+.table .stack{display:flex;flex-direction:column;padding-top:4px}
+.table .trow.s1 .stack{padding-top:0;padding-bottom:4px}
+.card.mini{width:104px;height:26px;padding:3px 7px;flex-direction:row;align-items:center;justify-content:space-between;gap:4px;margin-top:-5px;
+  box-shadow:0 1px 2px rgba(0,0,0,.12),inset 0 3px 0 var(--azure);opacity:.82;transform:translateX(calc(var(--k) * 3px))}
+.card.mini:first-child{margin-top:0}
+.card.mini[data-side="1"]{box-shadow:0 -1px 2px rgba(0,0,0,.12),inset 0 3px 0 var(--gules);transform:translateX(calc(var(--k) * -3px))}
+.card.mini .cn{font-size:.72rem;min-height:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.mini .mp{font-family:var(--f-mono);font-size:.7rem;font-weight:600;color:var(--muted);white-space:nowrap}
+.card.mini .mp i{font-style:normal;font-weight:400;margin-left:3px;color:var(--or)}
+/* graveyard as a list, on the right for you and the left for the AI */
+.table .grave{width:112px;min-height:0;flex-direction:column;flex-wrap:nowrap;padding:6px 8px}
+.table .grave b{display:block;perspective:400px}
+/* charging units lunge toward each other across the table */
+.table .card.lunge0{animation:lungeU .4s ease-in-out}
+.table .card.lunge1{animation:lungeD .4s ease-in-out}
+.table .card.lunge0.shake{animation:lungeU .4s ease-in-out,shake .38s .18s ease-in-out}
+.table .card.lunge1.shake{animation:lungeD .4s ease-in-out,shake .38s .18s ease-in-out}
+@keyframes lungeU{45%{transform:translateY(-18px) scale(1.06)}}
+@keyframes lungeD{45%{transform:translateY(18px) scale(1.06)}}
+.stage .linewrap{padding:10px 0}
+@media (max-width:640px){
+  .linewrap{padding-top:8px;padding-bottom:8px}
+  .table .trow{gap:6px}
+  .table .card:not(.mini){width:92px}
+  .card.mini{width:92px}
+  .table .charge{min-width:100px;min-height:124px}
+  .table .grave{width:92px;font-size:.72rem;padding:5px 6px}
+  .table .slot{width:92px}
+}
+@media (prefers-reduced-motion: reduce){ .table .card.lunge0,.table .card.lunge1{animation:none!important} }
+
+.card.deathfly{position:fixed;margin:0;z-index:75;pointer-events:none;transform-origin:center;backface-visibility:visible;box-shadow:0 10px 26px rgba(0,0,0,.28)}
+.card.deathfly .dfback{position:absolute;inset:-1px;border-radius:8px;opacity:0;background:var(--sunk);background-image:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--muted) 25%,transparent) 5px 7px);border:1px solid var(--line)}
+
+/* token cards behind battle cards */
+.card.poked{overflow:visible}
+.card .pk{position:absolute;width:9px;font-size:8px;line-height:1;text-align:center;pointer-events:none;
+  width:var(--px);left:calc(100% + var(--j) * var(--px));top:calc(18px - (var(--j) + 1) * var(--py))}
+.card[data-side="1"] .pk{left:auto;right:calc(100% + var(--j) * var(--px));top:auto;bottom:calc(18px - (var(--j) + 1) * var(--py))}
+:root{--px:12px;--py:8px}
+@media (max-width:640px){ :root{--px:10px;--py:7px} .card .pk{font-size:6px} }
+.table .trow{gap:16px}
+.table .charge{padding:10px}
+.stage .linewrap{padding:18px 0}
+@media (max-width:640px){ .table .trow{gap:6px} .table .charge{padding:4px;min-width:96px} .table .grave{width:80px} .table .trow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)} }
+
+/* token arrows: dashed, colored by what was given */
+.arw.tok{stroke-width:2.5;stroke-dasharray:5 4;animation:tokin .35s ease-out backwards}
+@keyframes tokin{from{opacity:0}}
+.arw.tok.t-arm,.arl.t-arm{stroke:var(--or)} .aht.t-arm,.arl.tok.t-arm{fill:var(--or)}
+.arw.tok.t-tr{stroke:var(--azure)} .aht.t-tr,.arl.tok.t-tr{fill:var(--azure)}
+.arw.tok.t-sh{stroke:var(--muted)} .aht.t-sh,.arl.tok.t-sh{fill:var(--muted)}
+.arw.tok.t-rec{stroke:var(--ok)} .aht.t-rec,.arl.tok.t-rec{fill:var(--ok)}
+.arl.tok{stroke:var(--bg)}
+
+/* tokens sliding out from behind a card */
+.card.tokanim{transition:box-shadow .42s cubic-bezier(.2,.8,.25,1.15), margin .42s cubic-bezier(.2,.8,.3,1)}
+.card .pk.pknew{animation:pkin .42s cubic-bezier(.2,.8,.3,1.3) backwards}
+@keyframes pkin{from{opacity:0;transform:scale(.3)}}
+@media (prefers-reduced-motion: reduce){ .card.tokanim{transition:none} .card .pk.pknew{animation:none} }
+
+/* each player's city, on their own edge of the table */
+.table .city{display:flex;flex-direction:column;gap:4px;align-items:center}
+.table .city.s0{flex-direction:column-reverse;margin-top:6px}
+.table .city.s1{margin-bottom:6px}
+.table .city .zl{font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.arw.tok.t-ret{stroke:var(--ok)} .aht.t-ret,.arl.tok.t-ret{fill:var(--ok)}
+
+/* pass and play */
+.ppnames{gap:10px 16px}
+.ppn{display:flex;flex-direction:column;gap:3px}
+.ppn input{font-family:var(--f-body);font-size:1rem;padding:6px 8px;width:12em;max-width:100%}
+.ppn.s0 input{border-color:var(--azure)} .ppn.s1 input{border-color:var(--gules)}
+.handoff{align-items:center;text-align:center;gap:12px;padding:40px 18px;border-top:4px solid var(--azure)}
+.handoff.s1{border-top-color:var(--gules)}
+.handoff h2{font-size:1.6rem}
+.turn.pp.s0{box-shadow:inset 4px 0 0 var(--azure)} .turn.pp.s1{box-shadow:inset 4px 0 0 var(--gules)}
+/* mobilize: deck and bench drawn as market-shaped cards */
+.dgrid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px 10px;align-content:start;padding-top:16px}
+.dgrid>p,.dgrid>.dropgap:only-child{grid-column:1 / -1}
+.mcard.drow,.mcard.bcard{display:flex;flex-direction:column;align-items:stretch;text-align:left;height:auto;padding:8px 9px;gap:3px;background:var(--bg)}
+.mcard.drow{min-height:220px}
+.mcard.bcard{min-height:200px}
+.mcard.drow .dpos{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-weight:600;margin-right:2px}
+.mcard .tags{display:flex;gap:4px;flex-wrap:wrap;align-self:flex-start}
+.mcard.drow .behind{display:flex;flex-wrap:wrap;gap:4px;padding-top:2px}
+.mcard.drow .dbtn{display:none}
+.forces.mob [data-drag]{touch-action:none}
+/* tokens tucked behind a deck card: their exposed edges, tappable */
+.dgrid .mcard.drow{overflow:visible}
+.mcard.drow .pkhit{position:absolute;z-index:2;left:calc(100% + var(--j) * 8px);top:calc((var(--j) + 1) * -6px);width:8px;height:calc(100% - 10px);
+  display:flex;align-items:flex-start;justify-content:center;padding-top:10px;font-size:8px;line-height:1;cursor:pointer}
+.mcard.drow .pkhit:hover{background:color-mix(in srgb, currentColor 25%, transparent);border-radius:0 6px 6px 0}
+@media (pointer:coarse){ .mcard.drow .pkhit::before{content:"";position:absolute;inset:-4px -3px} }
+/* bench tokens: small cards */
+.tokchip.tokcard{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:3px;width:150px;min-height:64px;height:auto;border-radius:7px;border-width:1px;padding:5px 7px;
+  background:color-mix(in srgb, currentColor 12%, var(--surface));box-shadow:inset 0 3px 0 currentColor;font-size:.8rem;line-height:1.15}
+.tokchip.tokcard .ico{width:18px;height:18px;font-size:.7rem}
+.tokchip.tokcard .tl{color:var(--ink)}
+.tokchip.tokcard .fx{font-size:.7rem;font-weight:700;color:currentColor}
+.tokchip.tokcard .ttop{display:flex;align-items:center;gap:5px}
+.tokchip.tokcard .rt{font-weight:400;font-size:.72rem;line-height:1.3;color:var(--muted);white-space:normal}
+@media (max-width:640px){ .tokchip.tokcard{width:calc(50% - 4px)} }
+.tokchip.tokcard.picked{background:var(--or-soft);box-shadow:inset 0 3px 0 currentColor,0 0 0 3px var(--or-soft),0 0 0 5px currentColor}
+.mcard.drow .dbtn button{flex:1;padding:3px 0}
+.mcard.drow .tx,.mcard.bcard .tx{overflow:visible}
+@media (max-width:640px){ .dgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 8px} .mcard.drow{min-height:170px} .mcard.bcard{min-height:150px} }
+/* forces and mobilize: battle-sized cards; press and hold one to read it full size */
+.fcards,.dgrid{grid-template-columns:repeat(auto-fill,118px)!important;gap:14px 10px!important}
+.fcards .mcard,.dgrid .mcard{height:150px;min-height:0;padding:6px 7px;gap:2px}
+.dgrid .mcard.drow{height:160px;min-height:0}
+.dgrid .mcard.bcard{height:150px;min-height:0}
+.fcards .mcard .top,.dgrid .mcard .top{flex-wrap:wrap;gap:0 4px}
+.fcards .mcard .nm,.dgrid .mcard .nm{font-size:.8rem}
+.fcards .mcard .cost,.dgrid .mcard .cost{font-size:.72rem}
+.fcards .mcard .curve,.dgrid .mcard .curve{font-size:.66rem}
+.fcards .mcard .tx,.dgrid .mcard .tx{font-size:.68rem;line-height:1.25;overflow:hidden}
+.fcards .mcard.more .tx,.dgrid .mcard.more .tx{-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+.fcards .mcard .own,.dgrid .mcard .own{font-size:.62rem}
+.fcards .newb,.dgrid .newb{font-size:.55rem;padding:0 5px}
+.fcards .mcard>button,.dgrid .mcard>button{font-size:.72rem;padding:3px 2px;min-height:0}
+.dgrid .mcard .tag{font-size:.6rem;padding:0 4px}
+.dgrid .mcard.drow .dbtn button{font-size:.72rem;padding:1px 0;min-height:0;min-width:0}
+.dgrid .mcard.drow .behind .tokchip{font-size:.62rem;padding:1px 6px 1px 2px}
+.dgrid .mcard.drow .behind .tokchip .ico{width:13px;height:13px;font-size:.55rem}
+.mcard.peek.drow .dbtn button,.mcard.peek>button{font-size:.9rem}
+@media (max-width:640px){ .fcards,.dgrid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px 8px!important} }
+.battlectl .autobtn[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or);color:var(--ink);font-weight:700}
+.battlectl .autobtn{white-space:nowrap}
+.roomcode{font-family:var(--f-mono);font-size:2.4rem;font-weight:600;letter-spacing:.18em;color:var(--or)}
+.netlobby{align-items:flex-start}
+
+/* ---- phone play, round 2: compact cards that open as a sheet, tap-and-swap Mobilize, a bar that leads ---- */
+html{touch-action:manipulation}   /* no double-tap zoom: double-tap reads a Mobilize card */
+.mcard .ctag{display:none}
+.dgrid .mcard{-webkit-tap-highlight-color:transparent}
+.mcard.tapping{transform:scale(.97);transition:transform .08s ease-out}
+.mcard.lifted{transform:scale(1.05) rotate(-1deg);box-shadow:0 12px 28px rgba(0,0,0,.28)!important;transition:transform .14s ease-out,box-shadow .14s ease-out;z-index:6;position:relative}
+.mcard.sel{outline:3px solid var(--or);outline-offset:2px;transform:translateY(-3px);box-shadow:0 8px 18px rgba(0,0,0,.18)!important;z-index:2}
+.dgrid .mcard.cansel{outline:1.5px dashed color-mix(in srgb, var(--or) 75%, transparent);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){ .mcard.tapping,.mcard.lifted,.mcard.sel{transform:none;transition:none} }
+/* a market card you already own and could level up by buying another copy glows gold */
+.mktp .mcard.lvup:not(.peek):not(.ghost){border-color:var(--or);box-shadow:inset 0 3px 0 var(--or),0 0 0 1px var(--or),0 0 12px 2px color-mix(in srgb, var(--or) 50%, transparent)}
+@media (prefers-reduced-motion: no-preference){
+  .mktp .mcard.lvup:not(.peek):not(.ghost){animation:lvglow 1.8s ease-in-out infinite}
+  @keyframes lvglow{0%,100%{box-shadow:inset 0 3px 0 var(--or),0 0 0 1px var(--or),0 0 5px 0 color-mix(in srgb, var(--or) 40%, transparent)}
+    50%{box-shadow:inset 0 3px 0 var(--or),0 0 0 1px var(--or),0 0 16px 4px color-mix(in srgb, var(--or) 60%, transparent)}}
+}
+/* short rules text: a two-line preview on phone cards (tap the card for the full text) */
+.mcard .stx{display:none}
+.mcard .stx .lv{padding:0 2px;border-radius:3px}
+.mcard .stx .lv.now{background:var(--azure);color:var(--bg);font-weight:600}
+.mcard.ai .stx .lv.now{background:var(--gules)}
+.mcard .stx .lv.next{outline:1px dashed var(--ok);outline-offset:-1px;color:var(--ok);font-weight:600}
+.fcard .stx .lv.next{outline:none;color:inherit;font-weight:inherit}
+.gi{display:inline-block;width:1.3em;height:1.3em;vertical-align:-.3em;fill:currentColor;margin:0 .05em}
+.gi-arm{color:var(--or)} .gi-tr{color:var(--azure)} .gi-sh{color:var(--muted)} .gi-rec{color:var(--ok)}
+/* Recruit and Field: a face-up stack under an "Always available" label, since there's always another copy */
+.market{align-items:end}
+.alwaysw{display:flex;flex-direction:column;gap:4px;min-width:0}
+.alwaysw .alab{font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.astack{position:relative;display:flex;flex-direction:column}
+/* the copies underneath peek out at the bottom right, outside the card, so the card itself stays full size */
+.astack>.mcard{position:relative;z-index:1;flex:none}
+.astack>.mcard.u:not(.peek){box-shadow:inset 0 3px 0 var(--muted),3px 3px 0 -1px var(--sunk),3px 3px 0 0 var(--line),6px 6px 0 -1px var(--sunk),6px 6px 0 0 var(--line)}
+.astack>.mcard.b:not(.peek){box-shadow:inset 0 3px 0 var(--or),3px 3px 0 -1px var(--sunk),3px 3px 0 0 var(--line),6px 6px 0 -1px var(--sunk),6px 6px 0 0 var(--line)}
+.market{padding-bottom:6px}
+/* a card you can't afford fades its contents, not the whole card, so the miracles stacked behind it don't show through */
+.mirwrap>.mcard.cant{opacity:1}
+.mirwrap>.mcard.cant>*{opacity:.62}
+.battlectl .speedbtn{min-width:3.2em;font-family:var(--f-mono);font-weight:600}
+.battlectl .speedbtn[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or)}
+
+/* every screen: compact, squarish cards like the battle cards — name, cost and power at the top, short rules text along
+   the bottom. Click (or tap) a card to read it in full. Phones size them further down. */
+.mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.dgrid .mcard:not(.peek){padding:8px 9px 9px!important;gap:3px!important;cursor:pointer;justify-content:flex-start;min-height:0!important}
+.mktp .mcard:not(.peek):not(.masonpick) .tx,.fcards .mcard:not(.peek) .tx,.dgrid .mcard:not(.peek) .tx{display:none}
+.dgrid .mcard:not(.peek)>button,.dgrid .mcard:not(.peek) .dbtn{display:none}
+.mktp .mcard:not(.peek):not(.masonpick) .stx,.fcards .mcard:not(.peek) .stx,.dgrid .mcard:not(.peek) .stx{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;font-size:.8rem;line-height:1.28;color:var(--ink);opacity:.85;margin-top:auto;padding-top:4px;flex-shrink:0}
+.mktp .mcard:not(.peek):not(.masonpick) .top,.fcards .mcard:not(.peek) .top,.dgrid .mcard:not(.peek) .top{flex-wrap:nowrap!important;align-items:flex-start;gap:4px!important}
+.mktp .mcard:not(.peek):not(.masonpick) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
+.mktp .mcard:not(.peek):not(.masonpick) .cost,.fcards .mcard:not(.peek) .cost,.dgrid .mcard:not(.peek) .cost{flex:none}
+.mktp .mcard:not(.peek):not(.masonpick) .curve,.fcards .mcard:not(.peek) .curve,.dgrid .mcard:not(.peek) .curve{white-space:nowrap}
+.mcard:not(.peek) .stx .lv{padding:0 1px}
+.mcard:not(.peek) .stx .gi{width:1.25em;height:1.25em;margin:0}
+.mktp .mcard .ctag{display:none}
+.mktp .mirwrap{height:auto!important}
+.market,.market.plain{align-items:end}
+@media (min-width:641px){
+  .mktp{--ch:150px}
+  .fcards,.dgrid,.deckwrap{--ch:140px;--chd:150px}
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.dgrid .mcard.bcard:not(.peek){height:var(--ch)!important}
+  .dgrid .mcard.drow:not(.peek){height:var(--chd)!important}
+  .mktp .mirwrap>.mcard:not(.peek){flex:none;height:var(--ch)!important}
+  .dslot,.dspacer{height:var(--chd)}
+  /* the shop's Buy button and a card's Sell button sit just under the card */
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek){overflow:visible!important}
+  .mktp .mcard:not(.peek):not(.masonpick)>button[data-act="buy"],.fcards .mcard:not(.peek)>button{position:absolute;left:0;right:0;top:calc(100% + 6px);margin:0;padding:4px 6px;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mktp .market{padding-bottom:40px;row-gap:48px!important}
+  .fcards{row-gap:46px!important;padding-bottom:36px}
+  .dgrid .mcard.bcard:not(.peek){overflow:visible!important}
+  .dgrid .mcard.bcard:not(.peek)>button{display:block!important;position:absolute;left:0;right:0;top:calc(100% + 6px);margin:0;padding:4px 6px;font-size:.82rem;white-space:nowrap}
+  #bench-list{row-gap:46px!important;padding-bottom:36px}
+  .mktp .mcard:not(.peek):not(.masonpick) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{font-size:.9rem}
+  .mktp .mcard:not(.peek) .curve,.fcards .mcard:not(.peek) .curve,.dgrid .mcard:not(.peek) .curve{font-size:.74rem}
+  .fcards .mcard:not(.peek) .stx,.dgrid .mcard:not(.peek) .stx{font-size:.74rem;-webkit-line-clamp:4}
+}
+@media (max-width:640px){
+  /* compact cards: name, cost and power at a readable size; tap one for everything else */
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.dgrid .mcard:not(.peek){height:auto!important;min-height:66px!important;padding:7px 8px 8px!important;gap:3px!important;cursor:pointer;justify-content:flex-start}
+  .mktp .mcard:not(.peek):not(.masonpick) .tx,.fcards .mcard:not(.peek) .tx,.dgrid .mcard:not(.peek) .tx{display:none}
+  .mktp .mcard:not(.peek):not(.masonpick)>button,.fcards .mcard:not(.peek)>button,.dgrid .mcard:not(.peek)>button,.dgrid .mcard:not(.peek) .dbtn{display:none}
+  .mktp .mcard:not(.peek) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{font-size:.92rem!important;line-height:1.15}
+  .mktp .mcard:not(.peek) .cost,.fcards .mcard:not(.peek) .cost,.dgrid .mcard:not(.peek) .cost{font-size:.8rem!important}
+  .mktp .mcard:not(.peek) .curve,.fcards .mcard:not(.peek) .curve,.dgrid .mcard:not(.peek) .curve{font-size:.76rem!important}
+  .mktp .mcard:not(.peek) .own,.mktp .mcard:not(.peek) .jump,.mktp .mcard:not(.peek) .need,.fcards .mcard:not(.peek) .own,.dgrid .mcard:not(.peek) .own{font-size:.72rem!important}
+  .mktp .mcard:not(.peek) .side-tag,.fcards .mcard:not(.peek) .side-tag{font-size:.6rem!important}
+  .mktp .mcard.canbuy:not(.peek){border-color:color-mix(in srgb, var(--ink) 45%, var(--line))}
+  /* one card size everywhere on the phone; a card with miracles under it keeps that size and its gold tabs sit above
+     it, so in each market row the cards line up along the bottom */
+  :root{--ch:176px;--chd:192px}
+  .mktp .mcard:not(.peek) .stx,.fcards .mcard:not(.peek) .stx,.dgrid .mcard:not(.peek) .stx{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+    font-size:.76rem;line-height:1.25;letter-spacing:-.01em;color:var(--ink);opacity:.85;margin-top:auto;padding-top:4px;flex-shrink:0}
+  .mcard:not(.peek) .stx .lv{padding:0 1px}
+  .mcard:not(.peek) .stx .gi{width:1.25em;height:1.25em;margin:0}
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.dgrid .mcard.bcard:not(.peek){height:var(--ch)!important;min-height:0!important;overflow:hidden}
+  .dgrid .mcard.drow:not(.peek){height:var(--chd)!important;min-height:0!important;overflow:hidden}
+  .market,.market.plain{align-items:end}
+  .mktp .mirwrap{height:auto!important}
+  .mktp .mirwrap>.mcard:not(.peek){flex:none;height:var(--ch)!important}
+  .mktp .mcard:not(.peek) .top{flex-wrap:nowrap!important;align-items:flex-start}
+  .mktp .mcard:not(.peek) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
+  .mktp .mcard:not(.peek) .cost,.fcards .mcard:not(.peek) .cost,.dgrid .mcard:not(.peek) .cost{flex:none}
+  .mktp .mcard:not(.peek) .side-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mktp .mcard:not(.peek) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{font-size:.86rem!important}
+  .mktp .mcard:not(.peek) .cost,.fcards .mcard:not(.peek) .cost,.dgrid .mcard:not(.peek) .cost{font-size:.7rem!important;letter-spacing:-.04em}
+  .mktp .mcard:not(.peek) .curve,.fcards .mcard:not(.peek) .curve,.dgrid .mcard:not(.peek) .curve{font-size:.7rem!important;white-space:nowrap;letter-spacing:-.02em}
+  .mktp .mcard.ghost:not(.peek) .taken{font-size:.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;padding:1px 6px}
+  .mktp .mcard:not(.peek) .need{font-size:.64rem!important;padding:0 6px}
+  .mktp .mcard:not(.peek) .jump,.mktp .mcard:not(.peek) .own,.fcards .mcard:not(.peek) .ownrow,.dgrid .mcard.bcard:not(.peek) .ownrow{display:none}
+  .mktp .mcard:not(.peek) .top,.fcards .mcard:not(.peek) .top,.dgrid .mcard:not(.peek) .top{gap:3px!important}
+  .mktp .mcard:not(.peek) .nm,.fcards .mcard:not(.peek) .nm,.dgrid .mcard:not(.peek) .nm{hyphens:auto;-webkit-hyphens:auto;letter-spacing:-.01em}
+  /* miracles stack straight up behind the card (no sideways shift), so the card keeps its full width */
+  .mktp .mirwrap{padding-right:0!important}
+  .mktp .mirback{left:calc(var(--j) * 4px)!important;right:calc(var(--j) * 4px)!important}
+  .mirhover{display:none!important}
+  .grip{display:none}
+  .peekhint{font-size:.82rem}
+  .fcards .mcard:not(.peek) .newb,.dgrid .mcard:not(.peek) .newb{font-size:.6rem}
+  .dgrid .mcard.drow:not(.peek) .tag{font-size:.62rem}
+  .dgrid{padding-top:10px}
+}
+/* the card sheet */
+/* phones: the decks and the discard pile in the bottom bar (dockPilesHTML), so the market needs no header rows */
+@media (max-width:640px){
+  .mktp .mkthead{display:none}
+  .mktp .msec+.msec{border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+  .dock .dpiles{display:flex;gap:6px}
+  .dock .dpiles>.sdeck,.dock .dpiles>.mpile{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:flex-start;gap:6px;min-height:52px;margin:0;padding:5px 8px 5px 6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--muted);font-weight:700}
+  .dock .dpiles{--pile:36px}
+  .dock .dpiles .dealdeck{margin:0 3px 3px 0}
+  .dock .dpiles .pl,.dock .dpiles .mplbl{order:2;display:flex;flex-direction:column;gap:2px;font-size:.64rem;letter-spacing:0;text-transform:uppercase;font-weight:700;line-height:1.1;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .dock .dpiles .pl i{font-style:normal;text-transform:none;letter-spacing:0;font-size:.78rem;color:var(--ink)}
+  .dock .dpiles>button.sdeck.bmready{border-color:var(--or);background:var(--or-soft);color:var(--ink);box-shadow:0 0 0 2px color-mix(in srgb, var(--or) 35%, transparent)}
+  .dock .dpiles>button.sdeck.bmready .pl{color:var(--ink)}
+  .dock .dpiles>.mpile:not(:disabled){color:var(--ink)}
+  .dock .dpiles>.mpile.glow{border-color:var(--or)}
+  .dock .dpiles>.mpile[aria-expanded="true"]{border-color:var(--ink)}
+}
+/* the peek window: Black Market, Vision and the discard pile (peekWinHTML). Same sheet as a card's, under the card pop-up */
+.pkwin{position:fixed;inset:0;z-index:66;background:rgba(10,14,20,.38);display:flex;align-items:flex-end;justify-content:center}
+.pkwin .pksheet{max-width:620px;overflow:hidden;display:flex;flex-direction:column;padding-bottom:0;gap:0}
+.pkbody{overflow:auto;overscroll-behavior:contain;min-height:0;display:flex;flex-direction:column;gap:18px;padding:0 0 12px}
+.pksec{display:flex;flex-direction:column;gap:6px}
+.pkchip{align-self:flex-start;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--or);color:var(--surface)}
+.pkchip.vis{background:var(--azure)}
+.pkchip.sal{background:none;color:var(--muted);border:1.5px dashed var(--muted)}
+.pkttl{font-family:var(--f-display);font-weight:400;font-size:1.5rem;line-height:1.1;margin:0}
+.pksub{font-size:.95rem;color:var(--muted);line-height:1.35;margin:0 0 4px}
+/* the cards are ordinary market cards, three across like the market's rows (tap one to read it in full) */
+.pkwin .market.pkgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.pkwin .mwrap{display:flex;min-width:0}
+.pkfoot{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);margin:0 -16px;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.pkfoot .note{flex:1;margin:0}
+.pkfoot button{min-height:46px;padding:0 20px;font-weight:700;flex:none}
+/* phones: the sheet comes up over the bottom bar, like a card's pop-up */
+@media (max-width:640px){
+  .pkwin .pksheet{max-height:calc(100dvh - 40px - env(safe-area-inset-top,0px))}
+}
+/* every card in the pop-up is a market card at the market's measured size (syncCardSize sets --uw / --uh), in rows
+   centered in the window; buy and sell buttons sit under the cards, as in the market */
+.pkwin .pkgrid,.pkwin .fcards{display:flex!important;flex-wrap:wrap;justify-content:center!important;column-gap:10px!important}
+.pkwin .pkgrid .mcard:not(.peek),.pkwin .fcards .mcard:not(.peek),.pkwin .pkgrid .mwrap{width:var(--uw,118px)!important;height:var(--uh,118px)!important;min-height:0!important;aspect-ratio:auto!important;max-width:none}
+.pkwin .pkgrid .mirwrap{width:var(--uw,118px)!important;height:auto!important;flex:none}
+.pkwin .pkgrid>*,.pkwin .fcards>*{flex:none}
+.pkwin .pkgrid .mirwrap>.mcard:not(.peek){width:auto!important}
+.pkwin .pksec>.pkchip,.pkwin .pksec>.pkttl,.pkwin .pksec>.pksub{align-self:center;text-align:center}
+.pkwin .dsbody .list>.eyebrow{text-align:center}
+/* deck tabs ride under the grab strip; the top edge takes the side's color */
+.pksheet.dsheet{border-top:3px solid var(--azure)}
+.pksheet.dsheet.s1{border-top-color:var(--gules)}
+.pksheet .dshead{margin:0 -16px;padding:0 10px}
+.pksheet .dsbody{padding:12px 0 0;overflow:visible}
+@media (min-width:641px){
+  .pkwin{align-items:center;padding:24px}
+  .pkwin .pksheet{max-width:860px;max-height:min(86vh,900px);border-radius:14px}
+  .pkwin .market.pkgrid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+}
+.peekwrap.sheetwrap{display:flex;align-items:flex-end;justify-content:center;background:rgba(10,14,20,.38)}
+.sheet{width:100%;max-width:560px;max-height:calc(100dvh - 48px);overflow:auto;overscroll-behavior:contain;background:var(--surface);border-radius:16px 16px 0 0;
+  box-shadow:0 -10px 40px rgba(0,0,0,.3);padding:4px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;position:relative;z-index:71}
+.sheethead{display:flex;align-items:center;justify-content:center;position:relative;min-height:40px;margin:-4px -16px 0;padding:4px 16px 0;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.sheethead.dragging{cursor:grabbing}
+.mcard.peek>.pkdrag{position:absolute;left:0;right:0;top:0;height:44px;z-index:3;touch-action:none;cursor:grab}
+.mcard.peek>.pkdrag.dragging{cursor:grabbing}
+.sheet .mcard.peek>.pkdrag{display:none}
+.sheethead .grab{width:42px;height:5px;border-radius:3px;background:var(--line)}
+.sheet .sheetx{position:absolute;right:8px;top:4px;border:none;background:none;font-size:1.25rem;line-height:1;padding:9px 12px;color:var(--muted);min-height:0}
+.sheet .mcard.peek{position:static!important;width:auto!important;height:auto!important;max-height:none!important;overflow:visible!important;transform:none!important;outline:none;
+  border:1px solid var(--line);border-radius:10px;padding:14px 16px 16px!important;gap:8px!important;font-size:1.05rem;box-shadow:inset 0 4px 0 var(--muted)!important;background:var(--bg)!important;margin:0!important}
+.sheet .mcard.peek.b{box-shadow:inset 0 4px 0 var(--or)!important}
+.sheet .mcard.peek.ai{box-shadow:inset 0 4px 0 var(--gules)!important}
+.sheet .mcard.peek .top{flex-wrap:nowrap!important;gap:8px!important}
+.sheet .mcard.peek .nm{font-size:1.4rem!important;line-height:1.2}
+.sheet .mcard.peek .cost{font-size:1.15rem!important}
+.sheet .mcard.peek .curve{font-size:1.02rem!important}
+.sheet .mcard.peek .tx{display:block!important;font-size:1.12rem!important;line-height:1.5!important;color:var(--ink)!important;overflow:visible!important;-webkit-mask-image:none!important;mask-image:none!important}
+.sheet .mcard.peek .own,.sheet .mcard.peek .jump,.sheet .mcard.peek .need,.sheet .mcard.peek .side-tag,.sheet .mcard.peek .taken{font-size:.92rem!important}
+.sheet .mcard.peek .tag{font-size:.8rem!important;padding:2px 7px!important}
+.sheet .mcard.peek .grip{display:none}
+.sheet .mcard.peek>button{display:block;font-size:1.08rem!important;min-height:50px;padding:10px 14px!important;margin-top:6px}
+.sheet .mcard.peek .dbtn{display:flex!important;gap:8px;margin-top:6px}
+.sheet .mcard.peek .dbtn button{flex:1;font-size:1.05rem!important;min-height:48px!important;padding:8px 0!important}
+.sheet .mcard.peek .behind .tokchip{font-size:.85rem!important;padding:4px 10px 4px 6px!important}
+.sheet .mcard.peek .ctag{display:none!important}
+.sheetmir{display:flex;flex-direction:column;gap:8px;font-size:1rem}
+.sheetmir .eyebrow{color:var(--or)}
+.sheetnote{text-align:center;margin-top:-2px}
+html.sheet-open,html.sheet-open body{overflow:hidden}
+@media (prefers-reduced-motion: reduce){ .peekwrap.sheetwrap{animation:none} }
+
+/* phones: the whole market (6 units + 6 buildings) fits on one screen; card height follows the screen height */
+@media (max-width:640px){
+  .mktp,.fcards{--ch:clamp(88px, calc((100vh - var(--mkfix, 372px)) / 4), 150px)}
+  @supports (height:100dvh){ .mktp,.fcards{--ch:clamp(88px, calc((100dvh - var(--mkfix, 372px)) / 4), 150px)} }
+  .mktp{gap:6px}
+  /* Your forces / AI forces: the same card size and spacing as the shop */
+  .fcards{row-gap:6px!important;column-gap:6px!important;gap:6px!important}
+  .mktp .mirwrap{--ms:15px}
+  .mktp .mirback .mn{font-size:.72rem} .mktp .mirback .ms{font-size:.7rem}
+  .mktp .mkthead h2{font-size:1.1rem}
+  .mktp .dealdeck{width:18px;height:24px;margin-right:2px}
+  .mktp .mshead{min-height:26px;gap:6px}
+  .mktp .sdeck{padding:2px 6px 2px 3px;gap:5px}
+  .mktp .bmtag{font-size:.72rem}
+  .mktp .msec>.mshead>.eyebrow{font-size:.6rem;line-height:1.1}
+  .mktp .peekhint,.mktp .alwaysw .alab{display:none!important}
+  .mktp .msec{gap:3px!important}
+  .mktp .msec>.eyebrow{font-size:.6rem;line-height:1.1}
+  .mktp .market{row-gap:6px!important;column-gap:6px!important;gap:6px!important;padding-bottom:0}
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek){padding:5px 6px 6px!important;gap:1px!important}
+  .mktp .mcard:not(.peek) .nm,.fcards .mcard:not(.peek) .nm{font-size:.8rem!important}
+  .mktp .mcard:not(.peek) .stx,.fcards .mcard:not(.peek) .stx{-webkit-line-clamp:3;font-size:.7rem;padding-top:2px}
+  .mktp .musterbtn{padding:3px 10px;gap:8px;font-size:.85rem}
+  .mktp .mstack{transform:scale(.75);margin:-3px -4px}
+}
+
+/* returning card: tilted a little and wearing an hourglass token on its corner */
+.mcard.leaving,.mktp .mcard.leaving:not(.peek):not(.masonpick){overflow:visible!important}
+.hgtok{position:absolute;right:-9px;bottom:-9px;z-index:6;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--bg);
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);
+  box-shadow:0 2px 0 color-mix(in srgb, var(--ink) 60%, black),0 4px 10px rgba(0,0,0,.35)}
+.hgtok svg{width:14px;height:14px}
+.mcard.peek .hgtok{display:none}
+
+.mktp{position:relative}
+.mcard.lghost{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--muted)}
+.mcard.lghost.b{box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 3px 0 var(--or)}
+@media (max-width:640px){ .hgtok{width:22px;height:22px;right:-7px;bottom:-7px} .hgtok svg{width:12px;height:12px} }
+
+@media (max-width:640px){ .mktp .mpcards{width:33px;height:40px} .mktp .mpc,.mktp .mpface{width:30px;height:40px} .mktp .mplbl{font-size:.4rem;letter-spacing:.02em} .mktp .mpcount{font-size:.82rem} .mphit{left:22px} }
+
+/* mobilize deck: indented, dotted slots behind the cards (Vanguard first, Rearguard last); cards sit on top */
+.deckwrap{position:relative;margin-bottom:22px}
+.dslots{position:absolute!important;inset:0;z-index:0;pointer-events:none}
+.deckwrap #deck-list{position:relative;z-index:1}
+.dslot{position:relative;height:160px}
+.dslot::before{content:"";position:absolute;inset:-4px;border-radius:11px;border:2px dotted color-mix(in srgb, var(--muted) 70%, transparent);
+  background:color-mix(in srgb, var(--sunk) 85%, var(--ink) 7%);box-shadow:inset 0 3px 8px rgba(0,0,0,.18)}
+.dslot .dlab{position:absolute;left:0;right:0;top:calc(100% + 6px);text-align:center;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted);white-space:nowrap;line-height:1}
+.dslot.van .dlab,.dslot.rear .dlab{color:var(--ink)}
+.dslot:not(.filled) .dlab{top:50%;transform:translateY(-50%)}
+.dspacer{height:160px;visibility:hidden}
+.deckwrap .dgrid{row-gap:28px!important;column-gap:14px!important;padding-top:22px}
+@media (max-width:640px){ .deckwrap .dgrid{column-gap:10px!important;row-gap:24px!important} .dslot::before{inset:-3px} }
+@media (max-width:640px){ .dslot,.dspacer{height:var(--chd)} .dslot .dlab{font-size:.52rem;letter-spacing:.04em} }
+
+/* ---- one card face everywhere (market, bought/taken, forces, mobilize): the name's Chinese chip sits faintly behind
+   the text, and status stamps hang just under the card ---- */
+.mcard{isolation:isolate}
+.zhw{position:absolute;z-index:-1;left:50%;top:50%;transform:translate(-50%,-50%);height:min(var(--wm,96px),66%);aspect-ratio:1;width:auto;
+  box-sizing:border-box;border-radius:50%;border:2px solid currentColor;color:var(--ink);opacity:.15;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;container-type:size}
+.zhw::after{content:"";position:absolute;inset:4px;border:1px solid currentColor;border-radius:50%}
+.zhw span{writing-mode:vertical-rl;text-orientation:upright;font-family:var(--f-zh);font-weight:700;line-height:1;letter-spacing:-.04em;font-size:56cqh}
+.zhw[data-n="2"] span{font-size:38cqh}
+.zhw[data-n="3"] span{font-size:27cqh}
+.mcard.b .zhw{color:var(--or);opacity:.2}
+.mcard.ghost .zhw{color:var(--muted)}
+.stage .card{cursor:pointer}
+/* battle table: cards and the charge boxes are one fixed size, so a card arriving or leaving never resizes the table */
+:root{--bch:136px;--bcw:104px}
+.table .card:not(.mini){height:var(--bch);min-height:0}
+.table .card:not(.mini) .zh{margin:auto}
+.table .card:not(.mini) .hprow{margin-top:auto}
+.table .slot{height:var(--bch);min-height:0}
+.table .charge{box-sizing:border-box;width:calc(var(--bcw) + 20px);height:calc(var(--bch) + 20px);min-width:0;min-height:0;padding:10px;display:flex;align-items:center;justify-content:center}
+@media (max-width:640px){
+  :root{--bch:128px;--bcw:92px}
+  .table .charge{width:calc(var(--bcw) + 8px);height:calc(var(--bch) + 8px);padding:4px;min-width:0}
+  .table .tz .zl{min-height:2.5em;display:flex;align-items:flex-end}
+  .table .trow.s0 .tz .zl{align-items:flex-start}
+}
+/* market cards keep one square shape at any screen width (the row no longer stretches them on a wide window) */
+@media (min-width:861px){
+  .mktp .market{grid-template-columns:minmax(0,150px) 2px repeat(5,minmax(0,150px));justify-content:start}
+  .mktp .market.plain{grid-template-columns:repeat(6,minmax(0,150px))}
+}
+@media (min-width:641px) and (max-width:860px){
+  .mktp .market,.mktp .market.plain{grid-template-columns:repeat(3,minmax(0,150px));justify-content:start}
+}
+/* phones: shop and forces cards are as tall as they are wide, whatever the browser's toolbars leave of the screen */
+@media (max-width:640px){
+  .mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek),.mktp .mirwrap>.mcard:not(.peek){height:auto!important;aspect-ratio:1/1;min-height:0!important}
+  /* Mobilize: deck, bench and the slots behind the deck are square too */
+  .dgrid .mcard:not(.peek),.dgrid .mcard.drow:not(.peek),.dgrid .mcard.bcard:not(.peek){height:auto!important;aspect-ratio:1/1;min-height:0!important}
+  .dslot,.dspacer{height:auto!important;aspect-ratio:1/1}
+}
+/* wider screens: forces and Mobilize cards are 140px squares */
+@media (min-width:641px){
+  .fcards,.dgrid,.deckwrap{--ch:140px;--chd:140px}
+  .fcards,.dgrid{grid-template-columns:repeat(auto-fill,140px)!important}
+  .dslot,.dspacer{height:140px}
+}
+.mcard.cant>.zhw,.mirwrap>.mcard.cant>.zhw{opacity:.1}
+.fcards .zhw,.dgrid .zhw{--wm:84px}
+/* the pop-up card is taller than a market card (rules plus the keyword list), so its name chip sits in the flow
+   above the rules text instead of as a centered watermark that would land on top of the keyword definitions */
+.mcard.peek .zhw{position:relative;left:auto;top:auto;transform:none;opacity:.9;width:84px;height:84px;flex:none;align-self:center;margin:2px auto 4px;z-index:0}
+/* the phone sheet shows the chip at full strength above the rules */
+.sheet .mcard.peek .zhw{position:relative;left:auto;top:auto;transform:none;opacity:.9;width:88px;height:88px;flex:none;align-self:center;margin:2px auto 4px;z-index:0}
+.sheet .mcard.peek .zhw::after{inset:4px}
+.sheet .mcard.peek>.top,.sheet .mcard.peek>.curve,.mcard.peek>.top,.mcard.peek>.curve{order:-1}
+.stamps{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;display:flex;justify-content:center;gap:4px;pointer-events:none}
+.stamp{font-size:.7rem;font-weight:700;line-height:1.4;letter-spacing:.02em;padding:0 8px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;border:1px solid transparent}
+.stamp.st-need{color:var(--gules);border-color:var(--gules);background:var(--surface)}
+.stamp.st-own{color:var(--ok);border-color:var(--ok);background:var(--surface)}
+.stamp.st-mine{background:var(--azure);color:var(--bg)}
+.stamp.st-theirs,.stamp.st-new{background:var(--gules);color:var(--bg)}
+/* a newly bought card in the forces is marked in its owner's color */
+.mcard.fcard.isnew.so0{border-color:var(--azure)!important;box-shadow:inset 0 3px 0 var(--azure),0 0 0 1px var(--azure)}
+.mcard.fcard.isnew.so1{border-color:var(--gules)!important;box-shadow:inset 0 3px 0 var(--gules),0 0 0 1px var(--gules)}
+.so0 .stamp.st-new{background:var(--azure)}
+.mcard.peek .stamps,.sheet .mcard.peek .stamps{position:static;justify-content:flex-start;margin-top:4px}
+.mcard.peek .stamp{font-size:.85rem}
+/* cards are always unclipped so the stamps can hang below them */
+.mktp .mcard:not(.peek):not(.masonpick),.fcards .mcard:not(.peek){overflow:visible!important}
+@media (min-width:641px){
+  .mktp .mcard.hasst:not(.peek):not(.masonpick)>button[data-act="buy"],.fcards .mcard.hasst:not(.peek)>button{top:calc(100% + 28px)}
+  .mktp .market{row-gap:72px!important;padding-bottom:62px}
+  .fcards{row-gap:70px!important;padding-bottom:60px}
+}
+@media (max-width:640px){
+  .mktp,.fcards{--mkfix:444px}
+  .mktp .market,.fcards{row-gap:22px!important;padding-bottom:18px}
+  .stamps{top:calc(100% + 3px)}
+  .stamp{font-size:.6rem;padding:0 6px;line-height:1.35}
+  .mktp .zhw,.fcards .zhw{--wm:70px}
+}
+
+/* scoreboard sides are deck buttons: they open each player's cards */
+.board .deckbtn{display:flex;flex-direction:column;gap:2px;min-width:0;text-align:left;align-items:flex-start;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;box-shadow:0 2px 0 var(--line);transition:transform .08s,box-shadow .08s,border-color .15s}
+.board .deckbtn.ai{text-align:right;align-items:flex-end}
+.board .deckbtn:hover{border-color:currentColor}
+.board .deckbtn.you{border-color:color-mix(in srgb,var(--azure) 45%,var(--line))}
+.board .deckbtn.ai{border-color:color-mix(in srgb,var(--gules) 45%,var(--line))}
+.board .deckbtn:active{transform:translateY(2px);box-shadow:0 0 0 var(--line)}
+.board .deckbtn.on{background:var(--or-soft)}
+.board .deckbtn .who{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.dkic{position:relative;flex:none;width:14px;height:17px;display:inline-block}
+.dkic i{position:absolute;width:11px;height:14px;border:1.5px solid currentColor;border-radius:2px;background:var(--bg)}
+.dkic i:first-child{left:3px;top:0}.dkic i:last-child{left:0;top:3px}
+.dkgo{font-family:var(--f-body);font-weight:700;opacity:.7}
+.board .deckbtn .m3{font-family:var(--f-body)}
+.board .deckbtn .caps b{font-weight:600;color:var(--ink)}
+.board .deckbtn .caps b.full{color:var(--or);background:var(--or-soft);border-radius:3px;padding:0 3px}
+.board .deckbtn .caps{white-space:nowrap}
+.board .deckbtn .caprow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}
+.board .deckbtn .caprow .tchip{margin-top:0}
+.board .deckbtn.ai .caprow{flex-direction:row-reverse}
+.board .deckbtn .caps b{font-family:var(--f-mono)}
+@media (max-width:640px){ .board .deckbtn .caps{font-family:var(--f-body);font-size:.74rem;letter-spacing:-.01em} .board .deckbtn .caps b.full{padding:0 2px} }
+.board .deckbtn.you .m3{color:var(--azure)}
+.logp .log{max-height:180px}
+.dsheet-old{width:min(100%,1000px);max-height:min(86vh,900px);background:var(--surface);border-radius:14px 14px 0 0;border-top:3px solid var(--azure);display:flex;flex-direction:column;box-shadow:0 -12px 40px rgba(0,0,0,.3);animation:dsup .22s cubic-bezier(.2,.9,.3,1)}
+@keyframes dsup{from{transform:translateY(40px);opacity:.4}}
+.dshead{display:flex;align-items:center;gap:8px;padding:8px 10px 0 12px;border-bottom:1px solid var(--line)}
+.dstabs{display:flex;gap:4px;flex:1;min-width:0}
+.dstabs button{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:10px 12px;font-family:var(--f-display);font-size:1.1rem;color:var(--muted)}
+.dstabs button.s0[aria-selected="true"]{color:var(--azure);border-bottom-color:var(--azure)}
+.dstabs button.s1[aria-selected="true"]{color:var(--gules);border-bottom-color:var(--gules)}
+.dsclose{border:none;background:none;font-size:1.2rem;min-width:44px;min-height:44px}
+.dsbody{overflow:auto;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));display:flex!important;flex-direction:column;gap:10px}
+body.dsopen{overflow:hidden}
+@media (prefers-reduced-motion: reduce){ .dsheet,.decksheet{animation:none} }
+@media (max-width:640px){
+  /* the scoreboard rides at the top of the bottom bar */
+  #view-play:has(.dock) .board.topboard{display:none}
+  .dock .board.inDock{position:static;box-shadow:none;background:none;border:none;border-radius:0;padding:0 0 7px;margin-bottom:0;border-bottom:1px solid var(--line);gap:0 6px}
+  .board .deckbtn{padding:5px 8px;min-height:44px;justify-content:center}
+  .board .deckbtn .m3{display:none}
+  .board .deckbtn{padding:5px 6px}
+  .board .deckbtn .who{font-size:.9rem!important;gap:4px;white-space:normal;line-height:1.05}
+  .dock .board.inDock{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  .board .deckbtn .dkgo{display:none}
+}
+
+/* keywords in the pop-up card */
+.peek b.kw,.sheetmir b.kw,.peekmir b.kw{font-weight:800;color:var(--ink)}
+.kwgloss{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:8px;border-top:1px solid var(--line);flex:none!important}
+.kwgloss .eyebrow{font-size:.62rem}
+.kwgloss dl{margin:0;display:flex;flex-direction:column;gap:5px}
+.kwgloss dl>div{font-size:.84rem;line-height:1.35;color:var(--muted)}
+.kwgloss dt{display:inline;font-weight:800;color:var(--ink)}
+.kwgloss dt::after{content:": "}
+.kwgloss dd{display:inline;margin:0}
+.kwgloss b.kw{font-weight:700;color:var(--ink)}
+.kwminis{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.kwmini{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:var(--bg);box-shadow:inset 0 3px 0 var(--muted);font-size:.78rem;line-height:1.3;color:var(--muted)}
+.kwmini.b{box-shadow:inset 0 3px 0 var(--or)}
+.kwmini.tok{background:color-mix(in srgb,currentColor 10%,var(--surface));box-shadow:inset 0 3px 0 currentColor;color:var(--muted)}
+.kwmini.t-armament{color:var(--or)} .kwmini.t-training{color:var(--azure)} .kwmini.t-shield{color:var(--ok)}
+.kwmini .kwmn{font-weight:700;color:var(--ink);display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.kwmini.tok .kwmn{color:currentColor}
+.kwmini .kwmn i{font-style:normal;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.kwmini .kwmt{color:var(--muted)}
+.kwmini b.kw{color:var(--ink)}
+
+/* turn reminders */
+.board .deckbtn .tchip{align-self:inherit;font-family:var(--f-body);font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 8px;border-radius:999px;margin-top:2px;white-space:nowrap}
+.board .deckbtn .tchip.now{background:currentColor}
+.board .deckbtn.you .tchip.now{background:var(--azure);color:var(--surface)}
+.board .deckbtn.ai .tchip.now{background:var(--gules);color:var(--surface)}
+.board .deckbtn .tchip.passed{border:1px solid var(--muted);color:var(--muted)}
+.board .deckbtn.isout{opacity:.75}
+.board .deckbtn.you.active{border-color:var(--azure);box-shadow:0 0 0 2px var(--azure),0 2px 0 var(--line);animation:turnglow0 1.8s ease-in-out infinite}
+.board .deckbtn.ai.active{border-color:var(--gules);box-shadow:0 0 0 2px var(--gules),0 2px 0 var(--line);animation:turnglow1 1.8s ease-in-out infinite}
+@keyframes turnglow0{50%{box-shadow:0 0 0 2px var(--azure),0 0 14px 3px color-mix(in srgb,var(--azure) 55%,transparent)}}
+@keyframes turnglow1{50%{box-shadow:0 0 0 2px var(--gules),0 0 14px 3px color-mix(in srgb,var(--gules) 55%,transparent)}}
+.turnflash{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:0 16px;background:rgba(10,14,20,.22);cursor:pointer;animation:peekbg .16s ease-out}
+.turnflash.out{opacity:0;transition:opacity .15s}
+.turnflash .tfbox>em{font-style:normal;font-size:.72rem;color:var(--muted);margin-top:6px;letter-spacing:.04em}
+.turnflash .tfbox{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 34px;border-radius:12px;background:var(--surface);border:2px solid currentColor;box-shadow:0 14px 40px rgba(0,0,0,.28);max-width:100%;text-align:center;
+  animation:tfin .28s cubic-bezier(.2,.9,.3,1.1)}
+.turnflash.s0{color:var(--azure)} .turnflash.s1{color:var(--gules)}
+.turnflash .tfbox>b{font-family:var(--f-display);font-weight:400;font-size:clamp(1.9rem,7vw,2.8rem);line-height:1.1}
+.turnflash .tfbox>span{font-size:.92rem;color:var(--muted);font-weight:600}
+.turnflash.theirs .tfbox{box-shadow:0 10px 30px rgba(0,0,0,.18)}
+@keyframes tfin{from{opacity:0;transform:translateY(16px) scale(.92)}}
+@media (prefers-reduced-motion: reduce){ .turnflash,.turnflash .tfbox{animation:none} .board .deckbtn.active{animation:none} }
+@media (max-width:640px){ .board .deckbtn .tchip{font-size:.58rem;padding:0 6px} }
+/* phone footer: large text and buy pips so it reads at arm's length; numbers use the narrower body font so lines don't wrap */
+@media (max-width:640px){
+  .dock .board.inDock .deckbtn .meta{font-family:var(--f-body);font-size:1.02rem;white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.3}
+  .dock .board.inDock .deckbtn .caps{font-size:1.02rem;letter-spacing:0}
+  .dock .board.inDock .deckbtn .caps b{font-family:var(--f-body);font-weight:700}
+  .dock .board.inDock .deckbtn .tchip{font-size:.8rem;padding:2px 9px}
+  .dock .board.inDock .deckbtn .who{font-size:1.08rem!important}
+  .dock .board.inDock .mid .rd{font-size:.8rem;max-width:84px;margin-inline:auto}
+  .dock .board.inDock .mid .sc{font-size:1.6rem}
+  .dock .dhint{font-size:1.06rem}
+  .dock .dphase{font-size:.8rem;padding:2px 9px}
+  .dock .purse{gap:6px}
+  .dock .purse .amt{font-size:2.05rem}
+  .dock .purse .nx{font-size:.88rem}
+  .dock .slots{gap:6px 10px}
+  .dock .slotg{font-size:.82rem;gap:5px;letter-spacing:.02em}
+  .dock .pip{width:21px;height:21px;border-width:2.5px;border-radius:4px}
+  .dock .pip.x{border-radius:50%}
+  .dock .slotg .pips{gap:5px;margin-left:1px}
+  .dock .dbar{gap:8px}
+  .dock .dbar button{padding:12px 16px;font-size:1.02rem}
+}
+/* deck boxes in the footer: label on one line, the enemy's deck icon mirrored to its right; money text in gold */
+.lshort{display:none}
+.dstabs .lshort{display:none}
+@media (max-width:640px){
+  .dock .board.inDock .deckbtn{position:relative}
+  .dock .board.inDock .deckbtn .who{white-space:nowrap;overflow:visible}
+  .dock .board.inDock .deckbtn .lfull{display:none}
+  .dock .board.inDock .deckbtn .lshort{display:inline}
+  .dock .board.inDock .deckbtn.ai .who{flex-direction:row-reverse}
+  .dock .board.inDock .deckbtn .money{color:var(--or);font-weight:600}
+  .dock .purse .nx{color:var(--or)}
+  .dock .slotg .gold{color:var(--or)}
+}
+@media (max-width:640px){
+  .dock .board.inDock .deckbtn .caprow{flex-wrap:nowrap;gap:6px}
+  .dock .board.inDock .deckbtn .caprow .tchip{font-size:.74rem;padding:1px 8px;letter-spacing:.04em}
+}
+@media (max-width:420px){ .dock .board.inDock .deckbtn .caprow .tw{display:none} }
+@media (max-width:370px){ .dock .board.inDock .deckbtn{padding-inline:5px} .dock .board.inDock .deckbtn .caprow .tchip{font-size:.68rem;padding:1px 6px} }
+@media (max-width:370px){ .dock .slotg{font-size:.74rem} .dock .pip{width:18px;height:18px} .dock .purse .amt{font-size:1.8rem} }
+
+.turnflash.theirs{inset:0 0 auto 0;align-items:flex-start;background:none;padding-top:calc(10px + env(safe-area-inset-top,0px));pointer-events:none;animation:none}
+.turnflash.theirs .tfbox{pointer-events:auto;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:4px 12px;padding:8px 18px}
+.turnflash.theirs .tfbox>b{font-size:1.35rem}
+.turnflash.theirs .tfbox>em{margin-top:0}
+.tfnews{display:flex;flex-direction:column;gap:6px;margin-top:10px;width:100%;max-width:440px;text-align:left}
+.tfnews .eyebrow{text-align:center}
+.tfcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:46vh;overflow:auto;padding:2px}
+/* the turn summary's cards are shop cards (cardFace) at the market's size, stamped Bought / Sold */
+.tfcards .tfwrap{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.tfcards .mcard.tfm{width:100%;height:auto!important;aspect-ratio:1/1;min-height:0;text-align:left;background:var(--card, var(--surface))}
+.tfcards .mcard.tfm.sell{border-style:dashed;opacity:.9}
+/* unified: the summary's cards are market cards at the market's measured size, in rows centered in the banner */
+.tfnews{width:min(calc(var(--uw,118px) * 3 + 22px), calc(100vw - 40px))!important;max-width:none!important;align-self:center}
+.turnflash .tfbox:has(.tfnews){padding-left:10px;padding-right:10px;max-width:calc(100vw - 20px)}
+.tfcards{display:flex!important;flex-wrap:wrap;justify-content:center!important;column-gap:8px!important;row-gap:10px!important;max-height:56vh!important}
+.tfcards .tfwrap{width:var(--uw,118px)}
+.tfcards .mcard.tfm{width:var(--uw,118px)!important;height:var(--uh,118px)!important;aspect-ratio:auto!important;flex:none}
+/* the tag sits under the card, outside it, like the stamps under market cards */
+.tftag{max-width:100%;font-size:.7rem;font-weight:700;line-height:1.4;padding:1px 9px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bg);background:var(--gules)}
+.tftag.s0{background:var(--azure)}
+.tftag.sell{background:var(--muted)}
+/* an opponent's card holding on screen before it flies (oppHold): its tag says who did what */
+
+.optag{position:fixed;transform:translateX(-50%);pointer-events:none;padding:2px 10px;border-radius:999px;font-size:.66rem;line-height:1.35;font-weight:700;text-align:center;color:var(--bg);background:var(--gules);white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.22)}
+.optag.s0{background:var(--azure)}
+.optag.sell{background:var(--muted)}
+
+.tfcard{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);box-shadow:inset 0 3px 0 var(--muted);color:var(--muted);font-size:.76rem;line-height:1.3}
+.tfcard.b{box-shadow:inset 0 3px 0 var(--or)}
+.tfcard.s1{border-color:color-mix(in srgb,var(--gules) 45%,var(--line))} .tfcard.s0{border-color:color-mix(in srgb,var(--azure) 45%,var(--line))}
+.tfcard .tfn{font-weight:700;color:var(--ink);font-size:.86rem}
+.tfcard .tfa{font-weight:700;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase}
+.tfcard.s1 .tfa{color:var(--gules)} .tfcard.s0 .tfa{color:var(--azure)}
+.tfcard.sell{opacity:.85;border-style:dashed}
+.tfcard b.kw{color:var(--ink)}
+
+/* ability notes: laid over the battlefield (your units' along the bottom, the enemy's along the top, matching
+   where each side sits), so nothing on the table moves when they appear; tap a note to fold it down to its name */
+.abwin{position:absolute;inset:0;pointer-events:none;z-index:6}
+.abcol{position:absolute;width:210px;max-height:calc(50% - 12px);display:flex;flex-direction:column;gap:6px;min-width:0}
+.abcol.s0{bottom:6px;justify-content:flex-end} .abcol.s1{top:6px}
+.abcol.L{left:0} .abcol.R{right:0}
+.abbox{pointer-events:auto;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:3px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:.8rem;line-height:1.35;color:var(--muted);box-shadow:0 4px 14px rgba(0,0,0,.12);animation:abin .22s ease-out backwards}
+.abbox.s0{box-shadow:inset 3px 0 0 var(--azure),0 4px 14px rgba(0,0,0,.12)}
+.abbox.s1{box-shadow:inset -3px 0 0 var(--gules),0 4px 14px rgba(0,0,0,.12)}
+.abbox .abn{font-weight:800;font-size:.9rem;color:var(--ink)}
+.abbox.s0 .abn{color:var(--azure)} .abbox.s1 .abn{color:var(--gules)}
+.abbox b.kw{color:var(--ink)}
+.abbox .abtg{font-weight:700;color:var(--ink)}
+.abbox.gnote .abn::before{content:'Gear';display:inline-block;vertical-align:2px;margin-right:6px;padding:0 6px;border-radius:999px;background:var(--ink);color:var(--bg);font-size:.6rem;font-weight:700;line-height:1.5;letter-spacing:.02em}
+.card .cgear.gfire{outline:2px solid var(--or);outline-offset:1px;animation:gfire .7s ease-out}
+.gtk.gfire{outline:3px solid var(--or);outline-offset:0;border-radius:8px}
+@keyframes gfire{0%{transform:scale(1)}30%{transform:scale(1.15)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){ .card .cgear.gfire{animation:none} }
+.abbox .lv{padding:0 2px}
+.abbox.min .abt{display:none}
+.abbox.min .abn::after{content:" ›";opacity:.6}
+.ablines{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:5}
+.ablines .abl{fill:none;stroke-width:1.5;stroke-dasharray:4 3;opacity:.8}
+.ablines .abl.s0{stroke:var(--azure)} .ablines .abl.s1{stroke:var(--gules)}
+.ablines .abd.s0{fill:var(--azure)} .ablines .abd.s1{fill:var(--gules)}
+@keyframes abin{from{opacity:0}}
+.abtog[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or)}
+@media (prefers-reduced-motion: reduce){ .abbox{animation:none} }
+@media (max-width:640px){
+  /* phones: pinned to the bottom corners of the screen, just above the bottom bar, wherever the battle is scrolled */
+  /* phones: pinned to the screen, yours just above the bottom bar, the enemy's just under the battle controls,
+     each in the corner nearest its card */
+  .abcol{position:fixed;width:calc(50% - 12px);max-height:30vh;overflow:auto;z-index:15}
+  .abcol.L{left:8px} .abcol.R{right:8px}
+  .abcol.s0{bottom:calc(var(--dockh,100px) + 8px);top:auto}
+  .abcol.s1{top:var(--abtop,8px);bottom:auto}
+  .abbox{font-size:.72rem;padding:5px 7px;line-height:1.3}
+  .abbox .abn{font-size:.8rem}
+}
+body.ingame #view-play{min-height:calc(100dvh - 16px)}
+/* draw piles and the salvage pile: the same rounded square, shaped like the market cards. Decks show card backs
+   (blue units, gold buildings) with the count on top; the salvage pile is face-up, showing the top card's name chip. */
+:root{--pile:46px}
+@media (max-width:640px){ :root{--pile:40px} }
+.dealdeck,.sdeck .dealdeck,.mktp .dealdeck{width:var(--pile);height:var(--pile);margin:0 4px 4px 0}
+.dealdeck .cb{border-radius:7px}
+.dealdeck.empty .cb{background:transparent;border:1.5px dashed var(--line);box-shadow:none}
+.dealdeck.empty .cb:nth-child(-n+2){display:none}
+.pcount{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font-family:var(--f-mono);font-weight:600;font-size:.95rem;font-variant-numeric:tabular-nums;line-height:1}
+.dealdeck .pcount{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7),0 0 6px rgba(0,0,0,.45)}
+.dealdeck.empty .pcount{color:var(--muted);text-shadow:none}
+.sdeck,.mktp .sdeck{padding:2px;gap:6px}
+.mpile,.mktp .mpile{gap:8px;padding:2px}
+.mplbl,.mktp .mplbl{position:static;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;line-height:1}
+.mpcards,.mktp .mpcards{width:calc(var(--pile) + 4px);height:calc(var(--pile) + 4px)}
+.mpc,.mpface,.mktp .mpc,.mktp .mpface{width:var(--pile);height:var(--pile);border-radius:7px}
+.mpface .zh{--chip:calc(var(--pile) - 10px);position:absolute;color:var(--ink);opacity:.32}
+.mpface .pcount,.mktp .mpcount{font-size:.95rem;color:var(--ink);text-shadow:0 0 4px var(--surface),0 0 8px var(--surface)}
+.mpile.empty .pcount{color:var(--muted)}
+.mphit{left:auto;right:-4px;top:-5px}
+@media (max-width:640px){ .mphit{left:auto} .pcount{font-size:.88rem} }
+/* ===== Mobilize: two columns, deck (left) and bench (right), each an overlapping stack of full-size cards =====
+   The deck is held face up like the physical game: the front card at the bottom is shown in full and is the Vanguard;
+   each card behind it shows a strip above it, back to the Rearguard at the top. */
+.forces.mob2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+.forces.mob2 [data-drag]{touch-action:none}
+.forces.mob2 .panel{gap:8px;min-width:0}
+.forces.mob2 h2{display:flex;align-items:center;gap:8px}
+.stack.dgrid{display:flex!important;flex-direction:column;align-items:stretch;gap:0!important;row-gap:0!important;padding:0 0 0!important;grid-template-columns:none!important;
+  --sc:var(--card-sq);--strip:52px;min-height:var(--sc);width:auto}
+#deck-list.stack{padding-left:30px!important;padding-right:26px!important;padding-top:4px!important}
+#bench-list.stack{padding-right:4px!important}
+/* every Mobilize card is the same square as everywhere else in the game */
+.stack.dgrid>.mcard:not(.peek),.stack.dgrid>.dropgap{flex:none;width:var(--sc)!important;height:var(--sc)!important;min-height:0!important;aspect-ratio:1/1!important;position:relative;margin:0}
+.dempty{width:var(--sc)}
+.stack.dgrid>*:not(:last-child){margin-bottom:calc(var(--strip) - var(--sc))!important}
+.stack.dgrid>.mcard:not(:last-child){box-shadow:inset 0 3px 0 var(--muted),0 -2px 6px rgba(0,0,0,.08)}
+/* tokens on a deck card are whole cards tucked behind it, never cut off */
+#deck-list.stack .mcard.drow:not(.peek){overflow:visible!important}
+/* gear: a pill on the deck card (tap to unequip), the gear cards on the bench, a tag on battle cards */
+.gearchip{position:absolute;top:27px;right:6px;max-width:calc(100% - 12px);z-index:3;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;
+  background:var(--ink);color:var(--bg);font-size:.72rem;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.gearchip .gx{opacity:.7;font-weight:400}
+.gearchip:hover .gx{opacity:1}
+.mcard.gearc{cursor:pointer}
+.mcard.gearc.picked{outline:3px solid var(--or);outline-offset:-1px}
+.card .cgear{display:block;flex:none;margin:-4px auto 1px;position:relative;z-index:1;max-width:100%;padding:1px 6px;border-radius:999px;background:var(--ink);color:var(--bg);font-size:.6rem;font-weight:700;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;width:max-content}
+.card.mini .mgear{font-size:.7em;opacity:.8}
+.stack .mcard>button,#bench-list.stack .mcard.bcard:not(.peek)>button{display:none!important}
+.dempty{display:flex;align-items:center;justify-content:center;text-align:center;height:var(--sc);border:2px dashed var(--line);border-radius:8px;color:var(--muted);font-size:.85rem;padding:10px}
+.stack:has(.dropgap) .dempty{display:none}
+/* fight order: a numbered rail on the left, the front card ringed, and labels at the back and the front */
+.dord{position:absolute;left:-30px;top:4px;width:26px;display:flex;flex-direction:column;align-items:center;line-height:1;color:var(--muted);pointer-events:none}
+.dord b{font-family:var(--f-mono);font-weight:600;font-size:.82rem;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:var(--surface)}
+.dord i{font-style:normal;font-size:.56rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-top:3px}
+.dord.van,.dord.rear{color:var(--ink)}
+.dord.van{color:var(--azure)}
+.dord.van b{background:var(--azure);border-color:var(--azure);color:var(--bg)}
+.dragghost .dord{display:none}
+.mcard.drow.isvan:not(.dragghost){outline:2px solid var(--azure);outline-offset:2px}
+.dend{display:flex;align-items:center;gap:6px;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted);padding-left:30px}
+.dend span{padding:1px 6px;border-radius:999px;border:1px solid currentColor}
+.dend.front{color:var(--azure)}
+.dend.front span{background:var(--azure);border-color:var(--azure);color:var(--bg)}
+/* bench tokens: the same size and shape as a unit card, one per kind, with how many are left */
+.mcard.tcard{cursor:grab;user-select:none;-webkit-user-select:none;align-items:stretch}
+.mcard.tcard.arm{box-shadow:inset 0 3px 0 var(--or);border-color:color-mix(in srgb,var(--or) 55%,var(--line))}
+.mcard.tcard.sh{box-shadow:inset 0 3px 0 var(--muted);border-color:color-mix(in srgb,var(--muted) 55%,var(--line))}
+.mcard.tcard.sh .tn,.mcard.tcard.sh .tbig{color:var(--muted)}
+.mcard.tcard.tr{box-shadow:inset 0 3px 0 var(--azure);border-color:color-mix(in srgb,var(--azure) 55%,var(--line))}
+.mcard.tcard .tn{font-family:var(--f-mono);font-weight:700;font-size:.9rem!important}
+.mcard.tcard.arm .tn,.mcard.tcard.arm .tbig{color:var(--or)} .mcard.tcard.tr .tn,.mcard.tcard.tr .tbig{color:var(--azure)}
+.mcard.tcard .tbig{display:flex;justify-content:center;margin:auto 0;line-height:0}
+.mcard.tcard .tbig .gi{width:calc(var(--card-sq) * .3);height:calc(var(--card-sq) * .3);margin:0;vertical-align:0}
+.mcard.tcard .stx{display:block!important;font-size:.7rem;line-height:1.2;color:var(--muted);-webkit-line-clamp:unset!important;margin-top:0!important;padding-top:0!important}
+.mcard.tcard{justify-content:flex-start}
+/* custom token icons in small places: card edges, chips, the deck count, battle arrows */
+.mcard.drow .pkhit .gi{width:100%;height:auto;margin:0;vertical-align:top}
+.card .pk{display:flex;justify-content:center;align-items:flex-start;box-sizing:border-box;padding:2px 2px 0 1px}
+.card[data-side="1"] .pk{padding:0 1px 2px 2px;align-items:flex-end}
+.card .pk .gi{width:calc(var(--px) - 4px);height:calc(var(--px) - 4px);margin:0;vertical-align:top;flex:none}
+.tokchip .ico .gi{width:80%;height:80%;margin:0;vertical-align:0;fill:var(--bg)}
+.deckp>.note .gi{width:1.15em;height:1.15em;vertical-align:-.22em;margin:0}
+.arlic{opacity:0;animation:arlin .2s ease-out forwards}
+.arlic.t-arm{fill:var(--or)} .arlic.t-tr{fill:var(--azure)} .arlic.t-sh{fill:var(--muted)} .arlic.t-rec{fill:var(--ok)}
+.arrows.still .arlic,.arrows.quiet .arlic{animation:none;opacity:1}
+@media (prefers-reduced-motion: reduce){ .arlic{animation:none;opacity:1} }
+.mcard.tcard.picked{background:var(--or-soft)!important;outline:2px solid var(--or);outline-offset:2px}
+.mcard.tcard.dragging{opacity:.5}
+/* the ⓘ for the phase you're in */
+.infob{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-height:0!important;padding:0!important;border-radius:50%;font-family:var(--f-body);font-style:italic;font-weight:700!important;font-size:.85rem;line-height:1;color:var(--muted);flex:none}
+.dock .dbar .infob{width:30px;height:30px;font-size:1rem}
+.dock .dbar .dphase{flex:none;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--or);color:var(--bg)}
+
+/* ===== ONE CARD SIZE: market, deck view and Mobilize =====
+   Every card in those three places is drawn by cardFace() and is a square of --card-sq. Change the size here and
+   it changes everywhere; the older --ch / --chd heights all point at it. Phones fit three across. */
+:root{--card-sq:140px}
+@media (max-width:860px){ :root{--card-sq:clamp(96px, calc((100vw - 64px) / 3), 132px)} }
+.mktp,.fcards,.dgrid,.deckwrap,.stack{--ch:var(--card-sq)!important;--chd:var(--card-sq)!important}
+/* market: columns are the card's width, so each card is a true square */
+.market{grid-template-columns:minmax(0,var(--card-sq)) 2px repeat(5,minmax(0,var(--card-sq)))!important;justify-content:start}
+.market.plain{grid-template-columns:repeat(6,minmax(0,var(--card-sq)))!important}
+@media (max-width:860px){ .market,.market.plain{grid-template-columns:repeat(3,minmax(0,var(--card-sq)))!important;justify-content:center} }
+.mktp .mcard:not(.peek):not(.masonpick),.mktp .mirwrap>.mcard:not(.peek){height:auto!important;aspect-ratio:1/1!important;min-height:0!important}
+/* deck view (the scoreboard's deck buttons) */
+.fcards{grid-template-columns:repeat(auto-fill,var(--card-sq))!important}
+.fcards .mcard:not(.peek){height:auto!important;aspect-ratio:1/1!important;min-height:0!important;width:var(--card-sq)}
+
+/* attached tokens: a tab on top of each tucked-behind token card, with its icon and name */
+.mcard.drow .pkhit.tkt{position:absolute;z-index:1;width:auto;display:flex;align-items:center;gap:3px;padding:0 5px;font-size:.56rem;font-weight:700;letter-spacing:.02em;line-height:1;white-space:nowrap;overflow:hidden;border-radius:7px 7px 0 0;background:none;cursor:pointer}
+.mcard.drow .pkhit.tkt .gi{width:10px;height:10px;flex:none;margin:0;vertical-align:0}
+.mcard.drow .pkhit.tkt span{overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.mcard.drow .pkhit.tkt::before{display:none}
+.mcard.drow .pkhit.tkt:hover{background:color-mix(in srgb, currentColor 14%, transparent)}
+.mcard.drow .pkhit.gtk{position:absolute;z-index:1;width:auto;display:flex;align-items:center;gap:4px;padding:0 5px;font-size:.56rem;font-weight:700;letter-spacing:.02em;line-height:1;white-space:nowrap;overflow:hidden;border-radius:7px 7px 0 0;background:none;cursor:pointer}
+.mcard.drow .pkhit.gtk span{overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.mcard.drow .pkhit.gtk i{font-style:normal;margin-left:auto;opacity:.6;padding-right:2px}
+.mcard.drow .pkhit.gtk::before{display:none}
+.mcard.drow .pkhit.gtk:hover{background:color-mix(in srgb, currentColor 12%, transparent)}
+.mcard.drow .pkhit.gtk:hover i{opacity:1}
+.dragwrap>.mcard.drow.dragghost{overflow:visible!important}
+@media (max-width:640px){
+  .forces.mob2{gap:6px}
+  .forces.mob2 .panel{padding:8px 6px}
+  .forces.mob2 h2{font-size:1.05rem}
+  .forces.mob2 .deckp .infob{display:none}
+  .forces.mob2 .deckp>.row{display:none}
+  .forces.mob2 .deckp>.note{font-size:.76rem}
+  .stack.dgrid{--strip:54px}
+  #deck-list.stack{padding-left:28px!important;padding-right:20px!important}
+  .dord{left:-28px}
+  .dend{padding-left:28px;font-size:.6rem;letter-spacing:.06em}
+}

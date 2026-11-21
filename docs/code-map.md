@@ -1,35 +1,56 @@
 # Code map
 
-Search by name or banner; line numbers drift. Sections are marked with banners like
-`/* ===================== BATTLE ENGINE ===================== */`, so `grep -n '=====' index.html | cut -c1-120`
-gives a table of contents.
+Search by name or banner; line numbers drift. Sections inside a file are marked with banners like
+`/* ===================== BATTLE ENGINE ===================== */`, so `grep -n '=====' js/engine.js | cut -c1-120`
+gives a table of contents. `grep -rn NAME js css` finds anything across files.
 
-## Files
-- `index.html` (~1.1 MB, ~12,900 lines): the whole game. CSS first, then the script blocks below.
+## Files (split out of one 1.1 MB index.html in Nov 2026, v57)
+The artifact and this repo have the same file tree. Every script is a plain classic script: they all share one
+global scope and run in the order index.html loads them, exactly like the old inline blocks.
+- `index.html` (~24 KB): the page markup, the 372-byte reset style, the `#snapshot` JSON (balance, AI, ratings,
+  card stats, one long line, about 13 KB in Nov 2026), and the `<link>` / `<script src>` tags below, in order.
+- `css/` (loaded in this order; later files restyle earlier ones, so search every file for a selector):
+  `01-battle-card.css` (battle card look, Marcellus import) → `02-board-settings.css` (Board settings / table view)
+  → `03-main.css` (the big base layout) → `04-desktop-art.css` (art cards, desktop panel) → `05-fixes.css` (later
+  fixes) → `06-mobile-crop.css` (phone type-tab crop) → `07-no-anchor.css` → `08-cards-tab.css`.
+  Image paths in CSS are relative to the CSS file: `url(../art/...)`.
+- `js/vendor/peerjs.min.js`: PeerJS (online play). Don't edit.
+- `js/engine.js`: rules + AI. Also runs in Web Workers (loaded by URL, see `engineWorkerURL`) and in the tests, so
+  **no DOM code here**.
+- `js/names.js`: `OASIS_NAMES`, `dispName`, `oasisText`, and the live renamer. `js/art.js`: `OASIS_ART`, `TOK_ART`,
+  `artURL`.
+- `js/ui/NN-*.js`: the main UI, one file per area, in load order:
+  `00-core` (error safety net, `engineWorkerURL`, shared UI helpers, sound, who is viewing, game lengths) ·
+  `01-battle-view` · `02-match-recorder-ai-worker` (match recorder, AI thinking in a worker) · `03-card-motion` ·
+  `04-online` · `05-shop-moves` · `06-market-popups-tokens` (market decks, peek window, the pop-up, token slides) ·
+  `07-battle-steps` (step animation, ability notes, auto-play, `goFrame`, `stepForward`) ·
+  `08-flips-reminders-banners` (market card flip, pass reminders, turn banners) · `09-play-screen` (`renderPlay`,
+  battle centering, save/resume, deals, stacking order `LAYER`; ends with the renderPlay error-box and reserved-rows
+  layers) · `10-mobilize-input` (tap and drag in Mobilize) · `11-self-play` (worker pool) · `12-train-view` ·
+  `13-stats-view` · `14-balance-lab` · `15-sync-roles-ratings` (keep scroll, share with Claude, one AI everywhere,
+  player mode, finalized balance, ratings) · `16-new-game` · `17-card-peek-tooltips` (ends with the STARTUP SYNC,
+  which must start after every UI file has loaded).
+- `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
+  glow) · `js/board-settings.js` (`LAB_DEF`, `OASIS_BUILD`, table view, depth, splay, clash, cube hooks) ·
+  `js/cards-tab.js` (Cards tab).
 - `cubes.js` (~640 KB): a minified three.js bundle that draws the 3D wooden damage cubes. It exposes
   `window.OasisCubes` (`warm`, `prepare`, `afterRender`, `settle`, `koNow`). Don't edit it by hand; it's loaded
   `defer` at the end of index.html.
 - `art/<Oasis name>.webp`: Brian's Dextrous card fronts (750×1037), mirrored from the artifact's `art/` folder.
   `art/tabmask.svg` is the phone crop shape.
-- `tools/check-page.mjs`: syntax + repeated-global-name check for every script block (run before every publish).
-- `tools/golden.mjs` + `golden.json`: engine golden test. `tools/refresh-snapshot.mjs`: snapshot refresh.
+- `tools/`: `check-page.mjs` (syntax, repeated global names, load order), `golden.mjs` + `golden.json` (engine golden
+  test), `screens.mjs` + `screens-diff.mjs` (seeded-game screenshots, before/after), `refresh-snapshot.mjs`,
+  `page-files.mjs` (shared: finds the page's scripts).
 
-## Script blocks in index.html (in order)
-1. PeerJS (minified, online play)
-2. `<script type="application/json" id="snapshot">`: balance, AI, ratings, card stats (one long line, about 13 KB in Nov 2026)
-3. `<script id="engine">`: rules + AI. Also runs in Web Workers and in the tests, so **no DOM code here**.
-4. `<script id="oasis-names">`: `OASIS_NAMES`, `dispName`, `oasisText`, and the live renamer
-5. `<script id="oasis-art">`: `OASIS_ART` (cards with Dextrous art), `TOK_ART`, `artURL`
-6. Main UI script (the biggest block)
-7. Small fix-up script: `resumeOrStart`
-8. `<script id="oasis-desktop-js">`: desktop card panel on the right (≥1200 px), hover to read full size
-9. `<script id="oasis-mobile-crop-js">`: phone crop to the type tab (inline `#tabclip` clip path); reuses card images
-   between redraws
-10. `<script id="lab-js">`: Board settings (`LAB_DEF`, saved in `localStorage.oasisBoard`), table view, depth, splay,
-    the clash animation, cube hooks
-11. `<script id="oasis-cards-js">`: Cards tab, built with `cardFace()` and `openPeek`
+## Rules for the split files
+- **Load order matters at load time only.** Code at the top level of a file (not inside a function) runs as the file
+  loads and can only use names from this file or earlier ones. Wrapping a function (`const f = x; x = ...`) is
+  top-level code: it goes after the file that declares `x`. `check-page.mjs` catches mistakes.
+- Calls inside functions, event handlers and timers can use anything, since they run after the page has loaded.
+- New code goes in the file for its area. A new area gets a new numbered file and a `<script src>` line in
+  index.html at the right place; list it here.
 
-## Engine (`#engine`)
+## Engine (`js/engine.js`)
 Banners: CARD DATA → BATTLE ENGINE (incl. battle miracles) → FULL GAME → MIRACLES → BALANCE OVERRIDES → AI (rated
 strength ladder, gear for the AI, opponent model) → SEARCH → playouts → mixed mobilize → COMBO TABLE → LEARNING →
 TRAINING (evolution strategies, SPRT safety check, hall of fame, learned pairings, situational opinions).
@@ -44,7 +65,7 @@ TRAINING (evolution strategies, SPRT safety check, hall of fame, learned pairing
 - Stats: `recordStats(stats, g)` covers card win rates plus `__pairs` (same side), `__adj` (front → behind) and
   `__vs` (counters), all per battle. Buildings in a city count as part of that side (`g.battles[].c`).
 
-## Main UI script
+## Main UI (`js/ui/`)
 Banners: SHARED UI HELPERS → SOUND → WHO IS VIEWING → GAME LENGTHS → BATTLE VIEW → PLAY → MATCH RECORDER → AI THINKING
 → CARD MOTION (shop) → ONLINE PLAY → SHOP MOVES → MIRACLES IN HAND → SELF-PLAY → TRAIN VIEW → STATS VIEW → BALANCE LAB
 → SHARE WITH CLAUDE (db) → ONE AI EVERYWHERE → PLAYER MODE → FINALIZED BALANCE → RATINGS → NEW GAME: MODE + SETUP →
@@ -58,18 +79,20 @@ CARD PEEK (keywords) → TOOLTIPS.
   `doMove` until v56, which clashed with the engine's `doMove(g, j, m)` (the AI's trial moves). Don't reuse engine names.
 - Server sync (artifact only): `pushBrain` (AI in chunks `aibrain/c0..`, meta `ai/brain`), `loadPlayerStats`
   (`sync/*`), ratings `calibration/ladder`.
-- Workers: `aiWorkerMain`, `workerMain` (source = engine text + function).
+- Workers: `aiWorkerMain`, `workerMain`. `engineWorkerURL(main)` (00-core) builds the worker: `importScripts` of
+  js/engine.js plus that function, so there is only one copy of the engine.
 
 ## Stacked wrappers: check every layer
 Later script blocks wrap earlier functions instead of editing them (`const rp = renderPlay; renderPlay = function(){
 ... rp.apply(this, arguments) ... }`). Currently wrapped:
-- `renderPlay` (5 layers): error box (oasis-art); reserved battle row heights (next to `goFrame`); image reuse
-  between redraws, then cube sync + ability-note fade (mobile-crop-js); `lab-inbattle` body class (lab-js)
-- `cardHTML`: card stock and light layers (lab-js)
-- `cardPop`, `openPeek`: eager art / canvas (mobile-crop-js)
-- `goFrame` (2 layers): cube lift-off / settle and heal refill (mobile-crop-js); splay glide of a new revealed unit
-  (lab-js). The save slide-under (`deckFly`) is in the base function.
-- `pokeArt`: reassigned in lab-js (copies in one band with a count; room always `STACK_MAX` bands, see `labFixedRoom`)
+- `renderPlay` (5 layers, innermost first): error box, then reserved battle row heights (both at the end of
+  js/ui/09-play-screen.js); image reuse between redraws, then cube sync + ability-note fade (js/mobile-crop.js);
+  `lab-inbattle` body class (js/board-settings.js)
+- `cardHTML`: card stock and light layers (js/board-settings.js)
+- `cardPop`, `openPeek`: eager art / canvas (js/mobile-crop.js)
+- `goFrame` (2 layers): cube lift-off / settle and heal refill (js/mobile-crop.js); splay glide of a new revealed
+  unit (js/board-settings.js). The save slide-under (`deckFly`) is in the base function.
+- `pokeArt`: reassigned in js/board-settings.js (copies in one band with a count; room always `STACK_MAX` bands, see `labFixedRoom`)
 - `reserveRows`: fixed room per spot from `labFixedRoom`, row heights kept across battles in `window.__rowKeep`
 These layers are a known tangle; merging them into their base functions is planned cleanup (rule 7: add no more).
 
@@ -96,7 +119,7 @@ is a square", then the art-card and Board-settings rules). Search for every rule
   (`ui.deckView`, `deckSheetHTML`), discard / Black Market / Vision (`ui.pkWin` 'salvage' / 'peek'), Mason's Guild
   ('mason'). Rendered by `peekWinHTML`; `wireSwipe` = drag to dismiss; `popShut()` / `closePkWin()` close it. Phone:
   bottom sheet; wider: centered. Selling from it: card lifts, pop-up closes, then `flySell(..., lifted)`.
-- **Large card view:** `openPeek` / `cardPop`. **Damage cubes:** `OasisCubes` via the hooks in lab-js.
+- **Large card view:** `openPeek` / `cardPop`. **Damage cubes:** `OasisCubes` via the hooks in js/board-settings.js.
 - **Helpers:** `$` (getElementById) and the rest of SHARED UI HELPERS; scroll kept on re-render (KEEP SCROLL).
 
 ## Battle record (what the screen reads)

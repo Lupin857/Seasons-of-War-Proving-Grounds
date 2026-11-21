@@ -1,0 +1,73 @@
+
+/* ---- battle card look: medallion banner with live power (Marcellus), level tag, health under the card ---- */
+@import url('https://fonts.googleapis.com/css2?family=Marcellus&display=swap');
+html body .card.hasart>.livepow{display:none}
+html body .card.hasart>.mbn{position:absolute;left:-1.333%;top:0;margin-top:-1.2%;width:37.576%;aspect-ratio:732/400;z-index:3;pointer-events:none;container-type:inline-size}
+html body .card.hasart>.mbn img{width:100%;height:100%;display:block}
+html body .card.hasart>.mbn b{position:absolute;left:69.5%;top:52.5%;transform:translate(-50%,-50%);font:400 23.4cqw/1 Marcellus,serif;color:#2b211a}
+html body .card.hasart>.mbn b.up{color:#2f7a35} html body .card.hasart>.mbn b.down{color:#a3322a}
+html body .card.hasart>.hprow,html body .table .card.hasart:not(.mini)>.hprow{position:absolute;left:0;right:0;top:calc(100% + 6px);bottom:auto;background:none;padding:0;border-radius:0;color:var(--ink);gap:6px;z-index:2}
+html body .card.hasart>.hprow .hpn,html body .card.hasart>.hprow .hpn b{color:var(--ink)!important} .card.hasart>.hprow .hpn.hurt b{color:var(--gules)!important}
+html body .card.hasart>.hprow .hp{height:6px;border-radius:3px;background:var(--sunk);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+html body .card.hasart>.hprow .lvt{flex:none;padding:0 6px;border-radius:999px;border:1px solid #a7834b;color:#6b4e22;background:var(--surface);font:800 10px/15px var(--f-body);letter-spacing:.06em}
+html body .table .card.hasart:not(.mini){margin-bottom:24px}
+html body .stage .table .charge>.card.hasart{margin:var(--rt, 0px) 0 24px 0!important}
+html body .card.hasart>.tk.ctk>img{width:100%;height:100%;display:block;object-fit:cover;object-position:center top}
+@media (max-width:640px){
+  html body .card.hasart>.hprow{gap:4px;top:calc(100% + 4px)} html body .card.hasart>.hprow .lvt{font-size:9px;line-height:13px;padding:0 4px}
+  html body .card.hasart>.hprow .hpu{display:none} html body .card.hasart>.hprow .hpn{font-size:10px}
+  html body .card.hasart>.hprow .hp{height:5px}
+}
+/* an ability firing: the card's border glows gold for a moment */
+html body .card>.trigglow{position:absolute;inset:0;border-radius:5% / 3.6%;pointer-events:none;z-index:6;animation:abtrig .9s ease-out both}
+@keyframes abtrig{0%{box-shadow:0 0 0 0 rgba(232,207,149,0)}25%{box-shadow:0 0 0 3px #e8cf95,0 0 22px 6px rgba(232,180,90,.75)}70%{box-shadow:0 0 0 3px #e8cf95,0 0 18px 4px rgba(232,180,90,.5)}100%{box-shadow:0 0 0 0 rgba(232,207,149,0)}}
+@media (prefers-reduced-motion: reduce){ html body .card>.trigglow{animation:none;box-shadow:0 0 0 3px #e8cf95} }
+@media (min-width:641px){
+  html body .battlectl{position:sticky;top:0;z-index:12;background:var(--surface);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+}
+.abghost{position:fixed;inset:0;pointer-events:none;z-index:6;transition:opacity .28s ease}
+.abghost.out{opacity:0}
+.abghost .abbox,.abwin.kept .abbox{animation:none;pointer-events:none}
+.abghost .ablines{z-index:5}
+html body .abcol{scrollbar-width:none} html body .abcol::-webkit-scrollbar{display:none}
+/* battle board: nothing moves between steps. Each zone fills its (reserved) row; its label stays on the player's
+   edge of the table and its cards stay anchored toward the middle, so stacks and graveyards change without pushing
+   anything else. The top player's graveyard lists down from its label. */
+html body .table .trow,html body .table .trow.s1,html body .table .trow.s0{align-items:stretch}
+html body .table .trow.s1 .tz>.tzc{margin-top:auto}
+html body .table .trow.s1 .grz>.tzc{margin-top:0}
+html body .table .trow.s0 .tz>.tzc{margin-bottom:auto}
+/* room for the most copies/tokens a card spot holds this battle, so the card face never shifts (see reserveRows) */
+html body .stage .table .tz.rsv .tzc>.card.hasart:not(.mini),
+html body .stage .table .tz.rsv .charge>.card.hasart:not(.mini){margin-top:var(--rsvT,0px)!important}
+html body .stage .table .tz.rsv.deckz .tzc>.card.hasart:not(.mini){margin-left:var(--rsvL,0px)!important}
+html body .stage .table .tz.rsv .tzc>.slot.labempty{margin-top:var(--rsvT,0px)!important;margin-left:var(--rsvL,0px)!important}
+/* the empty-deck outline stays on the board under the deck's top card, in the same spot it takes when the deck runs out */
+html body .stage .table .tz.deckz>.tzc{position:relative;isolation:isolate}
+html body .stage .table .tz.deckz .tzc>.slot.labslot.under{position:absolute;left:0;top:0;margin:0!important;z-index:-20;pointer-events:none}
+html body .stage .table .tz.rsv.deckz .tzc>.slot.labslot.under{top:var(--rsvT,0px);left:var(--rsvL,0px)}
+/* empty spots are labelled in the board's own lettering, like the zone labels */
+html body .table .slot.labempty,html body .table .grz .labempty{font-size:.64rem!important;letter-spacing:.12em!important;text-transform:uppercase!important;font-weight:800!important;color:#6e5a3e!important;font-family:inherit;text-align:center}
+/* cards without art and an empty charge zone keep the same room too */
+html body .stage .table .tz.rsv .tzc>.card:not(.hasart):not(.mini),
+html body .stage .table .tz.rsv .charge>.card:not(.hasart):not(.mini){margin-top:var(--rsvT,0px)!important;margin-bottom:24px!important;margin-right:0!important}
+/* zone labels are one fixed height (with or without the deck-count chip, before or after the fonts load) */
+html body .stage .table .tz>.zl{height:22px;min-height:0;box-sizing:border-box;white-space:nowrap}
+@media (max-width:640px){ html body .stage .table .tz>.zl{height:32px} }
+html body .stage .table .tz.rsv.deckz .tzc>.card:not(.hasart):not(.mini){margin-left:var(--rsvL,0px)!important}
+html body .stage .table .tz.rsv .charge>.slot.labempty{margin-top:var(--rsvT,0px)!important}
+/* an empty outline keeps the strip under it that a card keeps for its health bar, so the outline and a card sit in
+   exactly the same spot on both sides of the table (the AI's zones are anchored from the bottom) */
+html body .stage .table .tz .tzc>.slot.labslot:not(.under),html body .stage .table .tz .charge>.slot.labslot:not(.under){margin-bottom:24px!important}
+/* the empty-charge and empty-graveyard outlines are part of the board too, under whatever sits on them */
+html body .stage .table .tz.chz .charge{position:relative;isolation:isolate}
+html body .stage .table .tz.chz .charge>.slot.labslot{box-sizing:border-box;width:var(--bcw);height:var(--bch);flex:none}
+html body .stage .table .tz.chz .charge>.slot.labslot.under{position:absolute;left:0;top:0;margin:0!important;z-index:-20;pointer-events:none}
+html body .stage .table .tz.rsv.chz .charge>.slot.labslot.under{top:var(--rsvT,0px)}
+html body .stage .table .tz.grz>.tzc{position:relative;isolation:isolate}
+html body .stage .table .tz.grz .tzc>.labslot.under{position:absolute;left:0;top:0;z-index:-20;pointer-events:none}
+/* the result row's space is held from the first step */
+.stage + .row.tailwait{visibility:hidden}
+html body .battlectl .note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* the cube layer: over the table, under the sticky bars */
+.cubegl{position:fixed;left:0;top:0;right:0;bottom:0;width:100%;height:100%;pointer-events:none;z-index:7;display:block}
