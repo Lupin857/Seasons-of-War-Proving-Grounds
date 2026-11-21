@@ -8623,7 +8623,7 @@ function fadeArrows(svg, into){
 function placeArrow(path, stage, sr){
   const A = path._arw; if (!A) return;
   const find = id => id && (stage.querySelector(`.card[data-uid="${id}"]`) || stage.querySelector(`.grave [data-uid="${id}"]`));
-  const te = find(A.to); if (!te) return;
+  const te = A.tok === 'ret' ? bDeckEl(+String(A.to).split('-')[0]) : find(A.to); if (!te) return;   // a save points into the deck the unit went back into
   // a blocked hit points at the Shield it breaks (the outermost one on that card), not the card
   const she = A.shield ? (x => x && (x.querySelector('.tkband') || x))(te.querySelector(':scope > .pk.shhit') || [...te.querySelectorAll(':scope > .pk[data-k="sh"]')].pop()) : null;
   const tr = (she || te).getBoundingClientRect();
@@ -8814,7 +8814,7 @@ function mountAbWin(){
   const zoneOf = ab => { if (!ab.u) return null; const [o, id] = ab.u.split('-').map(Number), sd = f.snap[o];
     if (sd.charge && sd.charge.uid === id) return 'charge'; if (sd.deck.some(u => u.uid === id)) return 'deck'; if (sd.grave.some(u => u.uid === id)) return 'grave'; return null; };
   const half = g => {
-    const z = zoneOf(g.ab), s0 = VS(g.ab.s) === 0;
+    const z = abIsSave(g) ? 'deck' : zoneOf(g.ab), s0 = VS(g.ab.s) === 0;
     if (z) return z === 'deck' ? (s0 ? 'L' : 'R') : (s0 ? 'R' : 'L');
     const el = abSrcEl(stage, g.ab); if (!el) return s0 ? 'L' : 'R'; const r = el.getBoundingClientRect(); return r.left + r.width / 2 < mid ? 'L' : 'R'; };
   const where = gs.map(half);
@@ -8856,7 +8856,7 @@ function placeAbLines(stage, svg, gs){
     const box = stage.querySelector(`.abbox[data-abi="${i}"]`); if (!box) return;
     const ab = g.ab, br = box.getBoundingClientRect();
     // from the midpoint of the card's side nearest its note to the midpoint of the note's side nearest the card
-    const el = abSrcEl(stage, ab); if (!el) return;
+    const el = (abIsSave(g) && bDeckEl(ab.s)) || abSrcEl(stage, ab); if (!el) return;
     const r = el.getBoundingClientRect(); if (!r.width) return;
     const P = sideLink(r, br, sr, 0), C = linkCurve(P.a, P.b, 0);
     out += `<path class="abl s${VS(ab.s)}" d="${C.d}"/><circle class="abd s${VS(ab.s)}" cx="${P.a.x}" cy="${P.a.y}" r="3.5"/><circle class="abd s${VS(ab.s)}" cx="${P.b.x}" cy="${P.b.y}" r="2.5"/>`;
@@ -8879,7 +8879,7 @@ function drawArrows(list, animate, rects){
   const find = id => id && (stage.querySelector(`.card[data-uid="${id}"]`) || stage.querySelector(`.grave [data-uid="${id}"]`));
   const lane = [0, 0];
   for (const h of pairs.values()){
-    const te = find(h.to); if (!te || (h.from && !find(h.from) && h.tok)) continue;
+    const te = h.tok === 'ret' ? bDeckEl(+String(h.to).split('-')[0]) : find(h.to); if (!te || (h.from && !find(h.from) && h.tok)) continue;
     drawn++;
     let chipSel = null;
     if (!h.from){   // a building: point from its chip in that player's city row
@@ -9088,47 +9088,43 @@ function savedIds(prevF, nextF){
   });
   return out;
 }
-// A saved unit goes back into its deck instead of vanishing: it lifts off the table, travels to its deck, comes to rest
-// beside it, and slides in underneath (the deck is held face up, so the bottom of the deck is under the pile). The copy
-// flies inside the deck zone itself, so it can really pass under the top card.
-function deckFly(r0, side){
+// A saved unit goes back into its deck instead of vanishing: it slides straight from where it was into its deck,
+// under the top card (the deck is held face up, so the bottom of the deck is under the pile). The copy moves inside
+// the deck zone itself, beneath the top card the whole way, so it never crosses over the pile.
+function bDeckEl(side){
   const row = document.querySelector(`#view-play .stage .trow.s${VS(side)}`), dz = row && row.querySelector('.deckz');
-  const tgt = dz && (dz.querySelector(`.tzc > .card[data-side="${side}"]:not(.mini)`) || dz.querySelector('.tzc > .slot'));
-  const box = tgt && tgt.parentNode;
-  if (!tgt || !box || !r0.clone || !tgt.animate) return;
-  const g = r0.clone, rt = tgt.getBoundingClientRect(), W = tgt.offsetWidth, H = tgt.offsetHeight;
-  if (!rt.width || !W) return;
+  return dz && (dz.querySelector(`.tzc > .card[data-side="${side}"]:not(.mini):not(.deckfly)`) || dz.querySelector('.tzc > .slot'));
+}
+function deckFly(r0, side){
+  const tgt = bDeckEl(side), dz = tgt && tgt.closest('.deckz'), box = tgt && tgt.parentNode;
+  if (!tgt || !dz || !box || !r0.clone || !tgt.animate) return;
+  const g = r0.clone, W = tgt.offsetWidth, H = tgt.offsetHeight;
   g.removeAttribute('data-uid'); g.removeAttribute('id');
   g.classList.remove('shake', 'lunge0', 'lunge1', 'tokanim'); g.classList.add('deckfly');
   for (const f of g.querySelectorAll('.float, .trigglow, .hprow')) f.remove();   // (its health bar stays behind: the deck has its own)
-  g.setAttribute('aria-hidden', 'true'); g.setAttribute('data-keep', '');   // a redraw mid-flight leaves it alone
-  const tz = dz, prev = {pos:tz.style.position, z:tz.style.zIndex, iso:box.style.isolation, bpos:box.style.position};
-  tz.style.position = 'relative'; tz.style.zIndex = 20; box.style.isolation = 'isolate';
+  g.setAttribute('aria-hidden', 'true'); g.setAttribute('data-keep', '');   // a redraw mid-slide leaves it alone
+  const prev = {pos:dz.style.position, z:dz.style.zIndex, iso:box.style.isolation, bpos:box.style.position};
+  dz.style.position = 'relative'; dz.style.zIndex = 20; box.style.isolation = 'isolate';
   if (getComputedStyle(box).position === 'static') box.style.position = 'relative';   // before reading offsets: they're from here
-  const st = g.style;
+  const rt = tgt.getBoundingClientRect();
+  if (!rt.width || !W){ dz.style.position = prev.pos; dz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; return; }
   for (const [k, v] of [['position', 'absolute'], ['margin', '0'], ['left', tgt.offsetLeft + 'px'], ['top', tgt.offsetTop + 'px'],
-    ['width', W + 'px'], ['height', H + 'px'], ['pointer-events', 'none'], ['transform-origin', '50% 50%']]) st.setProperty(k, v, 'important');
+    ['width', W + 'px'], ['height', H + 'px'], ['pointer-events', 'none'], ['transform-origin', '50% 50%'], ['z-index', '-1']]) g.style.setProperty(k, v, 'important');
   // screen px to the zone's own px (the table is tilted and zoomed)
   const kx = W / rt.width, ky = H / rt.height;
   const dx = ((r0.left + r0.width / 2) - (rt.left + rt.width / 2)) * kx, dy = ((r0.top + r0.height / 2) - (rt.top + rt.height / 2)) * ky;
   const s0 = Math.max(.5, Math.min(2, r0.width / rt.width));
-  // it rests beside the deck on the side it came from (toward the charge zone when it was the deck's own top card)
-  let dir = Math.sign(dx);
-  if (Math.abs(dx) < W * .3){ const cz = row.querySelector('.chz'); const cr = cz && cz.getBoundingClientRect(); dir = cr ? Math.sign((cr.left + cr.width / 2) - (rt.left + rt.width / 2)) || 1 : 1; }
-  const sx = dir * W * .74, lift = -16 * ky;
-  box.insertBefore(g, tgt);
-  const T = 820, sh = '0 14px 26px rgba(0,0,0,.32)', flat = '0 2px 4px rgba(0,0,0,.18)';
+  box.insertBefore(g, tgt);   // before the top card, and under it
+  const T = 620;
   const a = g.animate([
-    {transform:`translate(${dx}px,${dy}px) scale(${s0})`, zIndex:30, boxShadow:flat, filter:'brightness(1)', offset:0},
-    {transform:`translate(${dx}px,${dy + lift}px) scale(${s0 * 1.05})`, zIndex:30, boxShadow:sh, filter:'brightness(1.04)', offset:.16, easing:'cubic-bezier(.45,0,.3,1)'},
-    {transform:`translate(${sx}px,${lift * .6}px) scale(1.03)`, zIndex:30, boxShadow:sh, filter:'brightness(1.02)', offset:.52, easing:'cubic-bezier(.3,0,.4,1)'},
-    {transform:`translate(${sx}px,0px) scale(1)`, zIndex:30, boxShadow:flat, filter:'brightness(1)', offset:.6},
-    {transform:`translate(${sx}px,0px) scale(1)`, zIndex:-1, boxShadow:flat, filter:'brightness(.92)', offset:.61, easing:'cubic-bezier(.5,0,.25,1)'},
-    {transform:'translate(0px,0px) scale(1)', zIndex:-1, boxShadow:flat, filter:'brightness(.8)', offset:1}
-  ], {duration:T, fill:'forwards'});
-  setTimeout(() => { try{ sfx.flick(); }catch(e){} }, T * .62);   // the slide under the pile
-  a.onfinish = a.oncancel = () => { g.remove(); tz.style.position = prev.pos; tz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; };
+    {transform:`translate(${dx}px,${dy}px) scale(${s0})`, filter:'brightness(1)'},
+    {transform:'translate(0px,0px) scale(1)', filter:'brightness(.85)'}
+  ], {duration:T, easing:'cubic-bezier(.5,0,.2,1)', fill:'forwards'});
+  setTimeout(() => { try{ sfx.flick(); }catch(e){} }, T * .7);   // as it slips under the pile
+  a.onfinish = a.oncancel = () => { g.remove(); dz.style.position = prev.pos; dz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; };
 }
+// Ability notes for a save (Infirmary Tent, Field Medic, Second Wind) point into the deck the unit went back into
+const abIsSave = g => g.lines.some(l => /bottom of the deck/.test(l.t || ''));
 {
   const gf = goFrame;
   goFrame = function(k, glide){
