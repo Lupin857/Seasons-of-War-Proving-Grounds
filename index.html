@@ -1,4 +1,40 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<style>
+/* ---- battle card look: medallion banner with live power (Marcellus), level tag, health under the card ---- */
+@import url('https://fonts.googleapis.com/css2?family=Marcellus&display=swap');
+html body .card.hasart>.livepow{display:none}
+html body .card.hasart>.mbn{position:absolute;left:-1.333%;top:0;margin-top:-1.2%;width:37.576%;aspect-ratio:732/400;z-index:3;pointer-events:none;container-type:inline-size}
+html body .card.hasart>.mbn img{width:100%;height:100%;display:block}
+html body .card.hasart>.mbn b{position:absolute;left:69.5%;top:52.5%;transform:translate(-50%,-50%);font:400 23.4cqw/1 Marcellus,serif;color:#2b211a}
+html body .card.hasart>.mbn b.up{color:#2f7a35} html body .card.hasart>.mbn b.down{color:#a3322a}
+html body .card.hasart>.hprow,html body .table .card.hasart:not(.mini)>.hprow{position:absolute;left:0;right:0;top:calc(100% + 6px);bottom:auto;background:none;padding:0;border-radius:0;color:var(--ink);gap:6px;z-index:2}
+html body .card.hasart>.hprow .hpn,html body .card.hasart>.hprow .hpn b{color:var(--ink)!important} .card.hasart>.hprow .hpn.hurt b{color:var(--gules)!important}
+html body .card.hasart>.hprow .hp{height:6px;border-radius:3px;background:var(--sunk);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+html body .card.hasart>.hprow .lvt{flex:none;padding:0 6px;border-radius:999px;border:1px solid #a7834b;color:#6b4e22;background:var(--surface);font:800 10px/15px var(--f-body);letter-spacing:.06em}
+html body .table .card.hasart:not(.mini){margin-bottom:24px}
+html body .stage .table .charge>.card.hasart{margin:var(--rt, 0px) 0 24px 0!important}
+html body .card.hasart>.tk.ctk>img{width:100%;height:100%;display:block;object-fit:cover;object-position:center top}
+@media (max-width:640px){
+  html body .card.hasart>.hprow{gap:4px;top:calc(100% + 4px)} html body .card.hasart>.hprow .lvt{font-size:9px;line-height:13px;padding:0 4px}
+  html body .card.hasart>.hprow .hpu{display:none} html body .card.hasart>.hprow .hpn{font-size:10px}
+  html body .card.hasart>.hprow .hp{height:5px}
+}
+/* an ability firing: the card's border glows gold for a moment */
+html body .card>.trigglow{position:absolute;inset:0;border-radius:5% / 3.6%;pointer-events:none;z-index:6;animation:abtrig .9s ease-out both}
+@keyframes abtrig{0%{box-shadow:0 0 0 0 rgba(232,207,149,0)}25%{box-shadow:0 0 0 3px #e8cf95,0 0 22px 6px rgba(232,180,90,.75)}70%{box-shadow:0 0 0 3px #e8cf95,0 0 18px 4px rgba(232,180,90,.5)}100%{box-shadow:0 0 0 0 rgba(232,207,149,0)}}
+@media (prefers-reduced-motion: reduce){ html body .card>.trigglow{animation:none;box-shadow:0 0 0 3px #e8cf95} }
+@media (min-width:641px){
+  html body .battlectl{position:sticky;top:0;z-index:12;background:var(--surface);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+}
+.abghost{position:fixed;inset:0;pointer-events:none;z-index:6;transition:opacity .28s ease}
+.abghost.out{opacity:0}
+.abghost .abbox,.abwin.kept .abbox{animation:none;pointer-events:none}
+.abghost .ablines{z-index:5}
+html body .abcol{scrollbar-width:none} html body .abcol::-webkit-scrollbar{display:none}
+/* the cube layer: over the table, under the sticky bars */
+.cubegl{position:fixed;left:0;top:0;right:0;bottom:0;width:100%;height:100%;pointer-events:none;z-index:7;display:block}
+</style>
+</head><body>
 <title>Oasis</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -428,6 +464,70 @@ table.sticky .grp .g1,table.sticky .grp .g2,table.sticky .grp .g3{text-align:cen
 .startp .me{display:flex;flex-direction:column;gap:2px}
 .startp .me .big{font-family:var(--f-mono);font-size:2rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--azure)}
 .pick{display:flex;flex-direction:column;gap:6px;max-width:640px}
+/* New game: mode tiles, then a setup screen (opponent + rules) */
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-height:120px}
+.mode:hover:not(:disabled){border-color:var(--ink);background:var(--surface)}
+.mode .mh{font-family:var(--f-display);font-size:1.25rem}
+.mode .mx{margin-top:auto;font-size:.78rem;font-weight:700;color:var(--azure)}
+.suhead h2{margin-left:2px}
+.subk{padding:4px 10px}
+.suopp{display:flex;flex-wrap:wrap;gap:12px 32px;align-items:flex-end}
+.suopp .pick{flex:1 1 320px}
+.startp .me.compact .big{font-size:1.5rem}
+.surules{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.subar{gap:8px 10px}
+.subadge{font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:99px;border:1px solid}
+.subadge.ok{color:var(--ok);border-color:var(--ok)}
+.subadge.cu{color:var(--or);border-color:var(--or);background:var(--or-soft)}
+.suswitch{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700;cursor:pointer}
+.sugrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sufs{border:1px solid var(--line);border-radius:8px;padding:6px 12px 10px;margin:0;min-width:0;display:flex;flex-direction:column;gap:2px;background:var(--bg)}
+.sufs.suwide{grid-row:span 2}
+.sufs legend{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:0 4px}
+.surow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 10px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.surow:last-of-type{border-bottom:none}
+.surow.two{grid-template-columns:minmax(0,1fr) 112px 112px}
+.surow.such{border-bottom:none;padding-bottom:0}
+.surow.such .eyebrow{text-align:center}
+.surow.such .s0{color:var(--azure)} .surow.such .s1{color:var(--gules)}
+.sul{display:flex;flex-direction:column;font-size:.92rem;line-height:1.25}
+.sul .note{font-size:.76rem}
+.sucell{display:flex;justify-content:center}
+.sustep{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.sustep button{border:none;border-radius:0;padding:2px 9px;font-size:1rem;line-height:1;min-width:30px;min-height:30px}
+.sustep input{width:2.6em;border:none;border-inline:1px solid var(--line);text-align:center;font-family:var(--f-mono);font-size:.9rem;background:none;color:inherit;-moz-appearance:textfield;appearance:textfield}
+.sustep input::-webkit-inner-spin-button,.sustep input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.sucell.chg .sustep{border-color:var(--or);box-shadow:0 0 0 1px var(--or)}
+.sufs .mirtog{display:flex;align-items:center;gap:6px;padding:4px 0}
+.pkgs{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-start;padding:2px 0}
+.surow.two .pkgs{flex-direction:column;align-items:stretch}
+.surow.pkr{grid-template-columns:auto minmax(0,1fr)}
+.pkg{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--surface)}
+.pkg button{border:none;border-radius:0;padding:3px 10px;font-size:.8rem;background:none}
+.pkg .pkx{padding:3px 8px;border-left:1px solid var(--line);color:var(--muted)}
+.pkg.on{border-color:var(--ink)} .pkg.on button:first-child{background:var(--ink);color:var(--bg)}
+.pkadd{border-style:dashed;border-radius:99px;padding:3px 10px;font-size:.8rem;color:var(--muted)}
+.r1{margin-top:4px}
+.sugo{gap:10px}
+.sujoin{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+details.ladder{border-top:1px solid var(--line);padding-top:8px}
+details.ladder > summary{cursor:pointer}
+details.ladder[open]{display:flex;flex-direction:column;gap:10px}
+.sulobby{display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--bg)}
+.sulobby ul{margin:0;padding-left:18px;font-size:.9rem}
+.suchipw{position:relative;display:inline-flex}
+.suchip{font-size:.8rem;font-weight:700;color:var(--or);border-color:var(--or);background:var(--or-soft);border-radius:99px;padding:3px 10px}
+.supop{position:absolute;bottom:calc(100% + 6px);left:0;z-index:70;display:flex;flex-direction:column;gap:4px;min-width:240px;max-width:min(360px,86vw);padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:.86rem}
+@media (max-width:720px){
+  .sugrid{grid-template-columns:minmax(0,1fr)}
+  .sufs.suwide{grid-row:auto}
+  .surow.two{grid-template-columns:minmax(0,1fr) 100px 100px}
+  .sustep button{min-width:28px;padding:2px 6px}
+  .sustep input{width:2.2em}
+  .mode{min-height:0}
+}
+
 .pick input[type=range]{width:100%;accent-color:var(--gules)}
 .pickr{font-family:var(--f-mono);font-size:1.7rem;font-weight:600;color:var(--gules);font-variant-numeric:tabular-nums}
 .pickn{font-family:var(--f-display);font-size:1.4rem}
@@ -1421,7 +1521,7 @@ body.dsopen{overflow:hidden}
 .ablines .abl{fill:none;stroke-width:1.5;stroke-dasharray:4 3;opacity:.8}
 .ablines .abl.s0{stroke:var(--azure)} .ablines .abl.s1{stroke:var(--gules)}
 .ablines .abd.s0{fill:var(--azure)} .ablines .abd.s1{fill:var(--gules)}
-@keyframes abin{from{opacity:0;transform:translateY(4px)}}
+@keyframes abin{from{opacity:0}}
 .abtog[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or)}
 @media (prefers-reduced-motion: reduce){ .abbox{animation:none} }
 @media (max-width:640px){
@@ -2218,7 +2318,8 @@ function zhChip(name){
 function runBattle(cfgs, record){
   if (record === undefined) record = true;
   let uidc = 0;
-  const logs = [], frames = [];
+  const logs = [], frames = [], hitsLog = [];
+  let OVQ = [], OVFROM = null;   // Overrun excess waiting for the casualty step, and the unit it spills from (for the cubes)
   let logMark = 0;
   const mkUnit = (o, owner) => { const z = o.gear === 'Zweihander';
     return {uid:++uidc, name:o.name, copies:o.copies||1, train:o.tr||0, arm:z ? 0 : o.arm||0, sh:z ? 0 : o.sh||0,
@@ -2316,11 +2417,11 @@ function runBattle(cfgs, record){
         const o = ATK; ATK = !!h.atk;
         try{
           const rem = power(h.u) - h.u.dmg, dealt = hit0(h.u, h.amt, h.src, h.side, h.brk);
-          if (h.spill && dealt > rem && rem >= 0 && h.spill !== h.u) spills.push({u:h.spill, amt:dealt - rem, src:`${h.src} (overrun)`, side:h.side, brk:h.brk, ab:h.spillAb || h.ab, from:h.from, atk:h.atk});
+          if (h.spill && dealt > rem && rem >= 0 && h.spill !== h.u) spills.push({u:h.spill, amt:dealt - rem, src:`${h.src} (overrun)`, side:h.side, brk:h.brk, ab:h.spillAb || h.ab, from:h.from, atk:h.atk, over:h.u});
         } finally { ATK = o; }
       }));
     }
-    for (const x of spills) withAb(x.ab, () => asSrc(x.from, () => { const o = ATK; ATK = !!x.atk; try{ hit0(x.u, x.amt, x.src, x.side, x.brk); } finally { ATK = o; } }));
+    OVQ.push(...spills);   // Overrun resolves in the casualty step (see casualties())
   }
   // a new hit: inside a round it waits for the round's end
   function hit(u, amt, src, side, brk){
@@ -2335,14 +2436,17 @@ function runBattle(cfgs, record){
     if (u.sh > 0){ u.sh--; if (record) log(`${nameOf(u)}'s Shield blocks ${amt} from ${src}.`, side, hitMeta(u, src, side, 0)); return 0; }
     let a = amt;
     if (key(u) === 'Armored Knight' && ab(u)) a = Math.max(0, a - val(u));
-    u.dmg += a;
+    u.dmg += a; const hb = u.dmg;
     if (record) log(`${src} deals ${a} to ${nameOf(u)} (${u.dmg} damage, ${power(u)} power).`, side, hitMeta(u, src, side, a));
     // Lethal (Executioner, Poison Oil): any damage it deals kills (a Shield-blocked or fully reduced hit deals none)
-    if (a > 0 && !isDead(u) && lethalFrom(SRC)){ u.dmg = power(u); if (record){ const t = `The damage is Lethal: ${nameOf(u)} dies.`; if (!(key(SRC) === 'Executioner' && ab(SRC))) withAb({...abG(SRC, side, 'Poison Oil'), tg:[u.name]}, () => log(t, side)); else log(t, side); } }
+    // Lethal is marked now and resolves in the casualty step (see casualties())
+    if (a > 0 && !isDead(u) && lethalFrom(SRC) && !u.lethal){ u.lethal = {ab: key(SRC) === 'Executioner' && ab(SRC) ? abU(SRC, SRC.owner) : {...abG(SRC, side, 'Poison Oil'), tg:[u.name]}, side}; }
     // Brawler: when it survives an attack, remove all damage from it. Damage from abilities alone doesn't trigger it.
-    if (ATK && a > 0 && key(u) === 'Brawler' && ab(u) && !isDead(u)){ u.dmg = 0; withAb(abU(u, u.owner), () => log(`${nameOf(u)} survives the attack and shakes off all damage.`, u.owner)); }
+    // (it checks in the casualty step, after the whole round's damage: see casualties())
+    if (ATK && a > 0 && key(u) === 'Brawler' && ab(u) && !isDead(u)){ u.brawl = 1; }
     // Healing Balm: when the wearer survives an attack, remove up to 2 of that attack's damage
-    else if (ATK && a > 0 && u.gear === 'Healing Balm' && !isDead(u)){ const k = Math.min(2, a); u.dmg -= k; if (record) withAb(abG(u, u.owner), () => log(`Healing Balm removes ${k} damage from ${nameOf(u)}.`, u.owner)); }
+    if (ATK && a > 0 && u.gear === 'Healing Balm' && !isDead(u)) u.balm = (u.balm || 0) + Math.min(2, a);   // Healing Balm: checked in the casualty step, like Brawler
+    if (record && a > 0) hitsLog.push({uid:u.uid, a, heal:Math.max(0, hb - u.dmg), from:OVFROM ? OVFROM.uid : undefined});   // for the damage cubes: the hit, then any heal
     return a;
   }
   function train(u, src, side){
@@ -2355,7 +2459,7 @@ function runBattle(cfgs, record){
     if (Q){ Q.push({u:target, amt, src, side, brk, spill, spillAb, ab:AB, from:SRC, atk:ATK}); return; }
     const rem = power(target) - target.dmg;
     const dealt = hit0(target, amt, src, side, brk);
-    if (dealt > rem && rem >= 0 && spill && spill !== target) withAb(spillAb || AB, () => hit0(spill, dealt - rem, `${src} (overrun)`, side, brk));
+    if (dealt > rem && rem >= 0 && spill && spill !== target) OVQ.push({u:spill, amt:dealt - rem, src:`${src} (overrun)`, side, brk, ab:spillAb || AB, from:SRC, atk:ATK, over:target});   // resolves in the casualty step
   }
   // Pigeon Hunter (while charging or revealed): the opponent's units are Silenced, so their abilities do nothing
   const hush = p => phActive(1 - p);
@@ -2512,6 +2616,34 @@ function runBattle(cfgs, record){
   }
   function casualties(){
     let any = false;
+    // Overrun: the excess from this round's overkills carries on to the unit behind, if it's still in play
+    if (OVQ.length) for (const x of OVQ.splice(0)){
+      const pl = P[x.u.owner]; if (!pl || !(pl.charge === x.u || pl.deck.includes(x.u))) continue;
+      OVFROM = x.over;
+      withAb(x.ab, () => asSrc(x.from, () => { const o = ATK; ATK = !!x.atk; try{ hit0(x.u, x.amt, x.src, x.side, x.brk); } finally { ATK = o; } }));
+      OVFROM = null;
+    }
+    // Lethal (Executioner, Poison Oil): a unit it damaged this round is defeated now
+    for (const p of [0,1]) for (const u of [P[p].charge, ...P[p].deck]){
+      if (!u || !u.lethal) continue; const L = u.lethal; u.lethal = null;
+      if (isDead(u)) continue;
+      u.dmg = power(u);
+      if (record) withAb(L.ab, () => log(`The damage is Lethal: ${nameOf(u)} dies.`, L.side));
+    }
+    // Survival heals, after all the round's damage: if the unit is still standing now, the heal happens.
+    // Brawler removes all its damage; Healing Balm removes up to 2 of each attack's damage.
+    const survive = (flag, amount, abOf, text) => {
+      for (const p of [0,1]) for (const u of [P[p].charge, ...P[p].deck]){
+        if (!u || !u[flag]) continue; const want = u[flag]; u[flag] = 0;
+        if (isDead(u) || !u.dmg) continue;
+        const k = Math.min(u.dmg, amount(u, want)); if (k <= 0) continue;
+        u.dmg -= k;
+        if (record) hitsLog.push({uid:u.uid, a:0, heal:k});
+        withAb(abOf(u), () => log(text(u, k), u.owner));
+      }
+    };
+    survive('brawl', u => ab(u) ? u.dmg : 0, u => abU(u, u.owner), u => `${nameOf(u)} survives the attack and shakes off all damage.`);
+    survive('balm', (u, w) => u.gear === 'Healing Balm' ? w : 0, u => abG(u, u.owner), (u, k) => `Healing Balm removes ${k} damage from ${nameOf(u)}.`);
     for (let guard = 0; guard < 200; guard++){
       // Barber-Surgeon (While Revealed): a charging unit that would die goes to the bottom of the deck, undamaged
       for (const p of [0,1]){
@@ -2681,7 +2813,7 @@ function runBattle(cfgs, record){
   const frameIf = label => { if (record && logs.length > logMark) frame(stepTag + label); };
   function frame(label){
     if (!record) return;
-    frames.push({label, lines:logs.slice(logMark),
+    frames.push({label, lines:logs.slice(logMark), hits:hitsLog.splice(0),
       snap:P.map((pl,p) => ({charge:snapU(pl.charge,p), deck:pl.deck.map(u=>snapU(u,p)), grave:pl.grave.map(u=>snapU(u,p)),
         tail:pl.tail.slice(), sil:pl.silence, drums:pl.drums}))});
     logMark = logs.length;
@@ -2859,7 +2991,7 @@ function dealCard(g, k){
 // own deck, into the spot it was bought from (only that spot: a gap left by Freeze stays empty)
 function refillRow(g, k, at){
   if (!g.refill || at == null) return;
-  const size = k === 'u' ? RULES.unitDisplay : RULES.bldgDisplay, row = g.disp[k];
+  const size = dispSize(g, k), row = g.disp[k];
   if (row.length >= size || row.some(c => c.at === at)) return;   // full, or Restock already filled the spot
   const c = dealCard(g, k); if (!c) return;
   c.at = at;
@@ -2891,7 +3023,22 @@ function endPeek(g, i, by){
   else for (const c of pk.cards) deck.unshift(c);
   L.splice(j, 1);
 }
-const RULES = {target:3, buysPerShop:3, fieldsPerShop:1, citySlots:5, deckCap:5, baseIncome:3, unitDisplay:5, bldgDisplay:5, maxRounds:20};
+const RULES = {target:3, buysPerShop:3, fieldsPerShop:1, citySlots:5, deckCap:5, baseIncome:3, unitDisplay:5, bldgDisplay:5, maxRounds:20, startFields:1};
+/* Game setup: the starting conditions and limits of one game, chosen on the setup screen. A missing value means the
+   rule above. Shared: deckCap, city (Caravan slots), uDisp/bDisp (shop display sizes), catchup (the player behind on
+   points gets +$catchup at the start of each shop). Per player (pl[0], pl[1]): water (extra water at the start),
+   fields (Moisture Harvesters owned at the start), drift (Drifters in hand for the first battle), inc (base income),
+   buys (buys per shop), fps (Harvester buys per shop). */
+function suDefault(){
+  return {deckCap:RULES.deckCap, city:RULES.citySlots, uDisp:RULES.unitDisplay, bDisp:RULES.bldgDisplay, catchup:0,
+    pl:[0,1].map(() => ({water:0, fields:RULES.startFields, drift:0, inc:RULES.baseIncome, buys:RULES.buysPerShop, fps:RULES.fieldsPerShop}))};
+}
+// a player's own copy of the rules that can differ per game (or per player)
+const ruleOf = (p, k, d) => p && p.su && p.su[k] != null ? p.su[k] : d;
+const buyCap = p => ruleOf(p, 'buys', RULES.buysPerShop);
+const buysOf = b => b && b.cap != null ? b.cap : RULES.buysPerShop;
+const citySlots = p => ruleOf(p, 'city', RULES.citySlots);
+const dispSize = (g, k) => k === 'u' ? (g && g.su && g.su.uDisp) || RULES.unitDisplay : (g && g.su && g.su.bDisp) || RULES.bldgDisplay;
 
 /* ===================== BALANCE OVERRIDES ===================== */
 // The sheet's numbers are kept in ORIG; overrides are applied on top so every change can be undone.
@@ -2946,7 +3093,7 @@ function describeOverrides(ov, base){
     const ch = Object.entries(ov.mirs[n]).filter(([k, v]) => v !== src[k]).map(([k, v]) => k === 's' ? `surcharge +$${v}` : k === 'u' ? `unit-deck copies ${v}` : k === 'b' ? `building-deck copies ${v}` : `effect ${v}`);
     if (ch.length) out.push(`${n} (miracle): ${ch.join(', ')}`);
   }
-  const rl = {target:'winning score', buysPerShop:'buys per shop', fieldsPerShop:'Fields per shop', citySlots:'city slots', deckCap:'deck size', baseIncome:'base income', unitDisplay:'unit display', bldgDisplay:'building display', maxRounds:'round limit'};
+  const rl = {target:'winning score', buysPerShop:'buys per shop', fieldsPerShop:'Fields per shop', citySlots:'city slots', deckCap:'deck size', baseIncome:'base income', unitDisplay:'unit display', bldgDisplay:'building display', maxRounds:'round limit', startFields:'starting Harvesters'};
   for (const k in (ov.rules || {})) if (ov.rules[k] !== base.RULES[k]) out.push(`${rl[k] || k}: ${ov.rules[k]}`);
   return out;
 }
@@ -2974,7 +3121,7 @@ function patchDiff(a, b, base){
       if (ch.length) out.push(`${n}${kind}: ${ch.join(', ')}`);
     }
   }
-  const rl = {target:'winning score', buysPerShop:'buys per shop', fieldsPerShop:'Fields per shop', citySlots:'city slots', deckCap:'deck size', baseIncome:'base income', unitDisplay:'unit display', bldgDisplay:'building display', maxRounds:'round limit'};
+  const rl = {target:'winning score', buysPerShop:'buys per shop', fieldsPerShop:'Fields per shop', citySlots:'city slots', deckCap:'deck size', baseIncome:'base income', unitDisplay:'unit display', bldgDisplay:'building display', maxRounds:'round limit', startFields:'starting Harvesters'};
   for (const k of [...new Set(Object.keys(a.rules || {}).concat(Object.keys(b.rules || {})))]){
     if (!(k in base.RULES)) continue;
     const va = (a.rules || {})[k] ?? base.RULES[k], vb = (b.rules || {})[k] ?? base.RULES[k];
@@ -3051,34 +3198,61 @@ const plural = (n, word) => n > 1 ? word + 's' : word;
 function bLvl(p, n){ const c = p.city[n] || 0; return Math.min(c, BDEFS[n].lv.length); }
 function bVal(p, n){ const l = bLvl(p, n); return l ? BDEFS[n].lv[l-1] : 0; }
 function slotsUsed(p){ let s = 0; for (const k in p.city){ if (!p.city[k]) continue; s += k === 'Field' ? p.city[k] : 1; } return s; }
-function deckCap(p){ return RULES.deckCap + bVal(p, 'Reserve Encampment'); }
+function deckCap(p){ return ruleOf(p, 'deckCap', RULES.deckCap) + bVal(p, 'Reserve Encampment'); }
 const exemptUnit = n => n === 'Mercenary' || n === 'Recruit';
 function uniqueUnits(p){ return Object.keys(p.hand).filter(n => p.hand[n] > 0 && !exemptUnit(n)).length; }
 function hiredBladeCost(c){ if (!c) return 0; const v = DEFS['Hired Blade'].v || [1]; return v[Math.min(c, DEFS['Hired Blade'].p.length, v.length) - 1]; }
-function income(p){ return RULES.baseIncome + (p.city.Field || 0) + bVal(p, 'Windmill') + farmhandIncome(p) - hiredBladeCost(p.hand['Hired Blade'] || 0) + bVal(p, 'Altar of Blood'); }
+function income(p){ return ruleOf(p, 'inc', RULES.baseIncome) + (p.city.Field || 0) + bVal(p, 'Windmill') + farmhandIncome(p) - hiredBladeCost(p.hand['Hired Blade'] || 0) + bVal(p, 'Altar of Blood'); }
 // Conscripted Farmhand: more income while you own it and at least one Field
 function farmhandIncome(p){ const c = (p.hand && p.hand['Conscripted Farmhand']) || 0, v = DEFS['Conscripted Farmhand'].v; return c && (p.city.Field || 0) > 0 ? v[Math.min(uLvl('Conscripted Farmhand', c), v.length) - 1] : 0; }
 function total(p){ return p.score + (p.city.Cathedral ? 1 : 0); }
 function masonTargets(p){ return Object.keys(p.city).filter(n => n !== 'Field' && p.city[n] > 0 && p.city[n] < BDEFS[n].lv.length); }
 
-let MIRACLES_ON = true, BATTLE_MIR_ON = true, REFILL_ON = false;
+let MIRACLES_ON = false, BATTLE_MIR_ON = true, REFILL_ON = true;
 function newGame(o){
   o = o || {};
+  const g = newGame0(o);
+  return applySetup(g, o.su);
+}
+function newGame0(o){
   const rnd = o.rnd || Math.random, mo = o.miracles ?? MIRACLES_ON, bmo = !!(mo && (o.battleMir ?? BATTLE_MIR_ON)), rf = !!(o.refill ?? REFILL_ON);
   return {rnd, miracles:mo, battleMir:bmo, refill:rf, spells:[[], []], salvMir:[], target:o.target || RULES.target, round:0, phase:'shop', winner:null, over:false,
     uDeck:shuffle(unitPool().concat(mo ? mirPool('u', bmo) : []), rnd), bDeck:shuffle(bldPool().concat(mo ? mirPool('b', bmo) : []), rnd), mirShown:{},
     disp:{u:[], b:[]}, muster:[], log:[], labels:o.labels || ['Azure','Gules'],
     players:[0,1].map(i => ({id:i, money:0, score:0, hand:{}, city:{}, gear:{}, equip:{}, mir:[], prevDeck:null, genome:(o.genomes||[])[i] || null, bought:[], wonLast:false})),
+    su:null,
     order:[0,1], turnIdx:0, passed:[false,false], buys:null, frozen:[[], []], peek:[[], []], bmUsed:[false,false], mirGot:[[], []], decks:[null,null], lastBattle:null,
     om:o.om || [null,null], omPending:[null,null]};
+}
+// put a setup's starting conditions and limits on a new game (newGame without a setup plays by RULES)
+function applySetup(g, su){
+  const d = suDefault(); su = su || d;
+  const num = (v, dv) => Number.isFinite(+v) && v !== null && v !== '' ? +v : dv;
+  g.su = {uDisp:num(su.uDisp, d.uDisp), bDisp:num(su.bDisp, d.bDisp), catchup:num(su.catchup, 0)};
+  g.players.forEach((p, i) => {
+    const q = (su.pl && su.pl[i]) || {}, dq = d.pl[i];
+    p.su = {inc:num(q.inc, dq.inc), buys:num(q.buys, dq.buys), fps:num(q.fps, dq.fps), deckCap:num(su.deckCap, d.deckCap), city:num(su.city, d.city)};
+    const w = num(q.water, 0), f = num(q.fields, dq.fields), r = num(q.drift, 0);
+    p.money = w;
+    if (f > 0) p.city.Field = f;
+    if (r > 0) p.hand.Recruit = r;
+  });
+  return g;
 }
 const cur = g => g.order[g.turnIdx];
 
 function startShop(g){
   g.round++; g.phase = 'shop';
   for (const p of g.players) p.money += Math.max(0, income(p));
+  // catch-up (a setup option): the player behind on points gets extra water
+  let catchMsg = null;
+  const cu = (g.su && g.su.catchup) || 0;
+  if (cu > 0 && g.round > 1){
+    const t0 = total(g.players[0]), t1 = total(g.players[1]);
+    if (t0 !== t1){ const j = t0 < t1 ? 0 : 1; g.players[j].money += cu; catchMsg = {t:`Catch-up: ${g.labels[j]} ${g.labels[j] === 'You' ? 'are' : 'is'} behind and ${g.labels[j] === 'You' ? 'get' : 'gets'} +$${cu}.`, side:j}; }
+  }
   for (const k of ['u','b']){
-    const size = k === 'u' ? RULES.unitDisplay : RULES.bldgDisplay, deck = k === 'u' ? g.uDeck : g.bDeck;
+    const size = dispSize(g, k), deck = k === 'u' ? g.uDeck : g.bDeck;
     // each display card has a fixed slot (at); cards that stay keep theirs and new cards fill the empty ones in order
     const used = new Set(g.disp[k].filter(c => c.at != null).map(c => c.at));
     const free = () => { let a = 0; while (used.has(a)) a++; used.add(a); return a; };
@@ -3090,7 +3264,7 @@ function startShop(g){
   else if (g.lastBattle && g.lastBattle.w >= 0) first = 1 - g.lastBattle.w;
   else first = g.order[1];
   g.order = [first, 1 - first]; g.turnIdx = 0; g.passed = [false,false];
-  g.buys = [0,1].map(() => ({u:0, b:0, carp:0, extra:false, fav:0, favN:0, fld:0, wc:0}));
+  g.buys = [0,1].map(i => ({u:0, b:0, carp:0, extra:false, fav:0, favN:0, fld:0, wc:0, cap:buyCap(g.players[i])}));
   g.peek = [[], []]; g.bmUsed = [false,false];
   g.seen = [new Set(), new Set()]; g.shopBought = [[], []]; g.buyTags = [{}, {}];
   g.mirSeen = [new Set(), new Set()]; g.mirShop = [[], []];
@@ -3101,6 +3275,7 @@ function startShop(g){
   // position at the start of the shop (before anyone buys a Cathedral), used by the card stats
   g.shopLead = [0,1].map(i => total(g.players[i]) - total(g.players[1-i]));
   g.log.push({t:`Round ${g.round}. ${g.labels[first]} ${g.labels[first] === 'You' ? 'shop' : 'shops'} first.`});
+  if (catchMsg) g.log.push(catchMsg);
 }
 // Altar of Blood: the units tied for most expensive (by cost), or [] if the player has no Altar or no units
 function altarOpts(p){
@@ -3148,7 +3323,7 @@ function cantAcquire(st, name, kind){
   if (isGear(name)) return null;   // gear goes to your hand: no limit
   if (name === "Mason's Guild") return masonTargets(st).length ? null : 'No building to level up';
   if (name !== 'Field' && (st.city[name] || 0) >= BDEFS[name].lv.length) return 'Already at highest level';
-  if ((name === 'Field' || !st.city[name]) && slotsUsed(st) >= RULES.citySlots) return 'City is full';
+  if ((name === 'Field' || !st.city[name]) && slotsUsed(st) >= citySlots(st)) return 'City is full';
   return null;
 }
 // The buy button's wording when a card can't be bought: how much more money, or which buys are used up this shop.
@@ -3202,8 +3377,8 @@ function mirDisc(p){ let best = null; for (const n of (p && p.mir) || []) if (MI
 const bmOff = p => Math.max(1, bLvl(p, 'Black Market'));
 // shared buys left this shop (units and buildings draw from the same pool)
 // Fields you may buy this shop
-function fieldCap(p){ return RULES.fieldsPerShop; }
-function baseLeft(b){ return RULES.buysPerShop - (b.u + b.b); }
+function fieldCap(p){ return ruleOf(p, 'fps', RULES.fieldsPerShop); }
+function baseLeft(b){ return buysOf(b) - (b.u + b.b); }
 function useSlot(b, kind, slot, name){ if (name === 'Field') b.fld = (b.fld || 0) + 1; if (slot === 'wc'){ b.wc = (b.wc || 0) + 1; return; } if (slot === 'base'){ if (kind === 'u') b.u++; else b.b++; } else if (slot === 'carp') b.carp++; else if (slot === 'fav') b.fav--; else b.extra = true; }
 function sourceCard(g, i, src, idx){
   if (src === 'du') return g.disp.u[idx] && {name:g.disp.u[idx].name, kind:'u'};
@@ -3381,7 +3556,7 @@ function useRedeal(g, i){
   for (const k of ['u','b']){
     g.disp[k].forEach((c, jj) => { g.leaving[k].push({name:c.name, j:jj, at:c.at}); g.muster.push(c.name, ...(c.pair || [])); toSal(g, c.mir); out.push(c.name); });
     g.disp[k] = [];
-    const size = k === 'u' ? RULES.unitDisplay : RULES.bldgDisplay;
+    const size = dispSize(g, k);
     for (let a = 0; g.disp[k].length < size; a++){ const c = dealCard(g, k); if (!c) break; c.at = a; g.disp[k].push(c); }
   }
   const you = g.labels[i] === 'You';
@@ -3408,7 +3583,7 @@ function aiRedealGain(g, i, G, mE){
   for (let t = 0; t < N; t++){
     const cards = [];
     for (const k of ['u','b']){
-      const pool = pools[k].slice(), size = k === 'u' ? RULES.unitDisplay : RULES.bldgDisplay;
+      const pool = pools[k].slice(), size = dispSize(g, k);
       for (let a = 0; a < size && pool.length; a++){ const r = Math.floor(rnd() * pool.length); cards.push({name:pool[r], kind:k, mir:[]}); pool.splice(r, 1); }
     }
     tot += best(cards);
@@ -3791,7 +3966,7 @@ function bmPeekGain(g, i, k, kind){
 }
 function bmPeekCalc(g, i, k, U, p, G, deck){
   // a typical shop's spending money and buys of this kind
-  const budget = Math.max(p.money, Math.max(0, income(p))), buys = RULES.buysPerShop;
+  const budget = Math.max(p.money, Math.max(0, income(p))), buys = buyCap(p);
   const Dk = U ? DEFS : BDEFS, free = U ? 'Recruit' : 'Field';
   const blocked = n => !!cantAcquire(p, n, U ? 'u' : 'b');
   const opt = (n, price) => blocked(n) || price > budget ? null
@@ -3913,7 +4088,7 @@ function aiValue(g, i, name, kind){
     case "Carpenter's Guild": { const spare = Math.max(0, (Math.max(0, income(p)) - 3) / 2); v = G.e * rE * (0.8 * Math.min(inc, spare) + (c === 0 ? 0.8 : 0)); break; }   // extra building buys need spare money; $1 off buildings from the first level   // extra building buys, plus $1 off buildings from the first level
     case 'Cathedral': v = G.cath * 20 * cathedralGain(g, i); break;
     // Chapel: money saved a shop: about how many cards with miracles under them I buy a shop (the share of shop cards that carry them)
-    case 'Chapel': { const all = g.uDeck.concat(g.bDeck), m = g.miracles ? all.filter(isMir).length : 0, n = all.length - m; v = G.e * rE * inc * (n ? Math.min(1.5, RULES.buysPerShop * 0.5 * m / n) : 0); break; }
+    case 'Chapel': { const all = g.uDeck.concat(g.bDeck), m = g.miracles ? all.filter(isMir).length : 0, n = all.length - m; v = G.e * rE * inc * (n ? Math.min(1.5, buyCap(p) * 0.5 * m / n) : 0); break; }
     // War College: money saved a shop on discard-pile copies of my cards (more likely the more of them are already there)
     // War College: free duplicates of my units from the discard pile (more likely the more of them are already there)
     case 'War College': { const sal = (g.muster || []).filter(x => ownsCard(p, x) > 0 && !cantAcquire(p, x, cardKind(x))).length; v = G.s * rf * Math.min(3, 0.6 + 1.2 * sal); break; }
@@ -5854,9 +6029,9 @@ const synStale = () => { const e = effOV(), saved = LS.get('sow-syn-v2'); return
 loadSyn();
 const LENS = [3, 4, 5];
 let LEN = LENS.includes(LS.get('sow-len')) ? LS.get('sow-len') : 3;
-MIRACLES_ON = LS.get('sow-mir') !== false;
+MIRACLES_ON = LS.get('sow-mir') === true;   // default off
 BATTLE_MIR_ON = LS.get('sow-bmir') !== false;
-REFILL_ON = LS.get('sow-refill') === true;
+REFILL_ON = LS.get('sow-refill') !== false;   // default on
 // the Miracles checkbox: applies to the next game you start (and to AI training and stat games)
 function mirToggleHTML(){
   const live = G && !G.over && G.round > 0;
@@ -5869,18 +6044,18 @@ document.addEventListener('change', e => {
   if (e.target.matches && e.target.matches('[data-refill-toggle]')){
     REFILL_ON = !!e.target.checked; LS.set('sow-refill', REFILL_ON);
     for (const el of document.querySelectorAll('[data-refill-toggle]')) el.checked = REFILL_ON;
-    if (G) renderPlay(); refreshViews(); return;
+    renderPlay(); refreshViews(); return;
   }
   if (e.target.matches && e.target.matches('[data-bmir-toggle]')){
     BATTLE_MIR_ON = !!e.target.checked; LS.set('sow-bmir', BATTLE_MIR_ON);
     for (const el of document.querySelectorAll('[data-bmir-toggle]')) el.checked = BATTLE_MIR_ON;
-    if (G) renderPlay(); refreshViews(); return;
+    renderPlay(); refreshViews(); return;
   }
   if (!e.target.matches || !e.target.matches('[data-mir-toggle]')) return;
   MIRACLES_ON = !!e.target.checked; LS.set('sow-mir', MIRACLES_ON);
   for (const el of document.querySelectorAll('[data-mir-toggle]')) el.checked = MIRACLES_ON;
   for (const el of document.querySelectorAll('[data-bmir-toggle]')){ el.disabled = !MIRACLES_ON; el.closest('.mirtog').classList.toggle('off', !MIRACLES_ON); }
-  if (G) renderPlay(); refreshViews();
+  renderPlay(); refreshViews();
 });
 const brainKey = L => L === 3 ? 'sow-brain-v1' : `sow-brain-t${L}-v1`;
 // every length keeps its own card stats, rating ladder and player rating; first to 3 keeps the original names
@@ -5993,21 +6168,16 @@ function pokeParts(t, side, hit, art){
 // tokens in order), each a step up and a little left so its banner shows, on both sides of the table (so every
 // banner reads the right way up). Extra copies stay thin edges, as before.
 function pokeArt(t, side, hit, art){
-  const cps = t.filter(k => k === 'cp'), tk = t.filter(k => k !== 'cp'), g = art.gear ? 1 : 0, n = tk.length + g;
+  const nc = t.filter(k => k === 'cp').length, tk = t.filter(k => k !== 'cp'), g = art.gear ? 1 : 0, n = nc + g + tk.length;
   const shAt = tk.map((k, j) => k === 'sh' ? j : -1).filter(j => j >= 0), hitSet = new Set(hit ? shAt.slice(-hit) : []);
-  const sgn = side === 1 ? -1 : 1, sh = [`inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})`];
-  cps.forEach((k, j) => { const dx = `calc(var(--px) * ${sgn * (j + 1)})`, dy = `calc(var(--py) * ${-sgn * (j + 1)})`, c = `var(${TOKS[k].c})`;
-    sh.push(`${dx} ${dy} 0 -1px ${TOKS[k].fill || `color-mix(in srgb, ${c} 22%, var(--surface))`}`, `${dx} ${dy} 0 0 ${c}`); });
-  const nc = cps.length, up = `calc(var(--tky) * ${n})`, lf = `calc(var(--tkl) * ${n})`;
-  const room = side === 1
-    ? {marginLeft:`max(calc(var(--px) * ${nc}), ${lf})`, marginBottom:`calc(var(--py) * ${nc})`, marginTop:up}
-    : {marginRight:`calc(var(--px) * ${nc})`, marginTop:`max(calc(var(--py) * ${nc}), ${up})`, marginLeft:lf};
-  room['--rt'] = up; room['--rl'] = lf;   // the charge spot keeps cards at margin 0, except for the room these tucks need
-  const tuck = (j, cls, extra) => `style="--j:${j};z-index:${-1 - j}"${extra}`;
-  let html = g ? `<span class="tk gtk${art.gearArt ? '' : ' plain'}" ${tuck(0, '', ` data-tuck-gear="${esc(art.gear)}"`)}${art.gearArt ? ` data-art="1"` : ''} aria-hidden="true">${art.gearArt ? `<img src="${art.gearArt}" alt="" draggable="false">` : tuckPlainGear(art.gear)}<i class="tkband"></i></span>` : '';
-  let ti = 0, ci = 0;   // copy edges and token cards are each numbered among themselves
-  html += t.map(k => k === 'cp' ? `<span class="pk" data-k="cp" style="--j:${ci++};color:var(${TOKS.cp.c})" aria-hidden="true"></span>`
-    : (j => `<span class="pk tk${hitSet.has(j) ? ' shhit' : ''}" data-k="${k}" data-tuck-tok="${k}" ${tuck(j + g, '', '')} aria-hidden="true"><i class="tkband"></i></span>`)(ti++)).join('');
+  const sh = [`inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})`];
+  const up = `calc(var(--tky) * ${n})`, lf = `calc(var(--tkl) * ${n})`;
+  const room = {marginTop:up, marginLeft:lf, '--rt':up, '--rl':lf};
+  const tuck = j => `style="--j:${j};z-index:${-1 - j}"`;
+  let html = '';
+  for (let j = 0; j < nc; j++) html += `<span class="tk ctk" ${tuck(j)} aria-hidden="true">${art.unitArt ? `<img src="${art.unitArt}" alt="" draggable="false">` : ''}<i class="tkband"></i></span>`;
+  if (g) html += `<span class="tk gtk${art.gearArt ? '' : ' plain'}" ${tuck(nc)} data-tuck-gear="${esc(art.gear)}"${art.gearArt ? ` data-art="1"` : ''} aria-hidden="true">${art.gearArt ? `<img src="${art.gearArt}" alt="" draggable="false">` : tuckPlainGear(art.gear)}<i class="tkband"></i></span>`;
+  html += tk.map((k, j) => `<span class="pk tk${hitSet.has(j) ? ' shhit' : ''}" data-k="${k}" data-tuck-tok="${k}" ${tuck(nc + g + j)} aria-hidden="true"><i class="tkband"></i></span>`).join('');
   return {shadow:sh.join(','), room, html};
 }
 const kebab = k => k.startsWith('--') ? k : k.replace(/[A-Z]/g, m => '-' + m.toLowerCase());
@@ -6030,16 +6200,16 @@ function cardHTML(u, side, mode){
   const hit = SHHIT ? SHHIT.get(`${side}-${u.uid}`) || 0 : 0;
   if (hit) u = {...u, sh:(u.sh || 0) + hit};
   const nmA = u.name.replace(/^Jester → .*/, 'Jester'), aurlA = typeof artURL === 'function' ? (DEFS[nmA] && DEFS[nmA].token ? artURL('Recruit', 'u') : artURL(nmA, 'u')) : null;
-  const pk = pokeStyle(u, VS(side), hit, aurlA ? artInfo(u) : null);
+  const pk = pokeStyle(u, VS(side), hit, aurlA ? {...artInfo(u), unitArt:aurlA} : null);
   const vr = [u.van ? 'V' : '', u.rear ? 'R' : '', u.sw ? '✶' : ''].filter(Boolean).join(' ');
   const ttl = [pk.title, u.sw ? 'Second Wind attached' : ''].filter(Boolean).join(' · ');
   const nm0 = u.name.replace(/^Jester → .*/, 'Jester'), aurl = typeof artURL === 'function' ? (DEFS[nm0] && DEFS[nm0].token ? artURL('Recruit', 'u') : artURL(nm0, 'u')) : null;
   const base = DEFS[nm0] && DEFS[nm0].p ? DEFS[nm0].p[Math.min(u.lvl, DEFS[nm0].p.length) - 1] : u.pow;
-  const live = aurl ? `<span class="livepow${u.pow > base ? ' up' : u.pow < base ? ' down' : ''}" title="Power now">${u.pow}</span>` : '';
+  const live = aurl ? `<span class="mbn" title="Power now"><img src="art/banner.png" alt="" draggable="false"><b class="${u.pow > base ? 'up' : u.pow < base ? 'down' : ''}">${u.pow}</b></span>` : '';
   return `<div class="card ${mode}${pk.html ? ' poked' : ''}${aurl ? ' hasart' : ''}" data-side="${VS(side)}" data-uid="${side}-${u.uid}" data-name="${esc(u.name)}" data-lvl="${u.lvl}" style="${pk.style}${aurl ? `;background-image:url('${aurl}')` : ''}"${ttl ? ` title="${esc(ttl)}"` : ''}>${aurl ? '<span class="cartbg" aria-hidden="true"></span>' : ''}${pk.html}${live}
     <span class="ctop"><span class="cn">${esc(u.name)}</span><span class="cpw"><b title="Power">${u.pow}</b><i>Lv ${u.lvl}${vr ? ' · ' + vr : ''}</i></span></span>
     ${zhChip(u.name)}${u.gear && !aurl ? `<span class="cgear" title="${esc(u.gear)}: ${esc((BDEFS[u.gear] || {}).t || '')}">${esc(u.gear)}</span>` : ''}
-    <span class="hprow"><span class="hp"><i style="width:${hp}%"></i></span><span class="hpn${u.dmg ? ' hurt' : ''}"><b>${Math.max(0, u.pow - u.dmg)}</b>/${u.pow} hp</span></span></div>`;
+    <span class="hprow">${aurl ? `<span class="lvt">LV ${u.lvl}</span>` : ''}<span class="hp"><i style="width:${hp}%"></i></span><span class="hpn${u.dmg ? ' hurt' : ''}"><b>${Math.max(0, u.pow - u.dmg)}</b>/${u.pow}<span class="hpu"> hp</span></span></span></div>`;
 }
 const graveHTML = (g, side) => `<div class="grave">${g.length ? g.map(u => `<b data-uid="${side}-${u.uid}"${u.gear ? ` title="${esc(u.gear)} stays attached"` : ''}>${esc(u.name)}${u.gear ? ` <i>(${esc(u.gear)})</i>` : ''}</b>`).join('') : 'Empty'}</div>`;
 // the rest of a deck, as a slightly splayed stack of name strips (the next card up sits nearest the revealed one)
@@ -6138,7 +6308,9 @@ const freshUI = extra => ({battle:null, frame:0, draft:null, lastDraft:null, las
 const newRoll = () => ({you:null, ai:null, rolling:false, tie:false, first:null});
 function newPassPlay(names){
   stopTimers();
-  G = newGame({genomes:[null, null], labels:names, target:LEN});
+  const su = setupForGame();
+  G = newGame({genomes:[null, null], labels:names, target:gameTarget(), su});
+  G.suLines = suIsDefault() ? null : suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, names);
   G.pp = true; G.opp = null;
   ui = freshUI({roll:newRoll()});
   renderPlay();
@@ -6159,7 +6331,7 @@ function recSnap(g){
 function recStart(g, opp){
   const sk = g.players[1].skill;
   g.rec = {format:'SOW match record v1', id:Date.now(), started:new Date().toISOString(), firstTo:g.target,
-    opponent:opp ? `rated opponent ${opp.rating}` : 'full-strength AI (unrated)',
+    opponent:opp ? `${opp.rated ? 'rated' : 'unrated'} opponent ${opp.rating}` : 'full-strength AI (unrated)', rules:g.suLines || 'Default',
     aiLevel:sk ? (sk.hi ? `budget ${Math.round((sk.t || 0) * 100)}% of the way from ${sk.lo.label} to ${sk.hi.label}` : sk.lo.label) : 'Thinks deepest (full strength, unrated)',
     cards:{units:clone(DEFS), buildings:clone(BDEFS)}, events:[], battles:[]};
 }
@@ -6220,8 +6392,11 @@ function matchesHTML(){
 }
 function newPlay(opp){
   stopTimers();
+  const custom = !suIsDefault(), su = setupForGame();
+  if (opp && custom) opp = {...opp, rated:false, placement:false};   // custom rules are never rated
   const genome = opp && CAL ? clone(CAL.genome) : clone(brain.champ);
-  G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, loadOm()], target:LEN});
+  G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, loadOm()], target:gameTarget(), su});
+  G.suLines = custom ? suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, ['You', 'AI']) : null;
   G.opp = opp || null;
   if (opp && CAL) G.players[1].skill = skillFor(opp.rating);
   recStart(G, opp);
@@ -6653,7 +6828,7 @@ function cardFlight(g, from, to, o = {}){
    Each page applies both players' moves in turn order, so both arrive at the same game without ever sending it.
    Moves are kept on this device too, so a reload can rejoin the room and replay them. */
 let NET = null, ROOM_NS;
-const NET_V = 4;
+const NET_V = 5;
 const netCards = () => [...new Set([...Object.keys(DEFS), ...Object.keys(BDEFS)])].sort();
 const netIx = n => { const k = netCards().indexOf(n); return k < 0 ? n : k; };
 const netName = x => typeof x === 'number' ? netCards()[x] : x;
@@ -6759,11 +6934,12 @@ function peerJoin(name, o){
     link: () => link
   });
 }
-function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, rf:NET.rf, at:Date.now()}); }
+function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, rf:NET.rf, su:NET.su, ready:NET.ready, at:Date.now()}); }
 function netPresence(){
   if (!NET || !NET.room || NET.seat == null) return;
   const pr = {app:'sow', v:NET_V, code:NET.code, seat:NET.seat, name:NET.name, hash:NET.hash, acts:NET.acts};
-  if (NET.seat === 0) Object.assign(pr, {seed:NET.seed, target:NET.target, mir:NET.mir !== false, bmir:NET.bmir === true, rf:NET.rf === true});
+  if (NET.seat === 0) Object.assign(pr, {seed:NET.seed, target:NET.target, mir:NET.mir !== false, bmir:NET.bmir === true, rf:NET.rf === true, su:NET.su});
+  else pr.ready = !!NET.ready;
   if (JSON.stringify(pr).length > 4000){ NET.err = 'This game has grown too long to keep in sync online.'; renderPlay(); return; }
   NET.room.presence(pr).catch(() => {});
 }
@@ -6773,7 +6949,7 @@ async function netOpen(opts){
   let r;
   try{ r = await room.join('sow-' + opts.code, {host:opts.seat === 0}); }
   catch(e){ ui.netErr = e && e.code === 'not_permitted' ? "Your access to this page doesn't include live rooms. Ask the page's owner to invite you by email from the Share menu." : "Couldn't open the room. Try again in a moment."; renderPlay(); return; }
-  NET = {code:opts.code, seat:opts.seat, name:opts.name, seed:opts.seed, target:opts.target, mir:opts.mir !== false, bmir:opts.bmir === true, rf:opts.rf === true, acts:opts.acts || [], peerActs:[], peer:null,
+  NET = {code:opts.code, seat:opts.seat, name:opts.name, seed:opts.seed, target:opts.target, mir:opts.mir !== false, bmir:opts.bmir === true, rf:opts.rf === true, su:opts.su || null, ready:opts.seat === 0 || !!opts.ready || !!(opts.acts && opts.acts.length), acts:opts.acts || [], peerActs:[], peer:null,
     hash:netHash(), room:r, applied:[0, 0], started:false, here:false, err:'', since:Date.now(), needShop:false, live:false};
   ui.netErr = ''; ui.start = false;
   r.onPeers(netPeers, e => { if (NET && NET.room === r){ NET.err = (e && e.message) || 'Lost the connection to the room. Reload the page and rejoin it from Play online.'; renderPlay(); } });
@@ -6804,9 +6980,10 @@ function netPeers(ch){
     if (pr.v !== NET_V){ NET.err = 'Your friend has a different version of this page open. Both of you reload it and try again.'; renderPlay(); return; }
     if (pr.hash !== NET.hash){ NET.err = "Your card numbers don't match your friend's (custom balance or a different version). Both of you reload the page."; renderPlay(); return; }
     NET.peer = {name:String(pr.name || 'Friend').slice(0, 16), seed:pr.seed, target:pr.target};
-    if (NET.seat === 1){ NET.seed = pr.seed; NET.target = pr.target; NET.mir = pr.mir !== false; NET.bmir = pr.bmir === true; NET.rf = pr.rf === true; }
+    if (NET.seat === 1){ NET.seed = pr.seed; NET.target = pr.target; NET.mir = pr.mir !== false; NET.bmir = pr.bmir === true; NET.rf = pr.rf === true; NET.su = pr.su || null; }
+    NET.peerReady = NET.seat === 1 || pr.ready === true || (Array.isArray(pr.acts) && pr.acts.length > 0);
     NET.peerActs = Array.isArray(pr.acts) ? pr.acts : [];
-    if (!NET.started) netStart(); else { netPump(); netAfter(); }
+    if (!NET.started){ if (NET.ready && NET.peerReady) netStart(); else renderPlay(); } else { netPump(); netAfter(); }
     if (!wasHere && NET.started && G && !G.over && NET.since + 3000 < Date.now()) showToast(`${NET.peer.name} is here.`);
   } else if (wasHere && NET.started){ renderPlay(); }
   else if (!NET.started) renderPlay();
@@ -6815,8 +6992,9 @@ function netStart(){
   let names = NET.seat === 0 ? [NET.name, NET.peer.name] : [NET.peer.name, NET.name];
   if (names[0] === names[1]) names = [names[0] + ' 1', names[1] + ' 2'];
   stopTimers();
-  G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, miracles:NET.mir !== false, battleMir:NET.bmir === true, refill:NET.rf === true, rnd:mulberry32(NET.seed)});
+  G = newGame({genomes:[null, null], labels:names, target:NET.target || 3, miracles:NET.mir !== false, battleMir:NET.bmir === true, refill:NET.rf === true, rnd:mulberry32(NET.seed), su:NET.su || undefined});
   G.pp = true; G.net = true; G.opp = null;
+  { const L = netRulesLines(names); G.suLines = L.length ? L : null; }
   ui = freshUI({roll:null, mktTab:'u'});
   NET.started = true; NET.applied = [0, 0]; NET.needShop = false;
   startShop(G);
@@ -6948,14 +7126,34 @@ function netNoticeHTML(){
 const SITE = 'https://lupin857.github.io/Seasons-of-War-Proving-Grounds/';
 function netInvite(){ return `Play Seasons of War with me! ${SITE}?room=${NET.code} (room ${NET.code})`; }
 const URL_ROOM = (() => { try{ const c = new URLSearchParams(location.search).get('room'); return c && /^[a-z0-9]{6}$/.test(c) ? c : ''; }catch(e){ return ''; } })();
+// the host's rules for an online game, as lines that differ from Default
+function netRulesLines(names){
+  const n = NET; if (!n) return [];
+  const su = n.su || suDefault();
+  return suLines({...suDefault(), ...su, pl:su.pl || suDefault().pl}, n.target, {mir:n.mir !== false, bmir:n.mir !== false && n.bmir === true, rf:n.rf === true}, names);
+}
+function netRulesHTML(names){
+  const L = netRulesLines(names);
+  return `<div class="sulobby"><span class="eyebrow">Rules · first to ${NET.target || 3}</span>${L.length ? `<ul>${L.map(l => `<li>${l}</li>`).join('')}</ul>` : `<p class="note">Default rules.</p>`}</div>`;
+}
 function netLobbyHTML(){
   const n = NET, waitLong = Date.now() - n.since > 6500;
   let body;
   if (n.err) body = `<p class="err">${esc(n.err)}</p>`;
+  else if (n.seat === 0 && n.here && n.peer) body = `
+      <span class="eyebrow">Room code</span><span class="roomcode">${esc(n.code)}</span>
+      <p class="turn ai">${esc(n.peer.name)} joined and is looking over the rules. The game starts when they tap Ready.</p>
+      ${netRulesHTML([n.name, n.peer.name])}`;
+  else if (n.seat === 1 && n.peer && !n.ready) body = `
+      <span class="eyebrow">Room code</span><span class="roomcode">${esc(n.code)}</span>
+      <p class="note">${esc(n.peer.name)} set up this game. Tap Ready when you've read the rules.</p>
+      ${netRulesHTML([n.peer.name, n.name])}
+      <div class="row"><button type="button" class="primary" data-act="st-net-ready">Ready</button></div>`;
   else if (n.seat === 0) body = `
       <span class="eyebrow">Room code</span><span class="roomcode">${esc(n.code)}</span>
-      <p class="note">Send your friend the invite (it has a link that fills in the code). They open it, type their name and tap <b>Join a room</b>. The game starts as soon as they join.</p>
+      <p class="note">Send your friend the invite (it has a link that fills in the code). They open it, type their name and tap <b>Join</b>. They'll see your rules, and the game starts when they tap Ready.</p>
       <div class="row"><button type="button" class="primary" data-act="st-net-copy">Copy invite</button><span class="note" id="net-copied" role="status"></span></div>
+      ${netRulesHTML([n.name, 'Friend'])}
       ${n.room && n.room.connected() ? `<p class="turn ai">Room open. Waiting for your friend to join…</p>`
         : `<p class="turn ai">${waitLong ? "Reopening your room… Keep this page open and in front while your friend joins (phones close the room when you switch away, and reopen it when you come back)." : 'Opening your room…'}</p>`}`;
   else {
@@ -6983,13 +7181,14 @@ function netStartHTML(){
 async function netStartClick(a, resign){
   const val = id => { const el = $(id); return el ? el.value.trim() : ''; };
   if (a === 'st-net-back'){ ui.start = false; renderPlay(); return; }
+  if (a === 'st-net-ready'){ if (!NET) return; NET.ready = true; netSave(); netPresence(); if (NET.peer && !NET.started) netStart(); else renderPlay(); return; }
   if (a === 'st-net-leave'){ netLeave(); ui.start = !G; renderPlay(); return; }
   if (a === 'st-net-copy'){ try{ await navigator.clipboard.writeText(netInvite()); const c = $('net-copied'); if (c) c.textContent = 'Copied.'; }catch(e){ const c = $('net-copied'); if (c) c.textContent = netInvite(); } return; }
   if (resign && ui.resignArm !== 'net'){ ui.resignArm = 'net'; renderPlay(); return; }
   if (resign) recordResult(true);
   const name = (val('net-name') || 'Player').slice(0, 16); LS.set('sow-net-name', name);
-  if (a === 'st-net-rejoin'){ const sv = LS.get('sow-net'); if (!sv) return; netLeave(); await netOpen({code:sv.code, seat:sv.seat, name:sv.name || name, seed:sv.seed, target:sv.target, mir:sv.mir, bmir:sv.bmir, rf:sv.rf, acts:sv.acts}); return; }
-  if (a === 'st-net-host'){ netLeave(); await netOpen({code:netCode(), seat:0, name, seed:(Math.random() * 2147483647) | 0, target:LEN, mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON, acts:[]}); return; }
+  if (a === 'st-net-rejoin'){ const sv = LS.get('sow-net'); if (!sv) return; netLeave(); await netOpen({code:sv.code, seat:sv.seat, name:sv.name || name, seed:sv.seed, target:sv.target, mir:sv.mir, bmir:sv.bmir, rf:sv.rf, su:sv.su, ready:sv.ready, acts:sv.acts}); return; }
+  if (a === 'st-net-host'){ netLeave(); await netOpen({code:netCode(), seat:0, name, seed:(Math.random() * 2147483647) | 0, target:gameTarget(), mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON, su:setupForGame(), acts:[]}); return; }
   if (a === 'st-net-join'){
     const code = val('net-code').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (code.length !== 6){ ui.netErr = 'Room codes are 6 letters and numbers.'; renderPlay(); return; }
@@ -7052,7 +7251,7 @@ function deckLabel(i){
 function capsHTML(i, chip){
   chip = chip || '';
   if (ui.battle || G.over || (G.phase !== 'shop' && G.phase !== 'mobilize')) return chip;
-  const p = G.players[i], u = uniqueUnits(i === seat() ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots;
+  const p = G.players[i], u = uniqueUnits(i === seat() ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = citySlots(p);
   const one = (n, c, w, t) => `<span class="meta caps" title="${t}"><b class="${n >= c ? 'full' : ''}">${n}/${c}</b> ${w}</span>`;
   // the turn chip rides on the City line (to its right; mirrored to the left on the enemy's box) to save a line
   return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + `<span class="caprow">${one(b, bc, 'City', `City slots used; the city holds ${bc} (each Field takes a slot)`)}${chip}</span>`;
@@ -7064,7 +7263,7 @@ function boardHTML(where){
   const deckBtn = i => `<button type="button" class="side ${VS(i) ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: view cards">
       <span class="who"><span class="dkic" aria-hidden="true"><i></i><i></i></span>${deckLabel(i)}<span class="dkgo" aria-hidden="true">›</span></span>
       <span class="meta money">$${B.money[i]} · income $${B.inc[i]}</span>
-      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ''}` : 'Full strength · unrated'}</span>${capsHTML(i, turnChip(i))}</button>`;
+      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ' · unrated'}` : 'Full strength · unrated'}</span>${capsHTML(i, turnChip(i))}</button>`;
   const L = VS(0), Rt = VS(1);   // you on the left
   return `<div class="board${where === 'dock' ? ' inDock' : ' topboard'}">
     ${deckBtn(L)}
@@ -7603,7 +7802,7 @@ function slotsHTML(short){
   const group = (label, n, used, cls) => `<span class="slotg">${label}<span class="pips" aria-hidden="true">${
     Array.from({length:n}, (_, k) => `<i class="pip${cls ? ' ' + cls : ''}${k < used ? ' used' : ''}"></i>`).join('')}</span><span class="sr">${n - used} of ${n} left</span></span>`;
   return `<div class="slots">
-      ${group(short ? 'Buys' : 'Buys', RULES.buysPerShop, b.u + b.b)}
+      ${group(short ? 'Buys' : 'Buys', buysOf(b), b.u + b.b)}
       ${carp ? group(short ? 'Guild' : "Carpenter's buys", carp, b.carp) : ''}
       ${group(short ? 'Field' : 'Field', fieldCap(me), Math.min(fieldCap(me), b.fld || 0))}
       ${group(short ? '<span class="gold">+$1</span>' : 'Extra buy +$1', 1, b.extra ? 1 : 0, 'x')}
@@ -7617,7 +7816,7 @@ function tileSlotsHTML(i){
   const pips = (n, used, cls) => Array.from({length:n}, (_, k) => `<i class="pip${cls ? ' ' + cls : ''}${k < used ? ' used' : ''}"></i>`).join('');
   const g = (label, inner) => `<span class="slotg">${label}<span class="pips">${inner}</span></span>`;
   const fc = fieldCap(me);
-  return `<span class="tslots">${g('Buys', pips(RULES.buysPerShop, b.u + b.b) + `<span class="xsep"></span>` + pips(1, b.extra ? 1 : 0, 'x'))}${g('Field', pips(fc, Math.min(fc, b.fld || 0)))}${carp ? g('Guild', pips(carp, b.carp)) : ''}${b.favN ? g('Favor', pips(b.favN, b.favN - b.fav, 'x')) : ''}</span>`;
+  return `<span class="tslots">${g('Buys', pips(buysOf(b), b.u + b.b) + `<span class="xsep"></span>` + pips(1, b.extra ? 1 : 0, 'x'))}${g('Field', pips(fc, Math.min(fc, b.fld || 0)))}${carp ? g('Guild', pips(carp, b.carp)) : ''}${b.favN ? g('Favor', pips(b.favN, b.favN - b.fav, 'x')) : ''}</span>`;
 }
 // The phone bar along the bottom of the screen, in every phase: which phase it is, what to do right now, and the
 // button that moves the game on (Pass, Lock in, Next step, Continue). It stands out when it's waiting on you.
@@ -7686,8 +7885,8 @@ function dockHTML(){
     const B = boardSnap();
     const tile = i => {
       const p = G.players[i], lab = PP() || G.net ? esc(nm(i)) : i === S ? 'You' : 'Enemy';
-      const u = uniqueUnits(i === S ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots, inc = Math.max(0, B.inc[i]);
-      const aria = `${deckName(i)}: view cards. $${B.money[i]}, +$${inc} next shop. Units ${u} of ${uc}. City ${b} of ${bc}. ${Math.max(0, RULES.buysPerShop - G.buys[i].u - G.buys[i].b)} of ${RULES.buysPerShop} buys left.${G.passed[i] ? ' Passed.' : ''}`;
+      const u = uniqueUnits(i === S ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = citySlots(p), inc = Math.max(0, B.inc[i]);
+      const aria = `${deckName(i)}: view cards. $${B.money[i]}, +$${inc} next shop. Units ${u} of ${uc}. City ${b} of ${bc}. ${Math.max(0, baseLeft(G.buys[i]))} of ${buysOf(G.buys[i])} buys left.${G.passed[i] ? ' Passed.' : ''}`;
       return `<button type="button" class="dk tile s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(aria)}"><span class="tt" aria-hidden="true"><span class="dkic"><i></i><i></i></span><span class="tn">${lab}</span>${G.passed[i] ? '<span class="pbx">passed</span>' : ''}<span class="tm">$${B.money[i]}<i>+${inc}</i></span></span><span class="ts" aria-hidden="true"><span>Units<b class="${u >= uc ? 'full' : ''}">${u}<small>/${uc}</small></b></span><span>City<b class="${b >= bc ? 'full' : ''}">${b}<small>/${bc}</small></b></span></span><span class="tb" aria-hidden="true">${tileSlotsHTML(i)}</span></button>`;
     };
     return `<div class="dock${mine ? ' mine' : ''} ph-shop dshop" id="dock">${piles}<div class="dtiles mid">${tile(VS(0))}<div class="dbtns dact">${ui.visArm ? '' : mirBtn}${acts}</div>${tile(VS(1))}</div></div><div class="dockspace" aria-hidden="true"></div>`;
@@ -7706,7 +7905,7 @@ function pbarHTML(){
     const who = PP() || G.net ? esc(nm(i)) : i === S ? 'You' : 'Enemy';
     let cap = '';
     if (counts){
-      const u = uniqueUnits(i === S ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = RULES.citySlots;
+      const u = uniqueUnits(i === S ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = citySlots(p);
       cap = `<span class="pbc"><b class="${u >= uc ? 'full' : ''}" title="Unique units owned; the deck holds ${uc}">${u}/${uc}</b> Units · <b class="${b >= bc ? 'full' : ''}" title="City slots used; the city holds ${bc}">${b}/${bc}</b> City</span>`;
     }
     return `<div class="pbs s${VS(i)}"><span class="pbn">${who}${shopping && G.passed[i] ? ' <span class="pbx">passed</span>' : ''}</span><span class="pbmo">$${B.money[i]} · +$${B.inc[i]}</span>${cap}</div>`;
@@ -8381,12 +8580,35 @@ function abNoteHTML(g, f, i){
   const tg = [...new Set([...(ab.tg || []), ...g.lines.map(l => l.to).filter(x => x && x !== ab.u).map(x => { const u = units.get(x); return u ? u.name.replace(/^Jester → /, 'Jester as ') : null; })].filter(Boolean))];
   return `<div class="abbox${ab.g ? ' gnote' : ''} s${VS(ab.s)}" data-abi="${i}"><b class="abn">${esc(title)}</b><span class="abt"><span class="kwt">${body}</span>${tg.length ? ` <span class="abtg">(${tg.map(esc).join(', ')})</span>` : ''}</span></div>`;
 }
+/* Ability notes going away. Their layout depends on the stage they sit in (CSS variables for where the cities end,
+   the stage's size), so moving them anywhere else would shift them. Instead each column and the link lines are
+   measured where they are, pinned to the screen at exactly that spot, and faded out together. */
+function abSnap(stage){
+  const win = stage && stage.querySelector('.abwin'); if (!win) return null;
+  const cols = [...win.querySelectorAll('.abcol')].map(c => ({el:c, r:c.getBoundingClientRect()}));
+  const svg = stage.querySelector('.ablines');
+  return {win, key:win.dataset.key, cols, svg, svgR:svg && svg.getBoundingClientRect()};
+}
+function abFade(snap){
+  if (!snap) return;
+  const g = document.createElement('div'); g.className = 'abghost'; g.setAttribute('aria-hidden', 'true');
+  for (const {el, r} of snap.cols){ if (!r.width) continue;
+    el.style.cssText += `;position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;right:auto;bottom:auto;max-height:none;overflow:hidden;margin:0`;
+    g.appendChild(el); }
+  if (snap.svg && snap.svgR && snap.svgR.width){ snap.svg.style.cssText += `;position:fixed;left:${snap.svgR.left}px;top:${snap.svgR.top}px`; g.appendChild(snap.svg); }
+  snap.win.remove();
+  document.body.appendChild(g); void g.offsetWidth; g.classList.add('out');
+  setTimeout(() => g.remove(), 320);
+}
 function mountAbWin(){
   const stage = $('view-play').querySelector('.stage'); if (!stage) return;
-  stage.querySelectorAll('.abwin, .ablines').forEach(n => n.remove());
-  cancelAnimationFrame(abRaf); abRaf = 0;
-  if (!ui.battle || !abOn() || autoOn()) return;
-  const f = ui.battle.frames[ui.frame], gs = abGroups(f); if (!gs.length) return;
+  const fNow = ui.battle && abOn() && !autoOn() ? ui.battle.frames[ui.abFrame != null ? ui.abFrame : ui.frame] : null;
+  const showing = stage.querySelector('.abwin'), key = fNow ? abGroups(fNow).map(g => abNoteHTML(g, fNow, 0)).join('|') : '';
+  if (showing && key && showing.dataset.key === key) return;   // same notes: nothing to do (no fade, no jump)
+  cancelAnimationFrame(abRaf); abRaf = 0;   // stop the old lines following before they're pinned
+  abFade(abSnap(stage)); stage.querySelectorAll('.abwin, .ablines').forEach(n => n.remove());
+  if (!fNow) return;
+  const f = fNow, gs = abGroups(f); if (!gs.length) return;
   // each note goes to the corner nearest its card: your side along the bottom, the enemy's along the top,
   // and left or right by which half of the battlefield the card (or building chip) is in
   const sr = stage.getBoundingClientRect(), mid = sr.left + sr.width / 2;
@@ -8400,7 +8622,7 @@ function mountAbWin(){
     const el = abSrcEl(stage, g.ab); if (!el) return s0 ? 'L' : 'R'; const r = el.getBoundingClientRect(); return r.left + r.width / 2 < mid ? 'L' : 'R'; };
   const where = gs.map(half);
   const col = (s, h) => gs.map((g, i) => [g, i]).filter(([g, i]) => g.ab.s === s && where[i] === h).map(([g, i]) => abNoteHTML(g, f, i)).join('');
-  const win = document.createElement('div'); win.className = 'abwin';
+  const win = document.createElement('div'); win.className = 'abwin'; win.dataset.key = key;
   win.innerHTML = [0, 1].flatMap(s => ['L', 'R'].map(h => { const c = col(s, h); return c ? `<div class="abcol s${VS(s)} ${h}">${c}</div>` : ''; })).join('');
   try{ kwDecorate(win, null, true); }catch(e){}   // no keyword list here, so each keyword explains itself on hover
   win.addEventListener('click', e => { const bx = e.target.closest('.abbox'); if (bx){ e.stopPropagation(); bx.classList.toggle('min'); } });
@@ -8617,6 +8839,10 @@ function deathFly(r0, nameEl){
   Object.assign(g.style, {left:r0.left + 'px', top:r0.top + 'px', width:r0.width + 'px', height:r0.height + 'px'});
   const back = document.createElement('span'); back.className = 'dfback'; g.appendChild(back);
   document.body.appendChild(g);
+  // the page can give fixed elements an offset container (a transformed or contained ancestor); line the clone up
+  // with where the card really was before it flies
+  { const gr = g.getBoundingClientRect(); if (Math.abs(gr.left - r0.left) > 1 || Math.abs(gr.top - r0.top) > 1){
+      g.style.left = (2 * r0.left - gr.left) + 'px'; g.style.top = (2 * r0.top - gr.top) + 'px'; } }
   const dx = (r1.left + r1.width / 2) - (r0.left + r0.width / 2), dy = (r1.top + r1.height / 2) - (r0.top + r0.height / 2);
   const sx = Math.max(0.1, r1.width / r0.width), sy = Math.max(0.05, r1.height / r0.height);
   const T = 760;
@@ -8652,14 +8878,15 @@ function animateTokens(prevF, curF){
       const order = tokenList(kept).concat(added).slice(0, pokeCap()), start = Math.min(tokenList(kept).length, order.length);
       if (start >= order.length) continue;
       const set = (n, pop) => {
-        const art = el.classList.contains('hasart') ? artInfo(u) : null;
+        const ua = (el.querySelector(':scope > .ctk img') || {}).src || (typeof artURL === 'function' ? artURL(u.name.replace(/^Jester → .*/, 'Jester'), 'u') : null);
+        const art = el.classList.contains('hasart') ? {...artInfo(u), unitArt:ua} : null;
         const pp = pokeParts(order.slice(0, n), VS(side), 0, art);
         el.style.boxShadow = pp.shadow;
         if (art) applyRoom(el, pp.room); else Object.assign(el.style, {marginLeft:'', marginRight:'', marginTop:'', marginBottom:''}, n ? pp.room : {});
-        for (const x of el.querySelectorAll(':scope > .pk, :scope > .gtk')) x.remove();
+        for (const x of el.querySelectorAll(':scope > .pk, :scope > .gtk, :scope > .ctk')) x.remove();
         const bg = el.querySelector(':scope > .cartbg');
         bg ? bg.insertAdjacentHTML('afterend', pp.html) : el.insertAdjacentHTML('afterbegin', pp.html);
-        if (pop){ const last = el.querySelectorAll(':scope > .pk')[n - 1]; if (last) last.classList.add(art ? 'tknew' : 'pknew'); }
+        if (pop){ const all = el.querySelectorAll(':scope > .pk'), last = all[all.length - 1]; if (last) last.classList.add(art ? 'tknew' : 'pknew'); }
       };
       set(start, false);              // back to how it looked before this step...
       void el.offsetWidth; el.classList.add('tokanim');
@@ -8679,7 +8906,7 @@ function shieldsToBreak(){
     const cs = getComputedStyle(card), px = parseFloat(cs.getPropertyValue('--px')) || 12, py = parseFloat(cs.getPropertyValue('--py')) || 8;
     const j = +pk.style.getPropertyValue('--j') || 0, side = +card.dataset.side, sg = side === 1 ? -1 : 1;
     if (pk.classList.contains('tk')){ const ty = parseFloat(cs.getPropertyValue('--tky')) || 26, tl = parseFloat(cs.getPropertyValue('--tkl')) || 5;
-      out.push({art:true, cr, pr, ty, tl, side, rad:cs.borderRadius}); continue; }
+      out.push({art:true, cr, pr, ty, tl, side, rad:cs.borderRadius, uid:card.dataset.uid, z:+(pk.style.zIndex || -1)}); continue; }
     out.push({cr, pr, dx:sg * px * (j + 1), dy:-sg * py * (j + 1), sx:sg * px, sy:-sg * py, side, icon:pk.innerHTML, rad:cs.borderRadius});
   }
   return out;
@@ -8728,7 +8955,10 @@ function breakArtShield(b){
   const {pr, ty, tl} = b, W = pr.width, H = pr.height;
   const L = [[0,0],[W,0],[W,ty],[tl,ty],[tl,H],[0,H]];
   const wrap = document.createElement('div'); wrap.className = 'shbreak'; wrap.setAttribute('aria-hidden', 'true');
-  wrap.style.cssText = `left:${pr.left}px;top:${pr.top}px;width:${W}px;height:${H}px`;
+  // the pieces go inside the card, behind its face, so they fall away behind it instead of across it
+  const card = b.uid && document.querySelector(`#view-play .card[data-uid="${b.uid}"]:not(.mini)`);
+  if (card) wrap.style.cssText = `position:absolute;left:${pr.left - b.cr.left}px;top:${pr.top - b.cr.top}px;width:${W}px;height:${H}px;z-index:${b.z}`;
+  else wrap.style.cssText = `left:${pr.left}px;top:${pr.top}px;width:${W}px;height:${H}px`;
   const mid = W * .45;
   const half = keepLeft => L.map(([x, y]) => [keepLeft ? Math.min(x, mid + (y < ty / 2 ? 8 : -8)) : Math.max(x, mid + (y < ty / 2 ? 8 : -8)), y]);
   for (const [keepLeft, rot, tx] of [[true, -14, -18], [false, 12, 18]]){
@@ -8743,7 +8973,7 @@ function breakArtShield(b){
   crack.style.cssText = `left:${mid}px;top:${ty / 2}px`;
   wrap.appendChild(crack);
   crack.animate([{transform:'translate(-50%,-50%) scale(.2)', opacity:.9}, {transform:'translate(-50%,-50%) scale(1.6)', opacity:0}], {duration:360, easing:'ease-out', fill:'forwards'});
-  document.body.appendChild(wrap);
+  (card || document.body).appendChild(wrap);
   setTimeout(() => wrap.remove(), 900);
 }
 // break the shields now and redraw those cards without them (the next step's arrows then aim at the board as it is)
@@ -8753,11 +8983,13 @@ function breakShieldsNow(){
   const units = unitsOf(ui.battle.frames[ui.frame], ['charge', 'deck']);
   for (const card of new Set([...$('view-play').querySelectorAll('.stage .card > .pk.shhit')].map(x => x.parentElement))){
     const u = units.get(card.dataset.uid), side = +card.dataset.side; if (!u) continue;
-    const art = card.classList.contains('hasart') ? artInfo(u) : null;
+    const ua = (card.querySelector(':scope > .ctk img') || {}).src || null;
+    const art = card.classList.contains('hasart') ? {...artInfo(u), unitArt:ua} : null;
     const t = tokenList(u).slice(0, pokeCap()), pp = pokeParts(t, side, 0, art);
     card.style.boxShadow = t.length || art ? pp.shadow : '';
-    if (art) applyRoom(card, pp.room);
-    for (const x of card.querySelectorAll(':scope > .pk, :scope > .gtk')) x.remove();
+    // the card eases into its new spot as the stack behind it shrinks, instead of jumping
+    if (art){ card.classList.add('tokanim'); applyRoom(card, pp.room); setTimeout(() => card.classList.remove('tokanim'), 480); try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){} }
+    for (const x of card.querySelectorAll(':scope > .pk, :scope > .gtk, :scope > .ctk')) x.remove();
     const bg = card.querySelector(':scope > .cartbg');
     bg ? bg.insertAdjacentHTML('afterend', pp.html) : card.insertAdjacentHTML('afterbegin', pp.html);
   }
@@ -8769,17 +9001,20 @@ function stepForward(){
   if (ui.frame >= last) return;
   breakShieldsNow();   // a shield that blocked a hit in the step on screen breaks as soon as you move on
   const prev = ui.battle.frames[ui.frame], next = ui.battle.frames[ui.frame + 1], to = ui.frame + 1;
+  try{ glowStep(next); ui.abFrame = to; mountAbWin(); }catch(e){}   // abilities firing this step glow, and their notes show, as it begins
   if (reduceMotion()){ goFrame(to, true); return; }
   const before = unitsOf(prev, ['charge', 'deck']), after = unitsOf(next, ['charge', 'deck']), grave = unitsOf(next, ['grave']);
   const hits = [];
   for (const [id, u] of before){
     const hpOf = v => Math.max(0, Math.min(100, (v.pow - v.dmg) / Math.max(1, v.pow) * 100));
-    if (after.has(id)){ const v = after.get(id), d = v.dmg - u.dmg; if (d > 0) hits.push({id, t:`−${d}`, hp:hpOf(v), cur:Math.max(0, v.pow - v.dmg), max:v.pow}); }
+    if (after.has(id)){ const v = after.get(id), ev = (next.hits || []).filter(x => `${id}`.endsWith('-' + x.uid)), heal = ev.reduce((a, x) => a + x.heal, 0), d = v.dmg + heal - u.dmg;
+      if (d > 0){ const pre = {...v, dmg:v.dmg + heal}; hits.push({id, t:`−${d}`, hp:hpOf(pre), cur:Math.max(0, pre.pow - pre.dmg), max:v.pow, heal, after:hpOf(v)}); } }
     else if (grave.has(id)) hits.push({id, t:'Defeated', ko:true, hp:0});
   }
   const fought = next.lines.some(l => / fight\.$/.test(l.t));
   const arrows = next.lines.filter(l => l.to);
-  if (!fought && !hits.length && !arrows.length){ goFrame(to, true); return; }
+  const heals = (next.hits || []).some(x => x.heal > 0);
+  if (!fought && !hits.length && !arrows.length && !heals){ goFrame(to, true); return; }
   const root = $('view-play');
   // where everything sits before the charging units lunge, so the arrows aim at resting cards
   const rest = new Map(); for (const el of root.querySelectorAll('.stage [data-uid]')) rest.set(el.dataset.uid, el.getBoundingClientRect());
@@ -8792,19 +9027,18 @@ function stepForward(){
     if (hits.some(h => h.ko)) sfx.ko(); else if (hits.length) sfx.hit();
     for (const h of hits){
       const el = root.querySelector(`.card[data-uid="${h.id}"]`); if (!el) continue;
-      el.classList.add('shake');
-      const fl = document.createElement('span'); fl.className = 'float' + (h.ko ? ' ko' : ''); fl.textContent = h.t; el.appendChild(fl);
       // health bar drains to its new level
       const bar = el.querySelector('.hp i'); if (bar){ bar.style.transition = 'width .6s cubic-bezier(.3,.6,.3,1) .12s'; bar.style.width = h.hp + '%'; }
       // the hp readout ticks down to its new value
       if (h.cur != null){
         const hn = el.querySelector('.hpn');
-        if (hn){ hn.classList.add('hurt'); hn.innerHTML = `<b>${h.cur}</b>/${h.max} hp`;
+        if (hn){ hn.classList.add('hurt'); hn.innerHTML = `<b>${h.cur}</b>/${h.max}<span class="hpu"> hp</span>`;
           hn.animate([{opacity:0, transform:'scale(1.3)'}, {opacity:1, transform:'none'}], {duration:450, delay:150, easing:'ease-out', fill:'backwards'}); }
       }
     }
     const tokOnly = arrows.length && arrows.every(a => a.tok) && !hits.length && !fought;
-    ui.animT = setTimeout(() => { ui.animT = null; goFrame(to, true); }, tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260);
+    const cubeT = cubeStep(next, hits, prev);   // drops, heals and the defeat sweep; a defeated card waits until its cubes are off
+    ui.animT = setTimeout(() => { ui.animT = null; goFrame(to, true); }, Math.max(tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260, cubeT));
   }, fought ? 190 : 0);
 }
 /* Reminders: before you pass with money you could still spend, or lock in a deck with things left on the bench */
@@ -9035,7 +9269,7 @@ function renderPlay(){
   if (ui.battle) h += battleHTML();
   else if (G.phase === 'shop') h += shopHTML();
   else if (G.phase === 'mobilize') h += mobilizeHTML();
-  h += `<div class="row">${G.net && NET ? `<span class="note">Online room <b class="mono">${esc(NET.code)}</b></span><button type="button" data-act="st-net-leave">Leave room</button>` : ''}<span class="grow"></span><button type="button" data-act="newgame">${G.over && !hideResult() ? 'Choose next opponent' : 'New game…'}</button></div>`;
+  h += `<div class="row">${suChipHTML()}${G.net && NET ? `<span class="note">Online room <b class="mono">${esc(NET.code)}</b></span><button type="button" data-act="st-net-leave">Leave room</button>` : ''}<span class="grow"></span><button type="button" data-act="newgame">${G.over && !hideResult() ? 'Choose next opponent' : 'New game…'}</button></div>`;
   const lw = $('view-play').querySelector('.linewrap'), sx = lw ? lw.scrollLeft : 0;
   const wasMine = !!$('view-play').querySelector('.dock.mine');
   const dockH = dockHTML();
@@ -9427,7 +9661,23 @@ function lockDeck(){
 }
 // both armies are set: fight the battle (returns the replay), and show a replay from its first step
 function playBattle(d0, d1){ ui.pre = boardSnap(); setDeck(G, 0, d0); setDeck(G, 1, d1); finishMobilize(G); return doBattle(G, true); }
-function showBattle(res){ ui.battle = res; ui.frame = 0; ui.draft = null; ui.pick = null; ui.gpick = null; ui.sel = null; ui.revealed = false; }
+// steps where nothing happens (no ability, no damage, nobody moves or changes) are folded into the next step, so the
+// battle never pauses on an empty step; their log lines still show, with the step they lead into
+function quietFrame(prev, f){
+  if ((f.hits || []).length || f.lines.some(l => l.ab)) return false;
+  const u = x => x && [x.uid, x.dmg, x.pow, x.arm, x.sh, x.tr, x.gear || '', x.cp, (x.sp || []).length, x.sw || 0].join(':');
+  const lite = fr => JSON.stringify(fr.snap.map(sd => [u(sd.charge), sd.deck.map(u), sd.grave.map(x => x.uid), (sd.tail || []).length]));
+  return lite(prev) === lite(f);
+}
+function compactFrames(frames){
+  const out = []; let carry = [];
+  frames.forEach((f, i) => {
+    if (i > 0 && i < frames.length - 1 && quietFrame(frames[i - 1], f)){ carry = carry.concat(f.lines); return; }
+    out.push(carry.length ? {...f, lines:carry.concat(f.lines)} : f); carry = [];
+  });
+  return out;
+}
+function showBattle(res){ if (res && res.frames && !res.compact){ res.frames = compactFrames(res.frames); res.compact = true; } ui.battle = res; ui.frame = 0; ui.draft = null; ui.pick = null; ui.gpick = null; ui.sel = null; ui.revealed = false; }
 // is this unit (or a Recruit) still waiting on the bench?
 // battle miracles in hand that aren't in the deck yet (one entry per copy)
 function batBench(me, d){
@@ -9577,7 +9827,8 @@ $('view-play').addEventListener('click', e => {
     case 'continue': if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
       sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
     case 'rec-copy': { sfx.soft(); const id = t.dataset.id; copyMatch(id ? (LS.get(MATCH_KEY) || []).find(r => String(r.id) === id) : G && G.rec); return; }
-    case 'newgame': sfx.soft(); ui.start = true; ui.resignArm = false; renderPlay(); window.scrollTo({top:0}); return;
+    case 'newgame': sfx.soft(); startMode = G && G.over ? (G.net ? 'net' : PP() ? 'pp' : 'ai') : null; ui.start = true; ui.resignArm = false; renderPlay(); window.scrollTo({top:0}); return;
+    case 'su-chip': ui.suOpen = !ui.suOpen; renderPlay(); return;
     default: return;
   }
   ui.err = ''; ui.sel = null; renderPlay();
@@ -10492,7 +10743,7 @@ function mirRows(){
 }
 function renderLab(){
   const changes = describeOverrides(OV), busy = !!job;
-  const ruleLbl = {baseIncome:'Base income ($)', buysPerShop:'Buys per shop', fieldsPerShop:'Fields per shop', deckCap:'Deck size (unique units)', citySlots:'City slots', unitDisplay:'Units on display', bldgDisplay:'Buildings on display'};
+  const ruleLbl = {baseIncome:'Base income ($)', buysPerShop:'Buys per shop', fieldsPerShop:'Fields per shop', deckCap:'Deck size (unique units)', citySlots:'City slots', unitDisplay:'Units on display', bldgDisplay:'Buildings on display', startFields:'Starting Harvesters'};
   const bOpts = Object.keys(BDEFS).filter(n => n !== "Mason's Guild").sort().map(n => `<option ${lab.bld===n?'selected':''}>${esc(n)}</option>`).join('');
   const uNames = Object.keys(DEFS).filter(n => !DEFS[n].token && n !== 'Jester').sort();
   const uOpts = sel => uNames.map(n => `<option ${sel===n?'selected':''}>${esc(n)}</option>`).join('');
@@ -11100,13 +11351,151 @@ function ratingNoteHTML(){
   const d = c.after - c.before;
   return `<span class="note">Your rating ${c.before} → <b>${c.after}</b> <span class="${d >= 0 ? 'up' : 'down'}">(${d >= 0 ? '+' : '−'}${Math.abs(d)})</span></span>`;
 }
+/* ===================== NEW GAME: MODE + SETUP =====================
+   The Play tab's start screen is two steps, like a strategy game's skirmish lobby: pick a mode (the AI, online or pass
+   and play), then a setup screen with the opponent and the game's rules. The rules start at Default (rated games use
+   Default); any change makes the game Custom, which is never rated. The last setup is kept in this browser. */
+let startMode = null;   // null = the mode tiles; 'ai' | 'net' | 'pp' = that mode's setup screen
+const SU_KEY = 'oasis-setup-v1';
+const SU_LIM = {water:[0, 20], fields:[0, 10], drift:[0, 6], inc:[0, 10], buys:[1, 6], fps:[0, 6], deckCap:[1, 10], city:[1, 10], uDisp:[3, 7], bDisp:[3, 7], catchup:[0, 5], tgt:[2, 10]};
+const SU_PL = ['water', 'fields', 'drift', 'inc', 'buys', 'fps'];
+const SU_SH = ['deckCap', 'city', 'uDisp', 'bDisp', 'catchup'];
+// the setup screen's state: suDefault()'s fields, plus tgt (a custom points-to-win, or null for 3/4/5) and split
+function suFresh(){ return {...suDefault(), tgt:null, split:false}; }
+let SU = (() => {
+  const d = suFresh(), s = LS.get(SU_KEY);
+  if (!s || typeof s !== 'object') return d;
+  const out = {...d, tgt:Number.isFinite(s.tgt) ? s.tgt : null, split:!!s.split};
+  for (const k of SU_SH) if (Number.isFinite(s[k])) out[k] = s[k];
+  out.pl = d.pl.map((q, i) => { const sq = (s.pl && s.pl[i]) || {}, o = {...q}; for (const k of SU_PL) if (Number.isFinite(sq[k])) o[k] = sq[k]; return o; });
+  return out;
+})();
+const suSave = () => LS.set(SU_KEY, SU);
+// Default: RULES' setup (so a Balance Lab change to the starting rules moves Default with it), miracles off, refills on
+function suIsDefault(){
+  const d = suDefault();
+  if (SU.tgt != null || MIRACLES_ON || !REFILL_ON) return false;
+  for (const k of SU_SH) if (SU[k] !== d[k]) return false;
+  return SU.pl.every((q, i) => SU_PL.every(k => q[k] === d.pl[i][k]));
+}
+const gameTarget = () => SU.tgt != null ? SU.tgt : LEN;
+const setupForGame = () => clone({deckCap:SU.deckCap, city:SU.city, uDisp:SU.uDisp, bDisp:SU.bDisp, catchup:SU.catchup, pl:SU.split ? SU.pl : [SU.pl[0], SU.pl[0]]});
+// One line per way a game's setup differs from Default (names: each side's label). Used by the in-game chip and
+// the online lobby.
+function suLines(su, target, cards, names){
+  const d = suDefault(), L = [];
+  if (target != null && !LENS.includes(target)) L.push(`First to ${target} points`);
+  const PLN = {water:['Extra starting water', v => `+$${v}`], fields:['Starting Moisture Harvesters', v => v], drift:['Drifters for the first battle', v => v],
+    inc:['Base income', v => `$${v}`], buys:['Buys per shop', v => v], fps:['Harvester buys per shop', v => v]};
+  for (const k of SU_PL){
+    const a = su.pl[0][k], b = su.pl[1][k], dv = d.pl[0][k], f = PLN[k][1];
+    if (a === b){ if (a !== dv) L.push(`${PLN[k][0]}: ${f(a)} (Default ${f(dv)})`); }
+    else L.push(`${PLN[k][0]}: ${esc(names[0])} ${f(a)}, ${esc(names[1])} ${f(b)} (Default ${f(dv)})`);
+  }
+  const SHN = {deckCap:'Units limit', city:'Caravan slots', uDisp:'Units in the shop', bDisp:'Caravan cards in the shop'};
+  for (const k in SHN) if (su[k] !== d[k]) L.push(`${SHN[k]}: ${su[k]} (Default ${d[k]})`);
+  if (su.catchup > 0) L.push(`Catch-up: the player behind on points gets +$${su.catchup} each shop`);
+  if (cards){
+    if (cards.mir) L.push(`Miracles in the shop decks${cards.bmir ? ', with battle miracles' : ''}`);
+    if (!cards.rf) L.push('No automatic shop refills');
+  }
+  return L;
+}
+// packages: one player's starting cards and economy, as quick-fill chips (two built in, more saved from the setup)
+const PKG_KEY = 'oasis-pkgs-v1';
+const PKG_BUILTIN = () => { const d = suDefault().pl[0]; return [{...d, b:1}, {...d, fields:Math.max(0, d.fields - 1), drift:1, b:1}]; };
+const pkgList = () => PKG_BUILTIN().concat((LS.get(PKG_KEY) || []).filter(q => q && typeof q === 'object'));
+const pkgSame = (a, b) => SU_PL.every(k => a[k] === b[k]);
+function pkgName(q){
+  const d = suDefault().pl[0], r1 = q.inc + q.fields + q.water, bits = [`${pkgSame(q, d) ? 'Default: ' : ''}$${r1} in round 1`];
+  if (q.fields) bits.push(`${q.fields} ${plural(q.fields, 'Harvester')}`);
+  if (q.drift) bits.push(`${q.drift} ${plural(q.drift, 'Drifter')}`);
+  if (q.inc !== d.inc) bits.push(`$${q.inc} income`);
+  if (q.buys !== d.buys) bits.push(`${q.buys} buys`);
+  if (q.fps !== d.fps) bits.push(`${q.fps} Harvester ${plural(q.fps, 'buy')}`);
+  return bits.join(' · ');
+}
+
 function startHTML(){
-  const L = ladder(), [lo, hi] = ratingRange(), inGame = G && !G.over;
+  const inGame = G && !G.over;
+  const resign = inGame && G.opp && G.opp.rated && !G.ratedDone;
+  const back = inGame ? `<button type="button" data-act="st-back">Back to your game</button>` : '';
+  if (!startMode) return modesHTML(back, resign);
+  const title = {ai:'Play the AI', net:'Play online', pp:'Pass and play'}[startMode];
+  return `<div class="panel startp setupp">
+      <div class="row suhead"><button type="button" class="subk" data-act="st-modes" aria-label="Back to game modes">‹ Modes</button><h2>${title}</h2><span class="grow"></span>${back}</div>
+      ${startMode === 'ai' ? aiSetupHTML(resign) : startMode === 'net' ? netSetupHTML() : ppSetupHTML(resign)}
+    </div>`;
+}
+function modesHTML(back, resign){
+  const placing = ME.rating == null;
+  const tile = (m, h, p, extra) => `<button type="button" class="mode" data-act="st-mode" data-mode="${m}"><span class="mh">${h}</span><span class="note">${p}</span>${extra ? `<span class="mx">${extra}</span>` : ''}</button>`;
+  return `<div class="panel startp modesp">
+      <div class="row"><h2>New game</h2><span class="grow"></span>${back}</div>
+      <div class="modes">
+        ${tile('ai', 'Play the AI', 'Rated games move you up the ladder. Pick how strong the AI is.', placing ? 'Unrated · placement games' : `Your rating ${ME.rating}`)}
+        ${tile('net', 'Play online', 'A friend on their own device. Send them a room code.', NET ? `In room ${esc(NET.code)}` : '')}
+        ${tile('pp', 'Pass and play', 'Two people, one device, with a cover screen for secret deck orders.', '')}
+      </div>
+      <p class="note">Each mode lets you set up the game first: starting water, Moisture Harvesters, Drifters, income, limits and more.</p>
+      ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
+    </div>`;
+}
+// the rules part of every setup screen. names: the two sides' labels (for the per-player columns)
+function rulesHTML(names, opts){
+  opts = opts || {};
+  const d = suDefault(), dflt = suIsDefault(), split = SU.split;
+  const step = (path, v, lim, lbl) => `<span class="sustep"><button type="button" data-su-step="${path}" data-d="-1" aria-label="Less ${lbl}" ${v <= lim[0] ? 'disabled' : ''}>−</button><input type="number" inputmode="numeric" data-su="${path}" value="${v}" min="${lim[0]}" max="${lim[1]}" aria-label="${lbl}"><button type="button" data-su-step="${path}" data-d="1" aria-label="More ${lbl}" ${v >= lim[1] ? 'disabled' : ''}>+</button></span>`;
+  const chg = (v, dv) => v !== dv ? ' chg' : '';
+  const plRow = (k, lbl, hint) => {
+    const dv = d.pl[0][k];
+    const cells = split ? [0, 1].map(i => `<div class="sucell${chg(SU.pl[i][k], dv)}">${step(`pl.${i}.${k}`, SU.pl[i][k], SU_LIM[k], `${lbl} for ${esc(names[i])}`)}</div>`).join('')
+      : `<div class="sucell${chg(SU.pl[0][k], dv)}">${step(`pl.0.${k}`, SU.pl[0][k], SU_LIM[k], lbl)}</div>`;
+    return `<div class="surow${split ? ' two' : ''}"><span class="sul">${lbl}${hint ? `<span class="note">${hint}</span>` : ''}</span>${cells}</div>`;
+  };
+  const shRow = (k, lbl, hint) => `<div class="surow"><span class="sul">${lbl}${hint ? `<span class="note">${hint}</span>` : ''}</span><div class="sucell${chg(SU[k], d[k])}">${step(k, SU[k], SU_LIM[k], lbl)}</div></div>`;
+  const colHead = split ? `<div class="surow two such"><span></span>${names.map((n, i) => `<span class="eyebrow s${i}">${esc(n)}</span>`).join('')}</div>` : '';
+  const pk = pkgList(), saved = LS.get(PKG_KEY) || [];
+  const pkgRow = i => `<div class="pkgs">${pk.map((q, j) => `<span class="pkg${pkgSame(q, SU.pl[i]) ? ' on' : ''}"><button type="button" data-su-pkg="${j}" data-i="${i}">${esc(pkgName(q))}</button>${q.b ? '' : `<button type="button" class="pkx" data-su-pkdel="${j - PKG_BUILTIN().length}" aria-label="Remove this package">×</button>`}</span>`).join('')}${pk.some(q => pkgSame(q, SU.pl[i])) ? '' : `<button type="button" class="pkadd" data-su-pksave="${i}">+ Save as package</button>`}</div>`;
+  const pts = SU.tgt != null ? 'c' : LEN;
+  return `<div class="surules">
+      <div class="row subar"><span class="eyebrow">Rules</span>${dflt ? `<span class="subadge ok">Default${opts.rated ? ' · rated' : ''}</span>` : `<span class="subadge cu">Custom${opts.rated ? ' · unrated' : ''}</span>`}
+        ${dflt ? '' : `<button type="button" data-act="st-su-reset">Reset to Default</button>`}<span class="grow"></span>
+        <label class="suswitch"><input type="checkbox" data-su-split ${split ? 'checked' : ''}> Set each player separately</label></div>
+      <div class="sugrid">
+        <fieldset class="sufs"><legend>Game</legend>
+          <div class="surow"><span class="sul">Points to win</span><div class="seg" role="group" aria-label="Points to win">${LENS.map(L => `<button type="button" data-su-pts="${L}" aria-pressed="${pts === L}" ${job || calState.busy ? 'disabled' : ''}>${L}</button>`).join('')}<button type="button" data-su-pts="c" aria-pressed="${pts === 'c'}" ${job || calState.busy ? 'disabled' : ''}>Custom</button></div></div>
+          ${SU.tgt != null ? `<div class="surow"><span class="sul">Custom points<span class="note">Never rated</span></span><div class="sucell chg">${step('tgt', SU.tgt, SU_LIM.tgt, 'Custom points to win')}</div></div>` : ''}
+          ${shRow('catchup', 'Catch-up water', SU.catchup ? 'Behind on points: +$ each shop' : 'Off. The player behind on points gets this much extra each shop')}
+        </fieldset>
+        <fieldset class="sufs suwide"><legend>Starting cards &amp; economy</legend>
+          ${colHead}
+          ${split ? `<div class="surow two"><span class="sul">Packages<span class="note">Tap to fill in</span></span>${pkgRow(0)}${pkgRow(1)}</div>` : `<div class="surow pkr"><span class="sul">Packages</span>${pkgRow(0)}</div>`}
+          ${plRow('water', 'Extra starting water', 'On top of round 1 income')}
+          ${plRow('fields', 'Moisture Harvesters', 'Owned at the start, +$1 income each')}
+          ${plRow('drift', 'Drifters', 'In hand for the first battle')}
+          ${plRow('inc', 'Base income', 'Water every shop')}
+          ${plRow('buys', 'Buys per shop', '')}
+          ${plRow('fps', 'Harvester buys per shop', '')}
+          <p class="note r1">Round 1 water: ${split ? names.map((n, i) => `${esc(n)} $${SU.pl[i].inc + SU.pl[i].fields + SU.pl[i].water}`).join(', ') : `$${SU.pl[0].inc + SU.pl[0].fields + SU.pl[0].water} each`}.</p>
+        </fieldset>
+        <fieldset class="sufs"><legend>Limits</legend>
+          ${shRow('deckCap', 'Units limit', 'Different units in a deck')}
+          ${shRow('city', 'Caravan slots', 'Harvesters use one each')}
+          ${shRow('uDisp', 'Units in the shop', '')}
+          ${shRow('bDisp', 'Caravan cards in the shop', '')}
+        </fieldset>
+        <fieldset class="sufs"><legend>Card sets</legend>${mirToggleHTML()}</fieldset>
+      </div>
+    </div>`;
+}
+const goLabel = R => { const br = bracketOf(R); return suIsDefault() ? `Start ${ME.rating == null ? 'placement' : 'rated'} game vs ${br.name} AI (${R})` : `Start unrated game vs ${br.name} AI (${R})`; };
+function aiSetupHTML(resign){
+  const L = ladder(), [lo, hi] = ratingRange();
   const placing = ME.rating == null, mine = placing ? null : ME.rating;
   if (oppPick == null){ const saved = LS.get(lenKey('sow-pick-v1', LEN)); oppPick = Number.isFinite(saved) ? saved : placing ? placementOpp() : mine; }
   oppPick = Math.max(lo, Math.min(hi, oppPick));
-  const R = oppPick, br = bracketOf(R), myBr = mine != null ? bracketOf(mine) : null;
-  const resign = inGame && G.opp && G.opp.rated && !G.ratedDone;
+  const R = oppPick, br = bracketOf(R), myBr = mine != null ? bracketOf(mine) : null, dflt = suIsDefault();
   const calBox = calState.busy
     ? `<div class="finalbox"><p><b>Calibrating the ladder…</b> Each AI level plays the next two up, and the ratings come from the results.</p><div id="calprog">${calProgHTML()}</div></div>`
     : !CAL ? `<div class="finalbox"><p><b>The rating ladder isn't calibrated yet.</b> Until it is, you can play today's full-strength AI, unrated.</p>${calBtn('Calibrate now')}</div>`
@@ -11116,47 +11505,111 @@ function startHTML(){
       const below = k ? `${pct(expected(mid, mid - w))} vs ${BRACKETS[k - 1]}` : `${pct(expected(mid, 400))} vs random buyer`;
       return `<div class="bk${k === br.k ? ' on' : ''}"><b>${name}</b><span class="mono">${a}–${b}</span><span class="note">wins ${below}</span>${myBr && myBr.k === k ? '<span class="you">You</span>' : ''}</div>`;
     }).join('')}</div>` : '';
-  return `<div style="display:flex;flex-direction:column;gap:14px">
-    <div class="panel startp">
-      <div class="row"><h2>Choose your opponent</h2><span class="grow"></span>${inGame ? `<button type="button" data-act="st-back">Back to your game</button>` : ''}</div>
-      ${lenSegHTML()}
-      <div class="me">${placing
-        ? `<span class="eyebrow">Your rating · first to ${LEN}</span><span class="big">Unrated</span><span class="note">Placement game ${ME.placement.length + 1} of ${PLACEMENT_GAMES}. Your first ${PLACEMENT_GAMES} games set your starting rating. Pick any AI for each one; ${L.length ? `${placementOpp()} is mid-ladder` : 'mid-ladder is a good start'}.</span>`
-        : `<span class="eyebrow">Your rating · first to ${LEN}</span><span class="big">${mine}</span><span class="note">${myBr.name} · ${ME.games} rated game${ME.games === 1 ? '' : 's'}${ME.history[0] && !ME.history[0].placement ? ` · last game ${ME.history[0].after - ME.history[0].before >= 0 ? '+' : '−'}${Math.abs(ME.history[0].after - ME.history[0].before)}` : ''}</span>`}</div>
-      ${calBox}
-      ${L.length ? `
-        <div class="pick">
-          <label for="st-r" class="eyebrow">AI rating</label>
-          <span class="note" id="st-lvl">${esc(levelText(R))}</span>
-          <div class="row"><span class="pickr">${R}</span><span class="pickn">${br.name}</span>${!placing ? `<span class="note" id="st-exp">${pct(expected(mine, R))} expected win chance for you</span>` : ''}</div>
-          <input type="range" id="st-r" min="${lo}" max="${lo + Math.ceil((hi - lo) / 10) * 10}" step="10" value="${R}" ${calState.busy ? 'disabled' : ''} aria-describedby="st-help">
-          <span class="note" id="st-help">${placing ? `Slide from ${lo} (${esc(L[0].label)}) to ${hi} (today's full-strength AI). Beating a stronger AI places you higher.` : `Slide from ${lo} (${esc(L[0].label)}) to ${hi} (today's full-strength AI). A 400-point gap means the stronger side wins about 10 to 1.`}</span>
-        </div>
-        ${strip}` : ''}
-      ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
-      <div class="row">
-        ${L.length ? `<button type="button" class="primary" data-act="st-go" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm ? 'Click again to resign and start' : `Start ${placing ? 'placement' : 'rated'} game vs ${br.name} AI (${R})`}</button>` : ''}
-        <button type="button" data-act="st-free" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm === 'free' ? 'Click again to resign and start' : `Unrated game vs full-strength AI (first to ${LEN})`}</button>
-      </div>
-    </div>
-    ${netStartHTML()}
-    <div class="panel startp ppstart">
-      <h2>Pass and play</h2>
-      <p class="note">Two people, one device. You take turns in the shop, then pass the device behind a cover screen to set your secret deck orders. Not rated, and it doesn't change the AI or the card stats.</p>
-      <div class="row ppnames">
-        <label class="ppn s0"><span class="eyebrow">Player 1</span><input type="text" id="pp-n0" maxlength="16" value="${esc((LS.get('sow-pp-names') || [])[0] || 'Player 1')}"></label>
-        <label class="ppn s1"><span class="eyebrow">Player 2</span><input type="text" id="pp-n1" maxlength="16" value="${esc((LS.get('sow-pp-names') || [])[1] || 'Player 2')}"></label>
-      </div>
-      <div class="row"><button type="button" class="primary" data-act="st-pp">${resign && ui.resignArm === 'pp' ? 'Click again to resign and start' : `Start pass-and-play game (first to ${LEN})`}</button></div>
-      ${CAL ? `<details><summary class="note">How the ladder was measured</summary>
+  const measured = CAL ? `<details><summary class="note">How the ladder was measured</summary>
         <p class="note">Each rung is a thinking budget: whether it looks past this battle, how many times it plays out the rest of the game, how many test battles it runs, and how far ahead it looks in the shop. Weaker rungs see less; the short-sighted ones also blur their estimates a little. A rating between rungs plays with a budget part-way between them. Rungs played each other ${calGames(CAL).toLocaleString()} games${CAL.at ? ` (${esc(fmtWhen(CAL.at))})` : ''}${CAL.quick ? ', a quick calibration, so the ratings are rough until a full run' : ''}; ratings come from those results, with the random buyer pinned at 400. Rated games use the AI brain from that run, so training it further won't move these numbers.</p>
         <div class="tablewrap"><table><thead><tr><th>Rung</th><th class="num">Rating</th></tr></thead><tbody>${(CAL.rungs || []).map(r => `<tr><td>${esc(r.label)}</td><td class="num">${Number.isFinite(r.elo) ? r.elo : '—'}</td></tr>`).join('')}</tbody></table></div>
         <div class="tablewrap"><table><thead><tr><th>Match-up</th><th class="num">Games</th><th class="num">Score</th></tr></thead><tbody>${(CAL.results || []).filter(x => CAL.rungs && CAL.rungs[x.a] && CAL.rungs[x.b]).map(x => `<tr><td>${esc(CAL.rungs[x.a].label)} vs ${esc(CAL.rungs[x.b].label)}</td><td class="num">${(x.wa || 0) + (x.wb || 0) + (x.d || 0)}</td><td class="num">${x.wa || 0}–${x.wb || 0}${x.d ? `–${x.d}` : ''}</td></tr>`).join('')}</tbody></table></div>
         ${!calState.busy ? `<div class="row"><span class="grow"></span>${calBtn('Recalibrate')}</div>` : ''}
-      </details>` : ''}
-      ${matchesHTML()}
-      ${!placing && ME.history.length ? `<details><summary class="note">Your recent games</summary><div class="list" style="margin-top:6px">${ME.history.slice(0, 12).map(h => `<div class="li"><span class="nm" style="font-weight:400">${h.s === 1 ? 'Win' : h.s === 0 ? (h.forfeit ? 'Resigned' : 'Loss') : 'Draw'} vs ${h.opp}</span><span class="mono">${h.placement ? 'placement' : `${h.before} → ${h.after}`}</span></div>`).join('')}</div></details>` : ''}
-    </div></div>`;
+      </details>` : '';
+  const recent = !placing && ME.history.length ? `<details><summary class="note">Your recent games</summary><div class="list" style="margin-top:6px">${ME.history.slice(0, 12).map(h => `<div class="li"><span class="nm" style="font-weight:400">${h.s === 1 ? 'Win' : h.s === 0 ? (h.forfeit ? 'Resigned' : 'Loss') : 'Draw'} vs ${h.opp}</span><span class="mono">${h.placement ? 'placement' : `${h.before} → ${h.after}`}</span></div>`).join('')}</div></details>` : '';
+  const flag = calBox && calState.busy ? calBox : '';
+  return `
+      <div class="suopp">
+        <div class="me compact">${placing
+          ? `<span class="eyebrow">Your rating · first to ${LEN}</span><span class="big">Unrated</span><span class="note">Placement game ${ME.placement.length + 1} of ${PLACEMENT_GAMES}: your first ${PLACEMENT_GAMES} rated games set your rating.</span>`
+          : `<span class="eyebrow">Your rating · first to ${LEN}</span><span class="big">${mine}</span><span class="note">${myBr.name} · ${ME.games} rated game${ME.games === 1 ? '' : 's'}${ME.history[0] && !ME.history[0].placement ? ` · last game ${ME.history[0].after - ME.history[0].before >= 0 ? '+' : '−'}${Math.abs(ME.history[0].after - ME.history[0].before)}` : ''}</span>`}</div>
+        ${L.length ? `
+        <div class="pick">
+          <label for="st-r" class="eyebrow">Opponent</label>
+          <div class="row"><span class="pickr">${R}</span><span class="pickn">${br.name}</span>${!placing ? `<span class="note" id="st-exp">${pct(expected(mine, R))} expected win chance for you</span>` : ''}</div>
+          <input type="range" id="st-r" min="${lo}" max="${lo + Math.ceil((hi - lo) / 10) * 10}" step="10" value="${R}" ${calState.busy ? 'disabled' : ''} aria-describedby="st-lvl">
+          <span class="note" id="st-lvl">${esc(levelText(R))}</span>
+        </div>` : ''}
+        ${flag}
+      </div>
+      ${rulesHTML(['You', 'AI'], {rated:true})}
+      ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
+      ${!dflt ? `<p class="note">Custom rules: the game isn't rated. The AI thinks through the new rules on its own; its rating was measured on Default.</p>` : ''}
+      <div class="row sugo">
+        ${L.length ? `<button type="button" class="primary" data-act="st-go" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm === true ? 'Click again to resign and start' : goLabel(R)}</button>` : ''}
+        <button type="button" data-act="st-free" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm === 'free' ? 'Click again to resign and start' : `Unrated game vs full-strength AI (first to ${gameTarget()})`}</button>
+      </div>
+      <details class="ladder"><summary class="note">Ladder details</summary>
+        ${calBox && !calState.busy ? calBox : ''}${strip}${measured}${matchesHTML()}${recent}
+      </details>`;
+}
+function ppSetupHTML(resign){
+  const nm = (LS.get('sow-pp-names') || []);
+  const names = [nm[0] || 'Player 1', nm[1] || 'Player 2'];
+  return `<p class="note">Two people, one device. You take turns in the shop, then pass the device behind a cover screen to set your secret deck orders. Not rated, and it doesn't change the AI or the card stats.</p>
+      <div class="row ppnames">
+        <label class="ppn s0"><span class="eyebrow">Player 1</span><input type="text" id="pp-n0" maxlength="16" value="${esc(names[0])}"></label>
+        <label class="ppn s1"><span class="eyebrow">Player 2</span><input type="text" id="pp-n1" maxlength="16" value="${esc(names[1])}"></label>
+      </div>
+      ${rulesHTML(names)}
+      <div class="row sugo"><button type="button" class="primary" data-act="st-pp">${resign && ui.resignArm === 'pp' ? 'Click again to resign and start' : `Start pass-and-play game (first to ${gameTarget()})`}</button></div>`;
+}
+function netSetupHTML(){
+  const saved = LS.get('sow-net'), nameV = esc(LS.get('sow-net-name') || (LS.get('sow-pp-names') || [])[0] || '');
+  if (NET) return `<div class="row"><span class="note">You're in room <b class="mono">${esc(NET.code)}</b>.</span><button type="button" data-act="st-net-back">Back to it</button><button type="button" data-act="st-net-leave">Leave room</button></div>`;
+  return `<p class="note">Play a friend on their own device. Not rated, and it doesn't change the AI or the card stats.</p>
+      ${ui.netErr ? `<p class="err">${esc(ui.netErr)}</p>` : ''}
+      <div class="row ppnames"><label class="ppn s0"><span class="eyebrow">Your name</span><input type="text" id="net-name" ${URL_ROOM ? 'autofocus ' : ''}maxlength="16" value="${nameV}" placeholder="Name"></label></div>
+      <div class="sujoin">
+        <span class="eyebrow">Join a friend's room</span>
+        <div class="row"><input type="text" id="net-code" maxlength="6" placeholder="Room code" value="${esc(URL_ROOM)}" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:9em"><button type="button" ${URL_ROOM ? 'class="primary" ' : ''}data-act="st-net-join">Join</button><span class="note">You'll see your friend's rules before you start.</span></div>
+        ${saved && saved.code ? `<div class="row"><button type="button" data-act="st-net-rejoin">Rejoin room ${esc(saved.code)}</button><span class="note">Your moves there are saved on this device.</span></div>` : ''}
+      </div>
+      <span class="eyebrow">Or host a room</span>
+      ${rulesHTML(['You', 'Friend'])}
+      <div class="row sugo"><button type="button" class="primary" data-act="st-net-host">Create a room (first to ${gameTarget()})</button></div>
+      <details><summary class="note">How does it connect?</summary><p class="note">No accounts needed. Your two browsers connect directly to each other; the free PeerJS service only introduces them. If your networks block a direct link, the game goes through a relay server instead. Keep the page open while you play.</p></details>`;
+}
+// setup screen controls
+function suSet(path, v){
+  const k = path.split('.').pop(), lim = SU_LIM[k];
+  v = Math.round(+v); if (!Number.isFinite(v)) return;
+  v = Math.max(lim[0], Math.min(lim[1], v));
+  if (path === 'tgt'){ SU.tgt = v; const n = Math.max(LENS[0], Math.min(LENS[LENS.length - 1], v)); suSave(); if (n !== LEN) setLen(n); return; }
+  if (path.startsWith('pl.')){ const i = +path.split('.')[1]; SU.pl[i][k] = v; if (!SU.split) SU.pl[1 - i][k] = v; }
+  else SU[k] = v;
+  suSave();
+}
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-su-step],[data-su-pts],[data-su-pkg],[data-su-pkdel],[data-su-pksave]'); if (!t || t.disabled) return;
+  if (t.dataset.suStep){ const p = t.dataset.suStep, cur = p.split('.').reduce((o, k) => o[k], SU); suSet(p, cur + (+t.dataset.d)); }
+  else if (t.dataset.suPts){
+    if (t.dataset.suPts === 'c'){ if (SU.tgt == null) SU.tgt = LEN; }
+    else { SU.tgt = null; suSave(); setLen(+t.dataset.suPts); }
+    suSave();
+  }
+  else if (t.dataset.suPkg != null){
+    const q = pkgList()[+t.dataset.suPkg], i = +t.dataset.i; if (!q) return;
+    for (const k of SU_PL){ SU.pl[i][k] = q[k]; if (!SU.split) SU.pl[1 - i][k] = q[k]; }
+    suSave();
+  }
+  else if (t.dataset.suPkdel != null){ const s = (LS.get(PKG_KEY) || []).slice(); s.splice(+t.dataset.suPkdel, 1); LS.set(PKG_KEY, s); }
+  else if (t.dataset.suPksave != null){
+    const q = {}; for (const k of SU_PL) q[k] = SU.pl[+t.dataset.suPksave][k];
+    const s = (LS.get(PKG_KEY) || []).slice(); if (!s.some(x => pkgSame(x, q))) s.push(q); LS.set(PKG_KEY, s.slice(-8));
+  }
+  ui.resignArm = false; renderPlay();
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.matches && t.matches('[data-su]')){ suSet(t.dataset.su, t.value); renderPlay(); return; }
+  if (t.matches && t.matches('[data-su-split]')){
+    SU.split = !!t.checked;
+    if (!SU.split) SU.pl[1] = {...SU.pl[0]};
+    suSave(); renderPlay();
+  }
+});
+// a typed number counts as soon as Enter is pressed (the stepper buttons count right away)
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-su]')) e.target.blur(); });
+// the custom-rules chip in a game: what differs from Default
+function suChipHTML(){
+  if (!G || !G.suLines || !G.suLines.length) return '';
+  return `<span class="suchipw"><button type="button" class="suchip" data-act="su-chip" aria-expanded="${!!ui.suOpen}">Custom rules</button>${ui.suOpen ? `<span class="supop" role="dialog" aria-label="Custom rules"><b>This game's rules</b>${G.suLines.map(l => `<span>${l}</span>`).join('')}</span>` : ''}</span>`;
 }
 // games in a calibration (older or interrupted saves may not have the total)
 const calGames = C => Number.isFinite(C && C.games) ? C.games : ((C && C.results) || []).reduce((s, x) => s + (x.wa || 0) + (x.wb || 0) + (x.d || 0), 0);
@@ -11176,13 +11629,18 @@ $('view-play').addEventListener('input', e => {
   root.querySelector('.pickn').textContent = br.name;
   const ex = $('st-exp'); if (ex && ME.rating != null) ex.textContent = `${pct(expected(ME.rating, R))} expected win chance for you`;
   root.querySelectorAll('.bk').forEach((el, k) => el.classList.toggle('on', k === br.k));
-  const go = root.querySelector('[data-act="st-go"]'); if (go) go.textContent = `Start ${ME.rating == null ? 'placement' : 'rated'} game vs ${br.name} AI (${R})`;
+  const go = root.querySelector('[data-act="st-go"]'); if (go) go.textContent = goLabel(R);
 });
 $('view-play').addEventListener('click', e => {
   const t = e.target.closest('[data-act^="st-"]'); if (!t || t.disabled) return;
   e.stopImmediatePropagation();
   const a = t.dataset.act, resign = G && !G.over && G.opp && G.opp.rated && !G.ratedDone;
   if (a === 'st-back'){ ui.start = false; renderPlay(); return; }
+  if (a === 'st-mode'){ startMode = t.dataset.mode; ui.resignArm = false; ui.netErr = ''; renderPlay(); window.scrollTo({top:0}); return; }
+  if (a === 'st-modes'){ startMode = null; ui.resignArm = false; renderPlay(); return; }
+  if (a === 'st-su-reset'){ const sp = SU.split; SU = {...suFresh(), split:sp}; suSave();
+    if (MIRACLES_ON){ MIRACLES_ON = false; LS.set('sow-mir', false); } if (!REFILL_ON){ REFILL_ON = true; LS.set('sow-refill', true); }
+    ui.resignArm = false; renderPlay(); return; }
   if (a === 'st-cal'){ runCalibration(); return; }
   if (a === 'st-calq'){ runCalibration(true); return; }
   if (a.startsWith('st-net')){ netStartClick(a, resign); return; }
@@ -11783,5 +12241,79 @@ document.body.insertAdjacentHTML('beforeend', '<svg width="0" height="0" style="
     setTimeout(go, 150);
   };
 }
+
+/* ---- damage cubes (cubes.js draws them): which card gets what in a step ---- */
+function cubeStep(next, hits, prev){
+  const C = window.OasisCubes; if (!C || !C.ok) return 0;
+  const by = new Map();
+  for (const x of (next.hits || [])){
+    const el = document.querySelector(`#view-play .card[data-uid$="-${x.uid}"]:not(.mini)`); if (!el) continue;
+    const id = el.dataset.uid, e = by.get(id) || {id, drops:[], moves:[], heal:0, ko:false};
+    const src = x.from != null && document.querySelector(`#view-play .card[data-uid$="-${x.from}"]:not(.mini)`);
+    if (src) e.moves.push({from:src.dataset.uid, n:x.a}); else e.drops.push(x.a);
+    e.heal += x.heal; by.set(id, e);
+  }
+  for (const h of hits) if (h.ko){ const e = by.get(h.id) || {id:h.id, drops:[], moves:[], heal:0}; e.ko = true; e.heal = 0; by.set(h.id, e); }
+  const speed = typeof autoFast === 'function' && autoFast() && autoOn() ? 2 : 1;
+  for (const e of by.values()) e.speed = speed;
+  ui.refill = hits.filter(h => h.heal > 0).map(h => ({id:h.id, from:h.hp, to:h.after}));
+  // heals with no damage this step (Brawler in the casualty step): refill from where the bar was
+  if (prev){ const pu = unitsOf(prev, ['charge', 'deck']), nu = unitsOf(next, ['charge', 'deck']), pct = v => Math.max(0, Math.min(100, (v.pow - v.dmg) / Math.max(1, v.pow) * 100));
+    for (const e of by.values()) if (e.heal > 0 && !e.drops.some(n => n > 0) && pu.has(e.id) && nu.has(e.id)) ui.refill.push({id:e.id, from:pct(pu.get(e.id)), to:pct(nu.get(e.id))}); }
+  return C.step([...by.values()]) / speed;
+}
+function cubeSync(){
+  const C = window.OasisCubes; if (!C || !C.ok) return;
+  C.afterRender();
+  for (const id of [...GLOW.keys()]) glowPaint(id);
+  if (!ui.battle){ return; }
+  const f = ui.battle.frames[ui.frame], units = [];
+  f.snap.forEach((sd, side) => { for (const u of [sd.charge, ...sd.deck]) if (u) units.push({id:`${side}-${u.uid}`, dmg:u.dmg}); });
+  C.sync(units);
+}
+{
+  const rp = renderPlay; renderPlay = function(){
+    const snap = abSnap(document.querySelector('#view-play .stage'));   // measured before the redraw replaces the stage
+    const r = rp.apply(this, arguments);
+    try{ cubeSync(); }catch(e){ console.error(e); }
+    // the redraw replaced the notes: if they changed (or went away), let the old ones fade out
+    try{ if (snap){ const nw = document.querySelector('#view-play .stage .abwin');
+      if (nw && nw.dataset.key === snap.key){ snap.win.classList.add('kept'); nw.replaceWith(snap.win); }   // same notes: keep the very same boxes
+      else abFade(snap); } }catch(e){}
+    return r;
+  };
+  const gf = goFrame; goFrame = function(k, glide){
+    ui.abFrame = null;
+    if (glide && window.OasisCubes) try{ OasisCubes.koNow(); }catch(e){}   // a defeated card's cubes lift off as it flips away
+    const r = gf.apply(this, arguments);
+
+    // a heal: the bar shows the hit first, then refills as the cubes are swept off
+    const rf = ui.refill; ui.refill = null;
+    if (rf && glide) for (const x of rf){ const bar = document.querySelector(`#view-play .card[data-uid="${x.id}"] .hp i`); if (!bar) continue;
+      bar.style.transition = 'none'; bar.style.width = x.from + '%'; void bar.offsetWidth;
+      bar.style.transition = 'width .6s cubic-bezier(.3,.6,.3,1) .1s'; bar.style.width = x.to + '%'; }
+    return r;
+  };
+}
+// the ability glow lives on its own layer inside the card, so a lunge can't override it; when the board redraws, it
+// picks up where it was (negative delay) instead of starting over or vanishing
+const GLOW = new Map(), GLOW_MS = 900;
+function glowPaint(id){
+  const t0 = GLOW.get(id); if (t0 == null) return true;
+  const el = document.querySelector(`#view-play .card[data-uid="${id}"]:not(.mini)`); if (!el) return false;
+  const left = GLOW_MS - (performance.now() - t0); if (left <= 0){ GLOW.delete(id); return true; }
+  let g = el.querySelector(':scope > .trigglow');
+  if (!g){ g = document.createElement('span'); g.className = 'trigglow'; g.setAttribute('aria-hidden', 'true'); el.appendChild(g); }
+  g.style.animationDelay = `-${GLOW_MS - left}ms`;
+  return true;
+}
+window.cubeGlow = id => { GLOW.set(id, performance.now()); glowPaint(id); setTimeout(() => { for (const g of document.querySelectorAll(`#view-play .card[data-uid="${id}"] > .trigglow`)) g.remove(); GLOW.delete(id); }, GLOW_MS + 50); };
+function glowStep(f){   // every unit whose ability fires in this step
+  // (an Executioner's attack carries its tag too, but Lethal only fires in the casualty step)
+  const ids = new Set(f.lines.filter(l => l.ab && l.ab.u && !l.ab.g && !(l.ab.n === 'Executioner' && !/Lethal/.test(l.t))).map(l => `${l.ab.u}`));
+  for (const id of ids) cubeGlow(id);
+}
+window.__cubesReady = () => { try{ cubeSync(); }catch(e){} };
 </script>
-</body></html>
+<script src="cubes.js" defer></script>
+</body></html
