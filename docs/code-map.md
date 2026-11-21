@@ -82,30 +82,36 @@ CARD PEEK (keywords) → TOOLTIPS.
 - Workers: `aiWorkerMain`, `workerMain`. `engineWorkerURL(main)` (00-core) builds the worker: `importScripts` of
   js/engine.js plus that function, so there is only one copy of the engine.
 
-## Stacked wrappers: check every layer
-Later script blocks wrap earlier functions instead of editing them (`const rp = renderPlay; renderPlay = function(){
-... rp.apply(this, arguments) ... }`). Currently wrapped:
-- `renderPlay` (5 layers, innermost first): error box, then reserved battle row heights (both at the end of
-  js/ui/09-play-screen.js); image reuse between redraws, then cube sync + ability-note fade (js/mobile-crop.js);
-  `lab-inbattle` body class (js/board-settings.js)
-- `cardHTML`: card stock and light layers (js/board-settings.js)
-- `cardPop`, `openPeek`: eager art / canvas (js/mobile-crop.js)
-- `goFrame` (2 layers): cube lift-off / settle and heal refill (js/mobile-crop.js); splay glide of a new revealed
-  unit (js/board-settings.js). The save slide-under (`deckFly`) is in the base function.
-- `pokeArt`: reassigned in js/board-settings.js (copies in one band with a count; room always `STACK_MAX` bands, see `labFixedRoom`)
-- `reserveRows`: fixed room per spot from `labFixedRoom`, row heights kept across battles in `window.__rowKeep`
-These layers are a known tangle; merging them into their base functions is planned cleanup (rule 7: add no more).
-
-When changing one of these, `grep -n 'NAME = function'` first and read every wrapper, because a fix in the base can be
-undone or doubled by a wrapper. Prefer editing the base function over adding another wrapper; add a wrapper only for
-an optional layer (like Board settings) and list it here.
+## No wrappers: functions call named steps
+Until v58, later script blocks wrapped earlier functions (`const rp = renderPlay; renderPlay = function(){ ... }`),
+five layers deep on `renderPlay`. Those are gone: each function now lists its steps in order, and steps that belong
+to a feature live in that feature's file as plain named functions. **Never wrap or reassign a function**
+(`check-page.mjs` flags it); add a step to the function instead.
+- `renderPlay()` (js/ui/09-play-screen.js): `playNotesBefore` → `playArtBefore` → `drawPlay` (the Play tab itself,
+  inside the error box) → `reserveRows` (battle) → `playArtAfter` → `playNotesAfter` (cube sync, note fade) →
+  `labAfterDraw` (`body.lab-inbattle`). The play*/lab* steps are in js/mobile-crop.js and js/board-settings.js and
+  are skipped (`typeof` check) until their file has loaded, because a redraw can happen while the page starts.
+- `goFrame(k, glide)` (js/ui/07-battle-steps.js): `labBeforeStep` → `cubesBeforeStep` → `showFrame` (the step
+  itself; the save slide-under `deckFly` is in it) → `healRefillAfterStep` → `labAfterStep` (splay glide, `labPrep`).
+  Only runs after load, so no checks.
+- `cardHTML` → `cardHTML0` + `labCardLayers` (card stock and light layers). `pokeArt` → `labPokeArt` (copies in one
+  band with a count; room always `STACK_MAX` bands, see `labFixedRoom`); the older layout under it only shows while
+  the page is loading.
+- `cardPop` → `cardPop0` + `popArtEager`; `openPeek` → `peekWhenDecoded` (phones wait for the art) or `openPeek0`.
+  Use the `0` versions only where you need the plain card (like `peekWhenDecoded` does).
+- `renderTrain` / `renderStats` / `renderLab` → `keepingScroll(view, drawTrain|drawStats|drawLab)` (scroll boxes stay
+  put across redraws).
+- Still intercepted, on purpose for now: the match recorder (js/ui/02, `window[nm] = ...`) wraps the engine's shop
+  actions (`buy`, `sell`, `pass`, `useBM`...) to record each one with the board before it, and the AI worker does
+  the same inside its own worker to send back the actions it took. Replacing these means the engine reporting its
+  own actions (like the battle Chronicle does); ask Brian before changing it.
 
 The CSS is layered the same way: later blocks restyle earlier ones (e.g. "ONE CARD SIZE", "battle table: every card
 is a square", then the art-card and Board-settings rules). Search for every rule on a selector before adding a new one.
 
 ## Reuse list: use these before writing new code
 - **One card face:** `cardFace(name, kind, own, noNext)` (inner `cardFace0`) for every card that should look the
-  same; places add their own wrappers. Battle cards: `cardHTML(u, side, mode)`. Market: `marketCard` (tags the card
+  same; places add their own outer markup. Battle cards: `cardHTML(u, side, mode)`. Market: `marketCard` (tags the card
   key so animations follow it). Others: `tokCard`, `mirCardHTML`, `spellFace`, `ghostCard`.
 - **One card size:** `syncCardSize` → CSS `--uw/--uh`; `cardSize`.
 - **Card motion (CARD MOTION section):** `flyer`, `flyTo(from, to, o)`, `flyEl`, `pinFly`, `flyHost`, `cardFlight`;

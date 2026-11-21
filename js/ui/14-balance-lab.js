@@ -42,7 +42,9 @@ function mirRows(){
     return `<tr><th scope="row" class="first"><span class="cname">${esc(n)}</span></th>${cell('s', m.s, 'surcharge')}${cell('u', m.u | 0, 'copies in the unit deck')}${cell('b', m.b | 0, 'copies in the building deck')}${fx ? `<td><div class="row" style="gap:.3em;flex-wrap:nowrap">${cell(fx, m[fx], what[fx]).replace(/^<td>|<\/td>$/g, '')}<span class="note">${what[fx]}</span></div></td>` : '<td class="note">—</td>'}<td class="note" style="white-space:normal;min-width:16em">${esc(m.t)}</td>
       <td>${(OV.mirs || {})[n] ? `<button type="button" class="small" data-act="reset" data-grp="mirs" data-name="${esc(n)}">Reset</button>` : ''}</td></tr>`; }).join('');
 }
-function renderLab(){
+// Redraws keep every scroll box where it was (keepScroll, js/ui/15-sync-roles-ratings.js).
+function renderLab(){ return keepingScroll('view-lab', drawLab, this, arguments); }
+function drawLab(){
   const changes = describeOverrides(OV), busy = !!job;
   const ruleLbl = {baseIncome:'Base income ($)', buysPerShop:'Buys per shop', fieldsPerShop:'Fields per shop', deckCap:'Deck size (unique units)', citySlots:'City slots', unitDisplay:'Units on display', bldgDisplay:'Buildings on display', startFields:'Starting Harvesters'};
   const bOpts = Object.keys(BDEFS).filter(n => n !== "Mason's Guild").sort().map(n => `<option ${lab.bld===n?'selected':''}>${esc(n)}</option>`).join('');

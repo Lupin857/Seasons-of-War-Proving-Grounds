@@ -109,7 +109,8 @@ function markGame(on){
   if (on && k !== phaseKey){ toGame(); requestAnimationFrame(toGame); }
   phaseKey = k;
 }
-function renderPlay(){
+// The Play tab's own drawing. Call renderPlay(), never this: renderPlay adds the steps around it.
+function drawPlay(){
   try{ if (!drag || !drag.on) clearGhosts(); }catch(e){}   // no lifted card should outlive its drag
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale; it sinks away
@@ -690,15 +691,19 @@ $('view-play').addEventListener('click', e => {
   ui.err = ''; ui.sel = null; renderPlay();
 });
 
-/* renderPlay layers that used to sit earlier in the single page script (moved here when the page was split into
-   files, because they must run after renderPlay is declared). Order kept: error box first, then reserved rows. */
-// renderPlay error box: if drawing the Play tab throws, show the error (with a way to copy it to Claude)
-{
-  const rp = renderPlay;
-  renderPlay = function(){
-    try{ return rp.apply(this, arguments); }
-    catch(err){ console.error('renderPlay', err); const v = document.getElementById('view-play'); if (v) v.innerHTML = errBoxHTML('the Play tab', err); }
-  };
+/* Every redraw of the Play tab, step by step. (Until v58 these steps were wrappers stacked on renderPlay from four
+   files; the order is unchanged.) Steps from js/mobile-crop.js and js/board-settings.js are skipped until their file
+   has loaded, as the wrappers were: a redraw can happen while the page is still starting. Add a step here, in
+   order, instead of wrapping renderPlay. */
+function renderPlay(){
+  const notes = typeof playNotesBefore === 'function' ? playNotesBefore() : null;   // ability notes, measured before the stage is replaced
+  const art = typeof playArtBefore === 'function' ? playArtBefore() : null;         // the card pictures already on screen
+  let r;
+  try{ r = drawPlay.apply(this, arguments); }
+  catch(err){ console.error('renderPlay', err); const v = document.getElementById('view-play'); if (v) v.innerHTML = errBoxHTML('the Play tab', err); }   // show the error, with a way to copy it to Claude
+  if (ui.battle) reserveRows();                     // every redraw of the battle keeps the reserved row heights
+  if (art) playArtAfter(art);                       // put the decoded pictures back (no blink)
+  if (typeof playNotesAfter === 'function') playNotesAfter(notes);   // damage cubes follow the board; old notes fade out
+  if (typeof labAfterDraw === 'function') labAfterDraw();            // Board settings: body.lab-inbattle
+  return r;
 }
-// every redraw of the battle keeps the reserved row heights
-{ const draw = renderPlay; renderPlay = function(){ const r = draw.apply(this, arguments); if (ui.battle) reserveRows(); return r; }; }

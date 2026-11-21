@@ -115,7 +115,9 @@ function mirStatsHTML(){
     <p class="note">Shown and bought are per game. Win % when bought is biased the same way as the card table: treat small numbers as noise.</p>
     <div class="tablewrap"><table><thead><tr><th>Miracle</th><th class="num">Surcharge</th><th class="num">Shown / game</th><th class="num">Bought / game</th><th class="num">Win % when bought</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
-function renderStats(){
+// Redraws keep every scroll box where it was (keepScroll, js/ui/15-sync-roles-ratings.js).
+function renderStats(){ return keepingScroll('view-stats', drawStats, this, arguments); }
+function drawStats(){
   const games = stats.__games || 0;
   const rows = ALL_CARDS.filter(c => !(BDEFS[c] && BDEFS[c].n === 0 && !BDEFS[c].always)).concat(Object.keys(MIRS)).map(c => {
     const s = stats[c] || {n:0, w:0}, kind = MIRS[c] ? 'Miracle' : DEFS[c] ? 'Unit' : 'Building', cost = MIRS[c] ? MIRS[c].s : (DEFS[c] || BDEFS[c]).c;

@@ -13,6 +13,8 @@
 //    LATER file: inside one big script that worked (function declarations are hoisted), across files it throws.
 //    Wrapping a function (`const f = renderPlay; renderPlay = ...`) counts: put the wrapper after the file that
 //    declares it. Needs the TypeScript parser (global in Claude's workspace).
+// 4. No wrappers: top-level code must not reassign a declared function (`renderPlay = function(){...}`). Since v58
+//    functions call named steps instead (see "No wrappers" in docs/code-map.md).
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -75,6 +77,8 @@ else {
       if (ts.isVariableStatement(st)) for (const d of st.declarationList.declarations) if (ts.isIdentifier(d.name)) add(d.name.text);
     }
   });
+  const fnDecl = new Map();   // top-level function declarations: name -> file
+  sfs.forEach((sf, k) => { for (const st of sf.statements) if (ts.isFunctionDeclaration(st) && st.name && !fnDecl.has(st.name.text)) fnDecl.set(st.name.text, blocks[k].file || blocks[k].id); });
   const isFn = n => ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n) || ts.isGetAccessor(n) || ts.isSetAccessor(n) || ts.isConstructorDeclaration(n);
   const invokedNow = n => { let p = n.parent; while (p && ts.isParenthesizedExpression(p)){ n = p; p = p.parent; } return p && ts.isCallExpression(p) && p.expression === n; };
   const notARef = (n, p) => (ts.isPropertyAccessExpression(p) && p.name === n) || (ts.isPropertyAssignment(p) && p.name === n) || (ts.isVariableDeclaration(p) && p.name === n) || ts.isParameter(p) || ts.isBindingElement(p) || ((ts.isFunctionDeclaration(p) || ts.isClassDeclaration(p) || ts.isMethodDeclaration(p)) && p.name === n);
@@ -82,6 +86,11 @@ else {
   sfs.forEach((sf, k) => {
     const visit = n => {
       if (isFn(n) && !invokedNow(n)) return;   // runs later, when every file has loaded
+      // 4. no wrappers: assigning to a declared function's name (renderPlay = function ...) replaces it for everyone
+      if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left) && fnDecl.has(n.left.text)){
+        const msg = `${blocks[k].file || blocks[k].id}:${sf.getLineAndCharacterOfPosition(n.getStart()).line + 1} reassigns ${n.left.text} (declared in ${fnDecl.get(n.left.text)}): add a named step to it instead of wrapping it`;
+        if (!seenU.has(msg)){ seenU.add(msg); failed = true; console.log('WRAP    ' + msg); }
+      }
       if (ts.isIdentifier(n) && !notARef(n, n.parent)){
         const at = firstDecl.get(n.text);
         if (at != null && at > k){
@@ -95,5 +104,5 @@ else {
   });
 }
 
-console.log(failed ? 'FAIL' : `PASS  ${blocks.length} scripts parse, no repeated global names, nothing at load uses a later file`);
+console.log(failed ? 'FAIL' : `PASS  ${blocks.length} scripts parse, no repeated global names, nothing at load uses a later file, no wrappers`);
 process.exit(failed ? 1 : 0);

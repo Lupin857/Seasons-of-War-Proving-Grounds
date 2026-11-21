@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v57';
+const OASIS_BUILD = 'v58';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -22,17 +22,14 @@ const labFixedRoom = () => { const sp = LAB.splay, fan = sp === 'fanL' || sp ===
 const labEdges = n => { const k = 2 + Math.min(n || 0, 8) * 1, c = ['#3b2d23', '#5a4636']; let h = ''; for (let i = k; i >= 1; i--) h += `<b style="--o:${(i * 1.5).toFixed(1)}px;background:${c[i % 2]}"></b>`; return h; };
 
 // every art card gets a card-stock layer under its face and a light layer over it
-{
-  const ch = cardHTML;
-  cardHTML = function(u, side, mode){
-    const h = ch.apply(this, arguments); if (!h) return h;
-    return h.replace('<span class="cartbg" aria-hidden="true"></span>',
-      `<span class="labsh" aria-hidden="true">${labEdges(LABPILE)}<i></i></span><span class="cartbg" aria-hidden="true"></span><span class="lablt" aria-hidden="true"></span>`);
-  };
+// (called by cardHTML in js/ui/01-battle-view.js)
+function labCardLayers(h){
+  return h.replace('<span class="cartbg" aria-hidden="true"></span>',
+    `<span class="labsh" aria-hidden="true">${labEdges(LABPILE)}<i></i></span><span class="cartbg" aria-hidden="true"></span><span class="lablt" aria-hidden="true"></span>`);
 }
 // Arena-style stacking: copies, then gear, then each kind of token once with a count, raised a name band each;
-// the room kept around the card follows the splay
-pokeArt = function(t, side, hit, art){
+// the room kept around the card follows the splay. (Used by pokeArt in js/ui/01-battle-view.js.)
+function labPokeArt(t, side, hit, art){
   const nc = t.filter(k => k === 'cp').length, g = art.gear ? 1 : 0, cnt = {}, kinds = [];
   for (const k of t) if (k !== 'cp'){ if (!(k in cnt)){ cnt[k] = 0; kinds.push(k); } cnt[k]++; }
   const n = STACK_MAX, sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';   // room is fixed, whatever the stack holds
@@ -129,7 +126,8 @@ const LAB_OPTS = [
   ['size', 'Card size', [['crop', 'Cropped'], ['full', 'Full'], ['auto', 'Cropped on phone']]],
   ['splay', 'Splay', [['up', 'Up'], ['now', 'Up-left (now)'], ['diag', 'Stepped right'], ['fanL', 'Fan left'], ['fanR', 'Fan right']]],
 ];
-{ const rpL = renderPlay; renderPlay = function(){ const r = rpL.apply(this, arguments); document.body.classList.toggle('lab-inbattle', !!(ui && ui.battle)); return r; }; }
+// (a step of renderPlay)
+function labAfterDraw(){ document.body.classList.toggle('lab-inbattle', !!(ui && ui.battle)); }
 function labApply(redraw = true){
   const b = document.body, cl = b.classList;
   for (const c of [...cl]) if (c.startsWith('lab-') && c !== 'lab-inbattle') cl.remove(c);
@@ -196,15 +194,11 @@ function labSplayRevealed(prev, delay){
     if (hp && !reduceMotion()) hp.animate([{opacity:0}, {opacity:1}], {duration:320, delay:delay + 460, easing:'ease-out', fill:'backwards'});
   });
 }
-{
-  const gf = goFrame;
-  goFrame = function(k, glide){
-    const before = ui.battle ? labRevealed(ui.battle.frames[ui.frame]) : [null, null];
-    const r = gf.apply(this, arguments);
-    if (glide) labSplayRevealed(before, 220);   // starts as the card on top lifts off it
-    labPrep();
-    return r;
-  };
+// (steps of goFrame)
+function labBeforeStep(){ return ui.battle ? labRevealed(ui.battle.frames[ui.frame]) : [null, null]; }
+function labAfterStep(before, glide){
+  if (glide) labSplayRevealed(before, 220);   // starts as the card on top lifts off it
+  labPrep();
 }
 
 

@@ -20,6 +20,7 @@ function pokeParts(t, side, hit, art){
 // tokens in order), each a step up and a little left so its banner shows, on both sides of the table (so every
 // banner reads the right way up). Extra copies stay thin edges, as before.
 function pokeArt(t, side, hit, art){
+  if (typeof labPokeArt === 'function') return labPokeArt(t, side, hit, art);   // Board settings' banded stack; the layout below only shows while the page is still loading
   const nc = t.filter(k => k === 'cp').length, tk = t.filter(k => k !== 'cp'), g = art.gear ? 1 : 0, n = nc + g + tk.length;
   const shAt = tk.map((k, j) => k === 'sh' ? j : -1).filter(j => j >= 0), hitSet = new Set(hit ? shAt.slice(-hit) : []);
   const sh = [`inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})`];
@@ -46,7 +47,12 @@ function pokeStyle(u, side, hit, art){
   return {style:`box-shadow:${sh.join(',')};${room}`, html, title};
 }
 const artInfo = u => ({gear:u.gear || null, gearArt:u.gear && typeof artURL === 'function' ? artURL(u.gear, 'b') : null});
+// A battle card. Board settings adds its card-stock and light layers once js/board-settings.js has loaded.
 function cardHTML(u, side, mode){
+  const h = cardHTML0.apply(this, arguments);
+  return h && typeof labCardLayers === 'function' ? labCardLayers(h) : h;
+}
+function cardHTML0(u, side, mode){
   if (!u) return '';
   const hp = Math.max(0, Math.min(100, (u.pow - u.dmg) / Math.max(1, u.pow) * 100));
   const hit = SHHIT ? SHHIT.get(`${side}-${u.uid}`) || 0 : 0;

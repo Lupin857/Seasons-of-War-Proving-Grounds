@@ -140,7 +140,13 @@ function kwGlossHTML(ids, self){
    stamps and its buttons. Nothing from where the card sat (Vanguard ring, faded "can't afford", stack shadows,
    tapped or selected states) comes along. Styled only by .cardpop / .peek. */
 const popBtns = card => [...card.querySelectorAll(':scope > button, :scope > .row button, :scope .dbtn button')];
+// The large card. On phones (js/mobile-crop.js) its pictures load at once, drawn to a canvas when ready.
 function cardPop(card){
+  const pk = cardPop0.apply(this, arguments);
+  if (typeof popArtEager === 'function') popArtEager(pk);
+  return pk;
+}
+function cardPop0(card){
   const m = card.querySelector('.cfm');
   const side = card.classList.contains('ai') ? ' ai' : '';
   const pk = document.createElement('div');
@@ -158,7 +164,12 @@ function cardPop(card){
   for (const b of popBtns(card)){ const c = b.cloneNode(true); c.removeAttribute('style'); pk.appendChild(c); }
   return pk;
 }
+// Open the large card. On phones (js/mobile-crop.js) it waits for the art to decode, 150 ms at most.
 function openPeek(card, byTap){
+  if (typeof peekWhenDecoded === 'function') return peekWhenDecoded(card, this, arguments);
+  return openPeek0.apply(this, arguments);
+}
+function openPeek0(card, byTap){
   closePeek(true);
   const r = card.getBoundingClientRect(), w = Math.min(320, window.innerWidth - 32);
   const wrap = document.createElement('div'); wrap.className = 'peekwrap';

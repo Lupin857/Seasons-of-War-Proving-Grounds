@@ -31,7 +31,9 @@ const WEIGHT_LABELS = {
   read:'Trust in its read of the opponent\'s Mobilize order (0–1)',
   omk:'Learning the opponent: how much more it trusts a read that keeps coming true',
 };
-function renderTrain(){
+// Redraws keep every scroll box where it was (keepScroll, js/ui/15-sync-roles-ratings.js).
+function renderTrain(){ return keepingScroll('view-train', drawTrain, this, arguments); }
+function drawTrain(){
   const c = brain.champ, last = brain.history[brain.history.length - 1];
   const biases = Object.entries(c.bias || {}).filter(([k,v]) => Math.abs(v) > 0.05).sort((a,b) => b[1] - a[1]);
   const likes = biases.slice(0, 6), dislikes = biases.slice(-6).reverse().filter(b => b[1] < 0);

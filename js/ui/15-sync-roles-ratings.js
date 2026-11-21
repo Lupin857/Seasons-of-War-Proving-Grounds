@@ -14,10 +14,8 @@ function keepScroll(id){
     if (window.scrollY !== y || window.scrollX !== x) window.scrollTo(x, y);
   };
 }
-for (const [name, id] of [['renderStats','view-stats'], ['renderTrain','view-train'], ['renderLab','view-lab']]){
-  const f = window[name];
-  window[name] = function(){ const done = keepScroll(id); try{ return f.apply(this, arguments); } finally { done(); } };
-}
+// renderTrain, renderStats and renderLab draw through this (until v58 it wrapped them)
+function keepingScroll(id, draw, self, args){ const done = keepScroll(id); try{ return draw.apply(self, args); } finally { done(); } }
 
 /* ===================== SHARE WITH CLAUDE (db) ===================== */
 // Saves this browser's stats, AI and lab state to the artifact's database so Claude can read the same numbers.

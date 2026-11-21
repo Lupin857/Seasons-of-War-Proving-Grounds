@@ -19,12 +19,13 @@ Brian designs the game. Read this file first; open the linked docs only when the
    don't edit it or copy from it.
 6. **Don't redraw what you weren't asked to change.** Edit existing animations and screen elements in place. Never
    rebuild, restyle, re-time or move an animation or element outside the task. If a change touches shared code
-   (`cardFace`, `cardHTML`, `renderPlay`, the CARD MOTION helpers), check that nothing else changed on screen and say
+   (`cardFace`, `cardHTML`, `renderPlay`, `goFrame`, the CARD MOTION helpers), check that nothing else changed on screen and say
    so in the summary.
 7. **Reuse before you write.** Before adding a function, animation, layer or style, look for one that already does
    the job (see the reuse list in docs/code-map.md) and use or extend it. Don't make a second card renderer, fly
    animation or pop-up. If you find two copies of the same thing, point it out and offer to merge them.
-   No new wrappers on battle-screen functions (`goFrame`, `stepForward`, `renderPlay`): edit the function itself.
+   Never wrap or reassign a function (`x = function`): add a named step to it instead (see "No wrappers" in
+   docs/code-map.md).
    When you replace a feature, delete the old code in the same change.
 8. **Keep the docs current.** Every change updates the matching doc (code map, UI, rules, AI, terminology) in the
    same commit, and the summary says which docs changed.
@@ -106,7 +107,7 @@ golden test ran (and passed or was re-recorded), and which docs were updated. Th
 - The AI judges every choice by **chance of winning the game**; difficulty = thinking budget, not random mistakes.
 
 ## Linked docs (read only when relevant)
-- `docs/code-map.md`: which file holds what, load-order rules, the stacked-wrapper pattern, the reuse list
+- `docs/code-map.md`: which file holds what, load-order rules, how renderPlay/goFrame steps work, the reuse list
 - `docs/ui.md`: phone/desktop layout rules, animation and card-motion rules, board settings
 - `docs/terminology.md`: internal → display names, card-wording style
 - `docs/rules.md`: current rules and battle step order

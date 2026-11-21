@@ -385,7 +385,18 @@ function reserveRows(){
   [r0, r1].forEach((r, i) => { if (!r) return; const h = r.offsetHeight; if (h > ui.battle.rowH[i]){ ui.battle.rowH[i] = h; if (keep) keep[i] = Math.max(keep[i], h); r.style.minHeight = h + 'px'; } });
 }
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
+/* Show battle step k (glide: animate from the step on screen). Steps around the redraw come from the cubes
+   (js/mobile-crop.js) and Board settings (js/board-settings.js); until v58 they were wrappers. Add steps here. */
 function goFrame(k, glide){
+  const lab = labBeforeStep();             // Board settings: which units are revealed before the step
+  cubesBeforeStep(glide);                  // damage cubes: lift off a defeated card's cubes, or settle them on a jump
+  const r = showFrame.apply(this, arguments);
+  healRefillAfterStep(glide);              // a healed unit's bar refills as its cubes are swept off
+  labAfterStep(lab, glide);                // Board settings: a newly revealed unit glides into its splay
+  return r;
+}
+// The step itself; call goFrame, not this.
+function showFrame(k, glide){
   stopAnim();
   const from = new Map();
   if (glide && !reduceMotion()) for (const el of $('view-play').querySelectorAll('.line [data-uid]')){ const r = el.getBoundingClientRect(); r.wasB = el.tagName === 'B'; if (!r.wasB) r.clone = el.cloneNode(true); from.set(el.dataset.uid, r); }
