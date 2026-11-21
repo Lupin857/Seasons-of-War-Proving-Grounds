@@ -20,4 +20,13 @@ for (const f of fs.readdirSync(A).filter(f => f.endsWith('.png')).sort()){
   console.log(`${f.padEnd(26)} ${pct.toFixed(3)}% pixels differ`);
 }
 for (const f of fs.readdirSync(B).filter(f => f.endsWith('.png'))) if (!fs.existsSync(path.join(A, f))) console.log(`${f.padEnd(26)} only in ${B}`);
+// match records: the same seeded game must record the same events (ids and times aside)
+const mr = d => { const f = path.join(d, 'match-record.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
+const clean = r => JSON.stringify(r, (k, v) => ['id', 'at', 'date', 'time', 'started', 'updated', 'ended', 'ms', 'build'].includes(k) ? undefined : v);
+const ra = mr(A), rb = mr(B);
+if (ra || rb){
+  const same = ra && rb && clean(ra) === clean(rb);
+  console.log(`match-record.json          ${same ? 'same' : 'DIFFERENT'} (${ra ? (ra.events || []).length : 0} vs ${rb ? (rb.events || []).length : 0} shop events, ${ra ? (ra.battles || []).length : 0} vs ${rb ? (rb.battles || []).length : 0} battles)`);
+  if (!same) worst = 100;
+}
 console.log(worst < 0.5 ? 'SAME (within glow/pulse noise)' : 'DIFFERENT: look at the files above 0.5%');

@@ -1232,7 +1232,30 @@ function sourceCard(g, i, src, idx){
   if (src === 'fz') return g.frozen && g.frozen[i] && g.frozen[i][idx] && {name:g.frozen[i][idx].name, kind:g.frozen[i][idx].kind};
   return null;
 }
-function buy(g, i, src, idx, attach, writ){
+/* ===================== SHOP ACTIONS: ONE DOOR =====================
+   Every shop action (yours, the AI's, an online opponent's) goes through shopAct. Code that needs to know about
+   actions sets SHOP_WATCH instead of wrapping engine functions: the match recorder on the page records each one with
+   the board as it was before, and the AI worker reports the moves it took. Nothing is watched in the tests.
+   A new shop action: write its NAMERule and add one line below, so it is recorded and reported too. */
+let SHOP_WATCH = null;   // {before(g, i, name, args) -> token, after(token, result)}, or null
+function shopAct(name, rule, g, i, args){
+  if (!SHOP_WATCH) return rule(g, i, ...args);
+  const t = SHOP_WATCH.before(g, i, name, args);
+  const r = rule(g, i, ...args);
+  SHOP_WATCH.after(t, r);
+  return r;
+}
+function buy(g, i, ...a){ return shopAct('buy', buyRule, g, i, a); }
+function sell(g, i, ...a){ return shopAct('sell', sellRule, g, i, a); }
+function pass(g, i, ...a){ return shopAct('pass', passRule, g, i, a); }
+function useBM(g, i, ...a){ return shopAct('useBM', useBMRule, g, i, a); }
+function useFavor(g, i, ...a){ return shopAct('useFavor', useFavorRule, g, i, a); }
+function useVision(g, i, ...a){ return shopAct('useVision', useVisionRule, g, i, a); }
+function useDisc(g, i, ...a){ return shopAct('useDisc', useDiscRule, g, i, a); }
+function useWrit(g, i, ...a){ return shopAct('useWrit', useWritRule, g, i, a); }
+function useFreeze(g, i, ...a){ return shopAct('useFreeze', useFreezeRule, g, i, a); }
+function useRedeal(g, i, ...a){ return shopAct('useRedeal', useRedealRule, g, i, a); }
+function buyRule(g, i, src, idx, attach, writ){
   if (g.phase !== 'shop' || cur(g) !== i || altarWaiting(g, i)) return false;
   noteSeen(g, i);
   const sc = sourceCard(g, i, src, idx); if (!sc) return false;
@@ -1281,7 +1304,7 @@ function buy(g, i, src, idx, attach, writ){
 // Discard Writ: right away, up to 2 other display units go face-up to the discard pile (miracles under them are discarded)
 // and new cards are dealt from the unit deck to replace them.
 // names: the units the buyer chose (a person always passes a list, maybe empty); without one, the AI picks.
-function useWrit(g, i, n, names){
+function useWritRule(g, i, n, names){
   const pick = Array.isArray(names) ? names.slice(0, n) : asSeenBy(g, i, () => writPick(g, i, n).map(x => x.name));
   const moved = [];
   for (const nm of pick){
@@ -1348,7 +1371,7 @@ function gainMiracles(g, i, mir, writ, spot){
   return writs.length > 0;   // Discard Writ: the buyer shops again before the opponent
 }
 // Divine Favor: from hand on your shop turn, adds one extra buy at normal price this shop
-function useFavor(g, i){
+function useFavorRule(g, i){
   const p = g.players[i];
   if (g.phase !== 'shop' || cur(g) !== i || g.passed[i]) return false;
   const j = (p.mir || []).indexOf('Divine Favor'); if (j < 0) return false;
@@ -1359,7 +1382,7 @@ function useFavor(g, i){
 }
 // Patronage: played from hand on your shop turn; the next card you buy costs less, then it's discarded.
 // on false takes it back into hand unplayed (before buying anything with it).
-function useDisc(g, i, on){
+function useDiscRule(g, i, on){
   const p = g.players[i];
   if (g.phase !== 'shop' || cur(g) !== i || g.passed[i]) return false;
   const n = mirDisc(p); if (!n) return false;
@@ -1372,7 +1395,7 @@ function useDisc(g, i, on){
 // Freeze: from hand, as your shop turn, set aside a display card with its miracles (and Covenant cards); its spot stays
 // empty this shop. Only you may buy it, at its normal price, on any later shop turn.
 function canFreeze(g, i){ const p = g.players[i]; return g.phase === 'shop' && cur(g) === i && !g.passed[i] && (p.mir || []).some(n => MIRS[n] && MIRS[n].frz); }
-function useFreeze(g, i, src, idx){
+function useFreezeRule(g, i, src, idx){
   if (!canFreeze(g, i) || (src !== 'du' && src !== 'db')) return false;
   const row = g.disp[src === 'du' ? 'u' : 'b'], c = row[idx]; if (!c) return false;
   noteSeen(g, i);
@@ -1388,7 +1411,7 @@ function useFreeze(g, i, src, idx){
 // (its miracles are discarded; Covenant cards on top go with it), then each row is dealt full again from its own deck.
 // Frozen cards are not in the display, so they stay set aside.
 function canRedeal(g, i){ const p = g.players[i]; return g.phase === 'shop' && cur(g) === i && !g.passed[i] && (p.mir || []).some(n => MIRS[n] && MIRS[n].rdl); }
-function useRedeal(g, i){
+function useRedealRule(g, i){
   if (!canRedeal(g, i)) return false;
   noteSeen(g, i);
   const p = g.players[i], j = p.mir.findIndex(n => MIRS[n] && MIRS[n].rdl), fn = p.mir[j];
@@ -1433,7 +1456,7 @@ function aiRedealGain(g, i, G, mE){
   return tot / N - now;
 }
 // Vision: from hand on your shop turn, look at the top 3 of either deck and buy one (with a normal buy, normal price)
-function useVision(g, i, k){
+function useVisionRule(g, i, k){
   k = k === 'b' ? 'b' : 'u';
   const p = g.players[i];
   if (g.phase !== 'shop' || cur(g) !== i || g.passed[i] || peekOf(g, i, 'vis')) return false;
@@ -1464,7 +1487,7 @@ function aiCanSell(g, i, kind, name){
   if (kind === 'b' && p.mason && p.mason[name] > 0 && got.includes("Mason's Guild")) return false;
   return true;
 }
-function sell(g, i, kind, name){
+function sellRule(g, i, kind, name){
   if (!canSell(g, i, kind, name)) return false;
   const p = g.players[i];
   let back = name;
@@ -1508,7 +1531,7 @@ function aiBMKind(g, i){
   const gu = bmPeekGain(g, i, n, 'u'), gb = bmPeekGain(g, i, n, 'b');
   return gb > gu ? 'b' : 'u';
 }
-function useBM(g, i, k){
+function useBMRule(g, i, k){
   k = k === 'b' ? 'b' : 'u';   // Black Market looks at one deck per shop: units or buildings, not both
   const p = g.players[i];
   if (g.phase !== 'shop' || g.bmUsed[i] || !bVal(p, 'Black Market')) return false;
@@ -1516,7 +1539,7 @@ function useBM(g, i, k){
   g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'look':'looks'} at the Black Market: top ${cards.length} ${k === 'b' ? 'buildings' : 'units'}.`, side:i});
   return true;
 }
-function pass(g, i){
+function passRule(g, i){
   if (g.phase !== 'shop' || cur(g) !== i) return false;
   if (altarWaiting(g, i)) altarDiscard(g, i, g.altarPend[i][0]);
   noteSeen(g, i);

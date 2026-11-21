@@ -16,23 +16,7 @@ function pokeParts(t, side, hit, art){
   const html = t.map((k, j) => `<span class="pk${hitSet.has(j) ? ' shhit' : ''}" data-k="${k}" style="--j:${j};color:var(${TOKS[k].c})" aria-hidden="true">${tokIcon(k)}</span>`).join('');
   return {shadow:sh.join(','), room, html};
 }
-// On a card drawn with its art, gear and tokens are their own art cards tucked behind it (gear nearest, then the
-// tokens in order), each a step up and a little left so its banner shows, on both sides of the table (so every
-// banner reads the right way up). Extra copies stay thin edges, as before.
-function pokeArt(t, side, hit, art){
-  if (typeof labPokeArt === 'function') return labPokeArt(t, side, hit, art);   // Board settings' banded stack; the layout below only shows while the page is still loading
-  const nc = t.filter(k => k === 'cp').length, tk = t.filter(k => k !== 'cp'), g = art.gear ? 1 : 0, n = nc + g + tk.length;
-  const shAt = tk.map((k, j) => k === 'sh' ? j : -1).filter(j => j >= 0), hitSet = new Set(hit ? shAt.slice(-hit) : []);
-  const sh = [`inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})`];
-  const up = `calc(var(--tky) * ${n})`, lf = `calc(var(--tkl) * ${n})`;
-  const room = {marginTop:up, marginLeft:lf, '--rt':up, '--rl':lf};
-  const tuck = j => `style="--j:${j};z-index:${-1 - j}"`;
-  let html = '';
-  for (let j = 0; j < nc; j++) html += `<span class="tk ctk" ${tuck(j)} aria-hidden="true">${art.unitArt ? `<img src="${art.unitArt}" alt="" draggable="false">` : ''}<i class="tkband"></i></span>`;
-  if (g) html += `<span class="tk gtk${art.gearArt ? '' : ' plain'}" ${tuck(nc)} data-tuck-gear="${esc(art.gear)}"${art.gearArt ? ` data-art="1"` : ''} aria-hidden="true">${art.gearArt ? `<img src="${art.gearArt}" alt="" draggable="false">` : tuckPlainGear(art.gear)}<i class="tkband"></i></span>`;
-  html += tk.map((k, j) => `<span class="pk tk${hitSet.has(j) ? ' shhit' : ''}" data-k="${k}" data-tuck-tok="${k}" ${tuck(nc + g + j)} aria-hidden="true"><i class="tkband"></i></span>`).join('');
-  return {shadow:sh.join(','), room, html};
-}
+// pokeArt (the stack of copies, gear and tokens behind an art card) is in js/board-settings.js.
 const kebab = k => k.startsWith('--') ? k : k.replace(/[A-Z]/g, m => '-' + m.toLowerCase());
 function applyRoom(el, r){ for (const k of ['margin-left', 'margin-right', 'margin-top', 'margin-bottom', '--rt', '--rl']) el.style.removeProperty(k); for (const [k, v] of Object.entries(r || {})) el.style.setProperty(kebab(k), v); }
 const roomCSS = r => Object.entries(r).map(([k, v]) => `${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}:${v}`).join(';');

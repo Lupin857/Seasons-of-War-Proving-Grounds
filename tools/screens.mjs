@@ -7,7 +7,8 @@
 // --motion also plays two rounds with animations on and reports any errors (no screenshots for that part).
 //
 // The build is served over http from inside this process (the AI's workers load js/engine.js by URL, which
-// file:// can't do). Math.random is seeded, animations use reduced motion.
+// file:// can't do). Math.random is seeded, animations use reduced motion. It also saves the game's match record
+// (match-record.json); screens-diff.mjs compares those too.
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -83,6 +84,8 @@ for (let step = 0; step < 600; step++){
   }
   await p.waitForTimeout(800);
 }
+// the match record (shop actions with the board before each, battles), for comparing two builds
+fs.writeFileSync(path.join(OUT, 'match-record.json'), JSON.stringify(await p.evaluate(() => { const all = LS.get(MATCH_KEY) || []; return all[0] || null; }), null, 1));
 const fin = await p.evaluate(() => ({ round: G && G.round, score: G && G.players.map(x => x.score), aiWorker: !!(typeof aiW === 'object' && aiW) }));
 
 // 2. designer tabs

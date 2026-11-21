@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v58';
+const OASIS_BUILD = 'v59';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -28,8 +28,8 @@ function labCardLayers(h){
     `<span class="labsh" aria-hidden="true">${labEdges(LABPILE)}<i></i></span><span class="cartbg" aria-hidden="true"></span><span class="lablt" aria-hidden="true"></span>`);
 }
 // Arena-style stacking: copies, then gear, then each kind of token once with a count, raised a name band each;
-// the room kept around the card follows the splay. (Used by pokeArt in js/ui/01-battle-view.js.)
-function labPokeArt(t, side, hit, art){
+// the room kept around the card follows the splay. Battle cards (cardHTML0) call it for every art card.
+function pokeArt(t, side, hit, art){
   const nc = t.filter(k => k === 'cp').length, g = art.gear ? 1 : 0, cnt = {}, kinds = [];
   for (const k of t) if (k !== 'cp'){ if (!(k in cnt)){ cnt[k] = 0; kinds.push(k); } cnt[k]++; }
   const n = STACK_MAX, sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';   // room is fixed, whatever the stack holds

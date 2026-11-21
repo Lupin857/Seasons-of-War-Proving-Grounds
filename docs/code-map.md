@@ -83,7 +83,7 @@ CARD PEEK (keywords) → TOOLTIPS.
   js/engine.js plus that function, so there is only one copy of the engine.
 
 ## No wrappers: functions call named steps
-Until v58, later script blocks wrapped earlier functions (`const rp = renderPlay; renderPlay = function(){ ... }`),
+Until v58 (v59 for the shop actions), later script blocks wrapped earlier functions (`const rp = renderPlay; renderPlay = function(){ ... }`),
 five layers deep on `renderPlay`. Those are gone: each function now lists its steps in order, and steps that belong
 to a feature live in that feature's file as plain named functions. **Never wrap or reassign a function**
 (`check-page.mjs` flags it); add a step to the function instead.
@@ -94,17 +94,18 @@ to a feature live in that feature's file as plain named functions. **Never wrap 
 - `goFrame(k, glide)` (js/ui/07-battle-steps.js): `labBeforeStep` → `cubesBeforeStep` → `showFrame` (the step
   itself; the save slide-under `deckFly` is in it) → `healRefillAfterStep` → `labAfterStep` (splay glide, `labPrep`).
   Only runs after load, so no checks.
-- `cardHTML` → `cardHTML0` + `labCardLayers` (card stock and light layers). `pokeArt` → `labPokeArt` (copies in one
-  band with a count; room always `STACK_MAX` bands, see `labFixedRoom`); the older layout under it only shows while
-  the page is loading.
+- `cardHTML` → `cardHTML0` + `labCardLayers` (card stock and light layers). `pokeArt` (js/board-settings.js) draws the
+  stack behind an art card: copies in one band with a count, room always `STACK_MAX` bands (see `labFixedRoom`). The
+  older one-step-per-token layout was deleted in v59.
 - `cardPop` → `cardPop0` + `popArtEager`; `openPeek` → `peekWhenDecoded` (phones wait for the art) or `openPeek0`.
   Use the `0` versions only where you need the plain card (like `peekWhenDecoded` does).
 - `renderTrain` / `renderStats` / `renderLab` → `keepingScroll(view, drawTrain|drawStats|drawLab)` (scroll boxes stay
   put across redraws).
-- Still intercepted, on purpose for now: the match recorder (js/ui/02, `window[nm] = ...`) wraps the engine's shop
-  actions (`buy`, `sell`, `pass`, `useBM`...) to record each one with the board before it, and the AI worker does
-  the same inside its own worker to send back the actions it took. Replacing these means the engine reporting its
-  own actions (like the battle Chronicle does); ask Brian before changing it.
+- Shop actions: every one (`buy`, `sell`, `pass`, `useBM`, `useFavor`, `useVision`, `useDisc`, `useWrit`, `useFreeze`,
+  `useRedeal`) goes through the engine's `shopAct` ("SHOP ACTIONS: ONE DOOR" in js/engine.js); the rules themselves are
+  `buyRule`, `sellRule`... Whatever needs to hear about actions sets `SHOP_WATCH = {before, after}`: the match recorder
+  (js/ui/02, `REC_ACT` names them in records) and the AI worker (`aiWorkerMain`, reports the moves it made). A new
+  shop action gets a `NAMERule` plus one line there, so it is recorded and reported automatically.
 
 The CSS is layered the same way: later blocks restyle earlier ones (e.g. "ONE CARD SIZE", "battle table: every card
 is a square", then the art-card and Board-settings rules). Search for every rule on a selector before adding a new one.

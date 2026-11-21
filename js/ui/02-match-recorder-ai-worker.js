@@ -39,22 +39,22 @@ function recBattle(g){
   g._mobWhy = null; g._mobLevel = null;
   recSave(g);
 }
-// wrap the shop actions so every action (yours and the AI's) is recorded with the board as it was just before
-for (const [nm, act] of [['buy','buy'], ['sell','sell'], ['pass','pass'], ['useBM','black market'], ['useFavor','divine favor'], ['useVision','vision'], ['useDisc','patronage'], ['useWrit','salvage writ'], ['useFreeze','freeze'], ['useRedeal','upheaval']]){
-  const f = window[nm]; if (typeof f !== 'function') continue;
-  window[nm] = function(g, i, ...a){
-    if (!g || !g.rec) return f.call(this, g, i, ...a);
+// every shop action (yours and the AI's) is recorded with the board as it was just before (the engine's SHOP_WATCH)
+const REC_ACT = {buy:'buy', sell:'sell', pass:'pass', useBM:'black market', useFavor:'divine favor', useVision:'vision', useDisc:'patronage', useWrit:'salvage writ', useFreeze:'freeze', useRedeal:'upheaval'};
+SHOP_WATCH = {
+  before(g, i, name){
+    if (!g || !g.rec) return null;
     const before = recSnap(g), n0 = g.log.length, why = i === 1 ? g._why : null;
     if (i === 1) g._why = null;
-    const r = f.call(this, g, i, ...a);
-    if (r !== false){
-      const ev = {round:before.round, who:i === 0 ? 'you' : 'AI', act, text:g.log.slice(n0).map(x => x.t).join(' '), before};
-      if (why) ev.aiThinking = why;
-      g.rec.events.push(ev);
-    }
-    return r;
-  };
-}
+    return {g, i, name, before, n0, why};
+  },
+  after(t, r){
+    if (!t || r === false) return;
+    const ev = {round:t.before.round, who:t.i === 0 ? 'you' : 'AI', act:REC_ACT[t.name] || t.name, text:t.g.log.slice(t.n0).map(x => x.t).join(' '), before:t.before};
+    if (t.why) ev.aiThinking = t.why;
+    t.g.rec.events.push(ev);
+  }
+};
 function recText(r){ return 'SOW match record. Paste this to Claude to review the game.\n' + JSON.stringify(r); }
 function copyMatch(r){
   if (!r){ showToast('No recorded game yet.'); return; }
@@ -160,10 +160,8 @@ let aiW = null, aiWSeq = 0, aiBusy = false;
 const aiWPending = new Map();
 function aiWorkerMain(){
   let ROOT = null, LOG = null;
-  for (const nm of ['buy', 'sell', 'pass', 'useBM', 'useVision', 'useFavor', 'useDisc', 'useWrit', 'useFreeze', 'useRedeal']){
-    const f = self[nm]; if (typeof f !== 'function') continue;
-    self[nm] = function(g, ...a){ if (g === ROOT && LOG) LOG.push({fn:nm, args:a, why:g._why || null}); return f.call(this, g, ...a); };
-  }
+  // report the actions the AI takes on the game it was sent (not the copies it searches with)
+  SHOP_WATCH = { before(g, i, name, args){ if (g === ROOT && LOG) LOG.push({fn:name, args:[i, ...args], why:g._why || null}); }, after(){} };
   self.onmessage = e => {
     const m = e.data;
     try{
