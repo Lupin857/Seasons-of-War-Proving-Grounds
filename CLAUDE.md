@@ -1,78 +1,89 @@
-# Seasons of War (SOW) · Proving Grounds: notes for Claude
+# Oasis (formerly Seasons of War / SOW): notes for Claude
 
 This repo is the GitHub Pages copy of the **Oasis** artifact (slug `582be462-0f9f-408f-b686-c833c4db709b`,
-https://claude.ai/artifact/BtVWtsTBp4wSnfKSQqKfyc), the Oasis retheme of SOW. Before Nov 2026 the site ran the
-older **SOW Proving Grounds** artifact (8f48cb3f-5b65-4753-a023-809236a6c4e2). The game is in `index.html`
-(about 1 MB); card art is in `art/<Oasis name>.webp` (Brian's Dextrous card fronts, 750×1037), mirrored from the
-artifact's own `art/` folder. Brian designs the game; he usually wants changes tested in the artifact first,
-then pushed here. Discuss changes with him before pushing.
+https://claude.ai/artifact/BtVWtsTBp4wSnfKSQqKfyc). Friends play it at
+https://lupin857.github.io/Seasons-of-War-Proving-Grounds/ (online play over PeerJS, no accounts).
+Brian designs the game. Read this file first; open the linked docs only when the task needs them.
+
+## Golden rules
+1. **Artifact first, then repo.** Change and test the Oasis artifact first, then copy it here. The site must run
+   the artifact's current version with the same balance (see "Refresh the snapshot").
+2. **Explain before pushing or publishing.** Send Brian a plain-English summary (see "Before pushing") and wait for
+   his go-ahead.
+3. **Ask before big token spends.** Long simulations, big rewrites and large searches need a short plan he approves.
+4. **Brian's Google Sheets are canon for card data.** The engine's `DEFS` / `BDEFS` / `MIRS` follow the Sheets;
+   Dextrous art shows only while a card's numbers still match (`OASIS_ART`). If the Sheets, the code and the art
+   disagree, flag it instead of picking a winner. Never take card numbers from memory. Read the Sheets with the
+   Google Sheets connector.
+5. **Oasis only.** The old *SOW Proving Grounds* artifact (`8f48cb3f-5b65-4753-a023-809236a6c4e2`) is legacy:
+   don't edit it or copy from it.
+6. **Don't redraw what you weren't asked to change.** Edit existing animations and screen elements in place. Never
+   rebuild, restyle, re-time or move an animation or element outside the task. If a change touches shared code
+   (`cardFace`, `cardHTML`, `renderPlay`, the CARD MOTION helpers), check that nothing else changed on screen and say
+   so in the summary.
+7. **Reuse before you write.** Before adding a function, animation, layer or style, look for one that already does
+   the job (see the reuse list in docs/code-map.md) and use or extend it. Don't make a second card renderer, fly
+   animation or pop-up. If you find two copies of the same thing, point it out and offer to merge them.
+8. **Keep the docs current.** Every change updates the matching doc (code map, UI, rules, AI, terminology) in the
+   same commit, and the summary says which docs changed.
+
+## Names: internal vs. display
+The code keeps the **old SOW names internally** (`Recruit`, `Armament`, `Field`, `Pigeon Hunter`, `city`...).
+`OASIS_NAMES` (in `<script id="oasis-names">`) renames everything players read, live, through a MutationObserver.
+**Never rename internal names in code** (it breaks the snapshot, saved games, stats and the golden test). To change
+what players see, edit `OASIS_NAMES`. Full list and wording style: docs/terminology.md.
 
 ## Workflow for a change
 1. Get the live page: Artifact `read` with `path: "index.html"` saves it to a file without printing it.
-   Before publishing, a plain `read` (no path) is required as a version check. It prints about 16 KB of CSS, so do it once, right before publishing.
+   Before publishing, a plain `read` (no path) is required as a version check. It prints about 16 KB of CSS, so do
+   it once, right before publishing.
 2. Edit a copy in the scratchpad (a Python or Node script with exact-match replacements, asserting each matches once).
 3. Syntax-check every non-JSON `<script>` with `new Function(...)` in Node.
 4. Run the tests (below), publish the artifact, then copy the file here byte for byte (`cp page.html index.html`;
    strip a trailing newline only if the saved copy has one: the artifact's file ends in `</html>` with none, and an
-   unconditional `head -c -1` cut off that final `>` before Nov 2026), commit and push to `main`. Commit messages end with "(artifact vNNN)".
-   If card art changed in the artifact, copy the changed `art/*.webp` files here too.
+   unconditional `head -c -1` cut off that final `>` before Nov 2026). If card art changed in the artifact, copy the
+   changed `art/*.webp` files too.
+5. After Brian approves: commit and push to `main`. Commit messages end with "(artifact vNNN)".
 
 ## Tests (`tools/`)
 - `node tools/golden.mjs check` (~50 s): 1,000 seeded battles + 44 seeded AI-vs-AI games through the engine.
   Pure refactors must PASS. For an intended rule change, run `record` instead and say so in the commit.
   Run it only when the engine, rules or AI code changed; skip it for UI-only changes.
-- There is no UI golden test anymore (Brian dropped it, Oct 2026). Check UI changes with headless screenshots.
+- There is no UI golden test anymore (dropped Oct 2026; don't bring it back). Check UI changes with headless
+  screenshots, at the layout you changed (and the other one if shared code changed).
 - Headless screenshots: Playwright is global (`createRequire(\`${npm root -g}/\`)('playwright')`), Chromium at
   `/opt/pw-browsers/chromium`. Under file:// the page drops to player view; for the designer view run
   `canAdmin = true; playerPreview = false; applyRole()` after load.
 
-## Keeping the site in sync: refresh the snapshot
-The site can't reach the artifact's server database, so it plays from the JSON in
-`<script type="application/json" id="snapshot">` (balance, AI, ratings, card stats). Refresh it whenever
-the balance, AI or stats changed:
+## Refresh the snapshot (keeps the site in sync)
+The site can't reach the artifact's database, so it plays from the JSON in
+`<script type="application/json" id="snapshot">` (balance, AI, ratings, card stats). Refresh it whenever the
+balance, AI or stats changed:
 1. ArtifactData `list` with `out_dir` (never print inline) for each collection: `balance`, `ai`, `aibrain`,
    `calibration`, `sync`, all into one folder.
 2. `node tools/refresh-snapshot.mjs --db <folder> --html <page>`
 3. Publish and push as usual.
 
-## Map of index.html (search by name; line numbers drift)
-Script blocks: PeerJS (minified, online play) → `#snapshot` JSON (one ~1 MB line: **never grep without
-`| cut -c1-200`**) → `<script id="engine">` (rules + AI, also run in Web Workers and by the tests) → main
-UI script.
+## Before pushing
+Tell Brian in plain English: what changed, why, any gameplay or balance effect, risks or open questions, whether the
+golden test ran (and passed or was re-recorded), and which docs were updated. Then wait.
 
-**Engine (`#engine`)**
-- Card data: `const DEFS` (units), `const BDEFS` (buildings), `const MIRS` (miracles). These are "sheet" numbers.
-- `const RULES`: buysPerShop, fieldsPerShop, citySlots, deckCap, baseIncome, display sizes, target score.
-- `SHEET` (never changes) / `ORIG` (sheet + pushed balance = the base) / `applyOverrides(ov)` puts overrides
-  on top. Overrides look like `{units:{Name:{c,n,p,v,...}}, bldgs:{...}, mirs:{...}, rules:{...}}`.
-- `describeOverrides`, `patchDiff(a, b)` (old → new lines), `seedPatches(doc)`.
-- Shop: `buyQuote` (price + slot: base / carp / fav / extra), `useSlot`, `baseLeft`, `income`, `newGame`.
-- Battle: `runBattle`. Full AI round: `autoRound`. AI card values: `aiValue`.
-- Stats: `recordStats(stats, g)` covers card win rates plus `__pairs` (same side), `__adj` (front → behind)
-  and `__vs` (counters), all per battle. Buildings in a city count as part of that side (`g.battles[].c`).
+## Design invariants (don't break without asking)
+- It must work as a **physical game**: no hidden bookkeeping a table couldn't do; avoid bottoming cards.
+- The battle engine never favors either seat.
+- Only 4 units track health/damage at once (charging + revealed on each side).
+- Damaging abilities don't fizzle; copy/re-trigger effects copy **printed** abilities only.
+- The AI judges every choice by **chance of winning the game**; difficulty = thinking budget, not random mistakes.
 
-**UI script**
-- Tabs: Play, Train the AI, Balance & stats (`view-lab` on top, designers only; `view-stats` below), Rules.
-- Roles: `applyRole`, `isPlayer()`. The owner is the designer; shared viewers are players (no lab or training).
-- Balance: `FINAL = {ov, at, patches}`, server doc `balance/final`. `setBaseline`, `finalizeBalance(ov, back)`
-  pushes a patch (rollback = a new patch with `back`), `finalBoxHTML` shows the patch history. `renderLab`.
-- Stats/pairs: `renderStats`, `pairsHTML`. Training: `renderTrain`. Shop bar: `slotsHTML`. Play: `renderPlay`.
-- Server sync (artifact only): `pushBrain` (AI in chunks `aibrain/c0..`, meta `ai/brain`),
-  `loadPlayerStats` (`sync/*`), ratings `calibration/ladder`.
-- Workers: `aiWorkerMain`, `workerMain` (source = engine text + function).
-- Card flips (Oct 2026) are real 3D turns: `dealFly` (market deal: lands face down, then turns face up and settles),
-  `mirTurn` (a market card turning over to show/hide its miracles), `deathFly` (dying battle card to the graveyard).
-  Keep the pattern for any new flip: `perspective(~3.4× card width)` first in every keyframe's transform, the same
-  function list in each keyframe, darken a little at edge-on, and swap faces at 90° → −90° so no side is mirrored.
-  Never fake a flip with `scaleX`.
-- One pop-up (Oct 2026): `popWinHTML` builds every window over the game (`.pkwin > .sheet.pksheet`): the deck view
-  (`ui.deckView`, body from `deckSheetHTML`), Salvage / Black Market / Vision (`ui.pkWin` 'salvage' / 'peek') and
-  Mason's Guild (`ui.pkWin` 'mason': tap a building to buy and attach). Rendered by `peekWinHTML`; `wireSwipe` gives
-  drag-to-dismiss; `popShut()` / `closePkWin()` close it. Phone: bottom sheet over the bottom bar; wider: centered.
-  Cards in it and in the turn banner (`.tfcards`) use the market card's measured size (`syncCardSize` → `--uw/--uh`).
-  Selling from the pop-up: the card lifts, the pop-up closes, then `flySell(..., lifted)` flies it to Salvage.
+## Linked docs (read only when relevant)
+- `docs/code-map.md`: map of index.html and cubes.js, the stacked-wrapper pattern, the reuse list
+- `docs/ui.md`: phone/desktop layout rules, animation and card-motion rules, board settings
+- `docs/terminology.md`: internal → display names, card-wording style
+- `docs/rules.md`: current rules and battle step order
+- `docs/ai.md`: AI evaluation, difficulty ladder, training
 
 ## Cheap habits
-- Search with Grep/`grep -n ... | cut -c1-250`, then read only the lines you need. Never read the whole file.
+- Search with `grep -n ... | cut -c1-250`, then read only the lines you need. Never read the whole file.
+- The `#snapshot` JSON is one ~1 MB line: **never grep it without `| cut -c1-200`**.
 - Read database documents with `out_dir`, not inline.
-- Game rules and design history live in Brian's memory notes. Ask him if a rule seems unclear rather than inferring it from the code.
+- If a rule seems unclear, ask Brian rather than inferring it from the code.
