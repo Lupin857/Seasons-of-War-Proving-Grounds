@@ -111,14 +111,12 @@ function markGame(on){
 }
 // The Play tab's own drawing. Call renderPlay(), never this: renderPlay adds the steps around it.
 function drawPlay(){
-  try{ if (!drag || !drag.on) clearGhosts(); }catch(e){}   // no lifted card should outlive its drag
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale; it sinks away
   if (NET && !NET.started && !ui.start){ markGame(false); $('view-play').innerHTML = netLobbyHTML(); return; }
   if (!G || ui.start){ markGame(false); $('view-play').innerHTML = startHTML(); if (turnKey === null) turnKey = ''; return; }
   if (ui.roll){ markGame(true); $('view-play').innerHTML = rollHTML(); if (turnKey === null) turnKey = ''; saveGame(); return; }
   if (ui.battle && ui.frame >= ui.battle.frames.length - 1) ui.revealed = true;   // the result shows once the battle has played out (or been skipped)
-  if (ui.sel && (G.phase !== 'mobilize' || ui.battle || !ui.draft || (ui.sel.zone === 'deck' && !ui.draft[ui.sel.i]) || (ui.sel.zone === 'bench' && !benchHas(ui.sel.name)))) ui.sel = null;
   const dealNow = !ui.battle && G.phase === 'shop' && ui.dealt !== G.round;
   const changes = describeOverrides(OV);
   let h = netNoticeHTML() + (changes.length && !(G && G.net) ? `<p class="note">Custom balance active (${changes.length} unpushed ${plural(changes.length, 'change')}, set in Balance & stats). New games use it.</p>` : '') + boardHTML();
@@ -229,7 +227,17 @@ window.addEventListener('pagehide', () => { if (saveT) saveNow(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && saveT) saveNow(); });
 
 /* Cards that left the display at the end of the last shop (unbought returning cards) fly from the slot they sat in to
-   the discard pile, the reverse of a deal. Returns how long that takes (ms), so the deal can start after it. */
+   the discard pile, the reverse of a deal. Returns when the last one lands (ms), so the deal can start after it.
+   The whole start of a round (cleanup, upkeep and the deal) fits in about 2 seconds however many cards there are:
+   each part has a fixed window in ROUND_FX and they overlap, so more cards means a tighter stagger, not a longer wait.
+     cleanup  unbought cards fly to the discard pile    from   60 ms, staggered over 250, 650 each  → done by ~960
+     upkeep   hourglass tokens stamp on                  from  250 ms, staggered over 300, 450 each  → done by ~1000
+     deal     new cards fly out of the deck and flip     from  400 ms, staggered over 450, 900 each  → done by ~2000
+   With nothing to clean up or stamp, the deal starts at once. A dealt card can head for a spot an unbought card is
+   leaving: it lands only after that card has lifted away. */
+const ROUND_FX = {leaveAt:60, leaveSpread:250, leaveGap:150, leaveDur:650, tokAt:250, tokSpread:300, tokGap:140, tokDur:450,
+  dealAt:400, deal:{spread:450, gap:160, dur:900, backDur:600, backLead:250}};
+const spreadGap = (n, spread, max) => n > 1 ? Math.min(max, spread / (n - 1)) : 0;
 function leaveToPile(rows){
   const L = G.leaving, pile = $('muster-pile'), mktp = $('view-play').querySelector('.mktp');
   if (!L || !pile || !mktp || !(L.u.length + L.b.length)) return 0;
@@ -237,6 +245,7 @@ function leaveToPile(rows){
   const cnt = pile.querySelector('.mpcount'), total = (G.muster || []).length, arriving = L.u.length + L.b.length;
   let landed = 0; if (cnt) cnt.textContent = Math.max(0, total - arriving);
   let k = 0, end = 0;
+  const gap = spreadGap(arriving, ROUND_FX.leaveSpread, ROUND_FX.leaveGap);
   [['u', rows[0]], ['b', rows[1]]].forEach(([kind, row]) => {
     if (!row) return;
     const slots = [...row.children].filter(c => !c.classList.contains('alwaysw') && !c.classList.contains('mdiv'));
@@ -247,14 +256,14 @@ function leaveToPile(rows){
       const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) continue;
       const {g:gh} = flyer(name, kind); gh.classList.add('leaving', 'lghost'); gh.setAttribute('aria-hidden', 'true');   // the card's own face
       flyEl(gh, r, r.width, r.height, flyZ(pile), card.parentElement);   // lands on the discard pile, over the bottom bar when the pile is in it
-      const delay = 120 + k++ * 220, dur = 1000;
-      sfx.flick(delay / 1000 + 0.55);
+      const delay = ROUND_FX.leaveAt + k++ * gap, dur = ROUND_FX.leaveDur;
+      sfx.flick((delay + dur * 0.55) / 1000);
       gh.style.transformOrigin = '0 0';
       cardFlight(gh, r, pr, {dur, delay, onLand:() => { gh.remove(); landed++; if (cnt) cnt.textContent = Math.max(0, total - arriving + landed); bumpEl(pile.querySelector(".mpcards")); }});
       end = Math.max(end, delay + dur);
     }
   });
-  return end ? end + 120 : 0;
+  return end;
 }
 /* A card dealt face down out of a deck. A copy flies over everything (above the top bar, the bottom bar and any pop-up)
    from the deck to the card's spot, flips face up and lands; the real card stays invisible until then, so nothing is
@@ -355,35 +364,40 @@ function dealMarket(){
   if (reduceMotion()) return;
   const vp = $('view-play'), rows = ['u','b'].map(k => vp.querySelector(`.mktp .msec[data-k="${k}"] .market`));
   if (!(deckEl('u') || deckEl('b')) || !rows.some(Boolean)) return;
-  // first, the cards that left the shop fly from their old slots into the discard pile; then the deal starts
-  const base = 120 + leaveToPile(rows);
+  // first, the cards that left the shop fly from their old slots into the discard pile (cleanup)...
+  const leaveEnd = leaveToPile(rows);
   const cards = rows.filter(Boolean).flatMap(row => [...row.querySelectorAll('.mcard')]).filter(el => !el.classList.contains('ghost') && el.offsetParent);
   // 1) cards left over from last shop never moved: they sit in their spots from the start (no animation)
   const returning = cards.filter(el => el.classList.contains('leaving') && !el.classList.contains('always'));
-  // 2) each one's hourglass token drops onto its corner like a stamp
-  let tokEnd = base;
-  returning.forEach((el, i) => {
+  // 2) ...while each one's hourglass token drops onto its corner like a stamp (upkeep), once the cleanup is under way
+  const tokBase = leaveEnd ? ROUND_FX.tokAt : ROUND_FX.leaveAt, tokGap = spreadGap(returning.length, ROUND_FX.tokSpread, ROUND_FX.tokGap), tokDur = ROUND_FX.tokDur;
+  let tokEnd = 0, ti = 0;
+  returning.forEach(el => {
     const tok = el.querySelector('.hgtok'); if (!tok) return;
-    const delay = base + 160 + i * 280;
-    setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + 450);
+    const delay = tokBase + ti++ * tokGap;
+    setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + tokDur * 0.64);
     tok.animate([
       {transform:'translate(14px,-46px) scale(2.1) rotate(-25deg)', opacity:0, offset:0},
       {transform:'translate(4px,-14px) scale(1.5) rotate(-8deg)', opacity:1, offset:.45},
       {transform:'translate(0,0) scale(.82) rotate(0deg)', opacity:1, offset:.78},
       {transform:'none', opacity:1, offset:1}
-    ], {duration:700, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'backwards'});
-    tokEnd = Math.max(tokEnd, delay + 700);
+    ], {duration:tokDur, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'backwards'});
+    tokEnd = Math.max(tokEnd, delay + tokDur);
   });
-  // 3) the new cards are dealt once the tokens have landed (Recruit and Field never leave the table)
+  // 3) ...and the new cards are dealt alongside (Recruit and Field never leave the table)
   const fresh = cards.filter(el => !el.classList.contains('always') && !el.classList.contains('leaving'));
-  const end = dealIn(fresh, returning.length ? tokEnd + 160 : base);
-  ui.dealUntil = performance.now() + Math.max(tokEnd, end);
+  const end = dealIn(fresh, leaveEnd || tokEnd ? ROUND_FX.dealAt : ROUND_FX.leaveAt, ROUND_FX.deal);
+  ui.dealUntil = performance.now() + Math.max(leaveEnd, tokEnd, end);
 }
 /* Deal cards into their spots: each flies face down out of its own row's deck and flips over (miracles under a card
    are drawn and laid down first, farthest back first, then the card lands on top). The deck's count drops as each
    lifts off. Used for the deal at the start of the shop and for every card that joins the display during it.
-   Returns how long it takes (ms). */
-function dealIn(els, base){
+   Returns how long it takes (ms). o: the start-of-round timing (ROUND_FX.deal), whose flights share a fixed window
+   (spread); without it, the usual pace for a card or two joining mid-shop. */
+function dealIn(els, base, o){
+  const live = els.filter(el => el && el.isConnected);
+  const flights = live.reduce((a, el) => a + 1 + backsOf(el).length, 0);
+  const gap = o ? spreadGap(flights, o.spread, o.gap) : 160, dur = o ? o.dur : 1100, backDur = o ? o.backDur : 800, lead = o ? o.backLead : 400;
   const starts = {u:[], b:[]}; let n = 0, end = 0;
   for (const el of els){
     if (!el || !el.isConnected) continue;
@@ -391,16 +405,16 @@ function dealIn(els, base){
     const backs = backsOf(el).reverse();
     for (const b of backs){
       b.style.opacity = '';
-      const bd = base + n++ * 160;
-      if (dealFly(b, deck, bd, 800, {plain:true})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); }catch(e){} }
-      end = Math.max(end, bd + 520);
+      const bd = base + n++ * gap;
+      if (dealFly(b, deck, bd, backDur, {plain:true})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); }catch(e){} }
+      end = Math.max(end, bd + backDur * .65);
     }
     el.style.opacity = '';
-    const delay = base + n++ * 160 + (backs.length ? 400 : 0);
-    if (dealFly(el, deck, delay, 1100)){
+    const delay = base + n++ * gap + (backs.length ? lead : 0);
+    if (dealFly(el, deck, delay, dur)){
       starts[k].push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){}
-      end = Math.max(end, delay + 1100);
-      el.dataset.dealt = '1'; if (el.dataset.ck) MOT.busy.set(el.dataset.ck, performance.now() + delay + 1100);
+      end = Math.max(end, delay + dur);
+      el.dataset.dealt = '1'; if (el.dataset.ck) MOT.busy.set(el.dataset.ck, performance.now() + delay + dur);
     }
   }
   ui.dealUntil = Math.max(ui.dealUntil || 0, performance.now() + end);
@@ -492,9 +506,9 @@ function lockDeck(){
   ui.remindOk = false;
   // the miracles you played are the ones spent (online both screens work it out the same way, so it's left to the rules there)
   if (!G.net){ const me = G.players[seat()]; me.mirPlay = mobReady(me).map(j => me.mir[j]); }
-  if (G.net){ sfx.lock(); ui.err = ''; ui.pick = null; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => u.gear ? [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0, netIx(u.gear)] : [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0])]); return; }
+  if (G.net){ sfx.lock(); ui.err = ''; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => u.gear ? [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0, netIx(u.gear)] : [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0])]); return; }
   if (PP()){
-    const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = ''; ui.pick = null;
+    const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = '';
     if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); toGame(); return; }
     showBattle(playBattle(ui.drafts[0], ui.drafts[1])); ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
     renderPlay(); toGame(); startAuto(); return;
@@ -534,7 +548,7 @@ function compactFrames(frames){
   });
   return out;
 }
-function showBattle(res){ if (res && res.frames && !res.compact){ res.frames = compactFrames(res.frames); res.compact = true; } ui.battle = res; ui.frame = 0; ui.draft = null; ui.pick = null; ui.gpick = null; ui.sel = null; ui.revealed = false; }
+function showBattle(res){ if (res && res.frames && !res.compact){ res.frames = compactFrames(res.frames); res.compact = true; } ui.battle = res; ui.frame = 0; ui.draft = null; ui.revealed = false; }
 // is this unit (or a Recruit) still waiting on the bench?
 // battle miracles in hand that aren't in the deck yet (one entry per copy)
 function batBench(me, d){
@@ -545,35 +559,7 @@ function batBench(me, d){
 }
 // a battle miracle drawn as a card: its name, then what it does when it surfaces
 function spellFace(n){ return `<div class="top"><span class="nm">${esc(n)}</span><span class="cost">✶</span></div><span class="curve spcurve">Battle miracle</span><span class="tx">${esc(batFx(n))}</span><span class="stx">${esc(MIRS[n].sh.replace(/^battle: /, '').replace(/^./, c => c.toUpperCase()))}</span>`; }
-function benchHas(n){
-  const me = G.players[seat()], d = ui.draft || [];
-  if (isBat(n)) return batBench(me, d).includes(n);
-  if (n === 'Recruit') return recUI(me) - d.filter(u => u.name === 'Recruit').length > 0;
-  return !!me.hand[n] && !d.some(u => u.name === n);
-}
 $('view-play').addEventListener('click', e => {
-  // a picked gear piece goes on the tapped unit
-  if (ui.gpick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip,.tcard,.pkhit,.gearchip')){
-    const row = e.target.closest('#deck-list .drow');
-    if (row){ const u = ui.draft && ui.draft[+row.dataset.i], why = gearBlock(ui.gpick, u);
-      if (why){ ui.err = why; sfx.err(); } else { u.gear = ui.gpick; ui.gpick = null; ui.err = ''; sfx.pick(); }
-      renderPlay(); return; }
-  }
-  // a picked bench token goes to the tapped unit
-  if (ui.pick && G && G.phase === 'mobilize' && !e.target.closest('button,.tokchip,.tcard,.pkhit,.gearchip')){
-    const row = e.target.closest('#deck-list .drow');
-    if (row){ const src = document.querySelector(`#bench-list .tcard.${ui.pick}`); attachTokAnim(ui.pick, +row.dataset.i, src ? src.getBoundingClientRect() : null); return; }
-  }
-  // mobilize by tapping: tap a card to pick it up, tap another to swap (or place it), double-tap to read it
-  if (!ui.pick && !ui.gpick && G && G.phase === 'mobilize' && !ui.battle && ui.draft && !e.target.closest('button,.tokchip,.tcard,.pkhit,.gearchip,.gearc,select,input,a,summary')){
-    const card = e.target.closest('#deck-list .drow, #bench-list .bcard:not(.gearc)');
-    if (card){ mobTap(card); return; }
-    if (ui.sel){
-      if (ui.sel.zone === 'deck' && e.target.closest('.benchp')){ mobSingle({zone:'bench'}); return; }
-      if (ui.sel.zone === 'bench' && e.target.closest('.deckp')){ mobSingle({zone:'end'}); return; }
-      if (!e.target.closest('[data-act]')){ ui.sel = null; sfx.soft(); renderPlay(); return; }
-    }
-  }
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const act = t.dataset.act, i = +t.dataset.i, d = ui.draft;
   switch (act){
@@ -657,20 +643,10 @@ $('view-play').addEventListener('click', e => {
       return;
     }
     case 'pp-ready': ui.handoff = null; ui.draft = ui.drafts[ui.mobSeat] || defaultDraft(); sfx.soft(); renderPlay(); toGame(); return;
-    case 'd-add': d.push({name:t.dataset.name, arm:0, tr:0}); sfx.drop(); break;
-    case 'd-rec': d.push({name:'Recruit', arm:0, tr:0}); sfx.drop(); break;
     case 'd-up': [d[i-1], d[i]] = [d[i], d[i-1]]; sfx.tick(); break;
     case 'd-down': [d[i+1], d[i]] = [d[i], d[i+1]]; sfx.tick(); break;
-    case 'd-del': d.splice(i, 1); ui.pick = null; sfx.soft(); break;
-    case 'g-off': if (d[i]){ delete d[i].gear; ui.err = ''; } ui.gpick = null; sfx.soft(); break;
-    case 't-pick': ui.pick = ui.pick === t.dataset.tok ? null : t.dataset.tok; ui.gpick = null; ui.sel = null; ui.err = ''; if (ui.pick) sfx.pick(); else sfx.soft(); renderPlay(); return;
-    case 'sel-clear': ui.sel = null; ui.pick = null; sfx.soft(); renderPlay(); return;
     case 'b-speed': { sfx.soft(); LS.set('sow-autofast', !autoFast()); const b = t; b.textContent = speedLabel(); b.setAttribute('aria-pressed', autoFast() ? 'true' : 'false'); if (autoOn() && autoT){ startAuto(200); } return; }
-    case 't-cancel': sfx.soft(); ui.pick = null; renderPlay(); return;
-    case 'g-pick': { const n = t.dataset.gear; ui.gpick = ui.gpick === n ? null : n; ui.pick = null; ui.sel = null; ui.err = ''; if (ui.gpick) sfx.pick(); else sfx.soft(); renderPlay(); return; }
-    case 'g-cancel': sfx.soft(); ui.gpick = null; renderPlay(); return;
-    case 't-off': { sfx.soft(); ui.sel = null; popTokAnim(i); return; }
-    case 'suggest': sfx.rustle(); ui.draft = draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH_HINT)) || []); break;
+    case 'suggest': sfx.rustle(); mzReplace(draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH_HINT)) || [])); return;
     case 'lock': lockDeck(); return;
     case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); mountAbWin(); return; }
     case 'b-abwin': { sfx.soft(); LS.set('sow-abwin', !abOn()); t.setAttribute('aria-pressed', abOn() ? 'true' : 'false'); mountAbWin(); return; }
@@ -688,7 +664,7 @@ $('view-play').addEventListener('click', e => {
     case 'su-chip': ui.suOpen = !ui.suOpen; renderPlay(); return;
     default: return;
   }
-  ui.err = ''; ui.sel = null; renderPlay();
+  ui.err = ''; renderPlay();
 });
 
 /* Every redraw of the Play tab, step by step. (Until v58 these steps were wrappers stacked on renderPlay from four

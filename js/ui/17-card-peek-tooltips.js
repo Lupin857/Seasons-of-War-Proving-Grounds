@@ -393,7 +393,6 @@ $('view-play').addEventListener('click', e => {
   if (e.target.closest('button')) return;
   if (!compact() && (e.target.closest('.hgtok') || e.target.closest('.mcard.hasmir'))) return;   // desktop: a covered card's click shows its miracles   // the card's own buttons (pressed for you from the sheet) act as usual
   const card = e.target.closest('.mktp .mcard, .fcards .mcard, .pkwin .mcard'); if (!card || card.classList.contains('masonpick') || card.classList.contains('writtgt') || card.classList.contains('writoff') || e.target.closest('.mirpop')) return;
-  if (ui.pick && card.closest('#deck-list')) return;
   e.stopPropagation(); e.preventDefault(); openPeek(card, true);
 }, true);
 // the press that opened a peek must not also buy the card

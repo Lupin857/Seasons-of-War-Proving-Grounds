@@ -1,0 +1,105 @@
+/* ===================== MOBILIZE (js/ui/10-mobilize.js) =====================
+   Two columns: your deck (left) and the bench (right), each a pile of cards. The deck is held face up like the
+   physical game: the front card at the bottom is shown in full and fights first; each card behind it shows a strip
+   above it, back to the card at the top. Gear and tokens are whole cards tucked behind their unit, each a step up
+   and a little left so its banner shows. Every size comes from --mzw (the card width). */
+.mz{--mzw:var(--card-sq);--mzr:1.3827;--mzh:calc(var(--mzw) * var(--mzr));--mzstrip:calc(var(--mzw) * .36);--mztk:calc(var(--mzw) * .175);--mzrail:30px}
+@media (max-width:640px){ .mz{--mzr:var(--crop, .9707);--mzrail:26px} }
+.forces.mz{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+.forces.mz .panel{gap:8px;min-width:0}
+.forces.mz h2{display:flex;align-items:center;gap:8px}
+
+/* the piles */
+.mzstack{display:flex;flex-direction:column;align-items:flex-start;position:relative;padding:6px 0 6px var(--mzrail);min-height:var(--mzh)}
+#mz-bench.mzstack{padding-left:6px}
+.mzstack>.mzc:not(:last-child){margin-bottom:calc(var(--mzstrip) - var(--mzh))}
+/* the lifted card is hidden while you drag it: the card before it is the front card for now */
+.mzstack>.mzc:has(+ .mz-gone:last-child){margin-bottom:0}
+.mzempty{width:var(--mzw);height:var(--mzh);box-sizing:border-box;border:2px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;
+  text-align:center;color:var(--muted);font-size:.8rem;line-height:1.3;padding:8px}
+.mzend{font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--muted);padding-left:var(--mzrail)}
+.mzend.front{color:var(--azure)}
+
+/* one card */
+.mzc{position:relative;isolation:isolate;flex:none;width:var(--mzw);height:var(--mzh);margin:0;border-radius:5% / 3.6%;outline:none;cursor:grab;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
+.mzc[style*="--tk"]{margin-top:calc(var(--mztk) * var(--tk))}
+.mzc:focus-visible{box-shadow:0 0 0 3px var(--azure)}
+.mz .mzface{position:relative;z-index:20;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;box-sizing:border-box;overflow:hidden}
+.mz .mzface:has(>.cface.art){overflow:visible}
+.mz .mzface>.cface.art{height:100%}
+.mz .ccost,.mz .mzc>button{display:none!important}
+/* cards drawn by the game (no art): small type that fits the card */
+.mz .mzface:not(:has(>.cface.art)){padding:6px 7px!important;gap:2px;font-size:.74rem}
+.mz .mzface:not(:has(>.cface.art)) .nm{font-size:.8rem}
+.mz .mzface:not(:has(>.cface.art)) .curve{font-size:.68rem}
+.mz .mzface:not(:has(>.cface.art)) .tx{font-size:.68rem;line-height:1.25;overflow:hidden}
+.mz .mzface .stx,.mz .mzface .zhw{display:none}
+/* a card behind another: a soft edge so the strips read as separate cards */
+.mzstack>.mzc:not(:last-child)>.mzface{filter:drop-shadow(0 -1px 2px rgba(0,0,0,.18))}
+
+/* gear and tokens tucked behind a unit: nearest first, each a step up and a little left */
+.mztk{position:absolute;left:calc(-5px * (var(--j) + 1));top:calc(var(--mztk) * -1 * (var(--j) + 1));width:100%;height:var(--mzh);z-index:calc(10 - var(--j));
+  border-radius:5% / 3.6%;overflow:hidden;cursor:grab;touch-action:pan-y;filter:brightness(.9)}
+.mztk>.cface.art{height:100%;box-shadow:0 -1px 3px rgba(0,0,0,.25)}
+.mztk>.mcard{width:100%;height:100%;margin:0;padding:4px 6px;font-size:.7rem;box-sizing:border-box}
+@media (hover:hover){ .mztk:hover{filter:brightness(1.05)} }
+
+/* fight order: a number on the rail beside each card; the card that fights first is marked */
+.mzno{position:absolute;left:calc(-1 * var(--mzrail));top:4px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font:600 .8rem/1 var(--f-mono);background:var(--surface);border:1px solid var(--line);color:var(--ink);z-index:30;pointer-events:none}
+.mzc[data-no="1"]>.mzno{background:var(--azure);border-color:var(--azure);color:var(--bg)}
+#mz-bench .mzno{display:none}
+
+/* power going into battle, on the card's own Might banner (level, Might tokens and weapon counted) */
+.mzpow{position:absolute;left:-1.333%;top:0;margin-top:-1.2%;width:37.576%;aspect-ratio:732/400;z-index:25;pointer-events:none;container-type:inline-size}
+.mzpow>:is(img,canvas){width:100%!important;height:100%!important;display:block}
+.mzpow b{position:absolute;left:69.5%;top:52.5%;transform:translate(-50%,-50%);font:400 23.4cqw/1 Marcellus,serif;color:#2b211a}
+.mzpow b.up{color:#2f7a35} .mzpow b.down{color:#a3322a}
+.mzpow.plain{left:auto;right:5px;top:5px;margin:0;width:auto;aspect-ratio:auto;container-type:normal}
+.mzpow.plain b{position:static;transform:none;display:block;min-width:20px;padding:2px 6px;border-radius:999px;background:#2b211a;color:#f3ead8;font:600 .8rem/1.2 var(--f-mono);text-align:center}
+.mzpow.plain b.up{background:#2f7a35;color:#fff}
+/* copies and level, under the banner */
+.mztags{position:absolute;right:5%;top:calc(var(--mzw) * .2);z-index:26;display:flex;gap:3px;pointer-events:none}
+.mztags>span{padding:0 5px;border-radius:999px;background:rgba(20,16,14,.82);color:#f3ead8;font:700 9.5px/15px var(--f-body);letter-spacing:.04em}
+/* how many of a bench card are left */
+.mzn{position:absolute;right:-6px;top:-6px;z-index:30;min-width:22px;height:22px;box-sizing:border-box;border-radius:11px;padding:0 5px;background:var(--ink);color:var(--bg);
+  font:700 12px/22px var(--f-mono);text-align:center;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+
+/* limits: one pip per slot, filled for each one placed */
+.mzlim{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.72rem;color:var(--muted)}
+.mzlg{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.mzll{font-weight:700;letter-spacing:.02em}
+.mzpips{display:inline-flex;gap:2px}
+.mzpips i{width:8px;height:8px;border-radius:2px;border:1.5px solid currentColor;box-sizing:border-box;opacity:.55}
+.mzpips i.on{background:currentColor;opacity:1}
+.mzpips i.x{border-style:dashed}
+.mzlc{font:600 .7rem var(--f-mono)}
+.mzlg.t-arm{color:var(--or)} .mzlg.t-tr{color:var(--azure)} .mzlg.over{color:var(--gules)}
+
+/* pressing, lifting and dragging */
+.mzc.mz-press>.mzface{filter:brightness(.95)}
+.mzc.mz-lift{transform:scale(1.04);transition:transform .12s ease-out;z-index:5}
+.mz .mz-gone{display:none!important}
+.mz .mz-src{opacity:.35}
+/* where a dragged unit will land */
+.mzc.mzslot{border:2px dashed var(--azure);background:color-mix(in srgb, var(--azure) 10%, var(--surface));box-sizing:border-box;cursor:grabbing}
+.mzstack:has(>.mzslot)>.mzempty{display:none}
+.mzc.mz-ok>.mzface{filter:drop-shadow(0 0 1.5px var(--azure)) drop-shadow(0 0 1.5px var(--azure))}
+.mzc.mz-no>.mzface,.mzc.mz-self>.mzface{opacity:.5}
+.mzc.mz-over>.mzface{filter:drop-shadow(0 0 2px var(--or)) drop-shadow(0 0 3px var(--or))}
+.mz-bench.mz-over{outline:2px dashed var(--azure);outline-offset:-5px}
+.mzghostwrap{position:fixed;z-index:80;margin:0;pointer-events:none}
+.mzghostwrap>.mzghost{position:absolute!important;left:0!important;top:0!important;width:100%!important;height:100%!important;margin:0!important;transform:rotate(-2deg) scale(1.05);
+  filter:drop-shadow(0 12px 22px rgba(0,0,0,.35));transition:none}
+.mzghostwrap>.mzghost .mzno,.mzghostwrap>.mzghost .mzn{display:none}
+body.mz-dragging,body.mz-dragging *{cursor:grabbing!important}
+@media (prefers-reduced-motion: reduce){ .mzc.mz-lift,.mzstack{transition:none} }
+
+/* phones: Lock in lives in the bottom bar */
+@media (max-width:640px){
+  .forces.mz{gap:8px}
+  .mz-deck .mzacts [data-act="lock"]{display:none}
+  .mzlim{gap:3px 8px;font-size:.66rem}
+  .mzpips i{width:7px;height:7px}
+}

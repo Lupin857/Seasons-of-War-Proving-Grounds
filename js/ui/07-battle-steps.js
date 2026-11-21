@@ -454,3 +454,19 @@ function showFrame(k, glide){
     if (r0 && r0.clone && !$('view-play').querySelector(`.line .card[data-uid="${m.u}"]:not(.mini)`)) deckFly(r0, +m.u.split('-')[0]);
   }
 }
+
+/* Battle controls (moved here from the old Mobilize input file) */
+document.addEventListener('keydown', e => {
+  if (!ui.battle || $('view-play').hidden || e.target.closest('input,select,textarea')) return;
+  if (e.key === 'ArrowRight'){ stepForward(); e.preventDefault(); }
+  if (e.key === 'ArrowLeft'){ goFrame(Math.max(0, ui.frame - 1)); e.preventDefault(); }
+});
+// Next step goes on the press, not the click: the button is redrawn when a step's animation ends, and a click whose
+// press and release land on different copies of it is lost, so fast clicking used to drop steps
+let nextDownAt = -1e9;
+$('view-play').addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  const b = e.target.closest('[data-act="b-next"]'); if (!b || b.disabled) return;
+  nextDownAt = performance.now(); stepForward();
+});
+$('view-play').addEventListener('toggle', e => { if (e.target.id === 'chron-panel') ui.chronOpen = e.target.open; }, true);

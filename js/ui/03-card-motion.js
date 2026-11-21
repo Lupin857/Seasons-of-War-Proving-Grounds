@@ -7,6 +7,7 @@
    - flyer: the flying copy of a card, made one way: a clone of its element or a fresh face, stripped, real size.
    - motions: cardFlight (from one place to another), dealFly (out of a deck, flipping face up), and for an opponent's
      move oppBuyStep / oppSellStep (the card held in the middle with a tag).
+   - the opponent queue (OPQ, oppBuyStep, oppSellStep) and sells (flySell) are at the end of this file.
    - motionFrom: after any shop move, turns its log events into flights (an opponent's go on the queue, one at a time).
    - syncShop: after every redraw, compares the cards in play with the last redraw (from the rules' state, not the
      page): a new display card is dealt from its deck, a card that moved (Freeze) slides, and a card that left without
@@ -22,6 +23,8 @@ const deckEl = k => $('view-play').querySelector(`.sdeck[data-k="${k}"] .dealdec
 const deckBtnOf = i => [...$('view-play').querySelectorAll(`.deckbtn[data-p="${i}"], #dock .dk[data-p="${i}"]`)].find(x => x.getClientRects().length);
 const pileEl = () => { const p = $('muster-pile'); return p && p.getClientRects().length ? (p.querySelector('.mpcards') || p) : null; };
 const ckEl = ck => { for (const el of $('view-play').querySelectorAll(`.mcard[data-ck="${ck}"]`)) if (el.getClientRects().length) return el; return null; };
+// the Moisture Harvester (rules name Field) card in the shop, found by its key: its visible name is the Oasis name
+const fieldCardEl = () => ckEl(cardKey('field', 0));
 const backsOf = el => { const w = el && el.parentElement; return w && w.classList.contains('mirwrap') ? [...w.querySelectorAll('.mirback')] : []; };
 let SPOTS = new Map();
 function snapNow(){
@@ -155,4 +158,132 @@ function cardFlight(g, from, to, o = {}){
   const done = () => { if (o.onLand) o.onLand(); else g.remove(); };
   an.onfinish = done; an.oncancel = done;
   return an;
+}
+
+/* OPPONENT ACTIONS, ONE AT A TIME. What the AI (or an online friend) buys and sells plays back in order, each as its
+   own beat you can read: the card holds in front of you for a second with a tag saying what happened ("AI bought · $2",
+   "AI sold · +$1"), then flies where it went. Actions done in quick succession wait their turn. A tap ends the current
+   card's hold early. Turn banners wait until the queue is done (turnWatch), so you see what happened before "Your turn".
+   Pass and play doesn't use it: there the other player just did it themselves on the same device. */
+const OPQ = {steps:[], running:false, idle:[], skip:null};
+const OPP_HOLD = 1000, OPP_GAP = 220, OPP_SETTLE = 450;
+function oppBusy(){ return OPQ.running || OPQ.steps.length > 0; }
+function oppOnIdle(f){ if (!oppBusy()) f(); else OPQ.idle.push(f); }
+async function oppRun(){
+  if (OPQ.running) return;
+  OPQ.running = true;
+  while (OPQ.steps.length){
+    const step = OPQ.steps.shift();
+    const fl = [...document.querySelectorAll('.turnflash.theirs:not(.out)')].filter(n => !n._closing);
+    fl.forEach(n => n._close ? n._close() : n.remove());   // their turn is over: its banner makes room for their cards
+    if (fl.length) await new Promise(r => setTimeout(r, 320));   // and is gone before the first card moves
+    try{ await step(); }catch(e){}
+    if (OPQ.steps.length) await new Promise(r => setTimeout(r, OPP_GAP));
+  }
+  await new Promise(r => setTimeout(r, OPP_SETTLE));   // a breath after the last card lands
+  OPQ.running = false;
+  if (oppBusy()){ oppRun(); return; }
+  OPQ.idle.splice(0).forEach(f => { try{ f(); }catch(e){} });
+}
+const oppWho = i => PP() || G.net ? nm(i) : 'AI';
+// the space between the bars where a card can be read: the middle of it, card-sized and a little larger
+function oppStage(w0, h0, sc){
+  const v = dealView($('view-play').querySelector('.mktp') || document.body), top = Math.max(v.top, 0) + 12, bot = Math.min(v.bottom, window.innerHeight) - 12;
+  const w = w0 * sc, h = h0 * sc;
+  return {left:(window.innerWidth - w) / 2, top:Math.max(top, (top + bot - h) / 2), width:w, height:h};
+}
+// a card copy held at rect `at` (scale at.width / w0), tagged, pulsing; resolves after the hold or a tap
+function oppHold(g, at, w0, h0, tag, side){
+  // the tag sits just under the card, outside it (its own element, so the card still clips its own text)
+  const t = document.createElement('span'); t.className = `optag s${VS(side)}${/ sold /.test(tag) ? ' sell' : ''}`; t.textContent = tag; t.setAttribute('aria-hidden', 'true');
+  Object.assign(t.style, {left:(at.left + at.width / 2) + 'px', top:(at.top + at.height + 6) + 'px', zIndex:g.style.zIndex || LAYER.flight});
+  document.body.appendChild(t);
+  if (!reduceMotion()) t.animate([{opacity:0, translate:'0 -4px'}, {opacity:1, translate:'0 0'}], {duration:200, easing:'ease-out'});
+  g.classList.add('oplinger');
+  const sc = at.width / w0;
+  const pulse = g.animate([{transform:`scale(${sc})`, filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'}, {transform:`scale(${sc * 1.04})`, filter:'drop-shadow(0 14px 17px rgba(0,0,0,.3))', offset:.3}, {transform:`scale(${sc})`, filter:'drop-shadow(0 10px 13px rgba(0,0,0,.25))'}], {duration:600, fill:'forwards', easing:'ease-out'});
+  return new Promise(res => {
+    let done = false; const end = () => { if (done) return; done = true; OPQ.skip = null; clearTimeout(tm); document.removeEventListener('pointerdown', end, true); pulse.cancel(); g.style.transform = `scale(${sc})`; t.remove(); res(); };
+    const tm = setTimeout(end, OPP_HOLD);
+    OPQ.skip = end; document.addEventListener('pointerdown', end, true);   // a tap anywhere ends the hold (and does what it would anyway)
+  });
+}
+// move g (base w0×h0, origin top left) so it sits at rect r
+function oppPlace(g, r, w0){ g.getAnimations().forEach(a => a.cancel()); g.style.setProperty('left', r.left + 'px', 'important'); g.style.setProperty('top', r.top + 'px', 'important'); g.style.transform = `scale(${r.width / w0})`; }
+// a buy: the card lifts where it sat in the market (or rises from its deck when it never showed, or appears in the
+// middle when its spot is off screen), holds, then flies into the buyer's deck button
+function oppBuyStep(i, ev, src){
+  const sz = src && src.el ? {w:src.r.width, h:src.r.height} : cardSize(), w0 = sz.w, h0 = sz.h;
+  const {g, ctx} = flyer(src && src.el ? src.el : ev.n, ev.k);
+  const at = oppStage(w0, h0, 1.25);
+  const v = dealView($('view-play').querySelector('.mktp') || document.body), r = src ? src.r : null;
+  const from = r && r.width && r.top + r.height / 2 >= v.top && r.top + r.height / 2 <= v.bottom ? r : null;
+  flyEl(g, from || at, w0, h0, 0, ctx); g.style.transformOrigin = '0 0';
+  const tag = `${oppWho(i)} bought · $${ev.price}${ev.on ? ` · leveled ${dispName(ev.on)}` : ''}`;
+  try{ sfx.pick(); }catch(e){}
+  let moved;
+  if (from && src.el){
+    const s1 = at.width / w0;
+    const mv = g.animate([
+      {transform:'translate(0,0) scale(1)', filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'},
+      {transform:`translate(${(at.left - from.left) * .5}px,${(at.top - from.top) * .5 - 18}px) scale(${(1 + s1) / 2 * 1.04})`, filter:'drop-shadow(0 18px 20px rgba(0,0,0,.3))', offset:.5},
+      {transform:`translate(${at.left - from.left}px,${at.top - from.top}px) scale(${s1})`, filter:'drop-shadow(0 10px 13px rgba(0,0,0,.25))'}],
+      {duration:520, easing:'cubic-bezier(.3,.7,.3,1)', fill:'forwards'});
+    moved = mv.finished.catch(() => {});
+  } else if (from){
+    moved = cardFlight(g, from, at, {w0, h0, keep:true, dur:650, onLand:() => {}}).finished.catch(() => {});
+  } else { g.animate([{opacity:0, transform:`scale(${at.width / w0 * .9})`}, {opacity:1, transform:`scale(${at.width / w0})`}], {duration:260, easing:'ease-out'}); moved = Promise.resolve(); }
+  return moved.then(() => { oppPlace(g, at, w0); return oppHold(g, at, w0, h0, tag, i); }).then(() => new Promise(res => {
+    const to = deckBtnOf(i);
+    if (!to){ g.animate([{opacity:1}, {opacity:0}], {duration:250}).onfinish = () => { g.remove(); res(); }; return; }
+    g.style.zIndex = flyZ(to); g.style.transform = '';
+    cardFlight(g, at, to.getBoundingClientRect(), {w0, h0, dur:950, onLand:() => { g.remove(); bumpEl(to); try{ sfx.coin(0.35); }catch(e){} res(); }});
+  }));
+}
+// a sale: the card rises out of the seller's deck button to the middle, holds, then drops into the discard pile
+function oppSellStep(i, ev){
+  const from = deckBtnOf(i);
+  const {w:w0, h:h0} = cardSize(), {g} = flyer(ev.n, ev.k, {own:1});
+  const at = oppStage(w0, h0, 1.25);
+  return new Promise(res => {
+    const a = from ? from.getBoundingClientRect() : null;
+    flyEl(g, a || at, w0, h0);
+    const rise = a ? cardFlight(g, a, at, {w0, h0, keep:true, dur:650, onLand:() => {}}) : null;
+    const go = () => {
+      oppPlace(g, at, w0);
+      oppHold(g, at, w0, h0, `${oppWho(i)} sold · +$1`, i).then(() => {
+        const pile = ev.n === 'Field' ? fieldCardEl() : $('muster-pile');
+        const target = pile && (pile.querySelector('.mpcards') || pile);
+        if (!target || !target.getClientRects().length){ g.animate([{opacity:1}, {opacity:0}], {duration:250}).onfinish = () => { g.remove(); res(); }; return; }
+        g.style.zIndex = flyZ(target); g.style.transform = '';
+        cardFlight(g, at, target.getBoundingClientRect(), {w0, h0, dur:900, onLand:() => { g.remove(); bumpEl(target); res(); }});
+      });
+    };
+    if (rise) rise.finished.then(go, go); else go();
+  });
+}
+/* A sold card flies out of its owner's deck button into the discard pile (a sold Field back to the Field in the shop),
+   growing to card size on the way and shrinking into the pile, which bumps as it lands. */
+function flySell(i, name, kind, srcCard, lifted){
+  if (reduceMotion() || !G){ if (lifted) lifted.g.remove(); return; }
+  const from = deckBtnOf(i);
+  const pile = name === 'Field' ? fieldCardEl() : $('muster-pile');
+  if (lifted){
+    // a card you sold from the pop-up: it already rose out of its spot; now it travels on into the discard pile
+    const target = pile && pile.offsetParent ? (pile.querySelector('.mpcards') || pile) : null;
+    if (!target){ lifted.g.remove(); return; }
+    lifted.g.getAnimations().forEach(a => a.cancel());
+    const L = lifted.r;
+    pinFly(lifted.g, L.left, L.top, L.w0, L.h0);
+    const tb = target.getBoundingClientRect(), dk = $('dock'), inBar = !!(dk && dk.getClientRects().length && dk.contains(target));
+    cardFlight(lifted.g, L, tb, {w0:L.w0, h0:L.h0, dur:inBar ? 1000 : 900, arc:inBar ? 40 : 0, onLand:() => { lifted.g.remove(); bumpEl(target); }});
+    return;
+  }
+  if (!from || !pile || !pile.offsetParent) return;
+  const {w:w0, h:h0} = cardSize(), {g} = flyer(srcCard || name, kind, {own:1});
+  if (srcCard) g.className = `mcard ${kind}`;
+  const a = from.getBoundingClientRect(), target = pile.querySelector('.mpcards') || pile;
+  flyEl(g, a, w0, h0, flyZ(target));
+  const tb = target.getBoundingClientRect(), dk = $('dock'), inBar = !!(dk && dk.getClientRects().length && dk.contains(target));
+  cardFlight(g, a, tb, {w0, h0, dur:inBar ? 1300 : 1150, arc:inBar ? Math.max(120, h0 + 40) : 0, onLand:() => { g.remove(); bumpEl(target); }});
 }
