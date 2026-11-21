@@ -189,6 +189,8 @@ function mzDeckCard(u, no){
   const btns = `<button type="button" data-act="mz-bench" data-id="${id}">Move to bench</button>${(u.arm || u.tr || u.sh || u.gear) ? `<button type="button" data-act="mz-strip" data-id="${id}">Take off tokens and gear</button>` : ''}`;
   if (isBat(u.name)) return `<div class="mzc spell" data-mz="deck" data-id="${id}" data-name="${esc(u.name)}" data-key="d:${id}" data-no="${no}" role="button" tabindex="0" aria-label="${no}: battle miracle ${nmU}. Tap to read, drag to move.">
       <div class="mzface mcard fcard u spellc">${spellFace(u.name)}</div><span class="mzno" aria-hidden="true">✶</span>${btns}</div>`;
+  // tucked cards come after the unit's own face in the markup (they still sit behind it), so opening the unit opens
+  // the unit and not its gear
   const tucks = (u.gear ? [{g:u.gear}] : []).concat(tokOrder(u).map(k => ({k})));
   const tk = tucks.map((t, j) => {
     const key = `k:${id}:${j}`;
@@ -202,7 +204,7 @@ function mzDeckCard(u, no){
   const tags = `${c > 1 ? `<span class="mzcp">×${c}</span>` : ''}${lv > 1 ? `<span class="mzlv">LV ${lv}</span>` : ''}`;
   const extra = [c > 1 ? `${c} copies` : '', u.arm ? `${u.arm} Might` : '', u.tr ? `${u.tr} Training` : '', u.sh ? `${u.sh} Shield${u.sh > 1 ? 's' : ''}` : '', u.gear ? dispName(u.gear) : ''].filter(Boolean).join(', ');
   return `<div class="mzc unit" data-mz="deck" data-id="${id}" data-name="${esc(u.name)}" data-key="d:${id}" data-no="${no}"${tucks.length ? ` style="--tk:${tucks.length}"` : ''} role="button" tabindex="0" aria-label="${no}: ${nmU}, power ${pw}${extra ? ', ' + esc(extra) : ''}. Tap to read, drag to move.">
-    ${tk}<div class="mzface mcard fcard u">${cardFace(u.name, 'u', lv)}</div>${pow}<span class="mztags">${tags}</span><span class="mzno" aria-hidden="true">${no}</span>${btns}</div>`;
+    <div class="mzface mcard fcard u">${cardFace(u.name, 'u', lv)}</div>${tk}${pow}<span class="mztags">${tags}</span><span class="mzno" aria-hidden="true">${no}</span>${btns}</div>`;
 }
 function mzBenchCard(it){
   const cnt = it.n > 1 ? `<span class="mzn" aria-hidden="true">×${it.n}</span>` : '';

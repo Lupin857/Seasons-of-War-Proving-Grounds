@@ -12,7 +12,7 @@ global scope and run in the order index.html loads them, exactly like the old in
 - `css/` (loaded in this order; later files restyle earlier ones, so search every file for a selector):
   `01-battle-card.css` (battle card look, Marcellus import) → `02-board-settings.css` (Board settings / table view)
   → `03-main.css` (the big base layout) → `04-desktop-art.css` (art cards, desktop panel) → `05-fixes.css` (later
-  fixes) → `06-mobile-crop.css` (phone type-tab crop) → `07-no-anchor.css` → `08-cards-tab.css`.
+  fixes) → `06-mobile-crop.css` (phone type-tab crop) → `07-no-anchor.css` → `08-cards-tab.css` → `09-mobilize.css` (the Mobilize screen).
   Image paths in CSS are relative to the CSS file: `url(../art/...)`.
 - `js/vendor/peerjs.min.js`: PeerJS (online play). Don't edit.
 - `js/engine.js`: rules + AI. Also runs in Web Workers (loaded by URL, see `engineWorkerURL`) and in the tests, so
@@ -26,7 +26,7 @@ global scope and run in the order index.html loads them, exactly like the old in
   `07-battle-steps` (step animation, ability notes, auto-play, `goFrame`, `stepForward`) ·
   `08-flips-reminders-banners` (market card flip, pass reminders, turn banners) · `09-play-screen` (`renderPlay`,
   battle centering, save/resume, deals, stacking order `LAYER`; ends with the renderPlay error-box and reserved-rows
-  layers) · `10-mobilize-input` (tap and drag in Mobilize) · `11-self-play` (worker pool) · `12-train-view` ·
+  layers) · `10-mobilize` (all of Mobilize: deck data helpers, drawing the deck and bench, one input controller for drag and tap) · `11-self-play` (worker pool) · `12-train-view` ·
   `13-stats-view` · `14-balance-lab` · `15-sync-roles-ratings` (keep scroll, share with Claude, one AI everywhere,
   player mode, finalized balance, ratings) · `16-new-game` · `17-card-peek-tooltips` (ends with the STARTUP SYNC,
   which must start after every UI file has loaded).

@@ -58,7 +58,8 @@ docs/code-map.md), and the repo clone is the working copy.
    those files with `read_file` `paths` (saves them to disk), copy them in, and tell Brian before going on.
 2. Edit the files in the clone. Small exact-match edits (Edit tool, or a script asserting each match is unique).
    Bump `OASIS_BUILD` (js/board-settings.js, next to `LAB_DEF`) to the publish number this publish will get (the
-   current `seq` + 1; the publish result reports the real `seq`: if it differs, fix the label and republish).
+   current `seq` + 1; the publish result reports the real `seq`: if it differs, correct the label in the next
+   real publish. Don't republish just for the label: every publish takes a new `seq`, so it can never catch up).
 3. Run `node tools/check-page.mjs` (seconds) and the other tests that apply (below).
 4. Right before publishing, `get_artifact` again: if the version changed, another chat is working on it; tell Brian
    and merge onto the newest files, never over them. Publish with `publish_files` (default patch mode), listing only
@@ -75,7 +76,8 @@ docs/code-map.md), and the repo clone is the working copy.
 - `node tools/screens.mjs <build dir> <out dir> [--phone]` (~2.5 min) plays a seeded game against the AI and opens
   the designer tabs, saving 18 screenshots; `node tools/screens-diff.mjs <before> <after>` compares two runs.
   For refactors (anything meant to look the same), run both on a copy of the old build and on the new one, desktop
-  and `--phone`; expect 0% everywhere. It serves the build over http itself (no background server needed).
+  and `--phone`, with `--styles` for CSS changes (compares every element's computed style); expect no differences.
+  It serves the build over http itself (no background server needed).
 - `node tools/golden.mjs check` (~50 s): 1,000 seeded battles + 44 seeded AI-vs-AI games through the engine.
   Pure refactors must PASS. For an intended rule change, run `record` instead and say so in the commit.
   Run it only when the engine, rules or AI code changed; skip it for UI-only changes.
@@ -109,6 +111,7 @@ golden test ran (and passed or was re-recorded), and which docs were updated. Th
 ## Linked docs (read only when relevant)
 - `docs/code-map.md`: which file holds what, load-order rules, how renderPlay/goFrame steps work, the reuse list
 - `docs/ui.md`: phone/desktop layout rules, animation and card-motion rules, board settings
+- `docs/design-system.md`: the one dark look, tokens, type and layout rules, how the CSS is layered, pass 2 plan
 - `docs/terminology.md`: internal → display names, card-wording style
 - `docs/rules.md`: current rules and battle step order
 - `docs/ai.md`: AI evaluation, difficulty ladder, training

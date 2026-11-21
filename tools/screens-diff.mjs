@@ -20,6 +20,28 @@ for (const f of fs.readdirSync(A).filter(f => f.endsWith('.png')).sort()){
   console.log(`${f.padEnd(26)} ${pct.toFixed(3)}% pixels differ`);
 }
 for (const f of fs.readdirSync(B).filter(f => f.endsWith('.png'))) if (!fs.existsSync(path.join(A, f))) console.log(`${f.padEnd(26)} only in ${B}`);
+// computed styles (from screens.mjs --styles): every element must have exactly the same computed style
+const zlib = await import('node:zlib');
+let styleFiles = 0, styleBad = 0;
+for (const f of fs.readdirSync(A).filter(f => f.endsWith('.styles.json.gz')).sort()){
+  if (!fs.existsSync(path.join(B, f))) continue;
+  const [a, b] = [A, B].map(d => JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(d, f)))));
+  styleFiles++;
+  const keys = new Set([...Object.keys(a.els), ...Object.keys(b.els)]);
+  const diffs = [];
+  for (const k of keys){
+    const sa = a.table[a.els[k]], sb = b.table[b.els[k]];
+    if (sa === sb) continue;
+    if (sa == null || sb == null){ diffs.push(`${k}: only in ${sa == null ? B : A}`); continue; }
+    const pa = Object.fromEntries(sa.split('\u0001').map(x => x.split('\u0002')));
+    const pb = Object.fromEntries(sb.split('\u0001').map(x => x.split('\u0002')));
+    const props = [...new Set([...Object.keys(pa), ...Object.keys(pb)])].filter(q => pa[q] !== pb[q]);
+    diffs.push(`${k}: ${props.slice(0, 4).map(q => `${q} ${pa[q]} -> ${pb[q]}`).join('; ')}${props.length > 4 ? ` (+${props.length - 4})` : ''}`);
+  }
+  if (diffs.length){ styleBad++; worst = 100; console.log(`${f.padEnd(26)} ${diffs.length} elements styled differently, e.g.\n    ${diffs.slice(0, 6).join('\n    ')}`); }
+}
+if (styleFiles) console.log(`computed styles            ${styleBad ? styleBad + ' of ' + styleFiles + ' moments differ' : 'same in all ' + styleFiles + ' moments'}`);
+
 // match records: the same seeded game must record the same events (ids and times aside)
 const mr = d => { const f = path.join(d, 'match-record.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
 const clean = r => JSON.stringify(r, (k, v) => ['id', 'at', 'date', 'time', 'started', 'updated', 'ended', 'ms', 'build'].includes(k) ? undefined : v);

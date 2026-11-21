@@ -17,9 +17,6 @@
 .card.hasart{padding:0!important;background-color:#2a2320!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;border:0!important;border-radius:5% / 3.6%!important;position:relative;overflow:visible}
 .card.hasart>.ctop,.card.hasart>.zh{opacity:0;pointer-events:none}
 .card.hasart>.ctop{position:absolute;inset:0}
-.card.hasart .livepow{position:absolute;top:3%;left:3%;min-width:26%;aspect-ratio:1;border-radius:50%;background:rgba(20,16,14,.82);color:#f3ead8;
-  font:600 clamp(11px, calc(var(--bcw, 140px) * .13), 22px) var(--f-mono);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #f1e8d8;z-index:2}
-.card.hasart .livepow.up{background:var(--ok)} .card.hasart .livepow.down{background:var(--gules)}
 .card.hasart>.hprow{position:absolute;left:5%;right:5%;bottom:2.5%;z-index:2;background:rgba(20,16,14,.82);border-radius:6px;padding:3px 6px;color:#f3ead8;display:flex;align-items:center;gap:6px}
 .card.hasart>.hprow .hpn,.card.hasart>.hprow .hpn b{color:#f3ead8!important} .card.hasart>.hprow .hpn.hurt b{color:#ff9c8f!important}
 .card.hasart>.hprow .hp{flex:1}
@@ -51,25 +48,11 @@
 
 /* ---- gear and tokens tucked behind a deck card: real cards, each a step up and a little left, banner showing ---- */
 .stack.dgrid{--tkl:5px}
-.stack.dgrid>.mcard.drow>.pkhit.tuck,.dragwrap>.mcard.drow>.pkhit.tuck{position:absolute;display:block;right:auto;bottom:auto;width:100%;height:auto;aspect-ratio:750/1037;padding:0;margin:0;
-  left:calc(var(--tkl) * -1 * (var(--j) + 1));top:calc(-1 * (var(--tkb, 0px) + var(--sc) * .175 * (var(--j) + 1)));
-  border-radius:5% / 3.6%;overflow:hidden;background:#2a2320;box-shadow:0 0 0 1px rgba(20,16,14,.35),0 -2px 6px rgba(0,0,0,.18);cursor:pointer;font-size:inherit;line-height:0}
-.stack.dgrid>.mcard.drow>.pkhit.tuck::before{display:none}
-.stack.dgrid>.mcard.drow>.pkhit.tuck>:is(img,canvas){width:100%;height:100%;display:block;object-fit:cover;-webkit-user-drag:none;pointer-events:none}
-.stack.dgrid>.mcard.drow>.pkhit.tuck:hover,.stack.dgrid>.mcard.drow>.pkhit.tuck:focus-visible{background:#2a2320;filter:brightness(1.12);box-shadow:0 0 0 2px var(--or),0 -2px 8px rgba(0,0,0,.25)}
-.stack.dgrid>.mcard.drow>.pkhit.tuck .tkx{position:absolute;right:5%;top:calc(var(--sc) * .175 / 2);transform:translateY(-50%);width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  background:rgba(20,16,14,.85);color:#f3ead8;font:700 10px/1 var(--f-body);font-style:normal;opacity:0;transition:opacity .12s}
-.stack.dgrid>.mcard.drow>.pkhit.tuck:hover .tkx,.stack.dgrid>.mcard.drow>.pkhit.tuck:focus-visible .tkx{opacity:1}
-@media (pointer:coarse){ .stack.dgrid>.mcard.drow>.pkhit.tuck .tkx{opacity:.85} }
 /* a gear card the game draws itself (no matching art): parchment with the same banner */
 .pkhit.tuck .tkplain{position:absolute;inset:0;background:linear-gradient(#e9dfcb,#d9cdb3);display:flex;align-items:flex-start;gap:4%;padding:3% 4%;line-height:1.1;box-sizing:border-box}
 .pkhit.tuck .tkplain .tkpm{flex:none;min-width:22%;text-align:center;padding:2% 0;border-radius:999px;background:#3a302a;color:#f3ead8;font:600 11px var(--f-mono)}
 .pkhit.tuck .tkplain .tkpn{flex:1;padding:2% 5%;border-radius:4px;background:#f6f0e2;color:#2a2320;font:600 11px var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* a plain-drawn unit with cards tucked behind it: its face goes on a layer above them */
-.stack.dgrid>.mcard.drow:has(>.pkhit.tuck):not(:has(>.cface.art)){background:transparent!important;border-color:transparent!important}
-.stack.dgrid>.mcard.drow:has(>.pkhit.tuck):not(:has(>.cface.art))::before{content:"";position:absolute;inset:-1px;border-radius:inherit;background:var(--bg);border:1px solid var(--line);z-index:-1;pointer-events:none}
-.tokfly.artfly{padding:0!important;border:0!important;background:#2a2320!important;border-radius:6px;overflow:hidden;box-shadow:0 8px 20px rgba(0,0,0,.3)!important}
-.tokfly.artfly img{width:100%;height:100%;display:block;object-fit:cover}
 
 /* ---- battle table: gear and tokens tucked behind art cards, a step up and a little left, banners showing ---- */
 .stage{--tky:calc(var(--bcw) * .175);--tkl:5px}
