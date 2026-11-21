@@ -24,8 +24,15 @@ Brian designs the game. Read this file first; open the linked docs only when the
 7. **Reuse before you write.** Before adding a function, animation, layer or style, look for one that already does
    the job (see the reuse list in docs/code-map.md) and use or extend it. Don't make a second card renderer, fly
    animation or pop-up. If you find two copies of the same thing, point it out and offer to merge them.
+   No new wrappers on battle-screen functions (`goFrame`, `stepForward`, `renderPlay`): edit the function itself.
+   When you replace a feature, delete the old code in the same change.
 8. **Keep the docs current.** Every change updates the matching doc (code map, UI, rules, AI, terminology) in the
    same commit, and the summary says which docs changed.
+9. **The engine says what happened; the screen never guesses.** Anything in a battle that moves a card, damages it
+   or fires an ability must be recorded by the engine as a structured field on its Chronicle line (unit IDs, from/to
+   zone, the card that caused it; see "Battle record" in docs/code-map.md). Screen code must not work out events by
+   comparing two board pictures, and must never read a line's sentence text (`l.t`) for meaning: that text is only for
+   people. If the screen needs something the engine doesn't record, add it to the engine first.
 
 ## Names: internal vs. display
 The code keeps the **old SOW names internally** (`Recruit`, `Armament`, `Field`, `Pigeon Hunter`, `city`...).
@@ -33,11 +40,21 @@ The code keeps the **old SOW names internally** (`Recruit`, `Armament`, `Field`,
 **Never rename internal names in code** (it breaks the snapshot, saved games, stats and the golden test). To change
 what players see, edit `OASIS_NAMES`. Full list and wording style: docs/terminology.md.
 
+## Start of a session
+- Clone this repo and read this file before touching the artifact. Check that you can push (ask Brian to allow it
+  if not) before the work is done, not after.
+- Note the artifact's version (`get_artifact`). Check it again right before every publish. If it changed, another
+  chat is working on the artifact: tell Brian before merging, and merge onto the newest version, never over it.
+- Ask before building a new animation or look: describe the motion in one sentence and wait for an OK.
+- When Brian reports a bug you can't reproduce, first ask which build he's on (Board settings shows it), artifact or
+  GitHub site, phone or desktop, before running big test batches.
+
 ## Workflow for a change
 1. Get the live page: Artifact `read` with `path: "index.html"` saves it to a file without printing it.
    Before publishing, a plain `read` (no path) is required as a version check. It prints about 16 KB of CSS, so do
    it once, right before publishing.
-2. Edit a copy in the scratchpad (a Python or Node script with exact-match replacements, asserting each matches once).
+2. Bump `OASIS_BUILD` (next to `LAB_DEF`) to the publish number this publish will get (the current `seq` + 1;
+   the publish result reports the real `seq`: if it differs, fix the label and republish). Then edit a copy in the scratchpad (a Python or Node script with exact-match replacements, asserting each matches once).
 3. Syntax-check every non-JSON `<script>` with `new Function(...)` in Node.
 4. Run the tests (below), publish the artifact, then copy the file here byte for byte (`cp page.html index.html`;
    strip a trailing newline only if the saved copy has one: the artifact's file ends in `</html>` with none, and an

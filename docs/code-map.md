@@ -60,12 +60,15 @@ CARD PEEK (keywords) → TOOLTIPS.
 ## Stacked wrappers: check every layer
 Later script blocks wrap earlier functions instead of editing them (`const rp = renderPlay; renderPlay = function(){
 ... rp.apply(this, arguments) ... }`). Currently wrapped:
-- `renderPlay`: error box (main UI), image reuse between redraws (mobile-crop-js)
+- `renderPlay` (5 layers): error box (oasis-art); reserved battle row heights (next to `goFrame`); image reuse
+  between redraws, then cube sync + ability-note fade (mobile-crop-js); `lab-inbattle` body class (lab-js)
 - `cardHTML`: card stock and light layers (lab-js)
 - `cardPop`, `openPeek`: eager art / canvas (mobile-crop-js)
-- `goFrame`: splay glide between battle frames (lab-js)
+- `goFrame` (2 layers): cube lift-off / settle and heal refill (mobile-crop-js); splay glide of a new revealed unit
+  (lab-js). The save slide-under (`deckFly`) is in the base function.
 - `pokeArt`: reassigned in lab-js (copies in one band with a count; room always `STACK_MAX` bands, see `labFixedRoom`)
 - `reserveRows`: fixed room per spot from `labFixedRoom`, row heights kept across battles in `window.__rowKeep`
+These layers are a known tangle; merging them into their base functions is planned cleanup (rule 7: add no more).
 
 When changing one of these, `grep -n 'NAME = function'` first and read every wrapper, because a fix in the base can be
 undone or doubled by a wrapper. Prefer editing the base function over adding another wrapper; add a wrapper only for
@@ -92,3 +95,17 @@ is a square", then the art-card and Board-settings rules). Search for every rule
   bottom sheet; wider: centered. Selling from it: card lifts, pop-up closes, then `flySell(..., lifted)`.
 - **Large card view:** `openPeek` / `cardPop`. **Damage cubes:** `OasisCubes` via the hooks in lab-js.
 - **Helpers:** `$` (getElementById) and the rest of SHARED UI HELPERS; scroll kept on re-render (KEEP SCROLL).
+
+## Battle record (what the screen reads)
+`runBattle(cfgs, true)` returns `frames`; `compactFrames` merges quiet ones. Each frame: `label`, `snap` (both sides'
+charge / deck / grave, units by `uid`), `hits` (damage cubes: `{uid, a, heal, from}`), and `lines`, the Chronicle.
+A line is `{t, side, ...fields}`. `t` is the sentence for people only (rule 9). Fields:
+- `ab`: the ability that wrote it (`{n, u, s, b|g|m}`), for ability notes and the trigger glow
+- `from` / `to` / `by` / `amt` / `tok`: arrows (damage, tokens; `tok:'ret'` = a save, drawn into the deck)
+- `mv`: card moves, `[{u:'side-uid', from, to, k}]`, written by `mvs` in `runBattle`. Zones: `new`, `deck`,
+  `deck-top`, `deck-bottom`, `charge`, `grave`. Kinds: `charge`, `defeat`, `save` (Infirmary Tent, Field Medic,
+  Second Wind), `back` (Sand Sailor), `arrive` (Drifters from Recruiter / Spineless Recruit). Every zone change has
+  one (checked over 3,000 random battles). The screen reads them with `frameMoves(frame)`.
+Unit IDs are unique per battle across both sides; the screen tags cards `data-uid="side-uid"`.
+Still to move onto fields: arrows find their source unit by matching the sentence start (`srcUnit`), and building
+arrows find their chip by searching `t` for a building name. Fix these when touching arrows.

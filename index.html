@@ -82,6 +82,7 @@ body:not(.lab-inbattle) .labbar{display:none!important}
 .labbar.shut .labin{display:none}
 .labbar .labhd{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .labbar .labhd b{font:400 17px/1 Marcellus,serif;letter-spacing:.02em}
+.labbar .labhd .labbuild{margin-right:auto;font-size:11px;color:var(--muted);letter-spacing:.04em}
 .labbar .labtog{font:700 12px var(--f-body);padding:7px 12px;border-radius:999px;border:1px solid #8a6d43;background:#1d1712;color:#f3ead8;cursor:pointer;min-height:32px}
 .labbar fieldset{border:0;margin:10px 0 0;padding:0}
 .labbar legend{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#bfa77a;font-weight:800;margin-bottom:5px}
@@ -12642,6 +12643,9 @@ window.__cubesReady = () => { try{ cubeSync(); }catch(e){} };
 </script>
 <script id="lab-js">
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
+// Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
+// so a bug report can say which version it came from; the repo's commit message ends with the same number)
+const OASIS_BUILD = 'v55';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -12796,7 +12800,7 @@ function labPanel(){
   }
   p.classList.toggle('shut', !LAB.open);
   const seg = ([k, lab, vals]) => `<fieldset><legend>${lab}</legend><div class="seg">${vals.map(([v, t]) => `<button type="button" data-o="${k}" data-v="${v}" aria-pressed="${LAB[k] === v}">${t}</button>`).join('')}</div></fieldset>`;
-  p.innerHTML = `<div class="labhd">${LAB.open ? '<b>Board settings</b>' : ''}<button type="button" class="labtog" data-t="tog" aria-expanded="${LAB.open}">${LAB.open ? 'Hide' : 'Board settings'}</button></div>
+  p.innerHTML = `<div class="labhd">${LAB.open ? `<b>Board settings</b><small class="labbuild" title="Game version (artifact publish number)">${OASIS_BUILD}</small>` : ''}<button type="button" class="labtog" data-t="tog" aria-expanded="${LAB.open}">${LAB.open ? 'Hide' : 'Board settings'}</button></div>
   <div class="labin">${seg(LAB_OPTS[0])}
   <fieldset><legend>Zoom <span class="zoomv">${LAB.zoom}%</span></legend><input type="range" min="60" max="150" step="5" value="${LAB.zoom}" data-z="zoom" aria-label="Zoom"></fieldset>
   <fieldset${LAB.view === 'flat' ? ' disabled style="opacity:.45"' : ''}><legend>Tilt <span class="tiltv">${LAB.tilt}°</span></legend><input type="range" min="8" max="40" step="1" value="${LAB.tilt}" data-r="tilt" aria-label="Tilt angle"></fieldset>
