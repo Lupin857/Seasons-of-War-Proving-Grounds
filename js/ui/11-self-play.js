@@ -157,7 +157,7 @@ function paintProg(){
   });
 }
 // how long a calibration game between two levels takes, roughly (in units of a quick game)
-const RUNG_COST = r => r.random ? 0.5 : ({s1:1, s2:1.5, g1:3, fast:6, train:12, t2:20, play:40, master:120})[r.depth] || 10;
+const RUNG_COST = r => r.random ? 0.5 : r.novice ? 0.8 : ({s1:1, s2:1.5, g1:3, fast:6, train:12, t2:20, play:40, master:120})[r.depth] || 10;
 function calProgHTML(){
   if (!calState.busy || !calState.plan) return '';
   const P = calState.plan, W = P.reduce((s, x) => s + x.w * x.batches, 0), D = P.reduce((s, x) => s + x.w * x.done, 0);

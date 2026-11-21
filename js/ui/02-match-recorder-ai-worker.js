@@ -81,7 +81,7 @@ function newPlay(opp){
   G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, loadOm()], target:gameTarget(), su});
   G.suLines = custom ? suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, ['You', 'AI']) : null;
   G.opp = opp || null;
-  if (opp && CAL) G.players[1].skill = skillFor(opp.rating);
+  if (opp && CAL){ G.players[1].skill = skillFor(opp.rating); novicePersona(G, 1); }   // Novice: its personality is rolled once per game, here
   recStart(G, opp);
   ui = freshUI({roll:newRoll()});
   renderPlay();

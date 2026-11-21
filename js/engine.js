@@ -1737,9 +1737,11 @@ const DEPTH = {
    played out), how many playouts and test battles it runs, and how far it looks ahead in the shop. Weaker rungs see
    less, so their mistakes are misjudged close calls and short-sightedness, never deliberately thrown choices. The two
    short-sighted rungs also blur their estimates a little. Rung 0 buys at random: it only anchors the ratings at 400
-   and isn't offered as an opponent. A rating between two rungs plays with a budget part-way between them. */
+   and isn't offered as an opponent. A rating between two rungs plays with a budget part-way between them.
+   The Novice rung is the one exception to "no thrown choices": it plays like a new player (see NOVICE below). */
 const RUNGS = [
   {id:'random', label:'Random buyer', random:true},
+  {id:'novice', label:'Novice',               novice:true, depth:'s1'},
   {id:'s1',   label:'Short-sighted, hasty', depth:'s1'},
   {id:'s2',   label:'Short-sighted',        depth:'s2'},
   {id:'g1',   label:'Glimpses ahead',       depth:'g1'},
@@ -1774,6 +1776,7 @@ function rungFor(g, i){
   const s = g.players[i].skill; if (!s) return null;
   if (!s.hi || !(s.t > 0)) return s.lo;
   if (s.lo.random || s.hi.random) return g.rnd() < s.t ? s.hi : s.lo;   // never offered, but keep it well defined
+  if (s.lo.novice || s.hi.novice) return g.rnd() < s.t ? s.hi : s.lo;   // between Novice and the next rung: each decision is one or the other
   return {id:s.lo.id + '>' + s.hi.id, label:`between ${s.lo.label} and ${s.hi.label}`, cfg:blendDepth(DEPTH[s.lo.depth], DEPTH[s.hi.depth], s.t)};
 }
 const rungDepth = r => r.cfg || DEPTH[r.depth] || null;
@@ -2693,6 +2696,95 @@ function mobilizeValues(g, G, D){
   }
   return [0, 1].map(j => { const Gj = g.players[j].genome || G; return roundValues(g, j, Gj, logit(battleOdds(g, j))); });
 }
+/* ---------- Novice: plays like a new player ----------
+   The lowest offered rung and the default opponent. Each decision it rolls how much care it takes:
+   - shallow: the short-sighted search ('s1'), but it never sells or freezes and doesn't like passing
+   - lazy: it compares only the 2-3 cards it happens to notice, by a quick card score
+   - gut: it picks what looks good to a beginner (big power numbers, abilities, a higher price), not what is good
+   It undervalues economy, rarely looks at the discard pile, and forgets miracles when it isn't thinking.
+   Each game it also gets a mild personality, so its habits stay consistent within the game.
+   Every number here can be changed in NOVICE. */
+const NOVICE = {
+  shop:{shallow:0.65, lazy:0.25, gut:0.10},   // how often each kind of shop decision happens
+  mob:{shallow:0.3, strong:0.45, bought:0.25},   // Mobilize: think a little, strongest first, or the order it bought them
+  notice:[2, 3],   // a lazy decision compares this many cards
+  econ:0.04,   // shallow: win chance it ignores on economy cards (it undervalues them)
+  passSlack:0.04,   // shallow: it buys the best card instead of passing if that's at most this much worse
+  discard:0.2,   // chance it even considers a discard-pile card on a lazy or gut decision
+};
+const isEcon = (n, kind) => kind === 'b' && !BATTLE_BLDGS.has(n) && !(BDEFS[n] && BDEFS[n].gear) && n !== "Mason's Guild" || ECON_CARDS.has(n) || n === 'Conscripted Farmhand';
+function novicePersona(g, i){
+  const p = g.players[i];
+  if (!p._nov){ const r = g.rnd; p._nov = {greed:0.5 + r(), flash:0.5 + r(), lazy:0.7 + 0.6 * r()}; }   // likes buying, likes flashy cards, how lazy
+  return p._nov;
+}
+// how good a card looks to someone who just learned the game
+function noviceAppeal(g, i, name, kind){
+  const per = novicePersona(g, i);
+  if (kind === 'u'){
+    if (name === 'Recruit') return 0.8;
+    const d = DEFS[name]; if (!d) return 0.5;
+    const have = g.players[i].hand[name] || 0, pw = d.p[Math.min(have, d.p.length - 1)] || d.p[0];
+    return 0.6 + 0.35 * pw + (d.t ? 0.6 * per.flash : 0) + 0.25 * (d.c || 0);
+  }
+  if (name === 'Field') return 0.5;
+  const b = BDEFS[name]; if (!b) return 0.4;
+  if (b.gear) return 1.1 + 0.4 * per.flash;
+  if (BATTLE_BLDGS.has(name)) return 1.0;
+  return 0.6;
+}
+function noviceBuy(g, i, o, depth){
+  if (!buy(g, i, o.src, o.idx, o.name === "Mason's Guild" ? aiMasonTarget(g, i) : undefined)){ pass(g, i); return null; }
+  if (o.src === 'mu' && cur(g) === i && g.phase === 'shop') return aiShopTurnSeen(g, i, depth);
+  return o.name;
+}
+// a lazy or gut shop decision; returns undefined for a shallow one (the caller runs the short-sighted search)
+function noviceShop(g, i, depth){
+  const r = g.rnd(), per = novicePersona(g, i), W = NOVICE.shop;
+  const lazyW = W.lazy * per.lazy, tot = W.shallow + lazyW + W.gut;
+  const u = r * tot;
+  if (u < W.shallow) return undefined;
+  const mode = u < W.shallow + lazyW ? 'lazy' : 'gut';
+  const opts = aiShopOptions(g, i).filter(o => (o.src !== 'mu' || g.rnd() < NOVICE.discard) && buyInfo(g, i, o.name, o.kind, o.src, o.idx).ok);
+  if (g.rec) g._why = {level:'Novice', mode};
+  if (!opts.length){ pass(g, i); return null; }
+  if (mode === 'gut'){
+    // a weighted pick by looks; it only passes now and then, more often when it isn't greedy
+    if (g.rnd() < 0.12 / per.greed){ pass(g, i); return null; }
+    const w = opts.map(o => Math.pow(noviceAppeal(g, i, o.name, o.kind), 2));
+    let x = g.rnd() * w.reduce((a, b) => a + b, 0);
+    for (let k = 0; k < opts.length; k++){ x -= w[k]; if (x <= 0){ if (g.rec) g._why.chose = opts[k].name; return noviceBuy(g, i, opts[k], depth); } }
+    return noviceBuy(g, i, opts[opts.length - 1], depth);
+  }
+  // lazy: the first cards it notices (the display comes first, then the rest), judged by the quick card score
+  const G = g.players[i].genome || baseGenome(), [a, b] = NOVICE.notice;
+  const n = a + Math.floor(g.rnd() * (b - a + 1));
+  const seen = shuffle(opts.slice(0, Math.max(n + 1, Math.ceil(opts.length / 2))), g.rnd).slice(0, n);
+  let best = null;
+  for (const o of seen){
+    const price = buyInfo(g, i, o.name, o.kind, o.src, o.idx).price;
+    const v = aiValue(g, i, o.name, o.kind) * (isEcon(o.name, o.kind) ? 0.5 : 1) - price * G.m * 0.5;
+    if (!best || v > best.v) best = {o, v};
+  }
+  if (g.rec){ g._why.noticed = seen.map(o => o.name); g._why.chose = best && best.o.name; }
+  if (best && best.v > -per.greed) return noviceBuy(g, i, best.o, depth);
+  pass(g, i); return null;
+}
+// Mobilize: strongest first, or the order it bought them, now and then a short-sighted search
+function noviceMobilize(g, i, K){
+  const W = NOVICE.mob, u = g.rnd() * (W.shallow + W.strong + W.bought);
+  if (u < W.shallow){ if (g.rec) g._mobLevel = 'Novice (thinking a little)'; return aiMobilizeAt(g, i, K, DEPTH.s1); }
+  const p = g.players[i], a = buildArmy(p); if (!a.core.length && !a.recs) return [];
+  let order = a.core.slice();   // buildArmy lists them strongest first
+  if (u >= W.shallow + W.strong){
+    const pos = n => { const k = (p.bought || []).indexOf(n); return k < 0 ? 999 : k; };
+    order.sort((x, y) => pos(x.name) - pos(y.name));
+    if (g.rec) g._mobLevel = 'Novice (order bought)';
+  } else if (g.rec) g._mobLevel = 'Novice (strongest first)';
+  const d = assemble(order, a.recs, a.arm, g.rnd() < 0.5, true, a.sh, a.gear);   // Might on the first unit; gear on its biggest units
+  d._nov = true;
+  return d;
+}
 function aiShopTurn(g, i, depth){ return asSeenBy(g, i, () => aiShopTurnSeen(g, i, depth)); }
 function aiShopTurnSeen(g, i, depth){
   const rung = g._po ? null : rungFor(g, i);
@@ -2703,6 +2795,8 @@ function aiShopTurnSeen(g, i, depth){
     if (k < opts.length){ const o = opts[k]; buy(g, i, o.src, o.idx, o.name === "Mason's Guild" ? aiMasonTarget(g, i) : undefined); if (o.src === 'mu' && cur(g) === i && g.phase === 'shop') return aiShopTurnSeen(g, i, depth); return o.name; }
     pass(g, i); return null;
   }
+  const nov = !!(rung && rung.novice);
+  if (nov){ const r = noviceShop(g, i, depth); if (r !== undefined) return r; }
   if (rung) depth = rungDepth(rung);
   const p = g.players[i], G = p.genome || baseGenome(), D = typeof depth === 'object' ? depth : (depth ? DEPTH.play : null);
   if (bVal(p, 'Black Market') && !g.bmUsed[i]) useBM(g, i, aiBMKind(g, i));
@@ -2727,6 +2821,12 @@ function aiShopTurnSeen(g, i, depth){
   }
   if (D && D.search){
     const R = planShop(g, i, G, D.search);
+    if (nov){
+      // a new player doesn't sell or freeze, undervalues economy, and would rather buy something than pass
+      R.opts = R.opts.filter(o => o.act === 'buy' || o.act === 'pass').map(o => o.act === 'buy' && isEcon(o.name, o.kind || cardKind(o.name)) ? {...o, v:(o.v ?? 0) - NOVICE.econ} : o).sort((a, b) => (b.v ?? 0) - (a.v ?? 0));
+      if (!R.opts.length) R.opts = [{act:'pass', v:0}];
+      if (R.opts[0].act === 'pass'){ const b = R.opts.find(o => o.act === 'buy'); if (b && (b.v ?? 0) >= (R.opts[0].v ?? 0) - NOVICE.passSlack) R.opts = [b].concat(R.opts.filter(o => o !== b)); }
+    }
     let pick = R.opts[0];
     if (rung && rung.sharp < 1) pick = softPick(R.opts.map(o => ({o, s:o.v ?? 0})), rung.sharp, 0.08, g.rnd).o;
     if (g.rec) g._why = {level:rung ? rung.label : 'full search', search:{steps:R.stats.iters, positionsJudged:R.stats.evals, ms:R.stats.ms, stopped:R.why},
@@ -3075,7 +3175,7 @@ function mobilizeSearch(g, i, D, K){
   return {cands, ctx:{guesses, oppCands, myCfg, oppCfg, read:om.read}};
 }
 // depth: undefined/false = fast, true = play, or a DEPTH preset object
-function aiMobilize(g, i, K, depth){ return asSeenBy(g, i, () => { const d = aiMobilizeSeen(g, i, K, depth); const r = g._po ? null : rungFor(g, i); return aiPlaceSpells(g, i, r && r.random ? d : tuneGear(g, i, d)); }); }
+function aiMobilize(g, i, K, depth){ return asSeenBy(g, i, () => { const d = aiMobilizeSeen(g, i, K, depth); const r = g._po ? null : rungFor(g, i); return aiPlaceSpells(g, i, (r && r.random) || (d && d._nov) ? d : tuneGear(g, i, d)); }); }
 /* Battle miracles: once the AI has its units' order, it tries each spell in hand at every spot in that order (best
    spells first) and keeps a spot only when the gain in this battle's win chance, times how much this battle decides the
    game, beats G.mu, the same bar as for the Mobilize miracles, since a spell is used up either way. The opponent's
@@ -3086,6 +3186,7 @@ function aiPlaceSpells(g, i, deck){
   const units = deck.filter(u => !isBat(u.name)); if (!units.length) return units;
   const rung = g._po ? null : rungFor(g, i);
   if (rung && rung.random) return withSpells(units, hand.filter(() => g.rnd() < 0.5).map(n => ({name:n, at:Math.floor(g.rnd() * (units.length + 1))})));
+  if (deck._nov) return withSpells(units, hand.filter(() => g.rnd() < 0.6).map(n => ({name:n, at:Math.min(units.length, Math.floor(g.rnd() * 2))})));   // Novice: plays some spells early
   const opp = g.players[1-i], guesses = oppGuessSet(g, i, 6).filter(d => d.length);   // its reads plus a few shuffles
   if (!guesses.length) return units;
   const oppSp = (opp.mir || []).filter(isBat).map(n => ({name:n, at:1}));
@@ -3145,6 +3246,7 @@ function aiMobilizeSeen(g, i, K, depth){
       const a = buildArmy(g.players[i]); if (!a.core.length && !a.recs) return [];
       return assemble(shuffle(a.core.slice(), g.rnd), a.recs, a.arm, g.rnd() < 0.5, g.rnd() < 0.5, a.sh, a.gear);
     }
+    if (rung.novice) return noviceMobilize(g, i, K);
     if (g.rec) g._mobLevel = rung.label;
     // a looser level sometimes fields its 2nd or 3rd best order (a misjudgment, not a random blunder)
     if (rung.sharp < 1){ const list = rankedMobilize(g, i, K, rungDepth(rung)); if (list.length) return softPick(list, rung.sharp, 0.25, g.rnd).deck; }

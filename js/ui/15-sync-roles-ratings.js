@@ -346,6 +346,13 @@ function ladder(){
     const a = out[out.length - 2], b = out[out.length - 1];
     out.push({id:'m100', label:RUNGS[mk].label, elo:b.elo + Math.max(40, b.elo - a.elo), k:mk, provisional:true});
   }
+  // Novice isn't in older calibrations: put it below the weakest rung with an estimated rating until the ladder is recalibrated
+  // (in test games it won about 30% against Short-sighted, hasty, roughly 150 points weaker)
+  const nk = RUNGS.findIndex(r => r.id === 'novice');
+  if (nk >= 0 && !CAL.rungs.some(r => r.id === 'novice') && out.length){
+    const lo = out[0].elo;
+    out.unshift({id:'novice', label:RUNGS[nk].label, elo:Math.round(lo > 550 ? lo - 150 : (400 + lo) / 2), k:nk, provisional:true});
+  }
   return out;
 }
 const ratingRange = () => { const L = ladder(); return L.length ? [L[0].elo, L[L.length - 1].elo] : [400, 400]; };
@@ -357,7 +364,7 @@ function bracketOf(R){
 // which AI level(s) a rating plays as, in words
 function levelText(R){
   const s = skillFor(R); if (!s) return '';
-  const L = ladder(), top = L[L.length - 1], est = top && top.provisional && (s.lo === RUNGS[top.k] || s.hi === RUNGS[top.k]) ? ' (its rating is an estimate until the ladder is recalibrated)' : '';
+  const L = ladder(), est = L.some(r => r.provisional && (s.lo === RUNGS[r.k] || s.hi === RUNGS[r.k])) ? ' (its rating is an estimate until the ladder is recalibrated)' : '';
   if (!s.hi || s.t >= 0.995) return `Plays as: ${(s.hi && s.t >= 0.995 ? s.hi : s.lo).label}${est}`;
   if (s.t <= 0.005) return `Plays as: ${s.lo.label}${est}`;
   return `Thinks with a budget ${Math.round(s.t * 100)}% of the way from ${s.lo.label} to ${s.hi.label}${est}`;

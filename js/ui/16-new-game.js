@@ -140,7 +140,7 @@ const goLabel = R => { const br = bracketOf(R); return suIsDefault() ? `Start ${
 function aiSetupHTML(resign){
   const L = ladder(), [lo, hi] = ratingRange();
   const placing = ME.rating == null, mine = placing ? null : ME.rating;
-  if (oppPick == null){ const saved = LS.get(lenKey('sow-pick-v1', LEN)); oppPick = Number.isFinite(saved) ? saved : placing ? placementOpp() : mine; }
+  if (oppPick == null){ const saved = LS.get(lenKey('sow-pick-v1', LEN)); oppPick = Number.isFinite(saved) ? saved : placing ? lo : mine; }   // new players start against Novice
   oppPick = Math.max(lo, Math.min(hi, oppPick));
   const R = oppPick, br = bracketOf(R), myBr = mine != null ? bracketOf(mine) : null, dflt = suIsDefault();
   const calBox = calState.busy
@@ -311,7 +311,8 @@ $('view-play').addEventListener('click', e => {
   }
 }, true);
 let oppPick = null;   // the AI rating you chose on the slider (saved per game length)
-function bracketPick(){ const [lo, hi] = ratingRange(); return Math.max(lo, Math.min(hi, oppPick ?? ME.rating ?? placementOpp())); }
+// default opponent: your rating, or Novice (the bottom of the ladder) until you have one
+function bracketPick(){ const [lo, hi] = ratingRange(); return Math.max(lo, Math.min(hi, oppPick ?? ME.rating ?? lo)); }
 // the ladder: neighbours and next-but-one neighbours play each other
 async function runCalibration(quick){
   if (calState.busy || job) return;

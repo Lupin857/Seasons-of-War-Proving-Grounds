@@ -9,7 +9,8 @@ commit for intended behavior changes).
   Harvester, saving money or buying a unit that helps now are all compared on that scale. No flat scores or crude
   constants for final choices (e.g. a Might token's worth depends on power breakpoints).
 - **Difficulty = thinking budget** (search depth, playouts, test battles), like limiting a chess engine. Weaker AIs make
-  misjudged close calls and short-sighted choices, never deliberately thrown ones.
+  misjudged close calls and short-sighted choices, never deliberately thrown ones. **One exception: the Novice rung**
+  (below) plays like a new player on purpose (Brian's call, Nov 2026).
 - **Fair information:** the AI sees only what is public (purchases, Caravans, money, the order you used last battle),
   never your current deck order.
 - Training AIs should be thinking AIs, not quick ones.
@@ -21,10 +22,26 @@ Each level sets search evals/time, depth, playouts (`po`), order guesses and sho
   `g1` (one playout).
 
 ## Rated ladder (`RUNGS`)
-Random buyer (anchors ratings at 400, not offered as an opponent) → Short-sighted, hasty → Short-sighted → Glimpses
-ahead → Quick → Thinks → Thinks harder → Thinks deeply → Thinks deepest. A rating between two rungs plays with a
-blended budget (`blendDepth`). Ratings live in `calibration/ladder`; your own rating stays in your browser. The Elo
-slider in setup picks the strength.
+Random buyer (anchors ratings at 400, not offered as an opponent) → Novice → Short-sighted, hasty → Short-sighted →
+Glimpses ahead → Quick → Thinks → Thinks harder → Thinks deeply → Thinks deepest. A rating between two rungs plays with a
+blended budget (`blendDepth`); between Novice and the next rung, each decision is one or the other. Ratings live in
+`calibration/ladder`; your own rating stays in your browser. The Elo slider in setup picks the strength. Players
+without a rating start at the bottom of the ladder (Novice), the default opponent.
+
+### Novice (`NOVICE`, `noviceShop`, `noviceMobilize` in engine.js)
+The lowest offered rung, meant for new players. Every number is in the `NOVICE` table.
+- **Shop**, rolled per decision: *shallow* 65% (the `s1` search, but never sells or freezes, economy cards lose
+  `NOVICE.econ` win chance, and it buys its best card instead of passing if that's within `passSlack`); *lazy* 25%
+  (compares only 2-3 cards it notices, by the quick `aiValue` score, economy halved); *gut* 10% (weighted pick by
+  `noviceAppeal`: power, abilities, price). Lazy and gut decisions consider discard-pile cards only 20% of the time
+  and use no miracles.
+- **Mobilize**: 30% `s1` search; 45% strongest first; 25% the order it bought them. Outside the search it skips
+  `tuneGear` and plays battle miracles early.
+- **Personality** (`novicePersona`): greed, flash and laziness rolled once per game (at game start in
+  02-match-recorder-ai-worker.js, so worker moves share it).
+- Until a calibration includes it, `ladder()` puts Novice 150 points under the weakest rung (provisional). Test games
+  (Nov 2026, 80 each): about 30% vs Short-sighted, hasty, about 91% vs the random buyer.
+- Card win % is unaffected: only AI-vs-AI training games feed card stats, never games against people.
 
 ## How a decision is made
 1. **Shortlist:** `aiValue(g, i, name, kind)` scores candidates from the genome weights, card opinions (`bias`), the

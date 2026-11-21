@@ -107,6 +107,7 @@ golden test ran (and passed or was re-recorded), and which docs were updated. Th
 - Only 4 units track health/damage at once (charging + revealed on each side).
 - Damaging abilities don't fizzle; copy/re-trigger effects copy **printed** abilities only.
 - The AI judges every choice by **chance of winning the game**; difficulty = thinking budget, not random mistakes.
+  Exception: the Novice rung (lowest, default opponent) plays like a new player on purpose (docs/ai.md).
 
 ## Linked docs (read only when relevant)
 - `docs/code-map.md`: which file holds what, load-order rules, how renderPlay/goFrame steps work, the reuse list
