@@ -12,8 +12,9 @@ then pushed here. Discuss changes with him before pushing.
    Before publishing, a plain `read` (no path) is required as a version check. It prints about 16 KB of CSS, so do it once, right before publishing.
 2. Edit a copy in the scratchpad (a Python or Node script with exact-match replacements, asserting each matches once).
 3. Syntax-check every non-JSON `<script>` with `new Function(...)` in Node.
-4. Run the tests (below), publish the artifact, then copy the file here **without the trailing newline**
-   (`head -c -1 page.html > index.html`), commit and push to `main`. Commit messages end with "(artifact vNNN)".
+4. Run the tests (below), publish the artifact, then copy the file here byte for byte (`cp page.html index.html`;
+   strip a trailing newline only if the saved copy has one: the artifact's file ends in `</html>` with none, and an
+   unconditional `head -c -1` cut off that final `>` before Nov 2026), commit and push to `main`. Commit messages end with "(artifact vNNN)".
    If card art changed in the artifact, copy the changed `art/*.webp` files here too.
 
 ## Tests (`tools/`)

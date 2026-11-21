@@ -2614,22 +2614,30 @@ function runBattle(cfgs, record){
     if (pe[0] || pe[1]){ revealRound(pe); return true; }
     return sp;
   }
+  // display only: cubes a unit's pile shouldn't show even though its damage counts them (Overrun cubes that moved on,
+  // a Lethal fill); valid while its damage stays at that number
+  const cubeOff = (u, n, was = u && u.dmg) => { if (!u || n <= 0) return; const o = u.cubeOff && u.cubeOff.dmg === was ? u.cubeOff.n : 0; u.cubeOff = {n:o + n, dmg:u.dmg}; };
   function casualties(){
     let any = false;
     // Overrun: the excess from this round's overkills carries on to the unit behind, if it's still in play
     if (OVQ.length) for (const x of OVQ.splice(0)){
       const pl = P[x.u.owner]; if (!pl || !(pl.charge === x.u || pl.deck.includes(x.u))) continue;
       OVFROM = x.over;
-      withAb(x.ab, () => asSrc(x.from, () => { const o = ATK; ATK = !!x.atk; try{ hit0(x.u, x.amt, x.src, x.side, x.brk); } finally { ATK = o; } }));
+      let got = 0;
+      withAb(x.ab, () => asSrc(x.from, () => { const o = ATK; ATK = !!x.atk; try{ got = hit0(x.u, x.amt, x.src, x.side, x.brk); } finally { ATK = o; } }));
       OVFROM = null;
+      if (record && got > 0) cubeOff(x.over, got);   // those cubes moved on to the next unit
     }
+    frameIf('Overrun');
     // Lethal (Executioner, Poison Oil): a unit it damaged this round is defeated now
     for (const p of [0,1]) for (const u of [P[p].charge, ...P[p].deck]){
       if (!u || !u.lethal) continue; const L = u.lethal; u.lethal = null;
       if (isDead(u)) continue;
-      u.dmg = power(u);
+      const was = u.dmg; u.dmg = power(u);
+      if (record) cubeOff(u, u.dmg - was, was);   // Lethal adds no cubes: the bar drains, the pile stays
       if (record) withAb(L.ab, () => log(`The damage is Lethal: ${nameOf(u)} dies.`, L.side));
     }
+    frameIf('Lethal');
     // Survival heals, after all the round's damage: if the unit is still standing now, the heal happens.
     // Brawler removes all its damage; Healing Balm removes up to 2 of each attack's damage.
     const survive = (flag, amount, abOf, text) => {
@@ -2644,6 +2652,7 @@ function runBattle(cfgs, record){
     };
     survive('brawl', u => ab(u) ? u.dmg : 0, u => abU(u, u.owner), u => `${nameOf(u)} survives the attack and shakes off all damage.`);
     survive('balm', (u, w) => u.gear === 'Healing Balm' ? w : 0, u => abG(u, u.owner), (u, k) => `Healing Balm removes ${k} damage from ${nameOf(u)}.`);
+    frameIf('Survival heals');
     for (let guard = 0; guard < 200; guard++){
       // Barber-Surgeon (While Revealed): a charging unit that would die goes to the bottom of the deck, undamaged
       for (const p of [0,1]){
@@ -2676,28 +2685,32 @@ function runBattle(cfgs, record){
           withAb(abM('Second Wind', p), () => log(`Second Wind saves ${nameOf(u)} and sends it to the bottom of the deck${extra ? ` (${extra === 1 ? 'the other Second Wind is' : `${extra} more are`} wasted)` : ''}.`, p, record ? {from:null, to:`${u.owner}-${u.uid}`, by:p, amt:0, tok:'ret'} : undefined));
         }
       }
+      frameIf('Saves');
       const dying = [];
       for (const p of [0,1]){
         const c = P[p].charge; if (c && isDead(c)) dying.push({p, u:c, zone:'c'});
         P[p].deck.forEach((u, i) => { if (isDead(u)) dying.push({p, u, zone:'d', i}); });
       }
       if (!dying.length){
-        frameIf('Casualties');   // a Barber-Surgeon save with no deaths
+        frameIf('Casualties');   // (the saves already had their own step)
         if (newReveals()){ any = true; frameIf('Reveal abilities'); continue; }
         break;
       }
       any = true;
       const dead = new Set(dying.map(d => d.u));
+      // "when a unit is defeated" abilities trigger now, as the units fall (who is revealed, who is silenced), but
+      // resolve in their own step after the deaths, so you see the units go first
+      const onDef = [];
       // Corpse Looter (While Revealed): when a unit is defeated, I gain a Might token for each that it had
       for (const p of [0,1]){
         const t = top(p); if (!t || dead.has(t) || key(t) !== 'Grave-Robber' || !ab(t)) continue;
         const k = dying.reduce((sum, d) => sum + (d.u !== t ? d.u.arm : 0), 0);
-        if (k > 0 && addArm(t, k, nameOf(t), p)) withAb(abU(t, p), () => log(`${nameOf(t)} takes ${k} ${plural(k, 'Armament')} from the fallen.`, p, tokMeta(t, t, p, 'arm', k)));
+        if (k > 0) onDef.push(() => { if (addArm(t, k, nameOf(t), p)) withAb(abU(t, p), () => log(`${nameOf(t)} takes ${k} ${plural(k, 'Armament')} from the fallen.`, p, tokMeta(t, t, p, 'arm', k))); });
       }
       // Night Watchman (While Revealed): when the ally ahead of me is defeated, I gain Might
       for (const p of [0,1]){
         const t = top(p), c = P[p].charge; if (!t || dead.has(t) || key(t) !== 'Sleepy Guard' || !ab(t) || !c || !dead.has(c)) continue;
-        const k = val(t); if (addArm(t, k, nameOf(t), p)) withAb(abU(t, p), () => log(`${nameOf(t)} sees ${nameOf(c)} fall and gains ${k} ${plural(k, 'Armament')}.`, p, tokMeta(t, t, p, 'arm', k)));
+        const k = val(t); onDef.push(() => { if (addArm(t, k, nameOf(t), p)) withAb(abU(t, p), () => log(`${nameOf(t)} sees ${nameOf(c)} fall and gains ${k} ${plural(k, 'Armament')}.`, p, tokMeta(t, t, p, 'arm', k))); });
       }
       for (const d of dying){
         const deck = P[d.p].deck;
@@ -2721,14 +2734,16 @@ function runBattle(cfgs, record){
         }));
         if (carry.length) pl.tail = carry.concat(pl.tail);
       }
+      for (const d of dying){ d.u.dmg = 0; d.u.cubeOff = null; P[d.p].grave.push(d.u); }
+      frameIf('Casualties');
+      for (const f of onDef) f();
       // Heirloom Blade: leaves its defeated wearer for the next unit in the deck that has no gear
       for (const d of dying){
         if (d.u.gear !== 'Heirloom Blade') continue;
         const pl = P[d.p], r = d.after.find(x => !dead.has(x) && !x.gear && pl.deck.includes(x));
         if (r){ const g = {...abG(d.u, d.p, 'Heirloom Blade'), tg:[r.name]}; r.gear = 'Heirloom Blade'; d.u.gear = null; withAb(g, () => log(`Heirloom Blade passes to ${nameOf(r)}, the next unit in the deck.`, d.p)); }
       }
-      for (const d of dying){ d.u.dmg = 0; P[d.p].grave.push(d.u); }
-      frameIf('Casualties');
+      frameIf('When-defeated abilities');
       round(() => { for (const d of dying){
         const u = d.u, p = d.p, N = record ? nameOf(u) : '';
         if (!ab(u)) continue;
@@ -2741,6 +2756,7 @@ function runBattle(cfgs, record){
       } });
       frameIf('On My Death abilities');
     }
+    for (const p of [0,1]) for (const u of [P[p].charge, ...P[p].deck]) if (u) u.cubeOff = null;
     return any;
   }
   function fight(){
@@ -2760,13 +2776,11 @@ function runBattle(cfgs, record){
       return a;
     });
     const tgt = [0,1].map(p => (key(c[p]) === 'Assassin' && ab(c[p]) && top(1-p)) ? top(1-p) : c[1-p]);
-    // Marksman (While Revealed): also attacks the enemy revealed unit (or their charging unit); it doesn't hit back
-    for (const p of [0,1]){
-      const t = top(p), r = rearmost(1-p);
-      if (t && key(t) === 'Marksman' && ab(t) && r) withAb(abU(t, p), () => asSrc(t, () => asAtk(() => hit(r, power(t), record ? `${nameOf(t)} (shot)` : '', p))));
-    }
     frameIf('Before the fight');
     if (record) log(`${nameOf(c[0])} and ${nameOf(c[1])} fight.`);
+    // the fight's attacks and the "when your charging unit attacks" shots all land together, as one round of hits
+    // (two hits on the same unit resolve the usual way: the bigger one first, so it's the one a Shield blocks)
+    round(() => {
     for (const p of [0,1]){
       const N = record ? nameOf(c[p]) : '';
       // a fight hit is the plain fight, unless an ability shaped it (Pikeman's bonus, Assassin's Stealth)
@@ -2779,6 +2793,13 @@ function runBattle(cfgs, record){
         else hit(tgt[p], atk[p], N, p, brk);
       })));
     }
+    // Marksman (While Revealed): when your charging unit attacks, I also attack the enemy revealed unit (or their
+    // charging unit); it doesn't hit back
+    for (const p of [0,1]){
+      const t = top(p), r = rearmost(1-p);
+      if (t && key(t) === 'Marksman' && ab(t) && r) withAb(abU(t, p), () => asSrc(t, () => asAtk(() => hit(r, power(t), record ? `${nameOf(t)} (shot)` : '', p))));
+    }
+    });
     for (const p of [0,1]){
       const t = top(p);
       if (t && key(t) === 'Studious Squire' && ab(t)){ const v = val(t); if (addArm(t, v, nameOf(t), p)) withAb(abU(t, p), () => log(`${nameOf(t)} watches and gains ${v} ${plural(v, 'Armament')}.`, p, tokMeta(t, t, p, 'arm', v))); }
@@ -2808,7 +2829,8 @@ function runBattle(cfgs, record){
   }
   const snapU = (u, p) => u && ({uid:u.uid, name:u.name === 'Jester' && u.copyOf ? `Jester → ${u.copyOf}` : u.name,
     lvl:lvl(u), pow:power(u), dmg:u.dmg, gear:u.gear || undefined, cp:maxLv(u) > 1 ? Math.max(0, (u.copies || 1) - 1) : 0, arm:u.arm, sh:u.sh, tr:u.train, token:!!DEFS[u.name].token,
-    van:u.uid === P[p].van, rear:u.uid === P[p].rear, sp:u.sp && u.sp.length ? u.sp.slice() : undefined, sw:u.sw || 0});
+    van:u.uid === P[p].van, rear:u.uid === P[p].rear, sp:u.sp && u.sp.length ? u.sp.slice() : undefined, sw:u.sw || 0,
+    cubes:u.cubeOff && u.cubeOff.dmg === u.dmg && u.dmg > 0 ? Math.max(0, u.dmg - u.cubeOff.n) : undefined});
   let stepTag = '';
   const frameIf = label => { if (record && logs.length > logMark) frame(stepTag + label); };
   function frame(label){
@@ -8808,7 +8830,7 @@ function goFrame(k, glide){
          {transform:'perspective(300px) translate(0,0) scale(1) rotateY(0deg)', opacity:1, offset:1}]
       : grow ? [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`}, {transform:'none'}]
              : [{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}],
-      {duration: toGrave ? 760 : 620, easing:'cubic-bezier(.22,.9,.3,1.04)'});
+      {duration: toGrave ? 500 : 620, easing:'cubic-bezier(.22,.9,.3,1.04)'});
     if (grow) a.addEventListener('finish', () => { el.style.transformOrigin = ''; });
     a.onfinish = a.oncancel = () => { el.style.zIndex = ''; el.style.position = ''; };
   }
@@ -8845,17 +8867,17 @@ function deathFly(r0, nameEl){
       g.style.left = (2 * r0.left - gr.left) + 'px'; g.style.top = (2 * r0.top - gr.top) + 'px'; } }
   const dx = (r1.left + r1.width / 2) - (r0.left + r0.width / 2), dy = (r1.top + r1.height / 2) - (r0.top + r0.height / 2);
   const sx = Math.max(0.1, r1.width / r0.width), sy = Math.max(0.05, r1.height / r0.height);
-  const T = 760;
+  const T = 500;
   // perspective goes first so the turn reads as 3D: the near edge grows, the far edge and the face's text foreshorten
   const P = Math.max(360, r0.width * 3.4), pf = `perspective(${P}px) `;
   const a = g.animate([
     {transform:pf + 'translate(0,0) rotateY(0deg) scale(1)', filter:'brightness(1)', offset:0},
-    {transform:pf + `translate(${dx * 0.35}px,${dy * 0.35 - 14}px) rotateY(0deg) scale(.92)`, filter:'brightness(1)', offset:.25},
-    {transform:pf + `translate(${dx * 0.6}px,${dy * 0.6 - 8}px) rotateY(90deg) scale(.7)`, filter:'brightness(.72)', offset:.5},
+    {transform:pf + `translate(${dx * 0.25}px,${dy * 0.25 - 12}px) rotateY(0deg) scale(.93)`, filter:'brightness(1)', offset:.14},
+    {transform:pf + `translate(${dx * 0.55}px,${dy * 0.55 - 8}px) rotateY(90deg) scale(.7)`, filter:'brightness(.72)', offset:.45},
     {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:.85, offset:.88},
     {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:0, offset:1}
   ], {duration:T, easing:'cubic-bezier(.4,.1,.3,1)', fill:'forwards'});
-  back.animate([{opacity:0}, {opacity:0, offset:.5}, {opacity:1, offset:.501}, {opacity:1}], {duration:T, fill:'forwards'});
+  back.animate([{opacity:0}, {opacity:0, offset:.45}, {opacity:1, offset:.451}, {opacity:1}], {duration:T, fill:'forwards'});
   nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, fill:'backwards'});
   a.onfinish = a.oncancel = () => g.remove();
 }
@@ -9024,7 +9046,8 @@ function stepForward(){
   ui.pendingFrame = to;
   ui.animT = setTimeout(() => {
     drawArrows(arrows, true, rest); ui.arrowsFor = to;
-    if (hits.some(h => h.ko)) sfx.ko(); else if (hits.length) sfx.hit();
+    const koOnly = hits.length && hits.every(h => h.ko) && !fought && !heals;   // a casualty step: nothing lands, cards just leave
+    if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.length && !koOnly) sfx.ko();
     for (const h of hits){
       const el = root.querySelector(`.card[data-uid="${h.id}"]`); if (!el) continue;
       // health bar drains to its new level
@@ -9038,7 +9061,10 @@ function stepForward(){
     }
     const tokOnly = arrows.length && arrows.every(a => a.tok) && !hits.length && !fought;
     const cubeT = cubeStep(next, hits, prev);   // drops, heals and the defeat sweep; a defeated card waits until its cubes are off
-    ui.animT = setTimeout(() => { ui.animT = null; goFrame(to, true); }, Math.max(tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260, cubeT));
+    // defeats with nothing else to watch go almost at once (the KO sound plays as the card starts to fly), instead of
+    // sitting through the hit timer with an empty board; token arrows from a defeat still get time to read
+    const wait = koOnly ? (arrows.length ? 1000 : 150) : (tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260);
+    ui.animT = setTimeout(() => { ui.animT = null; if (koOnly) sfx.ko(); goFrame(to, true); }, Math.max(wait, cubeT));
   }, fought ? 190 : 0);
 }
 /* Reminders: before you pass with money you could still spend, or lock in a deck with things left on the bench */
@@ -12268,7 +12294,7 @@ function cubeSync(){
   for (const id of [...GLOW.keys()]) glowPaint(id);
   if (!ui.battle){ return; }
   const f = ui.battle.frames[ui.frame], units = [];
-  f.snap.forEach((sd, side) => { for (const u of [sd.charge, ...sd.deck]) if (u) units.push({id:`${side}-${u.uid}`, dmg:u.dmg}); });
+  f.snap.forEach((sd, side) => { for (const u of [sd.charge, ...sd.deck]) if (u) units.push({id:`${side}-${u.uid}`, dmg:u.cubes ?? u.dmg}); });
   C.sync(units);
 }
 {
@@ -12316,4 +12342,4 @@ function glowStep(f){   // every unit whose ability fires in this step
 window.__cubesReady = () => { try{ cubeSync(); }catch(e){} };
 </script>
 <script src="cubes.js" defer></script>
-</body></html
+</body></html>
