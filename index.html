@@ -9074,6 +9074,77 @@ function deathFly(r0, nameEl){
   nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, fill:'backwards'});
   a.onfinish = a.oncancel = () => g.remove();
 }
+// Units saved back into the deck (Infirmary Tent, Field Medic, Second Wind): a unit on the table that would have been
+// defeated and is now hidden in its deck, undamaged. Keyed "side-uid".
+function savedIds(prevF, nextF){
+  const out = new Map(); if (!prevF || !nextF) return out;
+  prevF.snap.forEach((sd, side) => {
+    const nd = nextF.snap[side]; if (!nd) return;
+    for (const u of [sd.charge, sd.deck[0]]){
+      if (!u || !(u.dmg >= u.pow)) continue;
+      const i = nd.deck.findIndex(v => v.uid === u.uid);
+      if (i >= 1 && i === nd.deck.length - 1 && !nd.deck[i].dmg) out.set(`${side}-${u.uid}`, side);
+    }
+  });
+  return out;
+}
+// A saved unit goes back into its deck instead of vanishing: it lifts off the table, travels to its deck, comes to rest
+// beside it, and slides in underneath (the deck is held face up, so the bottom of the deck is under the pile). The copy
+// flies inside the deck zone itself, so it can really pass under the top card.
+function deckFly(r0, side){
+  const row = document.querySelector(`#view-play .stage .trow.s${VS(side)}`), dz = row && row.querySelector('.deckz');
+  const tgt = dz && (dz.querySelector(`.tzc > .card[data-side="${side}"]:not(.mini)`) || dz.querySelector('.tzc > .slot'));
+  const box = tgt && tgt.parentNode;
+  if (!tgt || !box || !r0.clone || !tgt.animate) return;
+  const g = r0.clone, rt = tgt.getBoundingClientRect(), W = tgt.offsetWidth, H = tgt.offsetHeight;
+  if (!rt.width || !W) return;
+  g.removeAttribute('data-uid'); g.removeAttribute('id');
+  g.classList.remove('shake', 'lunge0', 'lunge1', 'tokanim'); g.classList.add('deckfly');
+  for (const f of g.querySelectorAll('.float, .trigglow, .hprow')) f.remove();   // (its health bar stays behind: the deck has its own)
+  g.setAttribute('aria-hidden', 'true'); g.setAttribute('data-keep', '');   // a redraw mid-flight leaves it alone
+  const tz = dz, prev = {pos:tz.style.position, z:tz.style.zIndex, iso:box.style.isolation, bpos:box.style.position};
+  tz.style.position = 'relative'; tz.style.zIndex = 20; box.style.isolation = 'isolate';
+  if (getComputedStyle(box).position === 'static') box.style.position = 'relative';   // before reading offsets: they're from here
+  const st = g.style;
+  for (const [k, v] of [['position', 'absolute'], ['margin', '0'], ['left', tgt.offsetLeft + 'px'], ['top', tgt.offsetTop + 'px'],
+    ['width', W + 'px'], ['height', H + 'px'], ['pointer-events', 'none'], ['transform-origin', '50% 50%']]) st.setProperty(k, v, 'important');
+  // screen px to the zone's own px (the table is tilted and zoomed)
+  const kx = W / rt.width, ky = H / rt.height;
+  const dx = ((r0.left + r0.width / 2) - (rt.left + rt.width / 2)) * kx, dy = ((r0.top + r0.height / 2) - (rt.top + rt.height / 2)) * ky;
+  const s0 = Math.max(.5, Math.min(2, r0.width / rt.width));
+  // it rests beside the deck on the side it came from (toward the charge zone when it was the deck's own top card)
+  let dir = Math.sign(dx);
+  if (Math.abs(dx) < W * .3){ const cz = row.querySelector('.chz'); const cr = cz && cz.getBoundingClientRect(); dir = cr ? Math.sign((cr.left + cr.width / 2) - (rt.left + rt.width / 2)) || 1 : 1; }
+  const sx = dir * W * .74, lift = -16 * ky;
+  box.insertBefore(g, tgt);
+  const T = 820, sh = '0 14px 26px rgba(0,0,0,.32)', flat = '0 2px 4px rgba(0,0,0,.18)';
+  const a = g.animate([
+    {transform:`translate(${dx}px,${dy}px) scale(${s0})`, zIndex:30, boxShadow:flat, filter:'brightness(1)', offset:0},
+    {transform:`translate(${dx}px,${dy + lift}px) scale(${s0 * 1.05})`, zIndex:30, boxShadow:sh, filter:'brightness(1.04)', offset:.16, easing:'cubic-bezier(.45,0,.3,1)'},
+    {transform:`translate(${sx}px,${lift * .6}px) scale(1.03)`, zIndex:30, boxShadow:sh, filter:'brightness(1.02)', offset:.52, easing:'cubic-bezier(.3,0,.4,1)'},
+    {transform:`translate(${sx}px,0px) scale(1)`, zIndex:30, boxShadow:flat, filter:'brightness(1)', offset:.6},
+    {transform:`translate(${sx}px,0px) scale(1)`, zIndex:-1, boxShadow:flat, filter:'brightness(.92)', offset:.61, easing:'cubic-bezier(.5,0,.25,1)'},
+    {transform:'translate(0px,0px) scale(1)', zIndex:-1, boxShadow:flat, filter:'brightness(.8)', offset:1}
+  ], {duration:T, fill:'forwards'});
+  setTimeout(() => { try{ sfx.flick(); }catch(e){} }, T * .62);   // the slide under the pile
+  a.onfinish = a.oncancel = () => { g.remove(); tz.style.position = prev.pos; tz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; };
+}
+{
+  const gf = goFrame;
+  goFrame = function(k, glide){
+    const flies = [];
+    if (glide && ui.battle && k === ui.frame + 1 && !reduceMotion()){
+      for (const [id, side] of savedIds(ui.battle.frames[ui.frame], ui.battle.frames[k])){
+        const el = $('view-play').querySelector(`.line .card[data-uid="${id}"]:not(.mini)`); if (!el) continue;
+        const r = el.getBoundingClientRect(); r.clone = el.cloneNode(true); flies.push({r, side, id});
+      }
+    }
+    const res = gf.apply(this, arguments);
+    // only when the unit really went out of sight (alone in its deck it's the revealed card, and just slides there)
+    for (const f of flies) if (!$('view-play').querySelector(`.line .card[data-uid="${f.id}"]:not(.mini)`)) deckFly(f.r, f.side);
+    return res;
+  };
+}
 // New tokens slide out from behind their card one at a time (yours and the AI's in the order they were given),
 // right after the step lands; no extra clicks
 function animateTokens(prevF, curF){
@@ -9212,17 +9283,20 @@ function breakShieldsNow(){
 function stepForward(){
   if (!ui.battle) return;
   const last = ui.battle.frames.length - 1;
-  if (ui.animT){ goFrame(ui.pendingFrame); return; }   // a second click finishes the current animation
+  // a click while a step is still animating finishes that step at once and goes straight on to the next one,
+  // so every click moves exactly one step however fast you click
+  if (ui.animT) goFrame(ui.pendingFrame);
   if (ui.frame >= last) return;
   breakShieldsNow();   // a shield that blocked a hit in the step on screen breaks as soon as you move on
   const prev = ui.battle.frames[ui.frame], next = ui.battle.frames[ui.frame + 1], to = ui.frame + 1;
   try{ glowStep(next); ui.abFrame = to; mountAbWin(); }catch(e){}   // abilities firing this step glow, and their notes show, as it begins
   if (reduceMotion()){ goFrame(to, true); return; }
   const before = unitsOf(prev, ['charge', 'deck']), after = unitsOf(next, ['charge', 'deck']), grave = unitsOf(next, ['grave']);
-  const hits = [];
+  const hits = [], saved = savedIds(prev, next);
   for (const [id, u] of before){
     const hpOf = v => Math.max(0, Math.min(100, (v.pow - v.dmg) / Math.max(1, v.pow) * 100));
-    if (after.has(id)){ const v = after.get(id), ev = (next.hits || []).filter(x => `${id}`.endsWith('-' + x.uid)), heal = ev.reduce((a, x) => a + x.heal, 0), d = v.dmg + heal - u.dmg;
+    if (saved.has(id)) hits.push({id, t:'Saved', ko:true, save:true, hp:100});   // its cubes lift off as it goes back into the deck
+    else if (after.has(id)){ const v = after.get(id), ev = (next.hits || []).filter(x => `${id}`.endsWith('-' + x.uid)), heal = ev.reduce((a, x) => a + x.heal, 0), d = v.dmg + heal - u.dmg;
       if (d > 0){ const pre = {...v, dmg:v.dmg + heal}; hits.push({id, t:`−${d}`, hp:hpOf(pre), cur:Math.max(0, pre.pow - pre.dmg), max:v.pow, heal, after:hpOf(v)}); } }
     else if (grave.has(id)) hits.push({id, t:'Defeated', ko:true, hp:0});
   }
@@ -9240,7 +9314,7 @@ function stepForward(){
   ui.animT = setTimeout(() => {
     drawArrows(arrows, true, rest); ui.arrowsFor = to;
     const koOnly = hits.length && hits.every(h => h.ko) && !fought && !heals;   // a casualty step: nothing lands, cards just leave
-    if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.length && !koOnly) sfx.ko();
+    if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.some(h => !h.save) && !koOnly) sfx.ko();
     for (const h of hits){
       const el = root.querySelector(`.card[data-uid="${h.id}"]`); if (!el) continue;
       // health bar drains to its new level
@@ -9257,7 +9331,7 @@ function stepForward(){
     // defeats with nothing else to watch go almost at once (the KO sound plays as the card starts to fly), instead of
     // sitting through the hit timer with an empty board; token arrows from a defeat still get time to read
     const wait = koOnly ? (arrows.length ? 1000 : 150) : (tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260);
-    ui.animT = setTimeout(() => { ui.animT = null; if (koOnly) sfx.ko(); goFrame(to, true); }, Math.max(wait, cubeT));
+    ui.animT = setTimeout(() => { ui.animT = null; if (koOnly && !hits.every(h => h.save)) sfx.ko(); goFrame(to, true); }, Math.max(wait, cubeT));
   }, fought ? hitT : 0);
 }
 /* Reminders: before you pass with money you could still spend, or lock in a deck with things left on the bench */
@@ -9495,10 +9569,11 @@ function renderPlay(){
   if (ui.visArm && !(G && G.phase === 'shop' && !ui.battle && cur(G) === seat() && !G.passed[seat()] && (G.players[seat()].mir || []).includes('Vision') && !peekOf(G, seat(), 'vis'))) ui.visArm = false;
   const POPS = [['.mirmodal', '.mirmbox'], ['.remind', '.remindbox'], ['.mirtray', '.mirtray'], ['.pkwin', '.pksheet']];
   const vp0 = $('view-play'), oldPops = POPS.map(([b]) => { const e = vp0.querySelector(b); return e ? {e, r:e.getBoundingClientRect()} : null; });
-  $('view-play').innerHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
+  const playHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
+  if (typeof morphOn === 'function' && morphOn()) morphInto($('view-play'), playHTML); else $('view-play').innerHTML = playHTML;
   syncCardSize();
   document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.pkwin'));
-  { const pw = vp0.querySelector('.pkwin'); if (pw) wireSwipe(pw.querySelector('.pksheet'), pw, pw.querySelector('.sheethead'), null,
+  { const pw = vp0.querySelector('.pkwin'); if (pw && !pw.__swiped && (pw.__swiped = 1)) wireSwipe(pw.querySelector('.pksheet'), pw, pw.querySelector('.sheethead'), null,
       {open:() => pw.isConnected && !pw.dataset.gone, now:closePkWin, leave:() => { pw.dataset.gone = '1'; }, done:closePkWin}); }
   POPS.forEach(([b, x], k) => {
     const now = vp0.querySelector(b), old = oldPops[k];
@@ -9522,7 +9597,7 @@ function renderPlay(){
   if (ui.battle && lw2){
     drawArrows(stepArrows(), false);
     mountAbWin();
-    lw2.addEventListener('scroll', () => { if (!ui.animT) drawArrows(stepArrows(), 'quiet'); }, {passive:true});
+    if (!lw2.__scrollWired){ lw2.__scrollWired = 1; lw2.addEventListener('scroll', () => { if (!ui.animT) drawArrows(stepArrows(), 'quiet'); }, {passive:true}); }
   }
   if (ui.battle && ui.chronOpen){ const on = document.querySelector('.fr.on'); if (on) on.scrollIntoView({block:'nearest'}); }
   const pb = $('gtop'), bd = pb && pb.offsetHeight ? pb : $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px');
@@ -9817,7 +9892,7 @@ function rehide(){
   for (const ck of MOT.wait){ const el = ckEl(ck); if (el) for (const e of [el, ...backsOf(el)]) e.style.opacity = '0'; }
   for (const [ck, until] of MOT.busy){
     const left = until - t; if (left <= 0){ MOT.busy.delete(ck); continue; }
-    const el = ckEl(ck); if (!el || el.dataset.dealt) continue;
+    const el = ckEl(ck); if (!el || el.dataset.dealt || (el.getAnimations && el.getAnimations().some(a => a.playState === 'running'))) continue;
     for (const e of [el, ...backsOf(el)]) e.animate([{opacity:0}, {opacity:0}], {duration:left});
   }
 }
@@ -10039,7 +10114,7 @@ $('view-play').addEventListener('click', e => {
     case 'b-first': sfx.soft(); stopAuto(true); goFrame(0); return;
     case 'b-replay': sfx.soft(); stopAuto(true); goFrame(0); return;
     case 'b-prev': sfx.soft(); stopAuto(true); goFrame(Math.max(0, ui.frame - 1)); return;
-    case 'b-next': stepForward(); return;
+    case 'b-next': if (performance.now() - nextDownAt < 1000) return; stepForward(); return;   // a press already stepped (see pointerdown below); this is for the keyboard
     case 'b-last': sfx.soft(); goFrame(ui.battle.frames.length - 1); return;
     case 'fr': sfx.soft(); goFrame(+t.dataset.k); return;
     case 'banner-off': sfx.soft(); ui.bannerOff = true; renderPlay(); return;
@@ -10130,6 +10205,14 @@ function placeGap(zone, at){
   else if (drag.line.parentNode) drag.line.remove();
   slideFrom(rects, rows);
 }
+// Next step goes on the press, not the click: the button is redrawn when a step's animation ends, and a click whose
+// press and release land on different copies of it is lost, so fast clicking used to drop steps
+let nextDownAt = -1e9;
+$('view-play').addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  const b = e.target.closest('[data-act="b-next"]'); if (!b || b.disabled) return;
+  nextDownAt = performance.now(); stepForward();
+});
 $('view-play').addEventListener('pointerdown', e => {
   if (!drag || !drag.on) clearGhosts();   // any tap sweeps away a stranded card, in any phase
   if (!G || G.phase !== 'mobilize' || ui.battle || ui.planning || e.button > 0) return;
@@ -12542,7 +12625,7 @@ window.__cubesReady = () => { try{ cubeSync(); }catch(e){} };
 </script>
 <script id="lab-js">
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
-const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'up', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, open:false};
+const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'up', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
 const labSave = () => { try{ localStorage.setItem('oasisBoard', JSON.stringify(LAB)); }catch(e){} };
@@ -12690,6 +12773,7 @@ function labPanel(){
   <fieldset${LAB.view === 'flat' ? ' disabled style="opacity:.45"' : ''}><legend>Tilt <span class="tiltv">${LAB.tilt}°</span></legend><input type="range" min="8" max="40" step="1" value="${LAB.tilt}" data-r="tilt" aria-label="Tilt angle"></fieldset>
   ${seg(LAB_OPTS[1])}${seg(LAB_OPTS[2])}
   <fieldset><legend>Impact</legend><label class="chk"><input type="checkbox" data-c="freeze" ${LAB.freeze ? 'checked' : ''}> Brief freeze</label><label class="chk"><input type="checkbox" data-c="dust" ${LAB.dust ? 'checked' : ''}> Dust puff</label><label class="chk"><input type="checkbox" data-c="squash" ${LAB.squash ? 'checked' : ''}> Squash</label><label class="chk"><input type="checkbox" data-c="jolt" ${LAB.jolt ? 'checked' : ''}> Knock-back jolt</label></fieldset>
+  <fieldset><legend>Redraws</legend><label class="chk"><input type="checkbox" data-c="morph" ${LAB.morph !== false ? 'checked' : ''}> Update in place</label></fieldset>
   <fieldset><legend>Depth</legend><label class="chk"><input type="checkbox" data-c="stock" ${LAB.stock ? 'checked' : ''}> Card stock</label><label class="chk"><input type="checkbox" data-c="light" ${LAB.light ? 'checked' : ''}> Light</label></fieldset>
   <div class="rowb"><button type="button" class="labbtn" data-t="reset">Reset switches</button></div></div>`;
 }
@@ -12733,6 +12817,52 @@ function labSplayRevealed(prev, delay){
   };
 }
 
+
+/* ===== Update in place: a redraw changes only what differs instead of rebuilding the whole Play view =====
+   The new markup is compared with what's on screen. Elements are matched by their key (id, data-uid, data-ck) or, when
+   they have none, by position and tag; a matched element is kept and gets the new attributes and children, so a card
+   that didn't change stays exactly as it is (its picture, hover, running animation, layer on the tilted table).
+   Anything that isn't in the new markup is removed, as before; the cube layer is left alone. */
+function morphOn(){ return !(typeof LAB !== 'undefined' && LAB.morph === false); }   // a plain function: a redraw before this script has run just sees it missing
+const mKey = n => n.nodeType === 1 ? (n.id || n.getAttribute('data-uid') || n.getAttribute('data-ck') || '') : '';
+const mKeep = n => n.nodeType === 1 && (n.classList.contains('cubegl') || n.hasAttribute('data-keep'));
+function mAttrs(a, b){
+  for (const at of [...a.attributes]) if (!b.hasAttribute(at.name)) a.removeAttribute(at.name);
+  for (const at of b.attributes) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+  const tag = a.nodeName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'){
+    if (document.activeElement !== a){ if ('value' in b && a.value !== b.value) a.value = b.value; }
+    if ('checked' in b && a.checked !== b.checked) a.checked = b.checked;
+  }
+  if (tag === 'DETAILS' && a.open !== b.open) a.open = b.open;
+}
+function mNode(a, b){
+  if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName){ a.replaceWith(b); return b; }
+  if (a.nodeType !== 1){ if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return a; }
+  mAttrs(a, b); mKids(a, b); return a;
+}
+function mKids(a, b){
+  const olds = [...a.childNodes], keyed = new Map(), used = new Set();
+  for (const o of olds){ const k = mKey(o); if (k) keyed.set(o.nodeName + '#' + k, o); }
+  const out = []; let p = 0;
+  for (const n of [...b.childNodes]){
+    let m = null; const k = mKey(n);
+    if (k){ m = keyed.get(n.nodeName + '#' + k) || null; if (m && used.has(m)) m = null; }
+    else {
+      while (p < olds.length && (used.has(olds[p]) || mKey(olds[p]) || mKeep(olds[p]))) p++;
+      if (p < olds.length && olds[p].nodeName === n.nodeName) m = olds[p++];
+    }
+    if (m){ used.add(m); out.push(mNode(m, n)); } else out.push(n);
+  }
+  for (const o of olds) if (!used.has(o) && !mKeep(o) && o.parentNode === a) a.removeChild(o);
+  let ref = a.firstChild;
+  for (const node of out){
+    while (ref && mKeep(ref) && ref !== node) ref = ref.nextSibling;
+    if (node === ref){ ref = ref.nextSibling; continue; }
+    a.insertBefore(node, ref);
+  }
+}
+function morphInto(el, html){ const t = document.createElement('template'); t.innerHTML = html; mKids(el, t.content); }
 /* ---- the clash: both charging units rush at each other, collide at the middle, and spring back (like Hearthstone).
    Impact options (lab switches): a brief freeze, a dust puff, a squash, a knock-back jolt. Returns when the hit lands. */
 function labClash(root){
@@ -12806,6 +12936,11 @@ addEventListener('load', () => setTimeout(() => labApply(false), 50));
 addEventListener('load', () => setTimeout(() => { try{ window.OasisCubes && OasisCubes.warm && OasisCubes.warm(); }catch(e){} }, 1200));
 </script>
 
+<style id="oasis-noanchor-css">
+/* Safari "scroll anchoring" moved the whole page a few pixels on battle steps (it tracked a card or zone that was changing).
+   The Play view keeps its own scroll, so turn anchoring off while it is showing. */
+html:has(#view-play:not([hidden])), #view-play{overflow-anchor:none}
+</style>
 <style id="oasis-cards-css">
 /* Cards tab: every card in the game as a grid. Click one to open it full size with its keyword notes. */
 #view-cards .panel.cbar{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;text-align:left;gap:8px 14px}
