@@ -12344,14 +12344,19 @@ document.addEventListener('click', e => { if (!coarse()) return; const el = e.ta
 
 try{ if (!document.documentElement.lang) document.documentElement.lang = 'en'; }catch(e){}   // lets long card names hyphenate on small cards
 // a save the current version can't draw (a card it names was removed, say) falls back to the start screen instead of a frozen page
-let resumed = false;
-try{ if (loadSave()){ renderPlay(); resumed = true; if (ui.battle) startAuto(600); else scheduleAI(); } }
-catch(e){   // kept aside rather than deleted, in case a later fix can read it
-  console.error('Saved game could not be resumed', e);
-  try{ localStorage.setItem('sow-save-unreadable', localStorage.getItem(SAVE_KEY)); localStorage.removeItem(SAVE_KEY); }catch(e2){}
-  stopTimers(); G = null; ui = {};
+// runs once every script on the page has loaded: the battle board's helpers (labDeck, labGrave, ...) live in a later
+// <script>, so resuming a saved battle any earlier drew the Play tab as an error box
+function resumeOrStart(){
+  let resumed = false;
+  try{ if (loadSave()){ renderPlay(); resumed = true; if (ui.battle) startAuto(600); else scheduleAI(); } }
+  catch(e){   // kept aside rather than deleted, in case a later fix can read it
+    console.error('Saved game could not be resumed', e);
+    try{ localStorage.setItem('sow-save-unreadable', localStorage.getItem(SAVE_KEY)); localStorage.removeItem(SAVE_KEY); }catch(e2){}
+    stopTimers(); G = null; ui = {};
+  }
+  if (!resumed){ ui.start = true; renderPlay(); }
 }
-if (!resumed){ ui.start = true; renderPlay(); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', resumeOrStart, {once:true}); else resumeOrStart();
 
 </script>
 
@@ -12787,4 +12792,4 @@ addEventListener('load', () => setTimeout(() => { try{ window.OasisCubes && Oasi
 </script>
 
 <script src="cubes.js" defer></script>
-</body></html
+</body></html>
