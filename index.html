@@ -162,6 +162,18 @@ body.lab-stock .card.hasart>.tk{filter:none!important}
 body.lab-stock .card.hasart>.tk::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.17);pointer-events:none}
 body.lab-light .lablt{mix-blend-mode:normal!important;background:linear-gradient(160deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 30%,rgba(0,0,0,0) 60%,rgba(0,0,0,.16) 100%)!important}
 .table .card.hasart:not(.mini){will-change:transform}
+/* phones in battle: the play space runs edge to edge (no panel border or side gutters) */
+@media (max-width:640px){
+  body.lab-inbattle #view-play .panel:has(> .stage){width:100vw;margin-left:calc(50% - 50vw);border-left:0;border-right:0;border-radius:0;padding-left:0;padding-right:0;box-sizing:border-box}
+  body.lab-inbattle #view-play .panel:has(> .stage)>.battlectl{margin-left:0;margin-right:0;border-radius:0}
+  body.lab-inbattle #view-play .panel:has(> .stage)>.row:not(.battlectl){padding-left:10px;padding-right:10px}
+  body.lab-v-lean .line.table,body.lab-v-table .line.table{border-radius:0;padding-left:4px;padding-right:4px}
+}
+/* the space around the tipped (or leaning) table is sand too, so no page background shows beside its far end */
+body.lab-v-lean #view-play .stage,body.lab-v-table #view-play .stage{background:radial-gradient(ellipse at 50% 40%,#ddd0b6 0%,#cdbd9c 70%,#bfae8b 100%)}
+@media (max-width:640px){
+  body.lab-inbattle.lab-v-lean #view-play .panel:has(> .stage),body.lab-inbattle.lab-v-table #view-play .panel:has(> .stage){background:#cdbd9c}
+}
 .cubegl.inframe{position:absolute!important;left:0;top:0;width:100%!important;height:100%!important;z-index:7}
 
 /* --- deck view sheet --- */
@@ -12527,7 +12539,7 @@ window.__cubesReady = () => { try{ cubeSync(); }catch(e){} };
 </script>
 <script id="lab-js">
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
-const LAB_DEF = {view:'flat', tilt:24, size:'auto', splay:'up', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:100, open:false};
+const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'up', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
 const labSave = () => { try{ localStorage.setItem('oasisBoard', JSON.stringify(LAB)); }catch(e){} };
