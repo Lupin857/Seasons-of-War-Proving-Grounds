@@ -11,11 +11,12 @@ gives a table of contents.
   `defer` at the end of index.html.
 - `art/<Oasis name>.webp`: Brian's Dextrous card fronts (750×1037), mirrored from the artifact's `art/` folder.
   `art/tabmask.svg` is the phone crop shape.
+- `tools/check-page.mjs`: syntax + repeated-global-name check for every script block (run before every publish).
 - `tools/golden.mjs` + `golden.json`: engine golden test. `tools/refresh-snapshot.mjs`: snapshot refresh.
 
 ## Script blocks in index.html (in order)
 1. PeerJS (minified, online play)
-2. `<script type="application/json" id="snapshot">`: balance, AI, ratings, card stats (one ~1 MB line)
+2. `<script type="application/json" id="snapshot">`: balance, AI, ratings, card stats (one long line, about 13 KB in Nov 2026)
 3. `<script id="engine">`: rules + AI. Also runs in Web Workers and in the tests, so **no DOM code here**.
 4. `<script id="oasis-names">`: `OASIS_NAMES`, `dispName`, `oasisText`, and the live renamer
 5. `<script id="oasis-art">`: `OASIS_ART` (cards with Dextrous art), `TOK_ART`, `artURL`
@@ -53,6 +54,8 @@ CARD PEEK (keywords) → TOOLTIPS.
 - Balance: `FINAL = {ov, at, patches}`, server doc `balance/final`. `setBaseline`, `finalizeBalance(ov, back)` pushes
   a patch (rollback = a new patch with `back`), `finalBoxHTML` shows the patch history. `renderLab`.
 - Stats/pairs: `renderStats`, `pairsHTML`. Training: `renderTrain`. Shop bar: `slotsHTML`. Play: `renderPlay`.
+- Player shop moves: `playerMove(a)` (`a` = `['b', src, idx, ...]`, `['p']`, `['s', kind, name]`...). It was called
+  `doMove` until v56, which clashed with the engine's `doMove(g, j, m)` (the AI's trial moves). Don't reuse engine names.
 - Server sync (artifact only): `pushBrain` (AI in chunks `aibrain/c0..`, meta `ai/brain`), `loadPlayerStats`
   (`sync/*`), ratings `calibration/ladder`.
 - Workers: `aiWorkerMain`, `workerMain` (source = engine text + function).

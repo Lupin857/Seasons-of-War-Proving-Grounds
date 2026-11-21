@@ -55,7 +55,8 @@ what players see, edit `OASIS_NAMES`. Full list and wording style: docs/terminol
    it once, right before publishing.
 2. Bump `OASIS_BUILD` (next to `LAB_DEF`) to the publish number this publish will get (the current `seq` + 1;
    the publish result reports the real `seq`: if it differs, fix the label and republish). Then edit a copy in the scratchpad (a Python or Node script with exact-match replacements, asserting each matches once).
-3. Syntax-check every non-JSON `<script>` with `new Function(...)` in Node.
+3. Run `node tools/check-page.mjs <page>` (a few seconds): every script block must parse, and no global name may be
+   declared in two blocks (see Tests).
 4. Run the tests (below), publish the artifact, then copy the file here byte for byte (`cp page.html index.html`;
    strip a trailing newline only if the saved copy has one: the artifact's file ends in `</html>` with none, and an
    unconditional `head -c -1` cut off that final `>` before Nov 2026). If card art changed in the artifact, copy the
@@ -63,6 +64,11 @@ what players see, edit `OASIS_NAMES`. Full list and wording style: docs/terminol
 5. After Brian approves: commit and push to `main`. Commit messages end with "(artifact vNNN)".
 
 ## Tests (`tools/`)
+- `node tools/check-page.mjs` (seconds): every `<script>` parses, and no function/const/let/class name is declared in
+  two script blocks. All blocks share one global scope, so a second `function foo` silently replaces the first for
+  every caller (Nov 2026: the screen's `doMove` replaced the engine's and broke the AI's main-thread search). Run it
+  before every publish, UI changes included. When you add a top-level function, give it a name that says which layer
+  it belongs to.
 - `node tools/golden.mjs check` (~50 s): 1,000 seeded battles + 44 seeded AI-vs-AI games through the engine.
   Pure refactors must PASS. For an intended rule change, run `record` instead and say so in the commit.
   Run it only when the engine, rules or AI code changed; skip it for UI-only changes.
@@ -101,6 +107,6 @@ golden test ran (and passed or was re-recorded), and which docs were updated. Th
 
 ## Cheap habits
 - Search with `grep -n ... | cut -c1-250`, then read only the lines you need. Never read the whole file.
-- The `#snapshot` JSON is one ~1 MB line: **never grep it without `| cut -c1-200`**.
+- The `#snapshot` JSON is one long line (about 13 KB in Nov 2026; it grows with stats): **never grep it without `| cut -c1-200`**.
 - Read database documents with `out_dir`, not inline.
 - If a rule seems unclear, ask Brian rather than inferring it from the code.
