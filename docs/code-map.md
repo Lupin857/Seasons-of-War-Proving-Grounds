@@ -64,7 +64,8 @@ Later script blocks wrap earlier functions instead of editing them (`const rp = 
 - `cardHTML`: card stock and light layers (lab-js)
 - `cardPop`, `openPeek`: eager art / canvas (mobile-crop-js)
 - `goFrame`: splay glide between battle frames (lab-js)
-- `pokeArt`: reassigned in lab-js
+- `pokeArt`: reassigned in lab-js (copies in one band with a count; room always `STACK_MAX` bands, see `labFixedRoom`)
+- `reserveRows`: fixed room per spot from `labFixedRoom`, row heights kept across battles in `window.__rowKeep`
 
 When changing one of these, `grep -n 'NAME = function'` first and read every wrapper, because a fix in the base can be
 undone or doubled by a wrapper. Prefer editing the base function over adding another wrapper; add a wrapper only for

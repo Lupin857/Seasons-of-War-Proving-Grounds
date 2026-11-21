@@ -42,6 +42,31 @@ html body .table .trow.s0 .tz>.tzc{margin-bottom:auto}
 html body .stage .table .tz.rsv .tzc>.card.hasart:not(.mini),
 html body .stage .table .tz.rsv .charge>.card.hasart:not(.mini){margin-top:var(--rsvT,0px)!important}
 html body .stage .table .tz.rsv.deckz .tzc>.card.hasart:not(.mini){margin-left:var(--rsvL,0px)!important}
+html body .stage .table .tz.rsv .tzc>.slot.labempty{margin-top:var(--rsvT,0px)!important;margin-left:var(--rsvL,0px)!important}
+/* the empty-deck outline stays on the board under the deck's top card, in the same spot it takes when the deck runs out */
+html body .stage .table .tz.deckz>.tzc{position:relative;isolation:isolate}
+html body .stage .table .tz.deckz .tzc>.slot.labslot.under{position:absolute;left:0;top:0;margin:0!important;z-index:-20;pointer-events:none}
+html body .stage .table .tz.rsv.deckz .tzc>.slot.labslot.under{top:var(--rsvT,0px);left:var(--rsvL,0px)}
+/* empty spots are labelled in the board's own lettering, like the zone labels */
+html body .table .slot.labempty,html body .table .grz .labempty{font-size:.64rem!important;letter-spacing:.12em!important;text-transform:uppercase!important;font-weight:800!important;color:#6e5a3e!important;font-family:inherit;text-align:center}
+/* cards without art and an empty charge zone keep the same room too */
+html body .stage .table .tz.rsv .tzc>.card:not(.hasart):not(.mini),
+html body .stage .table .tz.rsv .charge>.card:not(.hasart):not(.mini){margin-top:var(--rsvT,0px)!important;margin-bottom:24px!important;margin-right:0!important}
+/* zone labels are one fixed height (with or without the deck-count chip, before or after the fonts load) */
+html body .stage .table .tz>.zl{height:22px;min-height:0;box-sizing:border-box;white-space:nowrap}
+@media (max-width:640px){ html body .stage .table .tz>.zl{height:32px} }
+html body .stage .table .tz.rsv.deckz .tzc>.card:not(.hasart):not(.mini){margin-left:var(--rsvL,0px)!important}
+html body .stage .table .tz.rsv .charge>.slot.labempty{margin-top:var(--rsvT,0px)!important}
+/* an empty outline keeps the strip under it that a card keeps for its health bar, so the outline and a card sit in
+   exactly the same spot on both sides of the table (the AI's zones are anchored from the bottom) */
+html body .stage .table .tz .tzc>.slot.labslot:not(.under),html body .stage .table .tz .charge>.slot.labslot:not(.under){margin-bottom:24px!important}
+/* the empty-charge and empty-graveyard outlines are part of the board too, under whatever sits on them */
+html body .stage .table .tz.chz .charge{position:relative;isolation:isolate}
+html body .stage .table .tz.chz .charge>.slot.labslot{box-sizing:border-box;width:var(--bcw);height:var(--bch);flex:none}
+html body .stage .table .tz.chz .charge>.slot.labslot.under{position:absolute;left:0;top:0;margin:0!important;z-index:-20;pointer-events:none}
+html body .stage .table .tz.rsv.chz .charge>.slot.labslot.under{top:var(--rsvT,0px)}
+html body .stage .table .tz.grz>.tzc{position:relative;isolation:isolate}
+html body .stage .table .tz.grz .tzc>.labslot.under{position:absolute;left:0;top:0;z-index:-20;pointer-events:none}
 /* the result row's space is held from the first step */
 .stage + .row.tailwait{visibility:hidden}
 html body .battlectl .note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -103,7 +128,7 @@ body.lab-sp-fanR .card.hasart>.tk{transform:rotate(calc(7deg * (var(--j) + 1))) 
 .card.hasart>.tk>.tkn{position:absolute;right:7%;top:calc(var(--tky) * .14);z-index:2;background:#2b211a;color:#fff;font:800 10px/14px var(--f-body);padding:0 5px;border-radius:999px;font-size:10px;line-height:14px}
 
 /* --- the deck: the revealed unit is the top card of a pile; thickness shows as card edges under it --- */
-.table .deckz .slot.labempty,.table .grz .labempty{display:flex;align-items:center;justify-content:center;border:2px dashed rgba(110,80,40,.35);border-radius:8px;background:none;color:var(--muted);font-size:12px;font-weight:700;box-sizing:border-box;width:var(--bcw);height:var(--bch)}
+.table .deckz .slot.labempty,.table .chz .slot.labempty,.table .grz .labempty{display:flex;align-items:center;justify-content:center;border:2px dashed rgba(110,80,40,.35);border-radius:8px;background:none;color:var(--muted);font-size:12px;font-weight:700;box-sizing:border-box;width:var(--bcw);height:var(--bch)}
 .labcnt{position:static;display:inline-block;vertical-align:middle;margin-left:6px;letter-spacing:0;text-transform:none;z-index:6;padding:1px 9px;border-radius:999px;background:linear-gradient(#cfae6e,#a8843f);border:1px solid #6e5223;color:#2b1d0c;font:400 12px/18px Marcellus,serif;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.3);cursor:pointer;min-height:20px}
 .labcnt i{font-style:normal;font-size:11px;margin-left:4px;color:#5a3a8a}
 .table .zl.labzl{cursor:pointer}
@@ -2510,6 +2535,10 @@ function runBattle(cfgs, record){
   // AB: the ability being resolved right now; every line it writes carries it (for the battle view's ability windows)
   let AB = null;
   const log = record ? (t, side, meta) => logs.push(AB ? {t, side, ...(meta || {}), ab:AB} : meta ? {t, side, ...meta} : {t, side}) : () => {};
+  // Card moves, recorded on the Chronicle line that reports them (the screen animates from these, never from the
+  // sentence or by comparing board pictures). Each move: {u:'side-uid', from, to, k}. Zones: 'new' (a card that wasn't
+  // in play), 'deck', 'deck-top', 'deck-bottom', 'charge', 'grave'. k: 'charge', 'defeat', 'save', 'back', 'arrive'.
+  const mvs = list => record ? {mv:list.map(([u, from, to, k]) => ({u:`${u.owner}-${u.uid}`, from, to, k}))} : undefined;
   const withAb = (ab, fn) => { if (!record) return fn(); const o = AB; AB = ab; try{ return fn(); } finally { AB = o; } };
   const abU = (u, p) => ({n:u.name, as:u.copyOf || null, u:`${u.owner}-${u.uid}`, s:p});
   const abB = (n, p) => ({n, b:true, s:p});
@@ -2665,7 +2694,7 @@ function runBattle(cfgs, record){
         // of them can't cycle forever.
         const t = enemyAhead(p); if (t) hit(t, v, N, s, true);
         const pl = P[p], k = pl.deck.indexOf(u);
-        if (k >= 0 && pl.deck.slice(k + 1).some(x => key(x) !== 'Halberd Knight')){ pl.deck.splice(k, 1); pl.deck.push(u); log(`${N} moves to the back of the deck.`, s); }
+        if (k >= 0 && pl.deck.slice(k + 1).some(x => key(x) !== 'Halberd Knight')){ pl.deck.splice(k, 1); pl.deck.push(u); log(`${N} moves to the back of the deck.`, s, mvs([[u, 'deck', 'deck-bottom', 'back']])); }
         break; }
       case 'Scholar': { const c = P[p].charge; if (c && c !== u) for (let i = 0; i < v; i++) train(c, N, s); break; }
     }
@@ -2692,9 +2721,9 @@ function runBattle(cfgs, record){
       case 'Recruiter': {
         const t = top(p);
         if (t && t.dmg > 0){ t.dmg = 0; log(`${nameOf(t)} is covered and its damage clears.`, s); }
-        for (let i = 0; i < v; i++) P[p].deck.unshift(recruit(p));
+        const rs = []; for (let i = 0; i < v; i++){ const r = recruit(p); rs.push(r); P[p].deck.unshift(r); }
         P[p].revealed = top(p).uid;
-        log(`${N} places ${v} ${plural(v, 'Recruit')} on top of the deck.`, s, v > 0 ? tokMeta(u, top(p), s, 'rec', v) : undefined);
+        log(`${N} places ${v} ${plural(v, 'Recruit')} on top of the deck.`, s, v > 0 ? {...tokMeta(u, top(p), s, 'rec', v), ...mvs(rs.map(r => [r, 'new', 'deck-top', 'arrive']))} : undefined);
         break;
       }
     }
@@ -2832,7 +2861,7 @@ function runBattle(cfgs, record){
         const c = P[p].charge, t = top(p);
         if (c && isDead(c) && t && key(t) === 'Barber-Surgeon' && ab(t) && !isDead(t) && (t.saves || 0) < val(t)){
           t.saves = (t.saves || 0) + 1; c.dmg = 0; P[p].charge = null; toBottom(P[p], c);
-          withAb(abU(t, p), () => log(`${nameOf(t)} saves ${nameOf(c)} and sends it to the bottom of the deck${c.sw ? ' (its Second Wind is wasted)' : ''}.`, p, record ? {from:`${t.owner}-${t.uid}`, to:null, by:p, amt:0} : undefined));
+          withAb(abU(t, p), () => log(`${nameOf(t)} saves ${nameOf(c)} and sends it to the bottom of the deck${c.sw ? ' (its Second Wind is wasted)' : ''}.`, p, record ? {from:`${t.owner}-${t.uid}`, to:null, by:p, amt:0, ...mvs([[c, 'charge', 'deck-bottom', 'save']])} : undefined));
           c.sw = 0;
         }
       }
@@ -2842,9 +2871,10 @@ function runBattle(cfgs, record){
         const v = [pl.charge, ...pl.deck].find(u => u && isDead(u));
         if (!v) continue;
         pl.infUsed = true; v.dmg = 0;
+        const z = pl.charge === v ? 'charge' : 'deck';
         if (pl.charge === v) pl.charge = null; else pull(pl, v);
         toBottom(pl, v);
-        withAb(abB('Infirmary', p), () => log(`Infirmary saves ${nameOf(v)} and sends it to the bottom of the deck${v.sw ? ' (its Second Wind is wasted)' : ''}.`, p, record ? {from:null, to:`${v.owner}-${v.uid}`, by:p, amt:0, tok:'ret'} : undefined));
+        withAb(abB('Infirmary', p), () => log(`Infirmary saves ${nameOf(v)} and sends it to the bottom of the deck${v.sw ? ' (its Second Wind is wasted)' : ''}.`, p, record ? {from:null, to:`${v.owner}-${v.uid}`, by:p, amt:0, tok:'ret', ...mvs([[v, z, 'deck-bottom', 'save']])} : undefined));
         v.sw = 0;
       }
       // Second Wind: a unit it is attached to that would die goes to the bottom of the deck with no damage instead
@@ -2853,9 +2883,10 @@ function runBattle(cfgs, record){
         for (const u of [pl.charge, ...pl.deck]){
           if (!u || !u.sw || !isDead(u)) continue;
           const extra = u.sw - 1; u.sw = 0; u.dmg = 0;
+          const z = pl.charge === u ? 'charge' : 'deck';
           if (pl.charge === u) pl.charge = null; else pull(pl, u);
           toBottom(pl, u);
-          withAb(abM('Second Wind', p), () => log(`Second Wind saves ${nameOf(u)} and sends it to the bottom of the deck${extra ? ` (${extra === 1 ? 'the other Second Wind is' : `${extra} more are`} wasted)` : ''}.`, p, record ? {from:null, to:`${u.owner}-${u.uid}`, by:p, amt:0, tok:'ret'} : undefined));
+          withAb(abM('Second Wind', p), () => log(`Second Wind saves ${nameOf(u)} and sends it to the bottom of the deck${extra ? ` (${extra === 1 ? 'the other Second Wind is' : `${extra} more are`} wasted)` : ''}.`, p, record ? {from:null, to:`${u.owner}-${u.uid}`, by:p, amt:0, tok:'ret', ...mvs([[u, z, 'deck-bottom', 'save']])} : undefined));
         }
       }
       frameIf('Saves');
@@ -2893,8 +2924,9 @@ function runBattle(cfgs, record){
       // Cowardly Squire: a Recruit takes its place and keeps its tokens and gear
       const replace = (u, p) => { if (key(u) === 'Cowardly Squire' && ab(u)){ const k = val(u); if (k <= 0) return []; const rs = Array.from({length:k}, () => recruit(p));
         const r = rs[0]; r.arm = u.arm; r.sh = u.sh; r.train = Math.max(r.train, u.train); r.gear = u.gear; u.gear = null; r.sw = u.sw || 0;
-        withAb(abU(u, p), () => log(`${nameOf(u)} is replaced by ${many(k, 'a Recruit', 'Recruits')}${r.gear || r.arm || r.sh ? ' that keeps its tokens and gear' : ''}.`, p, tokMeta(u, rs[0], p, 'rec', k))); return rs; } return []; };
-      if (record) for (const d of dying) log(`${nameOf(d.u)} dies.`, d.p);
+        const atC = P[p].charge === u;
+        withAb(abU(u, p), () => log(`${nameOf(u)} is replaced by ${many(k, 'a Recruit', 'Recruits')}${r.gear || r.arm || r.sh ? ' that keeps its tokens and gear' : ''}.`, p, record ? {...tokMeta(u, rs[0], p, 'rec', k), ...mvs(rs.map((x, i) => [x, 'new', atC && i === 0 ? 'charge' : 'deck', 'arrive']))} : undefined)); return rs; } return []; };
+      if (record) for (const d of dying) log(`${nameOf(d.u)} dies.`, d.p, mvs([[d.u, d.zone === 'c' ? 'charge' : 'deck', 'grave', 'defeat']]));
       for (const p of [0,1]){
         const pl = P[p];
         let extra = [];
@@ -2986,7 +3018,7 @@ function runBattle(cfgs, record){
     const ch = [null,null], pe = [null,null];
     for (const p of [0,1]){
       const pl = P[p];
-      if (!pl.charge && pl.deck.length){ pl.charge = pl.deck.shift(); ch[p] = pl.charge; log(`${nameOf(pl.charge)} charges.`, p); }
+      if (!pl.charge && pl.deck.length){ pl.charge = pl.deck.shift(); ch[p] = pl.charge; log(`${nameOf(pl.charge)} charges.`, p, mvs([[pl.charge, 'deck', 'charge', 'charge']])); }
     }
     const mark = () => { for (const p of [0,1]){ const pl = P[p], t = top(p); if (t && t.uid !== pl.revealed){ pl.revealed = t.uid; pe[p] = t; log(`${nameOf(t)} is revealed.`, p); } } };
     const charges = () => { for (const p of [0,1]) if (ch[p] && P[p].charge === ch[p]) doCharge(ch[p], p); };
@@ -6380,8 +6412,8 @@ const kebab = k => k.startsWith('--') ? k : k.replace(/[A-Z]/g, m => '-' + m.toL
 function applyRoom(el, r){ for (const k of ['margin-left', 'margin-right', 'margin-top', 'margin-bottom', '--rt', '--rl']) el.style.removeProperty(k); for (const [k, v] of Object.entries(r || {})) el.style.setProperty(kebab(k), v); }
 const roomCSS = r => Object.entries(r).map(([k, v]) => `${k.replace(/[A-Z]/g, m => '-' + m.toLowerCase())}:${v}`).join(';');
 function pokeStyle(u, side, hit, art){
-  const t = tokenList(u).slice(0, pokeCap());
-  if (!t.length && !(art && art.gear)) return {style:'', html:'', title:''};   // gear alone still tucks a card behind
+  const t = art ? tokenList(u) : tokenList(u).slice(0, pokeCap());   // art cards group their stack into bands, so nothing is cut
+  if (!t.length && !(art && art.gear) && !art) return {style:'', html:'', title:''};   // gear alone still tucks a card behind
   const pp = pokeParts(t, side, hit, art), n = t.length;
   const room = art ? roomCSS(pp.room) : side === 1 ? `margin-left:calc(var(--px) * ${n});margin-bottom:calc(var(--py) * ${n})` : `margin-right:calc(var(--px) * ${n});margin-top:calc(var(--py) * ${n})`;
   const html = pp.html, sh = [pp.shadow];
@@ -6449,7 +6481,7 @@ function lineHTML0(f, names){
     const wait = (nsp ? ` · ✶ ${nsp}` : '') + (sd.sil ? ' · next reveal silenced' : '');
     return `<div class="tz deckz"><span class="zl">${names[side]} revealed · ${sd.deck.length} in deck${wait}</span><div class="tzc">${VS(side) === 1 ? stack + top : top + stack}</div></div>`;
   };
-  const chargeZone = (sd, side) => `<div class="tz chz"><span class="zl">${names[side]} charge</span><div class="tzc"><div class="charge">${cardHTML(sd.charge, side, 'charging') || '<span class="note">Empty</span>'}</div></div></div>`;
+  const chargeZone = (sd, side) => `<div class="tz chz"><span class="zl">${names[side]} charge</span><div class="tzc"><div class="charge"><div class="slot labempty labslot${sd.charge ? ' under' : ''}" aria-hidden="${sd.charge ? 'true' : 'false'}">Empty</div>${cardHTML(sd.charge, side, 'charging') || ''}</div></div></div>`;
   const graveZone = (sd, side) => `<div class="tz grz"><span class="zl">${names[side]} graveyard</span><div class="tzc">${graveHTML(sd.grave, side)}</div></div>`;
   const cityRow = side => {
     const pl = G && G.players && G.players[side]; if (!pl) return '';
@@ -8939,13 +8971,13 @@ function stopAnim(){ if (ui.animT){ clearTimeout(ui.animT); ui.animT = null; } }
 function applyRsv(root, rsv){
   for (const r of root.querySelectorAll('.trow')) for (const z of r.querySelectorAll(':scope > .chz, :scope > .deckz')){
     const m = rsv[(r.classList.contains('s1') ? 's1' : 's0') + (z.classList.contains('chz') ? 'c' : 'd')]; if (!m) continue;
-    z.classList.add('rsv'); z.style.setProperty('--rsvT', m[0] + 'px'); z.style.setProperty('--rsvL', m[1] + 'px');
+    z.classList.add('rsv'); z.style.setProperty('--rsvT', typeof m[0] === 'number' ? m[0] + 'px' : m[0]); z.style.setProperty('--rsvL', typeof m[1] === 'number' ? m[1] + 'px' : m[1]);
   }
 }
 function reserveRows(){
   const st = $('view-play').querySelector('.stage'), line = st && st.querySelector('.line.table');
   if (!st || !line || !ui.battle) return;
-  const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length;
+  const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length + ':' + (typeof LAB === 'object' ? LAB.splay : '');
   if (ui.battle.rowKey !== key){
     const probe = document.createElement('div');
     probe.className = 'stage'; probe.setAttribute('aria-hidden', 'true');
@@ -8954,8 +8986,10 @@ function reserveRows(){
     const names = PP() ? [poss(0), poss(1)] : ['Your', 'AI'], mx = [0, 0], rsv = {};
     const zones = root => [...root.querySelectorAll('.trow')].flatMap(r => [...r.querySelectorAll(':scope > .chz, :scope > .deckz')].map(z => ({z, k:(r.classList.contains('s1') ? 's1' : 's0') + (z.classList.contains('chz') ? 'c' : 'd')})));
     const face = z => z.querySelector('.charge > .card.hasart:not(.mini), .tzc > .card.hasart:not(.mini)');
-    // pass 1: the most room the copies and tokens behind each card spot ever need
-    for (const fr of ui.battle.frames){
+    // pass 1: every card spot keeps room for the biggest stack a card can have (STACK_MAX bands), in every battle,
+    // so the room never depends on what this battle happens to hold
+    if (typeof labFixedRoom === 'function'){ const fx = labFixedRoom(); for (const k of ['s0c', 's0d', 's1c', 's1d']) rsv[k] = fx.slice(); }
+    else for (const fr of ui.battle.frames){
       probe.innerHTML = lineHTML(fr, names);
       for (const {z, k} of zones(probe)){ const c = face(z); if (!c) continue; const cs = getComputedStyle(c), m = rsv[k] || (rsv[k] = [0, 0]);
         m[0] = Math.max(m[0], parseFloat(cs.marginTop) || 0); m[1] = Math.max(m[1], parseFloat(cs.marginLeft) || 0); }
@@ -8966,13 +9000,21 @@ function reserveRows(){
       probe.querySelectorAll('.trow').forEach(r => { const i = r.classList.contains('s1') ? 1 : 0; mx[i] = Math.max(mx[i], r.getBoundingClientRect().height); });
     }
     probe.remove();
-    ui.battle.rowH = mx; ui.battle.rsv = rsv; ui.battle.rowKey = key;
+    // the rows keep the tallest height any battle has needed at this width and board look, so they never shrink
+    // from one battle to the next
+    const gk = w + ':' + (typeof LAB === 'object' ? [LAB.splay, LAB.size, LAB.view, LAB.zoom, LAB.tilt].join(',') : '');
+    const keep = (window.__rowKeep || (window.__rowKeep = {}))[gk] || [0, 0];
+    mx[0] = Math.max(mx[0], keep[0]); mx[1] = Math.max(mx[1], keep[1]); window.__rowKeep[gk] = mx.slice();
+    ui.battle.rowH = mx; ui.battle.rsv = rsv; ui.battle.rowKey = key; ui.battle.rowGk = gk;
   }
   applyRsv(line, ui.battle.rsv || {});
   const [h0, h1] = ui.battle.rowH;
   const r0 = line.querySelector('.trow.s0'), r1 = line.querySelector('.trow.s1');
   if (r0) r0.style.minHeight = Math.ceil(h0) + 'px';
   if (r1) r1.style.minHeight = Math.ceil(h1) + 'px';
+  // a row drawn taller than its reserve (the hidden copy can measure a little short) raises the reserve for good
+  const keep = window.__rowKeep && ui.battle.rowGk ? window.__rowKeep[ui.battle.rowGk] : null;
+  [r0, r1].forEach((r, i) => { if (!r) return; const h = r.offsetHeight; if (h > ui.battle.rowH[i]){ ui.battle.rowH[i] = h; if (keep) keep[i] = Math.max(keep[i], h); r.style.minHeight = h + 'px'; } });
 }
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
 // every redraw of the battle keeps the reserved row heights
@@ -8985,6 +9027,7 @@ function goFrame(k, glide){
   const oldSvg = glide && k === ui.arrowsFor && prevSvg && prevSvg.dataset.full !== '0' ? prevSvg : null;   // incomplete: let the fresh drawing (which can see new units) take over
   const prevF = glide && ui.battle ? ui.battle.frames[ui.frame] : null;
   const broken = ui.battle && k === ui.frame + 1 ? shieldsToBreak() : [];   // shields that blocked a hit this step
+  const under = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-bottom') : [];   // cards going back under their deck
   ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay(); reserveRows();
   if (prevF && ui.battle) animateTokens(prevF, ui.battle.frames[k]); else clearTimeout(ui.tokT);
   if (broken.length) breakShields(broken);
@@ -9026,6 +9069,12 @@ function goFrame(k, glide){
       {duration: toGrave ? 500 : 680, easing: toGrave ? 'cubic-bezier(.22,.9,.3,1.04)' : 'cubic-bezier(.5,0,.2,1)'});
     if (grow) a.addEventListener('finish', () => { el.style.transformOrigin = ''; });
     a.onfinish = a.oncancel = () => { el.style.zIndex = ''; el.style.position = ''; if (tzUp){ tzUp.style.zIndex = ''; tzUp.style.position = ''; } };
+  }
+  // a card that went back under its deck and is out of sight now slides in there (alone in its deck it's the revealed
+  // card instead, and the FLIP above already moved it)
+  for (const m of under){
+    const r0 = from.get(m.u);
+    if (r0 && r0.clone && !$('view-play').querySelector(`.line .card[data-uid="${m.u}"]:not(.mini)`)) deckFly(r0, +m.u.split('-')[0]);
   }
 }
 /* Turning a market card over to see (or hide) the miracles behind it: a real 3D flip in perspective. The card turns
@@ -9074,20 +9123,8 @@ function deathFly(r0, nameEl){
   nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, fill:'backwards'});
   a.onfinish = a.oncancel = () => g.remove();
 }
-// Units saved back into the deck (Infirmary Tent, Field Medic, Second Wind): a unit on the table that would have been
-// defeated and is now hidden in its deck, undamaged. Keyed "side-uid".
-function savedIds(prevF, nextF){
-  const out = new Map(); if (!prevF || !nextF) return out;
-  prevF.snap.forEach((sd, side) => {
-    const nd = nextF.snap[side]; if (!nd) return;
-    for (const u of [sd.charge, sd.deck[0]]){
-      if (!u || !(u.dmg >= u.pow)) continue;
-      const i = nd.deck.findIndex(v => v.uid === u.uid);
-      if (i >= 1 && i === nd.deck.length - 1 && !nd.deck[i].dmg) out.set(`${side}-${u.uid}`, side);
-    }
-  });
-  return out;
-}
+// The card moves the engine recorded for a step (see mvs in runBattle)
+const frameMoves = f => f ? f.lines.flatMap(l => l.mv || []) : [];
 // A saved unit goes back into its deck instead of vanishing: it slides straight from where it was into its deck,
 // under the top card (the deck is held face up, so the bottom of the deck is under the pile). The copy moves inside
 // the deck zone itself, beneath the top card the whole way, so it never crosses over the pile.
@@ -9124,23 +9161,7 @@ function deckFly(r0, side){
   a.onfinish = a.oncancel = () => { g.remove(); dz.style.position = prev.pos; dz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; };
 }
 // Ability notes for a save (Infirmary Tent, Field Medic, Second Wind) point into the deck the unit went back into
-const abIsSave = g => g.lines.some(l => /bottom of the deck/.test(l.t || ''));
-{
-  const gf = goFrame;
-  goFrame = function(k, glide){
-    const flies = [];
-    if (glide && ui.battle && k === ui.frame + 1 && !reduceMotion()){
-      for (const [id, side] of savedIds(ui.battle.frames[ui.frame], ui.battle.frames[k])){
-        const el = $('view-play').querySelector(`.line .card[data-uid="${id}"]:not(.mini)`); if (!el) continue;
-        const r = el.getBoundingClientRect(); r.clone = el.cloneNode(true); flies.push({r, side, id});
-      }
-    }
-    const res = gf.apply(this, arguments);
-    // only when the unit really went out of sight (alone in its deck it's the revealed card, and just slides there)
-    for (const f of flies) if (!$('view-play').querySelector(`.line .card[data-uid="${f.id}"]:not(.mini)`)) deckFly(f.r, f.side);
-    return res;
-  };
-}
+const abIsSave = g => g.lines.some(l => (l.mv || []).some(m => m.k === 'save'));
 // New tokens slide out from behind their card one at a time (yours and the AI's in the order they were given),
 // right after the step lands; no extra clicks
 function animateTokens(prevF, curF){
@@ -9157,7 +9178,7 @@ function animateTokens(prevF, curF){
       for (const k of ['arm', 'tr', 'sh']){ kept[k] = Math.min(b[k], now[k]); for (let n = b[k]; n < now[k]; n++) added.push(k); }
       if (!added.length) continue;
       const el = $('view-play').querySelector(`.stage .card:not(.mini)[data-uid="${id}"]`); if (!el) continue;
-      const order = tokenList(kept).concat(added).slice(0, pokeCap()), start = Math.min(tokenList(kept).length, order.length);
+      const order = tokenList(kept).concat(added).slice(0, el.classList.contains('hasart') ? 99 : pokeCap()), start = Math.min(tokenList(kept).length, order.length);
       if (start >= order.length) continue;
       const set = (n, pop) => {
         const ua = (el.querySelector(':scope > .ctk img') || {}).src || (typeof artURL === 'function' ? artURL(u.name.replace(/^Jester → .*/, 'Jester'), 'u') : null);
@@ -9267,7 +9288,7 @@ function breakShieldsNow(){
     const u = units.get(card.dataset.uid), side = +card.dataset.side; if (!u) continue;
     const ua = (card.querySelector(':scope > .ctk img') || {}).src || null;
     const art = card.classList.contains('hasart') ? {...artInfo(u), unitArt:ua} : null;
-    const t = tokenList(u).slice(0, pokeCap()), pp = pokeParts(t, side, 0, art);
+    const t = art ? tokenList(u) : tokenList(u).slice(0, pokeCap()), pp = pokeParts(t, side, 0, art);
     card.style.boxShadow = t.length || art ? pp.shadow : '';
     // the card eases into its new spot as the stack behind it shrinks, instead of jumping
     if (art){ card.classList.add('tokanim'); applyRoom(card, pp.room); setTimeout(() => card.classList.remove('tokanim'), 480); try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){} }
@@ -9288,7 +9309,7 @@ function stepForward(){
   try{ glowStep(next); ui.abFrame = to; mountAbWin(); }catch(e){}   // abilities firing this step glow, and their notes show, as it begins
   if (reduceMotion()){ goFrame(to, true); return; }
   const before = unitsOf(prev, ['charge', 'deck']), after = unitsOf(next, ['charge', 'deck']), grave = unitsOf(next, ['grave']);
-  const hits = [], saved = savedIds(prev, next);
+  const hits = [], saved = new Set(frameMoves(next).filter(m => m.to === 'deck-bottom').map(m => m.u));   // saves and Sand Sailor: back under the deck
   for (const [id, u] of before){
     const hpOf = v => Math.max(0, Math.min(100, (v.pow - v.dmg) / Math.max(1, v.pow) * 100));
     if (saved.has(id)) hits.push({id, t:'Saved', ko:true, save:true, hp:100});   // its cubes lift off as it goes back into the deck
@@ -12621,12 +12642,21 @@ window.__cubesReady = () => { try{ cubeSync(); }catch(e){} };
 </script>
 <script id="lab-js">
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
-const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'up', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
+const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
+// one time only: everyone moves to the new default splay (up-left); after that, a player's own choice sticks
+try{ if (!localStorage.getItem('oasisBoardSplayUL')){ LAB.splay = 'now'; localStorage.setItem('oasisBoard', JSON.stringify(LAB)); localStorage.setItem('oasisBoardSplayUL', '1'); } }catch(e){}
 const labSave = () => { try{ localStorage.setItem('oasisBoard', JSON.stringify(LAB)); }catch(e){} };
 const labCrop = () => LAB.size === 'crop' || (LAB.size === 'auto' && compact());
 let LABPILE = 0;
+// the most bands a stack behind a battle card can have: copies (one band), gear, Might, Training, Shield. Every card
+// spot keeps this much room at all times, so nothing on the board moves as stacks grow and shrink.
+const STACK_MAX = 5;
+// that room as CSS, for the current splay: [above the card, left of it]
+const labFixedRoom = () => { const sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';
+  return [fan ? `calc(var(--tky) * ${(STACK_MAX * .55).toFixed(2)} + 10px)` : `calc(var(--tky) * ${STACK_MAX})`,
+          sp === 'now' ? `calc(var(--tkl) * ${STACK_MAX})` : sp === 'fanL' ? `calc(var(--bcw) * .32)` : '0px']; };
 // solid edge layers under a card face: 2 for any card, more for the cards hidden under a deck's top card
 const labEdges = n => { const k = 2 + Math.min(n || 0, 8) * 1, c = ['#3b2d23', '#5a4636']; let h = ''; for (let i = k; i >= 1; i--) h += `<b style="--o:${(i * 1.5).toFixed(1)}px;background:${c[i % 2]}"></b>`; return h; };
 
@@ -12644,7 +12674,7 @@ const labEdges = n => { const k = 2 + Math.min(n || 0, 8) * 1, c = ['#3b2d23', '
 pokeArt = function(t, side, hit, art){
   const nc = t.filter(k => k === 'cp').length, g = art.gear ? 1 : 0, cnt = {}, kinds = [];
   for (const k of t) if (k !== 'cp'){ if (!(k in cnt)){ cnt[k] = 0; kinds.push(k); } cnt[k]++; }
-  const n = nc + g + kinds.length, sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';
+  const n = STACK_MAX, sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';   // room is fixed, whatever the stack holds
   const up = fan ? `calc(var(--tky) * ${(n * .55).toFixed(2)} + ${n ? 10 : 0}px)` : `calc(var(--tky) * ${n})`;
   const wide = `calc(var(--bcw) * ${Math.min(.32, .1 * n).toFixed(2)})`;
   const lf = sp === 'now' ? `calc(var(--tkl) * ${n})` : sp === 'fanL' ? wide : '0px';
@@ -12652,10 +12682,11 @@ pokeArt = function(t, side, hit, art){
   const room = {marginTop:up, marginLeft:lf, marginRight:rt, '--rt':up, '--rl':lf};
   const tuck = j => `style="--j:${j};z-index:${-1 - j}"`;
   let html = '';
-  for (let j = 0; j < nc; j++) html += `<span class="tk ctk" ${tuck(j)} aria-hidden="true">${art.unitArt ? `<img src="${art.unitArt}" alt="" draggable="false">` : ''}<i class="tkband"></i></span>`;
-  if (g) html += `<span class="tk gtk${art.gearArt ? '' : ' plain'}" ${tuck(nc)} data-tuck-gear="${esc(art.gear)}"${art.gearArt ? ` data-art="1"` : ''} aria-hidden="true">${art.gearArt ? `<img src="${art.gearArt}" alt="" draggable="false">` : tuckPlainGear(art.gear)}<i class="tkband"></i></span>`;
-  html += kinds.map((k, j) => `<span class="pk tk${hit && k === 'sh' ? ' shhit' : ''}" data-k="${k}" data-tuck-tok="${k}" ${tuck(nc + g + j)} aria-hidden="true"><i class="tkband"></i>${cnt[k] > 1 ? `<b class="tkn">×${cnt[k]}</b>` : ''}</span>`).join('');
-  return {shadow:`inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})`, room, html};
+  const c1 = nc ? 1 : 0;   // every extra copy shares one band, with a count when there are two
+  if (nc) html += `<span class="tk ctk" ${tuck(0)} aria-hidden="true">${art.unitArt ? `<img src="${art.unitArt}" alt="" draggable="false">` : ''}<i class="tkband"></i>${nc > 1 ? `<b class="tkn">×${nc}</b>` : ''}</span>`;
+  if (g) html += `<span class="tk gtk${art.gearArt ? '' : ' plain'}" ${tuck(c1)} data-tuck-gear="${esc(art.gear)}"${art.gearArt ? ` data-art="1"` : ''} aria-hidden="true">${art.gearArt ? `<img src="${art.gearArt}" alt="" draggable="false">` : tuckPlainGear(art.gear)}<i class="tkband"></i></span>`;
+  html += kinds.map((k, j) => `<span class="pk tk${hit && k === 'sh' ? ' shhit' : ''}" data-k="${k}" data-tuck-tok="${k}" ${tuck(c1 + g + j)} aria-hidden="true"><i class="tkband"></i>${cnt[k] > 1 ? `<b class="tkn">×${cnt[k]}</b>` : ''}</span>`).join('');
+  return {shadow:(c1 + g + kinds.length) ? `inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})` : '', room, html};
 };
 const labArt = u => { const nm = u.name.replace(/^Jester → .*/, 'Jester'); return typeof artURL === 'function' ? (DEFS[nm] && DEFS[nm].token ? artURL('Recruit', 'u') : artURL(nm, 'u')) : null; };
 // the deck: the revealed unit is the top card; the cards under it stay hidden, their edges drawn under its face
@@ -12667,7 +12698,9 @@ function labDeck(sd, side, names){
     const k = Math.min(rest, 8), cols = ['#5a4636', '#3b2d23'];
     LABPILE = k;
     try{ top = cardHTML(rev, side, 'revealed'); } finally { LABPILE = 0; }
-  } else top = '<div class="slot labempty">Deck empty</div>';
+  } else top = '';
+  // the empty-deck outline is part of the board: always drawn in the deck's spot, covered by the top card while there is one
+  top = `<div class="slot labempty labslot${rev ? ' under' : ''}" aria-hidden="${rev ? 'true' : 'false'}">Deck empty</div>` + top;
   // the count lives in the zone's label (click it for the deck view), not on the cards
   const cnt = `<button type="button" class="labcnt" data-labdeck="${side}" title="See the whole deck">${sd.deck.length} in deck${nsp ? `<i>✶ ${nsp}</i>` : ''}</button>`;
   return `<div class="tz deckz"><span class="zl labzl" data-labdeck="${side}">${names[side]} deck ${sd.deck.length ? cnt : ''}${sd.sil ? ' · next reveal silenced' : ''}</span><div class="tzc">${top}</div></div>`;
@@ -12681,10 +12714,10 @@ function labGcard(u, side, top, k){
 }
 function labGrave(sd, side, names){
   const g = sd.grave, last = g[g.length - 1];
-  let inner = '<div class="labempty">Empty</div>';
+  let inner = '<div class="labempty labslot">Empty</div>';
   if (last){
     const under = g.slice(-4, -1).reverse().map((u, k) => labGcard(u, side, false, k)).join('');
-    inner = `<div class="grave labgpile" data-labgrave="${side}" role="button" tabindex="0" title="See the graveyard" style="position:relative;isolation:isolate">${under}${labGcard(last, side, true, 0).replace(/<\/b>$/, (g.length > 1 ? `<span class="gn">${g.length}</span>` : '') + '</b>')}</div>`;
+    inner = `<div class="labempty labslot under" aria-hidden="true">Empty</div><div class="grave labgpile" data-labgrave="${side}" role="button" tabindex="0" title="See the graveyard" style="position:relative;isolation:isolate">${under}${labGcard(last, side, true, 0).replace(/<\/b>$/, (g.length > 1 ? `<span class="gn">${g.length}</span>` : '') + '</b>')}</div>`;
   }
   return `<div class="tz grz"><span class="zl labzl" data-labgrave="${side}">${names[side]} graveyard${g.length ? ' · ' + g.length : ''}</span><div class="tzc">${inner}</div></div>`;
 }

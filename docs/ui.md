@@ -26,4 +26,13 @@
 ## Battle board
 - Teaches the physical setup: deck face up, top card = revealed unit, copies peeking above with names showing, gear
   and tokens tucked behind, health bar under the card with an "LV 2" tag at its left. Card font: Marcellus.
-- Board settings (lab-js, `LAB_DEF`): default table view tipped 15°, zoom 115%, AI's side further back and smaller.
+- Board settings (lab-js, `LAB_DEF`): default table view tipped 15°, zoom 115%, AI's side further back and smaller,
+  splay up-left (`'now'`; everyone was switched to it once via `localStorage.oasisBoardSplayUL`).
+- **Nothing on the board moves.** Every charge and deck spot always keeps room for the biggest stack a card can have
+  (`STACK_MAX` = 5 bands: copies, gear, Might, Training, Shield), on desktop and phone, in every splay
+  (`labFixedRoom`). Duplicate copies share one band with a "×2" count, like tokens. Zone labels are one fixed height.
+  Row heights only ever grow (`window.__rowKeep`), never shrink between battles. Check board changes with a
+  headless test that a card and the empty outline sit at the same pixel spot in every step, on both sides.
+- Empty outlines (deck "Deck empty", charge and graveyard "Empty", in the zone-label lettering) are part of the
+  board: always drawn in their spot, covered by whatever sits there (`.labslot.under`), never added or removed.
+  An in-flow outline keeps the card's 24 px health-bar strip under it, so the AI's bottom-anchored zones don't jump.
