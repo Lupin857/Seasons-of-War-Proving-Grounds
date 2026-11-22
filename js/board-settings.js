@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v70';
+const OASIS_BUILD = 'v72';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -68,7 +68,7 @@ function labDeck(sd, side, names){
 function labGcard(u, side, top, k){
   const url = labArt(u), rot = top ? 0 : (((u.uid * 37) % 9) - 4) * .8, dx = top ? 0 : (((u.uid * 53) % 7) - 3);
   const tag = top ? 'b' : 'span';
-  return `<${tag} class="gcard${top ? '' : ' gunder'}"${top ? ` data-uid="${side}-${u.uid}"` : ''}${top ? '' : ` style="position:absolute;left:${dx}px;top:${k * 1.5}px;transform:rotate(${rot}deg);z-index:${-1 - k}"`}><span class="labsh" aria-hidden="true">${labEdges(0)}<i></i></span>${url ? `<span class="gart" style="background-image:url('${url}')"></span>` : `<span class="gplain">${esc(u.name)}</span>`}<span class="lablt" aria-hidden="true"></span></${tag}>`;
+  return `<${tag} class="gcard${top ? '' : ' gunder'}"${top ? ` data-uid="${side}-${u.uid}"` : ` data-guid="${side}-${u.uid}"`}${top ? '' : ` style="position:absolute;left:${dx}px;top:${k * 1.5}px;transform:rotate(${rot}deg);z-index:${-1 - k}"`}><span class="labsh" aria-hidden="true">${labEdges(0)}<i></i></span>${url ? `<span class="gart" style="background-image:url('${url}')"></span>` : `<span class="gplain">${esc(u.name)}</span>`}<span class="lablt" aria-hidden="true"></span></${tag}>`;
 }
 function labGrave(sd, side, names){
   const g = sd.grave, last = g[g.length - 1];

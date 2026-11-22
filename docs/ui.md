@@ -16,6 +16,11 @@
 ## Motion
 - Flying cards travel **under** the bars, decks, discard pile and banners (use `LAYER` / `flyZ`).
 - Dealt cards come out of their own deck; cards going to the discard pile end at the pile.
+- Every unit defeated in a step flies to the graveyard (`deathFly`), found from the step's `mv` moves to `grave`. In the
+  face-up pile only the top card has `data-uid`; the cards under it carry `data-guid`, so a second unit of the same side
+  defeated in that step lands on its own card underneath (or on the pile, when it's buried too deep to be drawn).
+  Several units of one side defeated in one step go one after another (`GRAVE_STAGGER`, 260 ms), in the order they
+  land on the pile: the charging unit first, underneath, then the revealed unit on top. The two sides go at the same time.
 - Flips are real 3D turns (pattern in docs/code-map.md). The slide into the charge zone starts slow.
 - Damage cubes: real 3D wooden cubes dropped straight onto the top card with a random starting angle, contained on
   it; lifted upward to remove; a defeated unit's cubes lift as its card flips to the graveyard. Shadows fade in.

@@ -387,6 +387,7 @@ function reserveRows(){
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
 /* Show battle step k (glide: animate from the step on screen). Steps around the redraw come from the cubes
    (js/mobile-crop.js) and Board settings (js/board-settings.js); until v58 they were wrappers. Add steps here. */
+const GRAVE_STAGGER = 260;   // ms between two units of one side flying to the graveyard in the same step
 function goFrame(k, glide){
   const lab = labBeforeStep();             // Board settings: which units are revealed before the step
   cubesBeforeStep(glide);                  // damage cubes: lift off a defeated card's cubes, or settle them on a jump
@@ -405,6 +406,7 @@ function showFrame(k, glide){
   const prevF = glide && ui.battle ? ui.battle.frames[ui.frame] : null;
   const broken = ui.battle && k === ui.frame + 1 ? shieldsToBreak() : [];   // shields that blocked a hit this step
   const under = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-bottom') : [];   // cards going back under their deck
+  const died = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'grave') : [];   // cards defeated this step
   ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay(); reserveRows();
   if (prevF && ui.battle) animateTokens(prevF, ui.battle.frames[k]); else clearTimeout(ui.tokT);
   if (broken.length) breakShields(broken);
@@ -425,12 +427,13 @@ function showFrame(k, glide){
   }
   ui.arrowsFor = null;
   if (!from.size) return;
+  const flies = [];   // [uid, r0, landing spot] of each card flying to the graveyard; started together below
   for (const el of $('view-play').querySelectorAll('.line [data-uid]')){
     const r0 = from.get(el.dataset.uid); if (!r0 || !el.animate) continue;
     const r1 = el.getBoundingClientRect(), dx = r0.left - r1.left, dy = r0.top - r1.top;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
     const toGrave = el.tagName === 'B' && !r0.wasB;   // just died (a name already in the list only slides)
-    if (toGrave && r0.clone){ deathFly(r0, el); continue; }
+    if (toGrave && r0.clone){ flies.push([el.dataset.uid, r0, el]); continue; }
     el.style.position = 'relative'; el.style.zIndex = 5;
     const tzUp = el.closest('.tz'); if (tzUp){ tzUp.style.position = 'relative'; tzUp.style.zIndex = 20; }
     // a card that grew or shrank (a stack strip becoming the revealed card, say) also eases between sizes
@@ -447,6 +450,19 @@ function showFrame(k, glide){
     if (grow) a.addEventListener('finish', () => { el.style.transformOrigin = ''; });
     a.onfinish = a.oncancel = () => { el.style.zIndex = ''; el.style.position = ''; if (tzUp){ tzUp.style.zIndex = ''; tzUp.style.position = ''; } };
   }
+  // several units of one side defeated in one step: only the top of the graveyard pile carries data-uid, so the ones
+  // that landed underneath fly to their own card in the pile (or to the pile, if it's buried too deep to be drawn)
+  for (const m of died){
+    const r0 = from.get(m.u); if (!r0 || !r0.clone || $('view-play').querySelector(`.line b[data-uid="${m.u}"]`)) continue;
+    const side = m.u.split('-')[0], st = $('view-play').querySelector('.stage');
+    const tgt = st && (st.querySelector(`.gcard[data-guid="${m.u}"]`) || st.querySelector(`.labgpile[data-labgrave="${side}"] > b`));
+    if (tgt) flies.push([m.u, r0, tgt]);
+  }
+  // one side losing several units in a step: they go one after another in the order they land on the pile (the
+  // charging unit first, underneath, then the revealed unit on top); the two sides still go at the same time
+  const order = died.map(m => m.u), seen = [0, 0];
+  flies.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+  for (const [uid, r0, tgt] of flies){ const s = +uid.split('-')[0]; deathFly(r0, tgt, GRAVE_STAGGER * seen[s]++); }
   // a card that went back under its deck and is out of sight now slides in there (alone in its deck it's the revealed
   // card instead, and the FLIP above already moved it)
   for (const m of under){

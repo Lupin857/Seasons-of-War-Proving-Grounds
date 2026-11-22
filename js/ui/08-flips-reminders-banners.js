@@ -16,8 +16,9 @@ function mirTurn(el, k, apply){
       {duration:220, easing:'cubic-bezier(.25,.5,.4,1)'});
   };
 }
-// A card that dies: a copy of it slides toward the graveyard, flips face down, and shrinks into its name in the list
-function deathFly(r0, nameEl){
+// A card that dies: a copy of it slides toward the graveyard, flips face down, and shrinks into its name in the list.
+// delay (ms): the copy waits where the card was, and its spot in the graveyard stays hidden until it lands
+function deathFly(r0, nameEl, delay = 0){
   const g = r0.clone, r1 = nameEl.getBoundingClientRect();
   g.classList.remove('shake', 'lunge0', 'lunge1'); g.classList.add('deathfly');
   for (const f of g.querySelectorAll('.float')) f.remove();
@@ -39,9 +40,9 @@ function deathFly(r0, nameEl){
     {transform:pf + `translate(${dx * 0.55}px,${dy * 0.55 - 8}px) rotateY(90deg) scale(.7)`, filter:'brightness(.72)', offset:.45},
     {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:.85, offset:.88},
     {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:0, offset:1}
-  ], {duration:T, easing:'cubic-bezier(.4,.1,.3,1)', fill:'forwards'});
-  back.animate([{opacity:0}, {opacity:0, offset:.45}, {opacity:1, offset:.451}, {opacity:1}], {duration:T, fill:'forwards'});
-  nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, fill:'backwards'});
+  ], {duration:T, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'both'});
+  back.animate([{opacity:0}, {opacity:0, offset:.45}, {opacity:1, offset:.451}, {opacity:1}], {duration:T, delay, fill:'both'});
+  nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, delay, fill:'backwards'});
   a.onfinish = a.oncancel = () => g.remove();
 }
 // The card moves the engine recorded for a step (see mvs in runBattle)
