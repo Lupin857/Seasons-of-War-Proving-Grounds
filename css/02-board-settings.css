@@ -110,7 +110,7 @@ body.lab-crop.lab-stock .labsh::before{content:"";position:absolute;inset:4% 2% 
 body.lab-crop.lab-stock .labsh>b{position:absolute;inset:0;background:#2c2119;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
 body.lab-stock .labsh>b{transform:translateY(var(--o,2px))}
 body.lab-stock .card.hasart>.tk{filter:none!important}
-body.lab-stock .card.hasart>.tk::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.17);pointer-events:none}
+body.lab-stock .card.hasart>.tk::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.08);pointer-events:none}
 body.lab-light .lablt{mix-blend-mode:normal!important;background:linear-gradient(160deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 30%,rgba(0,0,0,0) 60%,rgba(0,0,0,.16) 100%)!important}
 .table .card.hasart:not(.mini){will-change:transform}
 /* phones in battle: the play space runs edge to edge (no panel border or side gutters) */

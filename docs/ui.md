@@ -6,7 +6,8 @@
 - Phone: things you tap at the bottom, information at the top (top bar pinned clear of the notch). Keep bars as small
   as possible so the phone shows as many market cards as it can; readability fixes must not make bars taller. Battle
   runs edge to edge (no borders). Cards are cropped to the type tab (shop, Mobilize, battle); tap for the full card.
-- Desktop: a card panel on the right (≥1200 px); hover any card to read it full size.
+- Desktop: a card panel on the right (≥1200 px); hover any card to read it full size. `solidArt` swaps its picture
+  for a canvas, so its CSS sizes `:is(img,canvas)`.
 
 ## Stability
 - UI must not shift during play. Reserve room for things that appear (banners, notes, buttons).
@@ -26,6 +27,9 @@
 ## Battle board
 - Teaches the physical setup: deck face up, top card = revealed unit, copies peeking above with names showing, gear
   and tokens tucked behind, health bar under the card with an "LV 2" tag at its left. Card font: Marcellus.
+- The health text and LV tag sit on the light table, so they use fixed card colors (ink `#2b211a`, hurt `#a3322a`,
+  tag `#f3ead8`), never theme variables like `--ink` (which turn light in dark mode).
+- With card stock on, cards tucked behind a unit (copies, gear, tokens) get a light 8% shade so they read as behind it.
 - The open Board settings panel shows the game version (`OASIS_BUILD`, the artifact publish number, e.g. `v55`).
 - Board settings (js/board-settings.js, `LAB_DEF`): default table view tipped 15°, zoom 115%, AI's side further back and smaller,
   splay up-left (`'now'`; everyone was switched to it once via `localStorage.oasisBoardSplayUL`).

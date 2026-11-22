@@ -228,15 +228,16 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 /* Cards that left the display at the end of the last shop (unbought returning cards) fly from the slot they sat in to
    the discard pile, the reverse of a deal. Returns when the last one lands (ms), so the deal can start after it.
-   The whole start of a round (cleanup, upkeep and the deal) fits in about 2 seconds however many cards there are:
+   The whole start of a round (cleanup, upkeep and the deal) fits in about 2.5 seconds however many cards there are:
    each part has a fixed window in ROUND_FX and they overlap, so more cards means a tighter stagger, not a longer wait.
-     cleanup  unbought cards fly to the discard pile    from   60 ms, staggered over 250, 650 each  → done by ~960
-     upkeep   hourglass tokens stamp on                  from  250 ms, staggered over 300, 450 each  → done by ~1000
-     deal     new cards fly out of the deck and flip     from  400 ms, staggered over 450, 900 each  → done by ~2000
+     cleanup  unbought cards fly to the discard pile    from   75 ms, staggered over 863, 813 each  → done by ~1750
+     upkeep   hourglass tokens stamp on                  from  313 ms, staggered over 875, 563 each  → done by ~1750
+     deal     new cards fly out of the deck and flip     from  500 ms, staggered over 900, 1125 each → done by ~2525
+   (Tuned by Brian in the Oasis shop animation lab, Nov 2026.)
    With nothing to clean up or stamp, the deal starts at once. A dealt card can head for a spot an unbought card is
    leaving: it lands only after that card has lifted away. */
-const ROUND_FX = {leaveAt:60, leaveSpread:250, leaveGap:150, leaveDur:650, tokAt:250, tokSpread:300, tokGap:140, tokDur:450,
-  dealAt:400, deal:{spread:450, gap:160, dur:900, backDur:600, backLead:250}};
+const ROUND_FX = {leaveAt:75, leaveSpread:863, leaveGap:188, leaveDur:813, tokAt:313, tokSpread:875, tokGap:175, tokDur:563,
+  dealAt:500, deal:{spread:900, gap:200, dur:1125, backDur:750, backLead:313}};
 const spreadGap = (n, spread, max) => n > 1 ? Math.min(max, spread / (n - 1)) : 0;
 function leaveToPile(rows){
   const L = G.leaving, pile = $('muster-pile'), mktp = $('view-play').querySelector('.mktp');
