@@ -12,7 +12,8 @@ global scope and run in the order index.html loads them, exactly like the old in
 - `css/` (loaded in this order; later files restyle earlier ones, so search every file for a selector):
   `01-battle-card.css` (battle card look, Marcellus import) → `02-board-settings.css` (Board settings / table view)
   → `03-main.css` (the big base layout) → `04-desktop-art.css` (art cards, desktop panel) → `05-fixes.css` (later
-  fixes) → `06-mobile-crop.css` (phone type-tab crop) → `07-no-anchor.css` → `08-cards-tab.css` → `09-mobilize.css` (the Mobilize screen).
+  fixes) → `06-mobile-crop.css` (phone type-tab crop) → `07-no-anchor.css` → `08-cards-tab.css` → `09-mobilize.css` (the Mobilize screen) → `10-game-menu.css` (the game top bar's ☰ menu; hides the title and tabs
+  during a game; the desktop version of the top bar).
   Image paths in CSS are relative to the CSS file: `url(../art/...)`.
 - `js/vendor/peerjs.min.js`: PeerJS (online play). Don't edit.
 - `js/engine.js`: rules + AI. Also runs in Web Workers (loaded by URL, see `engineWorkerURL`) and in the tests, so
@@ -29,7 +30,8 @@ global scope and run in the order index.html loads them, exactly like the old in
   layers) · `10-mobilize` (all of Mobilize: deck data helpers, drawing the deck and bench, one input controller for drag and tap) · `11-self-play` (worker pool) · `12-train-view` ·
   `13-stats-view` · `14-balance-lab` · `15-sync-roles-ratings` (keep scroll, share with Claude, one AI everywhere,
   player mode, finalized balance, ratings) · `16-new-game` · `17-card-peek-tooltips` (ends with the STARTUP SYNC,
-  which must start after every UI file has loaded).
+  which must start after every UI file has loaded) · `18-game-menu` (the ☰ menu in the game top bar: the tabs and the
+  sound switch while a game is on screen; loaded last, after `js/cards-tab.js`).
 - `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
   glow) · `js/board-settings.js` (`LAB_DEF`, `OASIS_BUILD`, table view, depth, splay, clash, cube hooks) ·
   `js/cards-tab.js` (Cards tab).
@@ -70,6 +72,8 @@ Banners: SHARED UI HELPERS → SOUND → WHO IS VIEWING → GAME LENGTHS → BAT
 → CARD MOTION (shop) → ONLINE PLAY → SHOP MOVES → MIRACLES IN HAND → SELF-PLAY → TRAIN VIEW → STATS VIEW → BALANCE LAB
 → SHARE WITH CLAUDE (db) → ONE AI EVERYWHERE → PLAYER MODE → FINALIZED BALANCE → RATINGS → NEW GAME: MODE + SETUP →
 CARD PEEK (keywords) → TOOLTIPS.
+- During a game the Oasis title, sound button and tabs are hidden; the ☰ at the left of the game top bar
+  (`pbarHTML` in 06, the same bar on every game screen) opens them (`js/ui/18-game-menu.js`).
 - Tabs: Play, Cards, Train the AI, Balance & stats (`view-lab` on top, designers only; `view-stats` below), Rules.
 - Roles: `applyRole`, `isPlayer()`. The owner is the designer; shared viewers are players (no lab or training).
 - Balance: `FINAL = {ov, at, patches}`, server doc `balance/final`. `setBaseline`, `finalizeBalance(ov, back)` pushes

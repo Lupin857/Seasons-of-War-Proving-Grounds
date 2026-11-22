@@ -222,26 +222,20 @@ function dockHTML(){
   return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock">${piles}${body ? `<div class="dbar">${body}</div>` : ''}
     <div class="dbtns${shopping ? '' : ' tight'}">${deckBtn(VS(0))}${deckBtn(VS(1))}${mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
-// the phone's pinned top bar: both sides' money and counts around the score, then the phase and what to do now
+// the game's top bar, the same on every screen (shop, Mobilize, battle; phone and desktop): the menu button, then
+// Round · score · First to. Under it, the phase and what to do now (Mobilize, battle), or the shop hint when asked for.
+// Each side's money and limits live in the bottom bar (phone) and the deck tiles (desktop), not here.
+const GMENU_BTN = '<button type="button" class="gmenu-btn" data-gmenu aria-label="Menu" aria-haspopup="menu" aria-expanded="false"><span></span><span></span><span></span></button>';
 function pbarHTML(){
   const D = DOCKINFO; if (!D) return '';
-  const B = hideResult() ? ui.pre : boardSnap(), S = seat();
-  const counts = !ui.battle && !G.over && (G.phase === 'shop' || G.phase === 'mobilize');
+  const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
-  const side = i => {
-    const p = G.players[i];
-    const who = PP() || G.net ? esc(nm(i)) : i === S ? 'You' : 'Enemy';
-    let cap = '';
-    if (counts){
-      const u = uniqueUnits(i === S ? p : {...p, hand:pubHand(p)}), uc = deckCap(p), b = slotsUsed(p), bc = citySlots(p);
-      cap = `<span class="pbc"><b class="${u >= uc ? 'full' : ''}" title="Unique units owned; the deck holds ${uc}">${u}/${uc}</b> Units · <b class="${b >= bc ? 'full' : ''}" title="City slots used; the city holds ${bc}">${b}/${bc}</b> City</span>`;
-    }
-    return `<div class="pbs s${VS(i)}"><span class="pbn">${who}${shopping && G.passed[i] ? ' <span class="pbx">passed</span>' : ''}</span><span class="pbmo">$${B.money[i]} · +$${B.inc[i]}</span>${cap}</div>`;
-  };
   const L = VS(0), Rt = VS(1);
-  if (shopping) return `<div class="gtop gs" id="gtop"><div class="pbsc"><span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>${ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : ''}</div>`;
-  return `<div class="gtop" id="gtop"><div class="pbg">${side(L)}<div class="pbm"><div class="sc">${B.tot[L]} – ${B.tot[Rt]}</div><div class="rd">Round ${G.round} · first to ${G.target}</div></div>${side(Rt)}</div>
-    <div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div></div>`;
+  const bar = `<div class="pbsc">${GMENU_BTN}<span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
+  const hint = shopping
+    ? (ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : '')
+    : `<div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div>`;
+  return `<div class="gtop gs" id="gtop">${bar}${hint}</div>`;
 }
 // "Taken by AI" placeholders keep their spot in the market for the rest of the shop
 function ghostList(kind){ return ui.ghosts && ui.ghosts.round === G.round ? ui.ghosts[kind] : []; }
