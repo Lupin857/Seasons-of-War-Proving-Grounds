@@ -34,6 +34,7 @@ function deathFly(r0, nameEl, delay = 0){
   g.removeAttribute('data-uid'); g.dataset.fly = uid; g.setAttribute('data-keep', ''); g.setAttribute('aria-hidden', 'true');   // (a redraw mid-flight leaves it alone)
   for (const f of g.querySelectorAll('.float, .trigglow, .hprow')) f.remove();   // (its health row would show through, mirrored, on the back)
   Object.assign(g.style, {position:'absolute', left:a0.left + 'px', top:a0.top + 'px', width:a0.width + 'px', height:a0.height + 'px'});
+  g.style.setProperty('margin', '0', 'important');   // (a charging card's reserved room above it is an !important margin: the copy must not keep it)
   const back = document.createElement('span'); back.className = 'dfback'; g.appendChild(back);
   line.appendChild(g);
   // the redraw can move the whole table (its rows resize): start from where the card really was on screen, not from its

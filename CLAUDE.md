@@ -60,6 +60,9 @@ docs/code-map.md), and the repo clone is the working copy.
    Bump `OASIS_BUILD` (js/board-settings.js, next to `LAB_DEF`) to the publish number this publish will get (the
    current `seq` + 1; the publish result reports the real `seq`: if it differs, correct the label in the next
    real publish. Don't republish just for the label: every publish takes a new `seq`, so it can never catch up).
+   Then run `node tools/stamp.mjs`: it stamps every css/js link in index.html with `?v=<build>`, so browsers fetch the
+   new files together (GitHub Pages lets them cache files for 10 minutes, and a mix of old and new files breaks the
+   game). index.html then changes on every publish: list it too.
 3. Run `node tools/check-page.mjs` (seconds) and the other tests that apply (below).
 4. Right before publishing, `get_artifact` again: if the version changed, another chat is working on it; tell Brian
    and merge onto the newest files, never over them. Publish with `publish_files` (default patch mode), listing only

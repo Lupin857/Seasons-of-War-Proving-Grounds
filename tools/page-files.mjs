@@ -13,7 +13,7 @@ export function pageScripts(htmlPath, { vendor = true } = {}){
   for (const m of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)){
     const attrs = m[1];
     if (/type="application\/json"/.test(attrs)) continue;
-    const srcAttr = (/\bsrc="([^"]+)"/.exec(attrs) || [])[1];
+    const srcAttr = ((/\bsrc="([^"]+)"/.exec(attrs) || [])[1] || '').split('?')[0] || undefined;   // (a ?v= build stamp is not part of the file name)
     if (srcAttr && /(^|\/)cubes\.js$/.test(srcAttr)) continue;
     if (!vendor && srcAttr && /vendor\//.test(srcAttr)) continue;
     const line = html.slice(0, m.index).split('\n').length;

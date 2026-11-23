@@ -13,7 +13,8 @@ window.addEventListener('error', ev => {
 // Source for a Web Worker that runs the engine plus one main function (the AI or the self-play pool).
 // The engine lives in js/engine.js; the worker loads it by URL, so there is only ever one copy of it.
 function engineWorkerURL(main){
-  const eng = new URL('js/engine.js', document.baseURI).href;
+  // the same link the page loaded it from (with its ?v= build stamp, so a worker never runs an older cached engine)
+  const tag = document.getElementById('engine'), eng = tag && tag.src ? tag.src : new URL('js/engine.js', document.baseURI).href;
   return URL.createObjectURL(new Blob([`importScripts(${JSON.stringify(eng)});\n(${main.toString()})();`], {type:'text/javascript'}));
 }
 const $ = id => document.getElementById(id);
