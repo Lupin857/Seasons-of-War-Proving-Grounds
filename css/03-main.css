@@ -473,21 +473,6 @@ details.ladder[open]{display:flex;flex-direction:column;gap:10px}
 [data-drag]{cursor:grab}
 .li[data-drag]{user-select:none;-webkit-user-select:none}
 .dragging{opacity:.35}
-.arrows{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:3}
-.arw{fill:none;stroke-width:3;stroke-linecap:round;animation:arwdraw .35s ease-out forwards}
-.arw.s0{stroke:var(--azure)} .arw.s1{stroke:var(--gules)}
-.ah0{fill:var(--azure)} .ah1{fill:var(--gules)}
-@keyframes arwdraw{to{stroke-dashoffset:0}}
-.arl{font-family:var(--f-mono);font-weight:700;font-size:13px;text-anchor:middle;paint-order:stroke;stroke:var(--bg);stroke-width:4px;opacity:0;animation:arlin .2s ease-out forwards}
-.arl.s0{fill:var(--azure)} .arl.s1{fill:var(--gules)}
-@keyframes arlin{to{opacity:1}}
-.arrows.still{animation:arrowsin .3s .25s ease-out backwards}
-.arrows.still .arw{animation:none}
-.arrows.still .arl{animation:none;opacity:1}
-.arrows.quiet .arw{animation:none}
-.arrows.quiet .arl{animation:none;opacity:1}
-@keyframes arrowsin{from{opacity:0}}
-@media (prefers-reduced-motion: reduce){ .arw{animation:none;stroke-dashoffset:0!important} .arrows.still{animation:none} .arl{animation:none;opacity:1} }
 details.panel>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px}
 details.panel>summary::-webkit-details-marker{display:none}
 details.panel>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
@@ -762,7 +747,7 @@ header{position:relative}
 }
 @media (prefers-reduced-motion: reduce){ .table .card.lunge0,.table .card.lunge1{animation:none!important} }
 
-.card.deathfly{position:fixed;margin:0;z-index:75;pointer-events:none;transform-origin:center;backface-visibility:visible;box-shadow:0 10px 26px rgba(0,0,0,.28)}
+.card.deathfly{position:absolute;margin:0;z-index:75;pointer-events:none;transform-origin:center;backface-visibility:visible;box-shadow:0 10px 26px rgba(0,0,0,.28)}
 .card.deathfly .dfback{position:absolute;inset:-1px;border-radius:8px;opacity:0;background:var(--sunk);background-image:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--muted) 25%,transparent) 5px 7px);border:1px solid var(--line)}
 
 /* token cards behind battle cards */
@@ -777,14 +762,6 @@ header{position:relative}
 .stage .linewrap{padding:18px 0}
 @media (max-width:640px){ .table .trow{gap:6px} .table .charge{padding:4px;min-width:96px} .table .grave{width:80px} .table .trow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)} }
 
-/* token arrows: dashed, colored by what was given */
-.arw.tok{stroke-width:2.5;stroke-dasharray:5 4;animation:tokin .35s ease-out backwards}
-@keyframes tokin{from{opacity:0}}
-.arw.tok.t-arm,.arl.t-arm{stroke:var(--or)} .aht.t-arm,.arl.tok.t-arm{fill:var(--or)}
-.arw.tok.t-tr{stroke:var(--azure)} .aht.t-tr,.arl.tok.t-tr{fill:var(--azure)}
-.arw.tok.t-sh{stroke:var(--muted)} .aht.t-sh,.arl.tok.t-sh{fill:var(--muted)}
-.arw.tok.t-rec{stroke:var(--ok)} .aht.t-rec,.arl.tok.t-rec{fill:var(--ok)}
-.arl.tok{stroke:var(--bg)}
 
 /* tokens sliding out from behind a card */
 .card.tokanim{transition:box-shadow .42s cubic-bezier(.2,.8,.25,1.15), margin .42s cubic-bezier(.2,.8,.3,1)}
@@ -797,7 +774,6 @@ header{position:relative}
 .table .city.s0{flex-direction:column-reverse;margin-top:6px}
 .table .city.s1{margin-bottom:6px}
 .table .city .zl{font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.arw.tok.t-ret{stroke:var(--ok)} .aht.t-ret,.arl.tok.t-ret{fill:var(--ok)}
 
 /* pass and play */
 .ppnames{gap:10px 16px}
@@ -1341,10 +1317,6 @@ body.dsopen{overflow:hidden}
 .abbox .lv{padding:0 2px}
 .abbox.min .abt{display:none}
 .abbox.min .abn::after{content:" ›";opacity:.6}
-.ablines{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:5}
-.ablines .abl{fill:none;stroke-width:1.5;stroke-dasharray:4 3;opacity:.8}
-.ablines .abl.s0{stroke:var(--azure)} .ablines .abl.s1{stroke:var(--gules)}
-.ablines .abd.s0{fill:var(--azure)} .ablines .abd.s1{fill:var(--gules)}
 @keyframes abin{from{opacity:0}}
 .abtog[aria-pressed="true"]{background:var(--or-soft);border-color:var(--or)}
 @media (prefers-reduced-motion: reduce){ .abbox{animation:none} }
@@ -1418,10 +1390,6 @@ body.ingame #view-play{min-height:calc(100dvh - 16px)}
 .card .pk{display:flex;justify-content:center;align-items:flex-start;box-sizing:border-box;padding:2px 2px 0 1px}
 .card[data-side="1"] .pk{padding:0 1px 2px 2px;align-items:flex-end}
 .card .pk .gi{width:calc(var(--px) - 4px);height:calc(var(--px) - 4px);margin:0;vertical-align:top;flex:none}
-.arlic{opacity:0;animation:arlin .2s ease-out forwards}
-.arlic.t-arm{fill:var(--or)} .arlic.t-tr{fill:var(--azure)} .arlic.t-sh{fill:var(--muted)} .arlic.t-rec{fill:var(--ok)}
-.arrows.still .arlic,.arrows.quiet .arlic{animation:none;opacity:1}
-@media (prefers-reduced-motion: reduce){ .arlic{animation:none;opacity:1} }
 .mcard.tcard.picked{background:var(--or-soft)!important;outline:2px solid var(--or);outline-offset:2px}
 .mcard.tcard.dragging{opacity:.5}
 /* the ⓘ for the phase you're in */

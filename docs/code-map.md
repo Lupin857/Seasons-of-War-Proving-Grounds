@@ -31,7 +31,9 @@ global scope and run in the order index.html loads them, exactly like the old in
   `13-stats-view` · `14-balance-lab` · `15-sync-roles-ratings` (keep scroll, share with Claude, one AI everywhere,
   player mode, finalized balance, ratings) · `16-new-game` · `17-card-peek-tooltips` (ends with the STARTUP SYNC,
   which must start after every UI file has loaded) · `18-game-menu` (the ☰ menu in the game top bar: the tabs and the
-  sound switch while a game is on screen; loaded last, after `js/cards-tab.js`).
+  sound switch while a game is on screen; after `js/cards-tab.js`) · `19-battle-ink` (the battle's ink strokes and the
+  ability notes' brush dabs, on its own animation loop; it reads the step being started from `ui.inkStart`, set by
+  `stepForward`; designed in the "Oasis battle lab: ink helpers" artifact).
 - `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
   glow) · `js/board-settings.js` (`LAB_DEF`, `OASIS_BUILD`, table view, depth, splay, clash, cube hooks) ·
   `js/cards-tab.js` (Cards tab).
@@ -123,6 +125,10 @@ is a square", then the art-card and Board-settings rules). Search for every rule
   z-order from `LAYER` and `flyZ` (flights go under bars and banners). FLIP moves: `slideFrom(rects, els, ms)`.
   Mobilize: `slideMob`, `mobSlide`. Tokens: `flyTok`, `attachTokAnim`, `popTokAnim`, `animateTokens`. Selling:
   `flySell`.
+- **Table coordinates:** `tableXY(el, line)` (an element's place in the tilted battle table, before transforms):
+  a copy put there inside the table sits on it and tilts with it (`deathFly` flies that way).
+- **Breaking a token:** `tokenBreakInfo(pk)` then `breakTokens(list)` (Shield that blocked, Fencer's Might).
+  **Token splay:** `labSplayIn(el, delay, only, done)`. **Into the deck:** `deckFly(r0, side, out)`.
 - **3D flips:** `dealFly`, `mirTurn`, `deathFly`. Pattern: `perspective(~3.4× card width)` first in every keyframe's
   transform, the same function list in each keyframe, darken a little at edge-on, swap faces at 90° → −90° so no side
   is mirrored. Never fake a flip with `scaleX`.
@@ -138,11 +144,16 @@ is a square", then the art-card and Board-settings rules). Search for every rule
 charge / deck / grave, units by `uid`), `hits` (damage cubes: `{uid, a, heal, from}`), and `lines`, the Chronicle.
 A line is `{t, side, ...fields}`. `t` is the sentence for people only (rule 9). Fields:
 - `ab`: the ability that wrote it (`{n, u, s, b|g|m}`), for ability notes and the trigger glow
-- `from` / `to` / `by` / `amt` / `tok`: arrows (damage, tokens; `tok:'ret'` = a save, drawn into the deck)
+- `from` / `to` / `by` / `amt` / `tok`: the ink strokes (damage, tokens; `tok:'ret'` lines draw none)
+- `atk`: the hit comes from an attack (a fight hit, a Marksman shot or its overrun), even with an ability's tag on it
+  (the ink gives it the attack curve)
+- `via`: an Overrun spill names the unit it spilled through (the stroke carries on from the one into that unit)
+- `drop`: tokens an ability discards, `{tok, n}` (Fencer's Might): the screen breaks them on the card
+- A save shares its step with the defeats that follow it (the saved unit goes back to its deck as the others go to the
+  graveyard); the ink points at the unit to be saved in the step before, from that next step's `mv` `save`.
 - `mv`: card moves, `[{u:'side-uid', from, to, k}]`, written by `mvs` in `runBattle`. Zones: `new`, `deck`,
   `deck-top`, `deck-bottom`, `charge`, `grave`. Kinds: `charge`, `defeat`, `save` (Infirmary Tent, Field Medic,
   Second Wind), `back` (Sand Sailor), `arrive` (Drifters from Recruiter / Spineless Recruit). Every zone change has
   one (checked over 3,000 random battles). The screen reads them with `frameMoves(frame)`.
 Unit IDs are unique per battle across both sides; the screen tags cards `data-uid="side-uid"`.
-Still to move onto fields: arrows find their source unit by matching the sentence start (`srcUnit`), and building
-arrows find their chip by searching `t` for a building name. Fix these when touching arrows.
+Still to move onto fields: `from` is found by matching the sentence start (`srcUnit`). Fix it when touching hitMeta.

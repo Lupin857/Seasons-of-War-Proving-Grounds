@@ -67,11 +67,7 @@
 .card.hasart>.pk.tk[data-k="sh"]{background-image:url('../art/Shield.webp')}
 .card.hasart>.tk .tkband{position:absolute;left:0;right:0;top:0;height:var(--tky);display:block}
 .card.hasart>.pk.tk.shhit{filter:none;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--muted),0 -2px 6px rgba(0,0,0,.18)}
-.card.hasart>.pk.tk.tknew{animation:tkin .42s cubic-bezier(.2,.8,.3,1.15) backwards}
-@keyframes tkin{from{transform:translate(calc(var(--tkl) * (var(--j) + 1)), calc(var(--tky) * (var(--j) + 1)));opacity:.4}}
-@media (prefers-reduced-motion: reduce){ .card.hasart>.pk.tk.tknew{animation:none} }
 .card.hasart.tokanim{transition:box-shadow .42s cubic-bezier(.2,.8,.25,1.15), margin .42s cubic-bezier(.2,.8,.3,1)}
-.shpiece.artpc{position:absolute;inset:0;background:#2a2320 center / cover no-repeat}
 /* the charge spot grows to fit the cards tucked behind its unit, so they never reach into the other player's charge */
 .stage .table .charge{height:auto!important;min-height:calc(var(--bch) + 20px)!important}
 .stage .table .charge>.card.hasart{margin:var(--rt, 0px) 0 0 0!important}

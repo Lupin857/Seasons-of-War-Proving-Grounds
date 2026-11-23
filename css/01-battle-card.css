@@ -20,6 +20,8 @@ html body .card.hasart>.tk.ctk>img{width:100%;height:100%;display:block;object-f
 }
 /* an ability firing: the card's border glows gold for a moment */
 html body .card>.trigglow{position:absolute;inset:0;border-radius:5% / 3.6%;pointer-events:none;z-index:6;animation:abtrig .9s ease-out both}
+/* the same glow on a Shield token as it stops a hit (placed and sized from the token by glowPaint) */
+html body .card>.trigglow.tkglow{inset:auto}
 @keyframes abtrig{0%{box-shadow:0 0 0 0 rgba(232,207,149,0)}25%{box-shadow:0 0 0 3px #e8cf95,0 0 22px 6px rgba(232,180,90,.75)}70%{box-shadow:0 0 0 3px #e8cf95,0 0 18px 4px rgba(232,180,90,.5)}100%{box-shadow:0 0 0 0 rgba(232,207,149,0)}}
 @media (prefers-reduced-motion: reduce){ html body .card>.trigglow{animation:none;box-shadow:0 0 0 3px #e8cf95} }
 @media (min-width:641px){
@@ -28,7 +30,6 @@ html body .card>.trigglow{position:absolute;inset:0;border-radius:5% / 3.6%;poin
 .abghost{position:fixed;inset:0;pointer-events:none;z-index:6;transition:opacity .28s ease}
 .abghost.out{opacity:0}
 .abghost .abbox,.abwin.kept .abbox{animation:none;pointer-events:none}
-.abghost .ablines{z-index:5}
 html body .abcol{scrollbar-width:none} html body .abcol::-webkit-scrollbar{display:none}
 /* battle board: nothing moves between steps. Each zone fills its (reserved) row; its label stays on the player's
    edge of the table and its cards stay anchored toward the middle, so stacks and graveyards change without pushing
@@ -71,3 +72,8 @@ html body .stage .table .tz.grz .tzc>.labslot.under{position:absolute;left:0;top
 html body .battlectl .note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 /* the cube layer: over the table, under the sticky bars */
 .cubegl{position:fixed;left:0;top:0;right:0;bottom:0;width:100%;height:100%;pointer-events:none;z-index:7;display:block}
+/* a unit flying to the graveyard: its card in the pile waits, hidden, until the flying copy lands (deathFly) */
+.gyhold{opacity:0!important}
+/* the battle ink (js/ui/19-battle-ink.js): strokes on the table under the cards, note dabs over everything */
+.inkunder,.inkghost,.inklayer{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.inklayer,.stage > .inkghost{z-index:8}

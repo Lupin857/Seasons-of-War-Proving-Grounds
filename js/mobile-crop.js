@@ -97,14 +97,19 @@ function healRefillAfterStep(glide){
 const GLOW = new Map(), GLOW_MS = 900;
 function glowPaint(id){
   const t0 = GLOW.get(id); if (t0 == null) return true;
-  const el = document.querySelector(`#view-play .card[data-uid="${id}"]:not(.mini)`); if (!el) return false;
+  // 'sh:<unit>' glows that unit's Shield token (a Shield stopping a hit); anything else is the unit itself
+  const sh = id.startsWith('sh:'), card = document.querySelector(`#view-play .card[data-uid="${sh ? id.slice(3) : id}"]:not(.mini)`); if (!card) return false;
+  const tk = sh && (card.querySelector(':scope > .pk.shhit') || card.querySelector(':scope > .pk[data-k="sh"]')); if (sh && !tk) return false;
   const left = GLOW_MS - (performance.now() - t0); if (left <= 0){ GLOW.delete(id); return true; }
-  let g = el.querySelector(':scope > .trigglow');
-  if (!g){ g = document.createElement('span'); g.className = 'trigglow'; g.setAttribute('aria-hidden', 'true'); el.appendChild(g); }
+  let g = card.querySelector(`:scope > .trigglow[data-glow="${id}"]`);
+  if (!g){ g = document.createElement('span'); g.className = 'trigglow' + (sh ? ' tkglow' : ''); g.dataset.glow = id; g.setAttribute('aria-hidden', 'true'); card.appendChild(g); }
+  // a Shield's glow sits just behind its token, same place and size (the token clips anything drawn inside it)
+  if (sh){ const cs = getComputedStyle(tk);
+    Object.assign(g.style, {left:tk.offsetLeft + 'px', top:tk.offsetTop + 'px', width:tk.offsetWidth + 'px', height:tk.offsetHeight + 'px', zIndex:(parseInt(tk.style.zIndex) || -1) - 1 + '', transform:cs.transform, transformOrigin:cs.transformOrigin, borderRadius:cs.borderRadius}); }
   g.style.animationDelay = `-${GLOW_MS - left}ms`;
   return true;
 }
-window.cubeGlow = id => { GLOW.set(id, performance.now()); glowPaint(id); setTimeout(() => { for (const g of document.querySelectorAll(`#view-play .card[data-uid="${id}"] > .trigglow`)) g.remove(); GLOW.delete(id); }, GLOW_MS + 50); };
+window.cubeGlow = id => { GLOW.set(id, performance.now()); glowPaint(id); setTimeout(() => { for (const g of document.querySelectorAll(`#view-play .trigglow[data-glow="${id}"]`)) g.remove(); GLOW.delete(id); }, GLOW_MS + 50); };
 function glowStep(f){   // every unit whose ability fires in this step
   // (an Executioner's attack carries its tag too, but Lethal only fires in the casualty step)
   const ids = new Set(f.lines.filter(l => l.ab && l.ab.u && !l.ab.g && !(l.ab.n === 'Executioner' && !/Lethal/.test(l.t))).map(l => `${l.ab.u}`));

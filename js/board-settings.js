@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v72';
+const OASIS_BUILD = 'v75';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -171,15 +171,17 @@ addEventListener('resize', () => { if (compact() !== labWasCompact){ labWasCompa
 
 // a newly revealed unit: the cards attached to it (copies, gear, tokens) slide out from behind it into their splay
 const labRevealed = f => f ? f.snap.map(sd => sd.deck[0] ? sd.deck[0].uid : null) : [null, null];
-function labSplayIn(el, delay){
-  if (!el || reduceMotion()) return;
-  const tks = [...el.querySelectorAll(':scope > .tk')]; if (!tks.length) return;
+// only: just these of its peeking cards (a token just gained); done: called once the last has landed
+function labSplayIn(el, delay, only, done){
+  if (!el || reduceMotion()){ if (done) done(); return; }
+  const tks = only || [...el.querySelectorAll(':scope > .tk')]; if (!tks.length){ if (done) done(); return; }
   const cs = getComputedStyle(el), tky = parseFloat(cs.getPropertyValue('--tky')) || 26, fan = LAB.splay === 'fanL' ? 1 : LAB.splay === 'fanR' ? -1 : 0;
   tks.forEach((t, i) => {
     const j = parseInt(t.style.getPropertyValue('--j')) || i;
     const x = -t.offsetLeft, y = -t.offsetTop + (fan ? tky * .55 * (j + 1) : 0);
-    t.animate([{translate:`${x}px ${y}px`, rotate:`${fan * 7 * (j + 1)}deg`}, {translate:'0px 0px', rotate:'0deg'}],
+    const a = t.animate([{translate:`${x}px ${y}px`, rotate:`${fan * 7 * (j + 1)}deg`}, {translate:'0px 0px', rotate:'0deg'}],
       {duration:480, delay:delay + 80 * i, easing:'cubic-bezier(.2,.8,.3,1)', fill:'backwards'});
+    if (done && i === tks.length - 1){ a.onfinish = a.oncancel = done; }
   });
 }
 function labSplayRevealed(prev, delay){

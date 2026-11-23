@@ -452,21 +452,6 @@ const GI = {
 };
 // a token's custom icon wherever a token is drawn (never an emoji)
 const tokIcon = k => GI[k] || '';
-// the same icon as an element inside an SVG drawing (the battle arrows), coloured like its label
-function tokIconSvg(k){
-  const m = (GI[k] || '').match(/^<svg[^>]*>([\s\S]*)<\/svg>$/); if (!m) return null;
-  const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  el.setAttribute('viewBox', '0 0 16 16'); el.setAttribute('class', `arlic t-${k}`); el.setAttribute('aria-hidden', 'true'); el.innerHTML = m[1];
-  return el;
-}
-// put an arrow label's token icon right after its number; a right-aligned label moves over to make room
-function placeTokIcon(lbl){
-  const ic = lbl._ic; if (!ic) return;
-  const S = 13, end = lbl.style.textAnchor === 'end';
-  if (end) lbl.setAttribute('x', +lbl.getAttribute('x') - S - 1);
-  let b; try{ b = lbl.getBBox(); }catch(e){ return; }
-  ic.setAttribute('x', b.x + b.width + 1); ic.setAttribute('y', b.y + (b.height - S) / 2); ic.setAttribute('width', S); ic.setAttribute('height', S);
-}
 // the preview line for a card, with the owned level lit inside each 1/2/3 the same way the full text does it
 function shortHTML(name, kind, own, noNext){
   const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) return '';

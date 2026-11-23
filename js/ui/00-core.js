@@ -36,10 +36,13 @@ const sfx = (() => {
     if (ac.state === 'suspended') ac.resume();
     return ac;
   };
+  // Sounds scheduled ahead (a card landing in 0.8 s) start early by the device's output delay, so they're heard when the
+  // card lands rather than late: phones often add 0.1–0.25 s (more over Bluetooth). Sounds asked for "now" can't be early.
+  const when = (a, at) => a.currentTime + (at > 0 ? Math.max(0, at - (a.outputLatency || a.baseLatency || 0)) : 0);
   // a pitched blip: osc type, start/end frequency, length, volume, delay
   const tone = (type, f0, f1, dur, vol, at = 0) => {
     const a = ctx(); if (!a) return;
-    const t = a.currentTime + at, o = a.createOscillator(), g = a.createGain();
+    const t = when(a, at), o = a.createOscillator(), g = a.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t);
     if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
@@ -49,7 +52,7 @@ const sfx = (() => {
   // a filtered noise burst: filter type, frequency (start→end), q, length, volume, delay
   const noise = (ft, f0, f1, q, dur, vol, at = 0) => {
     const a = ctx(); if (!a) return;
-    const t = a.currentTime + at, src = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
+    const t = when(a, at), src = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
     src.buffer = noiseBuf; fl.type = ft; fl.Q.value = q; fl.frequency.setValueAtTime(f0, t);
     if (f1 !== f0) fl.frequency.exponentialRampToValueAtTime(f1, t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004);
@@ -87,9 +90,11 @@ const sfx = (() => {
     soft(){ noise('bandpass', jit(1800, .1), 1400, 1, 0.05, 0.25); },
     turnMine(){ tone('sine', 659.25, 659.25, 0.16, 0.16); tone('sine', 987.77, 987.77, 0.26, 0.16, 0.13); },
     turnTheirs(){ tone('sine', 440, 392, 0.18, 0.07); },
-    flick(at = 0){ noise('highpass', jit(2400, .1), 5000, 0.7, 0.07, 0.18, at); },
+    // a card's swish: taking off from a deck, and turning over (at = seconds from now, v = loudness)
+    flick(at = 0, v = 1){ noise('highpass', jit(2400, .1), 5000, 0.7, 0.07, 0.18 * v, at); },
     pick(){ tone('sine', jit(620), jit(760), 0.05, 0.18); noise('bandpass', 2600, 2000, 1, 0.03, 0.15); },
-    drop(){ tone('sine', jit(420), jit(300), 0.07, 0.25); noise('bandpass', 1500, 900, 1, 0.04, 0.2); },
+    // a card set down: Mobilize drops, and dealt or discarded shop cards landing (at = seconds from now, v = loudness)
+    drop(at = 0, v = 1){ tone('sine', jit(420), jit(300), 0.07, 0.25 * v, at); noise('bandpass', 1500, 900, 1, 0.04, 0.2 * v, at); },
     // a real coin: a sharp contact click plus a few inharmonic metal partials that die fast; it lands, bounces, settles
     coin(vol = 1){ playSample('buy', 1.6 * vol); },
     sell(){ playSample('sell', 1.4); },

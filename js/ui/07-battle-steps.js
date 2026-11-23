@@ -7,148 +7,10 @@ function unitsOf(fr, zones){
   fr.snap.forEach((sd, side) => { for (const z of zones){ const list = z === 'charge' ? [sd.charge] : sd[z]; for (const u of list) if (u) m.set(`${side}-${u.uid}`, u); } });
   return m;
 }
-// curved arrows from each attacker to what it hit: yours travel up the table, the AI's come down it.
-// animate: draw them in (the step playing); otherwise they sit still for the step on screen.
-// the previous step's arrows dissolve rather than vanish
-function fadeArrows(svg, into){
-  if (!svg) return;
-  svg.classList.add('out'); svg.classList.remove('still');
-  if (into && svg.parentNode !== into) into.appendChild(svg);
-  if (reduceMotion() || !svg.animate){ svg.remove(); return; }
-  const a = svg.animate([{opacity:1}, {opacity:0}], {duration:420, easing:'ease-out', fill:'forwards'});
-  a.onfinish = a.oncancel = () => svg.remove();
-}
-// Aim one battle arrow at the cards it joins, from where they are drawn right now (moves, lunges and token nudges
-// included). If a card has left the board, the arrow keeps its last shape.
-function placeArrow(path, stage, sr){
-  const A = path._arw; if (!A) return;
-  const find = id => id && (stage.querySelector(`.card[data-uid="${id}"]`) || stage.querySelector(`.grave [data-uid="${id}"]`));
-  const te = A.tok === 'ret' ? bDeckEl(+String(A.to).split('-')[0]) : find(A.to); if (!te) return;   // a save points into the deck the unit went back into
-  // a blocked hit points at the Shield it breaks (the outermost one on that card), not the card
-  const she = A.shield ? (x => x && (x.querySelector('.tkband') || x))(te.querySelector(':scope > .pk.shhit') || [...te.querySelectorAll(':scope > .pk[data-k="sh"]')].pop()) : null;
-  const tr = (she || te).getBoundingClientRect();
-  const lbl = A.lbl;
-  if (A.self){
-    // a unit buffing itself: a small curl over its own top corner
-    const side = A.by === 0 ? 1 : -1, ex = side > 0 ? tr.right - sr.left - 8 : tr.left - sr.left + 8, ey = tr.top - sr.top + 10;
-    path.setAttribute('d', `M${ex - side * 26},${ey - 6} C${ex - side * 20},${ey - 34} ${ex + side * 14},${ey - 30} ${ex},${ey}`);
-    lbl.setAttribute('x', ex + side * 8); lbl.setAttribute('y', ey - 22); lbl.style.textAnchor = side > 0 ? 'start' : 'end';
-    placeTokIcon(lbl);
-    return;
-  }
-  const fe = A.from ? find(A.from) : A.chip ? stage.querySelector(A.chip) : null;
-  if (A.from && !fe) return;
-  let P;
-  if (fe) P = sideLink(fe.getBoundingClientRect(), tr, sr, 4);
-  else {   // a building with no card on screen: from that player's edge of the table
-    const t = sideMids(tr, sr)[A.by === 0 ? 2 : 0], y1 = A.by === 0 ? sr.height - 4 : 4;
-    P = {a:{x:t.x, y:y1, nx:0, ny:A.by === 0 ? -1 : 1}, b:{x:t.x + t.nx * 4, y:t.y + t.ny * 4, nx:t.nx, ny:t.ny}};
-  }
-  const lane = (A.n % 4) * 9 * (A.by === 0 ? 1 : -1);   // several arrows between the same cards fan apart
-  // a buff to a neighbouring unit on the same side: both ends on the faces toward that unit's player (yours along the
-  // bottom, the AI's along the top), joined by a loop out past them, so a short hop is still easy to read
-  let C = null;
-  if (fe && A.tok && A.from && A.from.split('-')[0] === String(A.to).split('-')[0] && Math.hypot(P.b.x - P.a.x, P.b.y - P.a.y) < 60){
-    const f = VS(+A.from.split('-')[0]) === 0 ? 2 : 0, pa = sideMids(fe.getBoundingClientRect(), sr)[f], pb = sideMids(tr, sr)[f];
-    P = {a:pa, b:{x:pb.x + pb.nx * 4, y:pb.y + pb.ny * 4, nx:pb.nx, ny:pb.ny}};
-    C = linkCurve(P.a, P.b, 0, 30 + (A.n % 3) * 10);
-  }
-  if (!C && !A.tok && fe){   // damage: a round elbow, square to both cards (or straight across when they line up)
-    const E = elbowLink(fe.getBoundingClientRect(), tr, sr, 4, A.n);
-    P = E.P; C = E.C;
-  }
-  if (!C) C = linkCurve(P.a, P.b, lane);
-  path.setAttribute('d', C.d);
-  if (C.nx != null){   // an arc: the label sits just outside its bow
-    lbl.setAttribute('x', C.mx + C.nx * 8); lbl.setAttribute('y', C.my + C.ny * 8 + 4);
-    lbl.style.textAnchor = Math.abs(C.nx) < 0.3 ? 'middle' : C.nx > 0 ? 'start' : 'end';
-  } else {
-    const right = A.by === 0;
-    lbl.setAttribute('x', C.mx + (right ? 6 : -6)); lbl.setAttribute('y', C.my + 4);
-    lbl.style.textAnchor = right ? 'start' : 'end';   // yours label to the right of its curve, the AI's to the left
-  }
-  placeTokIcon(lbl);
-}
-// The midpoints of a box's four sides (relative to the stage), each with the way that side faces.
-function sideMids(r, sr){
-  const L = r.left - sr.left, T = r.top - sr.top, W = r.width, H = r.height;
-  return [{x:L + W / 2, y:T, nx:0, ny:-1}, {x:L + W, y:T + H / 2, nx:1, ny:0}, {x:L + W / 2, y:T + H, nx:0, ny:1}, {x:L, y:T + H / 2, nx:-1, ny:0}];
-}
-// Join two boxes from the midpoint of the side of one nearest the other to the midpoint of the side of the other
-// nearest the first. Sides that face each other win; gap pulls the end point off the target's edge (for an arrowhead).
-function sideLink(ra, rb, sr, gap){
-  const A = sideMids(ra, sr), B = sideMids(rb, sr);
-  let best = null, bd = Infinity;
-  for (const p of A) for (const q of B){
-    const dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
-    const facing = (dx * p.nx + dy * p.ny) >= 0 && (-dx * q.nx - dy * q.ny) >= 0;
-    const score = d + (facing ? 0 : 1e4);
-    if (score < bd){ bd = score; best = [p, q]; }
-  }
-  const [p, q] = best, g = gap || 0;
-  return {a:p, b:{x:q.x + q.nx * g, y:q.y + q.ny * g, nx:q.nx, ny:q.ny}};
-}
-// Damage arrows: leave the attacker's top or bottom face square to it, then bend round (a quarter ellipse) into the
-// target's left or right side, square to that. When the cards are lined up one above the other (or side by side), it
-// runs straight between the facing sides instead. n: extra arrows in the same step bend a little wider.
-function elbowLink(ra, rb, sr, gap, n){
-  const A = sideMids(ra, sr), B = sideMids(rb, sr), g = gap || 0;
-  const ca = {x:A[0].x, y:A[1].y}, cb = {x:B[0].x, y:B[1].y}, dx = cb.x - ca.x, dy = cb.y - ca.y;
-  const end = q => ({x:q.x + q.nx * g, y:q.y + q.ny * g, nx:q.nx, ny:q.ny});
-  const a = A[dy < 0 ? 0 : 2], b = B[dx > 0 ? 3 : 1];
-  const tall = (b.y - a.y) * a.ny, wide = (b.x - a.x) * -b.nx;   // the target's side must lie ahead of both turns
-  if (tall > 12 && wide > 12){
-    const e = end(b), w = 1 + (n % 3) * 0.12, k1 = Math.abs(e.y - a.y) * 0.55 * w, k2 = Math.abs(e.x - a.x) * 0.55 * w;
-    const c1x = a.x, c1y = a.y + a.ny * k1, c2x = e.x + e.nx * k2, c2y = e.y;
-    const mx = (a.x + 3 * c1x + 3 * c2x + e.x) / 8, my = (a.y + 3 * c1y + 3 * c2y + e.y) / 8;
-    const ox = mx - a.x, oy = my - e.y, ol = Math.hypot(ox, oy) || 1;   // away from the elbow's inside corner
-    return {P:{a, b:e}, C:{d:`M${a.x},${a.y} C${c1x},${c1y} ${c2x},${c2y} ${e.x},${e.y}`, mx, my, nx:ox / ol, ny:oy / ol}};
-  }
-  // lined up: facing sides, straight (above/below) or across (same row)
-  const vert = Math.abs(dy) >= Math.abs(dx);
-  const p = vert ? A[dy < 0 ? 0 : 2] : A[dx > 0 ? 1 : 3], q = vert ? B[dy < 0 ? 2 : 0] : B[dx > 0 ? 3 : 1];
-  const P = {a:p, b:end(q)}, C = linkCurve(P.a, P.b, (n % 4) * 9);
-  return {P, C:{...C, nx:vert ? 1 : 0, ny:vert ? 0 : -1}};
-}
-// Damage arrows: a circular arc between the two side midpoints, always bowing the same way (to the right of travel),
-// a little rounder for each extra arrow in the same step so they don't sit on top of each other.
-function arcCurve(a, b, n){
-  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
-  const R = Math.max(d / 2 + 0.5, d * (0.78 - (n % 3) * 0.1));
-  const sag = R - Math.sqrt(Math.max(0, R * R - d * d / 4));
-  const nx = -dy / d, ny = dx / d;   // right of travel on screen (y runs down), the side a sweep-0 arc bows toward
-  return {d:`M${a.x},${a.y} A${R},${R} 0 0 0 ${b.x},${b.y}`, mx:(a.x + b.x) / 2 + nx * sag, my:(a.y + b.y) / 2 + ny * sag, nx, ny};
-}
-// A gentle curve that leaves one side square to it and arrives square to the other; lane nudges it sideways.
-function linkCurve(a, b, lane, minK){
-  const dist = Math.hypot(b.x - a.x, b.y - a.y), k = Math.max(minK || 14, Math.min(70, dist * 0.38));
-  const ux = dist ? (b.x - a.x) / dist : 0, uy = dist ? (b.y - a.y) / dist : 0, px = -uy * (lane || 0), py = ux * (lane || 0);
-  const c1x = a.x + a.nx * k + px, c1y = a.y + a.ny * k + py, c2x = b.x + b.nx * k + px, c2y = b.y + b.ny * k + py;
-  return {d:`M${a.x},${a.y} C${c1x},${c1y} ${c2x},${c2y} ${b.x},${b.y}`, mx:(a.x + 3 * c1x + 3 * c2x + b.x) / 8, my:(a.y + 3 * c1y + 3 * c2y + b.y) / 8};
-}
-// While the battle shows arrows, re-aim them every frame so their ends stay fixed to the cards as the cards move.
-let arrowRaf = 0;
-function followArrows(){
-  if (arrowRaf) return;
-  const tick = () => {
-    const stage = ui.battle && $('view-play').querySelector('.stage');
-    const svgs = stage ? stage.querySelectorAll('.arrows') : [];
-    if (!svgs.length){ arrowRaf = 0; return; }
-    const sr = stage.getBoundingClientRect();
-    for (const svg of svgs){
-      if (+svg.getAttribute('width') !== Math.round(sr.width)) svg.setAttribute('width', Math.round(sr.width));
-      if (+svg.getAttribute('height') !== Math.round(sr.height)) svg.setAttribute('height', Math.round(sr.height));
-      for (const p of svg.querySelectorAll('path.arw')) placeArrow(p, stage, sr);
-    }
-    arrowRaf = requestAnimationFrame(tick);
-  };
-  arrowRaf = requestAnimationFrame(tick);
-}
-
 /* Ability notes: during a battle step, every ability that triggered gets a note beside the battlefield (yours on the
    left, the opponent's on the right; on phones, two columns above it), with the card's name, its rules text at the
-   level it has, and who it hit in brackets. A thin line joins each note to its arrow (or to the card, when the ability
-   draws no arrow). Notes belong to the step on screen and go when you move on; they are hidden while auto-play runs,
+   level it has, and who it hit in brackets. The battle ink (js/ui/19-battle-ink.js) dots a line of brush dabs from the
+   card to its note. Notes belong to the step on screen and go when you move on; they are hidden while auto-play runs,
    and the Ability notes button turns them off. */
 const abOn = () => LS.get('sow-abwin') !== false;
 let abRaf = 0;
@@ -178,13 +40,12 @@ function abNoteHTML(g, f, i){
   return `<div class="abbox${ab.g ? ' gnote' : ''} s${VS(ab.s)}" data-abi="${i}"><b class="abn">${esc(title)}</b><span class="abt"><span class="kwt">${body}</span>${tg.length ? ` <span class="abtg">(${tg.map(esc).join(', ')})</span>` : ''}</span></div>`;
 }
 /* Ability notes going away. Their layout depends on the stage they sit in (CSS variables for where the cities end,
-   the stage's size), so moving them anywhere else would shift them. Instead each column and the link lines are
-   measured where they are, pinned to the screen at exactly that spot, and faded out together. */
+   the stage's size), so moving them anywhere else would shift them. Instead each column is measured where it is,
+   pinned to the screen at exactly that spot, and faded out together. */
 function abSnap(stage){
   const win = stage && stage.querySelector('.abwin'); if (!win) return null;
   const cols = [...win.querySelectorAll('.abcol')].map(c => ({el:c, r:c.getBoundingClientRect()}));
-  const svg = stage.querySelector('.ablines');
-  return {win, key:win.dataset.key, cols, svg, svgR:svg && svg.getBoundingClientRect()};
+  return {win, key:win.dataset.key, cols};
 }
 function abFade(snap){
   if (!snap) return;
@@ -192,7 +53,6 @@ function abFade(snap){
   for (const {el, r} of snap.cols){ if (!r.width) continue;
     el.style.cssText += `;position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;right:auto;bottom:auto;max-height:none;overflow:hidden;margin:0`;
     g.appendChild(el); }
-  if (snap.svg && snap.svgR && snap.svgR.width){ snap.svg.style.cssText += `;position:fixed;left:${snap.svgR.left}px;top:${snap.svgR.top}px`; g.appendChild(snap.svg); }
   snap.win.remove();
   document.body.appendChild(g); void g.offsetWidth; g.classList.add('out');
   setTimeout(() => g.remove(), 320);
@@ -202,8 +62,8 @@ function mountAbWin(){
   const fNow = ui.battle && abOn() && !autoOn() ? ui.battle.frames[ui.abFrame != null ? ui.abFrame : ui.frame] : null;
   const showing = stage.querySelector('.abwin'), key = fNow ? abGroups(fNow).map(g => abNoteHTML(g, fNow, 0)).join('|') : '';
   if (showing && key && showing.dataset.key === key) return;   // same notes: nothing to do (no fade, no jump)
-  cancelAnimationFrame(abRaf); abRaf = 0;   // stop the old lines following before they're pinned
-  abFade(abSnap(stage)); stage.querySelectorAll('.abwin, .ablines').forEach(n => n.remove());
+  cancelAnimationFrame(abRaf); abRaf = 0;
+  abFade(abSnap(stage)); stage.querySelectorAll('.abwin').forEach(n => n.remove());
   if (!fNow) return;
   const f = fNow, gs = abGroups(f); if (!gs.length) return;
   // each note goes to the corner nearest its card: your side along the bottom, the enemy's along the top,
@@ -226,11 +86,10 @@ function mountAbWin(){
   stage.appendChild(win);
   // the gear that triggered lights up on the unit wearing it
   for (const g of gs) if (g.ab.g){ const el = abSrcEl(stage, g.ab); const ch = el && (el.closest('.gtk') || (el.classList.contains('cgear') ? el : null)); if (ch) ch.classList.add('gfire'); }
-  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'ablines'); svg.setAttribute('aria-hidden', 'true');
-  stage.appendChild(svg);
+  // the notes keep their place as the board around them moves (see abPlace)
   const tick = () => {
-    if (!svg.isConnected){ abRaf = 0; return; }
-    placeAbLines(stage, svg, gs); abRaf = requestAnimationFrame(tick);
+    const st = win.isConnected && win.closest('.stage'); if (!st){ abRaf = 0; return; }
+    abPlace(st); abRaf = requestAnimationFrame(tick);
   };
   tick();
 }
@@ -241,80 +100,18 @@ function abSrcEl(stage, ab){
   return ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`) || stage.querySelector(`[data-uid="${ab.u}"]`))
               : stage.querySelector(`.city[data-side="${VS(ab.s)}"] .citycard[data-b="${CSS.escape(ab.n)}"]`);
 }
-function placeAbLines(stage, svg, gs){
-  const sr = stage.getBoundingClientRect(), phone = compact();
-  if (phone){ const bc = $('view-play').querySelector('.battlectl'); const t = bc ? Math.max(8, bc.getBoundingClientRect().bottom + 6) : 8;
-    if (stage._abtop !== t){ stage._abtop = t; document.documentElement.style.setProperty('--abtop', t + 'px'); } }
-  if (!phone){   // notes sit between the two cities, beside the battle rows, so they never cover a city card
-    const cT = stage.querySelector('.city.s1'), cB = stage.querySelector('.city.s0');
-    const t = cT ? Math.max(0, Math.round(cT.getBoundingClientRect().bottom - sr.top)) : 0, b = cB ? Math.max(0, Math.round(sr.bottom - cB.getBoundingClientRect().top)) : 0;
-    if (stage._abtb !== t + ':' + b){ stage._abtb = t + ':' + b; stage.style.setProperty('--abT', t + 'px'); stage.style.setProperty('--abB', b + 'px'); }
-  }
-  svg.setAttribute('width', Math.round(sr.width)); svg.setAttribute('height', Math.round(sr.height));
-  let out = '';
-  gs.forEach((g, i) => {
-    const box = stage.querySelector(`.abbox[data-abi="${i}"]`); if (!box) return;
-    const ab = g.ab, br = box.getBoundingClientRect();
-    // from the midpoint of the card's side nearest its note to the midpoint of the note's side nearest the card
-    const el = (abIsSave(g) && bDeckEl(ab.s)) || abSrcEl(stage, ab); if (!el) return;
-    const r = el.getBoundingClientRect(); if (!r.width) return;
-    const P = sideLink(r, br, sr, 0), C = linkCurve(P.a, P.b, 0);
-    out += `<path class="abl s${VS(ab.s)}" d="${C.d}"/><circle class="abd s${VS(ab.s)}" cx="${P.a.x}" cy="${P.a.y}" r="3.5"/><circle class="abd s${VS(ab.s)}" cx="${P.b.x}" cy="${P.b.y}" r="2.5"/>`;
-  });
-  if (svg._last !== out){ svg.innerHTML = out; svg._last = out; }
-}
-function drawArrows(list, animate, rects){
-  const stage = $('view-play').querySelector('.stage'); if (!stage) return;
-  const old = stage.querySelector('.arrows:not(.out)'); if (old){ if (animate === true) fadeArrows(old); else old.remove(); }
-  if (!list.length) return;
+// Where the notes sit: on phones under the battle buttons (--abtop); on wider screens between the two cities, beside the
+// battle rows (--abT/--abB on the stage), so they never cover a city card. Compared with the stage's own values, not a
+// cache: a redraw that rewrites the stage's style drops them, and the notes would jump to the edges.
+function abPlace(stage){
   const sr = stage.getBoundingClientRect();
-  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('class', 'arrows' + (animate === false ? ' still' : '')); svg.setAttribute('width', sr.width); svg.setAttribute('height', sr.height);
-  svg.innerHTML = `<defs>${[0,1].map(s => `<marker id="ah${s}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah${s}"/></marker>`).join('')}${
-    ['arm','tr','sh','rec','ret'].map(t => `<marker id="aht-${t}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="aht t-${t}"/></marker>`).join('')}</defs>`;
-  const pairs = new Map();
-  for (const l of list){ const k = `${l.from}>${l.to}>${l.tok || ''}`; const p = pairs.get(k); if (p) p.amt += l.amt; else pairs.set(k, {...l}); }
-  const TOKLBL = {arm:'', tr:'', sh:'', rec:'', ret:''};   // the token is shown by its icon after the number
-  let drawn = 0;
-  const find = id => id && (stage.querySelector(`.card[data-uid="${id}"]`) || stage.querySelector(`.grave [data-uid="${id}"]`));
-  const lane = [0, 0];
-  for (const h of pairs.values()){
-    const te = h.tok === 'ret' ? bDeckEl(+String(h.to).split('-')[0]) : find(h.to); if (!te || (h.from && !find(h.from) && h.tok)) continue;
-    drawn++;
-    let chipSel = null;
-    if (!h.from){   // a building: point from its chip in that player's city row
-      const bn = ['Training Yard', 'Trebuchet', 'Armory', 'Infirmary', 'Muster Hall'].find(b => (h.t || '').includes(b));
-      chipSel = bn ? `.city[data-side="${VS(h.by)}"] .citycard[data-b="${bn}"]` : null;
-    }
-    const n = lane[h.by]++;
-    const chip = chipSel && stage.querySelector(chipSel);
-    if (chip && animate === true && chip.animate) chip.animate([{outline:'0px solid transparent'}, {outline:'4px solid color-mix(in srgb, var(--or) 55%, transparent)', offset:.3}, {outline:'0px solid transparent'}], {duration:700, delay:n * 90});
-    const cls = h.tok ? `arw tok t-${h.tok}` : `arw s${VS(h.by)}`, mk = h.tok ? `aht-${h.tok}` : `ah${VS(h.by)}`;
-    const text = h.tok === 'ret' ? 'returns' : h.tok ? `+${h.amt}${TOKLBL[h.tok]}` : (h.amt ? `${h.amt}` : 'blocked');
-    const path = document.createElementNS(NS, 'path');
-    path.setAttribute('class', cls); path.setAttribute('marker-end', `url(#${mk})`);
-    if (animate === true) path.style.animationDelay = (n * 90) + 'ms';
-    svg.appendChild(path);
-    const lbl = document.createElementNS(NS, 'text');
-    lbl.setAttribute('class', h.tok ? `arl tok t-${h.tok}` : `arl s${VS(h.by)}`); lbl.textContent = text;
-    if (animate === true) lbl.style.animationDelay = (n * 90 + 200) + 'ms';
-    svg.appendChild(lbl);
-    const ic = h.tok && h.tok !== 'ret' ? tokIconSvg(h.tok) : null;
-    if (ic){ if (animate === true) ic.style.animationDelay = (n * 90 + 200) + 'ms'; svg.appendChild(ic); lbl._ic = ic; }
-    // each arrow remembers what it joins, so it can be re-aimed at the cards wherever they are drawn on screen
-    path._arw = {from:h.from, to:h.to, chip:chipSel, by:VS(h.by), n, tok:h.tok || null, shield:!h.tok && !h.amt, self:!!(h.tok && h.from === h.to && h.tok !== 'ret'), lbl};
-    placeArrow(path, stage, sr);
-  }
-  svg.dataset.full = drawn >= pairs.size ? '1' : '0';   // an arrow to a unit that doesn't exist yet (a new Recruit) is missing
-  stage.appendChild(svg);
-  if (animate === 'quiet') svg.classList.add('quiet');
-  if (animate === true) for (const p of svg.querySelectorAll('.arw:not(.tok)')){ const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
-    p.addEventListener('animationend', () => { p.style.animation = 'none'; p.style.strokeDasharray = ''; p.style.strokeDashoffset = '0'; }, {once:true}); }
-  followArrows();
+  if (compact()){ const bc = $('view-play').querySelector('.battlectl'); const t = bc ? Math.max(8, bc.getBoundingClientRect().bottom + 6) : 8;
+    if (document.documentElement.style.getPropertyValue('--abtop') !== t + 'px') document.documentElement.style.setProperty('--abtop', t + 'px'); return; }
+  const cT = stage.querySelector('.city.s1'), cB = stage.querySelector('.city.s0');
+  const t = cT ? Math.max(0, Math.round(cT.getBoundingClientRect().bottom - sr.top)) : 0, b = cB ? Math.max(0, Math.round(sr.bottom - cB.getBoundingClientRect().top)) : 0;
+  if (stage.style.getPropertyValue('--abT') !== t + 'px') stage.style.setProperty('--abT', t + 'px');
+  if (stage.style.getPropertyValue('--abB') !== b + 'px') stage.style.setProperty('--abB', b + 'px');
 }
-const stepArrows = () => ui.battle ? ui.battle.frames[ui.frame].lines.filter(l => l.to) : [];
-let arrowRz = null;
-window.addEventListener('resize', () => { clearTimeout(arrowRz); arrowRz = setTimeout(() => { if (ui.battle && !ui.animT && !$('view-play').hidden) drawArrows(stepArrows(), 'quiet'); }, 120); });
 /* Auto-play: steps through the battle on its own, one step after another, until the end. The setting is remembered. */
 let autoT = null;
 const autoOn = () => LS.get('sow-autoplay') === true;
@@ -383,6 +180,13 @@ function reserveRows(){
   // a row drawn taller than its reserve (the hidden copy can measure a little short) raises the reserve for good
   const keep = window.__rowKeep && ui.battle.rowGk ? window.__rowKeep[ui.battle.rowGk] : null;
   [r0, r1].forEach((r, i) => { if (!r) return; const h = r.offsetHeight; if (h > ui.battle.rowH[i]){ ui.battle.rowH[i] = h; if (keep) keep[i] = Math.max(keep[i], h); r.style.minHeight = h + 'px'; } });
+  // each graveyard's pile sits level with its row's charging card (or that card's empty spot), like the deck does
+  for (const r of [r0, r1]){
+    const g = r && r.querySelector('.grz .grave'), box = g && g.closest('.tzc'), c = r && r.querySelector('.chz .charge > .card:not(.mini), .chz .charge > .slot.labempty, .chz .slot.labempty');
+    if (!g || !box || !c) continue;
+    box.style.marginTop = ''; const a = tableXY(c, line), b = tableXY(g, line); if (!a || !b) continue;   // (the pile's box moves, its empty spot with it)
+    if (Math.abs(a.top - b.top) > .5) box.style.marginTop = (parseFloat(getComputedStyle(box).marginTop) || 0) + a.top - b.top + 'px';
+  }
 }
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
 /* Show battle step k (glide: animate from the step on screen). Steps around the redraw come from the cubes
@@ -400,32 +204,22 @@ function goFrame(k, glide){
 function showFrame(k, glide){
   stopAnim();
   const from = new Map();
-  if (glide && !reduceMotion()) for (const el of $('view-play').querySelectorAll('.line [data-uid]')){ const r = el.getBoundingClientRect(); r.wasB = el.tagName === 'B'; if (!r.wasB) r.clone = el.cloneNode(true); from.set(el.dataset.uid, r); }
-  const prevSvg = $('view-play').querySelector('.stage .arrows:not(.out)');
-  const oldSvg = glide && k === ui.arrowsFor && prevSvg && prevSvg.dataset.full !== '0' ? prevSvg : null;   // incomplete: let the fresh drawing (which can see new units) take over
+  if (glide && !reduceMotion()) for (const el of $('view-play').querySelectorAll('.line [data-uid]')){ const r = el.getBoundingClientRect(); r.wasB = el.tagName === 'B'; r.loc = tableXY(el, el.closest('.line')); if (!r.wasB) r.clone = el.cloneNode(true); from.set(el.dataset.uid, r); }
   const prevF = glide && ui.battle ? ui.battle.frames[ui.frame] : null;
   const broken = ui.battle && k === ui.frame + 1 ? shieldsToBreak() : [];   // shields that blocked a hit this step
+  // tokens this step discards (a Fencer's Might, as the engine records it in drop) break the same way as it lands
+  if (ui.battle && k === ui.frame + 1) for (const l of ui.battle.frames[k].lines) if (l.drop && l.to)
+    for (const pk of $('view-play').querySelectorAll(`.stage .card[data-uid="${l.to}"] > .pk[data-k="${l.drop.tok}"]:not(.mbn)`)){ const b = tokenBreakInfo(pk); if (b) broken.push(b); }
   const under = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-bottom') : [];   // cards going back under their deck
   const died = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'grave') : [];   // cards defeated this step
   ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay(); reserveRows();
   if (prevF && ui.battle) animateTokens(prevF, ui.battle.frames[k]); else clearTimeout(ui.tokT);
-  if (broken.length) breakShields(broken);
-  if (prevSvg && !oldSvg) fadeArrows(prevSvg, $('view-play').querySelector('.stage'));
+  if (broken.length) breakTokens(broken);
   if (ui.battle && k === ui.battle.frames.length - 1 && !ui.battle.chimed){
     ui.battle.chimed = true;
     const w = G.over ? G.winner : ui.battle.result.w, big = !!G.over;
     setTimeout(() => { if (w === 0) sfx.win(big); else if (w === 1) sfx.lose(big); else sfx.draw(); }, 120);
   }
-  if (oldSvg){
-    const st = $('view-play').querySelector('.stage'), fresh = st && st.querySelector('.arrows:not(.out)');
-    oldSvg.classList.add('quiet');
-    for (const p of oldSvg.querySelectorAll('.arw')){ p.style.animation = 'none'; p.style.strokeDashoffset = '0'; }
-    for (const l of oldSvg.querySelectorAll('.arl')){ l.style.animation = 'none'; l.style.opacity = '1'; }
-    if (st){ if (fresh) fresh.remove(); st.appendChild(oldSvg); }
-    // once units finish moving, quietly point the arrows at where things ended up
-    clearTimeout(ui.arrowFix); ui.arrowFix = setTimeout(() => { if (ui.battle && ui.frame === k && !ui.animT) drawArrows(stepArrows(), 'quiet'); }, 760);
-  }
-  ui.arrowsFor = null;
   if (!from.size) return;
   const flies = [];   // [uid, r0, landing spot] of each card flying to the graveyard; started together below
   for (const el of $('view-play').querySelectorAll('.line [data-uid]')){
@@ -467,7 +261,7 @@ function showFrame(k, glide){
   // card instead, and the FLIP above already moved it)
   for (const m of under){
     const r0 = from.get(m.u);
-    if (r0 && r0.clone && !$('view-play').querySelector(`.line .card[data-uid="${m.u}"]:not(.mini)`)) deckFly(r0, +m.u.split('-')[0]);
+    if (r0 && r0.clone && !$('view-play').querySelector(`.line .card[data-uid="${m.u}"]:not(.mini)`)) deckFly(r0, +m.u.split('-')[0], m.k === 'back');
   }
 }
 

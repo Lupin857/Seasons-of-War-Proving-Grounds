@@ -156,9 +156,7 @@ function drawPlay(){
   if (ui.remind){ const go = $('view-play').querySelector('[data-act="remind-go"]'); if (go) go.focus(); }
   const lw2 = $('view-play').querySelector('.linewrap'); if (lw2 && sx) lw2.scrollLeft = sx;
   if (ui.battle && lw2){
-    drawArrows(stepArrows(), false);
     mountAbWin();
-    if (!lw2.__scrollWired){ lw2.__scrollWired = 1; lw2.addEventListener('scroll', () => { if (!ui.animT) drawArrows(stepArrows(), 'quiet'); }, {passive:true}); }
   }
   if (ui.battle && ui.chronOpen){ const on = document.querySelector('.fr.on'); if (on) on.scrollIntoView({block:'nearest'}); }
   const pb = $('gtop'), bd = pb && pb.offsetHeight ? pb : $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px');
@@ -232,12 +230,15 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
    each part has a fixed window in ROUND_FX and they overlap, so more cards means a tighter stagger, not a longer wait.
      cleanup  unbought cards fly to the discard pile    from   75 ms, staggered over 863, 813 each  → done by ~1750
      upkeep   hourglass tokens stamp on                  from  313 ms, staggered over 875, 563 each  → done by ~1750
-     deal     new cards fly out of the deck and flip     from  500 ms, staggered over 900, 1125 each → done by ~2525
+     deal     new cards fly out of the deck and flip     from  500 ms, staggered over 900, 1319 each → done by ~2720
    (Tuned by Brian in the Oasis shop animation lab, Nov 2026.)
    With nothing to clean up or stamp, the deal starts at once. A dealt card can head for a spot an unbought card is
-   leaving: it lands only after that card has lifted away. */
+   leaving: it lands only after that card has lifted away.
+   How unbought cards leave (leaveStyle): 'pile' flies each to the discard pile, shrinking to the pile's size on the way,
+   rising leaveArc px extra at the top of its arc; 'sink' drops each straight down off its spot, fading out as it goes,
+   so it never crosses the deal. */
 const ROUND_FX = {leaveAt:75, leaveSpread:863, leaveGap:188, leaveDur:813, tokAt:313, tokSpread:875, tokGap:175, tokDur:563,
-  dealAt:500, deal:{spread:900, gap:200, dur:1125, backDur:750, backLead:313}};
+  dealAt:500, deal:{spread:900, gap:200, dur:1319, backDur:750, backLead:313}, leaveStyle:'pile', leaveArc:0};
 const spreadGap = (n, spread, max) => n > 1 ? Math.min(max, spread / (n - 1)) : 0;
 function leaveToPile(rows){
   const L = G.leaving, pile = $('muster-pile'), mktp = $('view-play').querySelector('.mktp');
@@ -256,11 +257,20 @@ function leaveToPile(rows){
       const r = card.getBoundingClientRect(); if (!r.width) continue;
       const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) continue;
       const {g:gh} = flyer(name, kind); gh.classList.add('leaving', 'lghost'); gh.setAttribute('aria-hidden', 'true');   // the card's own face
-      flyEl(gh, r, r.width, r.height, flyZ(pile), card.parentElement);   // lands on the discard pile, over the bottom bar when the pile is in it
+      flyEl(gh, r, r.width, r.height, flyZ(pile), card.parentElement);   // flies into the discard pile, under the bottom bar when the pile is in it
       const delay = ROUND_FX.leaveAt + k++ * gap, dur = ROUND_FX.leaveDur;
-      sfx.flick((delay + dur * 0.55) / 1000);
+      const onLand = () => { gh.remove(); landed++; if (cnt) cnt.textContent = Math.max(0, total - arriving + landed); bumpEl(pile.querySelector(".mpcards")); };
       gh.style.transformOrigin = '0 0';
-      cardFlight(gh, r, pr, {dur, delay, onLand:() => { gh.remove(); landed++; if (cnt) cnt.textContent = Math.max(0, total - arriving + landed); bumpEl(pile.querySelector(".mpcards")); }});
+      if (ROUND_FX.leaveStyle === 'sink'){
+        // straight down off its spot, fading as it goes; the pile counts it when it's gone
+        try{ sfx.flick(delay / 1000); }catch(e){}
+        const an = gh.animate([{transform:'none', opacity:1}, {transform:`translateY(${r.height * .12}px)`, opacity:1, offset:.3},
+          {transform:`translateY(${r.height * .8}px)`, opacity:0}], {duration:dur, delay, easing:'cubic-bezier(.5,0,.75,.4)', fill:'both'});
+        an.onfinish = an.oncancel = onLand;
+      } else {
+        try{ sfx.flick(delay / 1000); sfx.drop(dealLandAt(delay + dur), .5); }catch(e){}   // off it goes; it lands on the pile
+        cardFlight(gh, r, pr, {dur, delay, arc:ROUND_FX.leaveArc, onLand});
+      }
       end = Math.max(end, delay + dur);
     }
   });
@@ -281,10 +291,11 @@ function dealView(el){
 }
 /* STACKING ORDER (z-index), back to front. Every layer on the play screen belongs to one of these; keep new UI in its band.
      0–15   the page: market cards, miracle backs (4), battle columns (15)
+     18     FLYING CARDS: deals out of a deck, buys into a deck button, sells and unbought cards into the discard pile.
+            Over the market, UNDER both bars: a card dealt from a deck in the bottom bar slides out from under it, a
+            card bound for the discard pile slides in under it, and a market card behind the bar stays behind it.
      19–20  the bars: top info bar (19), bottom bar with the decks, Discard and buttons (20)
      30     hover boxes on market cards (miracles behind a card)
-     40     FLYING CARDS: deals out of a deck, buys into a deck button, sells and unbought cards into the discard pile.
-            Over both bars, so you always see a card leave or land on them; under everything below.
      50     tooltips
      60     floating controls and messages: the Miracles tab and tray, toasts
      65–67  pop-ups: deck sheet (65), peek window (66), a card flying into one of those pop-ups (66 / 67)
@@ -292,7 +303,7 @@ function dealView(el){
      75     a dying battle card flying to the graveyard
      80     dialogs: miracle pop-up, reminders
      90     turn banners ("Your turn", "Pass the device"): always in front, nothing flies over them */
-const LAYER = {bars:20, flight:40, popup:65, peekWin:66, popupFlight:67, cardPop:70, banner:90};
+const LAYER = {bars:20, flight:18, popup:65, peekWin:66, popupFlight:67, cardPop:70, banner:90};
 function flyZ(dest){
   if (dest && dest.closest){
     if (dest.closest('.pkwin')) return LAYER.popupFlight;           // a peek card dealt into the peek window
@@ -300,6 +311,19 @@ function flyZ(dest){
   }
   return LAYER.flight;
 }
+/* THE DEAL FLIGHT'S SHAPE (dealFly), tunable in the "Oasis shop animation lab". Timings are shares of the flight (0–1):
+     lift     how big the card grows as it leaves the deck (at most; it starts the deck's size)
+     rise     px it rises as it leaves     tilt   degrees it tilts as it leaves     leaveAt  when it has left the deck
+     land     when it touches down in its spot, face down; the landing sound plays then (a miracle back: plainLand)
+     flipAt / flipMid / flipEnd   the turn starts, is edge on, and is face up (then settles to its true size)
+     flipRise px it lifts toward you while turning     flipGrow  how big it gets mid-turn
+     sndEarly ms the landing and flip sounds play early (on top of the device's own audio delay, which is always allowed for)
+   Sounds: a swish (sfx.flick) as it leaves the deck, a soft set-down (sfx.drop) as it lands, a louder swish edge on (flipMid). */
+// Brian's values from the lab (Nov 22): no hop, a slower turn with a bigger pop toward you, sounds 200 ms later
+const DEAL_FX = {lift:.52, rise:0, tilt:10, leaveAt:.138, land:.447, plainLand:.7, flipAt:.622, flipMid:.804, flipEnd:.94,
+  flipRise:32, flipGrow:1.38, sndEarly:-200};
+// a landing sound's time, in seconds from now: the landing time (ms) less the early nudge
+const dealLandAt = ms => Math.max(0, ms - DEAL_FX.sndEarly) / 1000;
 function dealFly(el, deck, delay, dur, o = {}){
   if (!el || !deck || !el.isConnected) return 0;
   const r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
@@ -314,7 +338,7 @@ function dealFly(el, deck, delay, dur, o = {}){
   // until its turn the copy is hidden (the deck and its count show through); then it appears exactly on the deck, the
   // size of its top card, lifts off, tilts, travels to its spot and flips over
   const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2);
-  const sx = dr.width / r.width, sy = dr.height / r.height, lift = Math.min(.5, Math.max(sx, sy) * 1.6);
+  const F = DEAL_FX, sx = dr.width / r.width, sy = dr.height / r.height, lift = Math.min(F.lift, Math.max(sx, sy) * 1.6);
   el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});   // the real card waits, invisible, until the copy lands
   let kf, an, SWAP = 1;
   if (o.plain){
@@ -328,17 +352,21 @@ function dealFly(el, deck, delay, dur, o = {}){
        −90°→0°, so the face is never mirrored. Perspective scales with the card so phone and desktop flips look alike. */
     const P = Math.max(360, r.width * 3.4);
     const T = (x, y, rot, ry, s1, s2 = s1) => `perspective(${P}px) translate(${x}px,${y}px) rotate(${rot}deg) rotateY(${ry}deg) scale(${s1},${s2})`;
-    SWAP = .78;
+    // the moments in order (each a little after the one before, whatever the table says)
+    const up = (x, after, room) => Math.min(Math.max(x, after + .01), 1 - room);
+    const oLeave = up(F.leaveAt, .01, .08), oLand = up(F.land, oLeave + .05, .06), oNear = Math.max(oLeave + .01, oLand - .06);
+    const oFlip = up(F.flipAt, oLand, .04), oMid = up(F.flipMid, oFlip, .03), oEnd = up(F.flipEnd, oMid + .001, .01);
+    SWAP = oMid;
     kf = [
       {transform:T(dx, dy, 0, 0, sx, sy), opacity:0, filter:'brightness(1)', offset:0},
       {transform:T(dx, dy, 0, 0, sx, sy), opacity:1, offset:.01},
-      {transform:T(dx * .85, dy * .85 - 24, -10, 0, lift), offset:.16, easing:'cubic-bezier(.3,.6,.35,1)'},
-      {transform:T(0, -4, 2, 0, 1.02), offset:.46, easing:'ease-out'},
-      {transform:T(0, 0, 0, 0, 1), offset:.52},                                         // landed, face down
-      {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', offset:.58, easing:'cubic-bezier(.45,0,.75,.6)'},   // a beat, then the turn
-      {transform:T(0, -10, 0, 90, 1.12), filter:'brightness(.78)', offset:SWAP, easing:'steps(1,end)'},       // edge on, lifted
-      {transform:T(0, -10, 0, -90, 1.12), filter:'brightness(.78)', offset:SWAP + .001, easing:'cubic-bezier(.25,.5,.4,1)'},
-      {transform:T(0, -2, 0, 0, 1.05), filter:'brightness(1)', offset:.93, easing:'ease-in-out'},              // face up, a touch big
+      {transform:T(dx * .85, dy * .85 - F.rise, -F.tilt, 0, lift), offset:oLeave, easing:'cubic-bezier(.3,.6,.35,1)'},
+      {transform:T(0, -4, 2, 0, 1.02), offset:oNear, easing:'ease-out'},
+      {transform:T(0, 0, 0, 0, 1), offset:oLand},                                       // landed, face down
+      {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', offset:oFlip, easing:'cubic-bezier(.45,0,.75,.6)'},   // a beat, then the turn
+      {transform:T(0, -F.flipRise, 0, 90, F.flipGrow), filter:'brightness(.78)', offset:SWAP, easing:'steps(1,end)'},       // edge on, lifted
+      {transform:T(0, -F.flipRise, 0, -90, F.flipGrow), filter:'brightness(.78)', offset:SWAP + .001, easing:'cubic-bezier(.25,.5,.4,1)'},
+      {transform:T(0, -2, 0, 0, 1.05), filter:'brightness(1)', offset:oEnd, easing:'ease-in-out'},              // face up, a touch big
       {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', opacity:1, offset:1}         // settles to its true size
     ];
     an = g.animate(kf, {duration:dur, delay, easing:'linear', fill:'both'});
@@ -407,13 +435,13 @@ function dealIn(els, base, o){
     for (const b of backs){
       b.style.opacity = '';
       const bd = base + n++ * gap;
-      if (dealFly(b, deck, bd, backDur, {plain:true})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); }catch(e){} }
+      if (dealFly(b, deck, bd, backDur, {plain:true})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); sfx.drop(dealLandAt(bd + backDur * DEAL_FX.plainLand), .4); }catch(e){} }
       end = Math.max(end, bd + backDur * .65);
     }
     el.style.opacity = '';
     const delay = base + n++ * gap + (backs.length ? lead : 0);
     if (dealFly(el, deck, delay, dur)){
-      starts[k].push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){}
+      starts[k].push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); sfx.drop(dealLandAt(delay + dur * DEAL_FX.land), .55); sfx.flick(dealLandAt(delay + dur * DEAL_FX.flipMid), 1.3); }catch(e){}
       end = Math.max(end, delay + dur);
       el.dataset.dealt = '1'; if (el.dataset.ck) MOT.busy.set(el.dataset.ck, performance.now() + delay + dur);
     }
@@ -485,7 +513,7 @@ function dealPeeks(skip){
     const go = () => {
       if (!row.isConnected) return;
       let n = 0; const st = [];
-      for (const el of cards){ const delay = 60 + n * 180; if (dealFly(el, deck, delay, 1100)){ n++; st.push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); }catch(e){} } }
+      for (const el of cards){ const delay = 60 + n * 180; if (dealFly(el, deck, delay, 1100)){ n++; st.push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); sfx.drop(dealLandAt(delay + 1100 * DEAL_FX.land), .55); sfx.flick(dealLandAt(delay + 1100 * DEAL_FX.flipMid), 1.3); }catch(e){} } }
       deckCountdown(deck, st);
     };
     // in the peek window: wait until it has finished rising, so each card lands where it really sits

@@ -30,6 +30,22 @@
   defeated in that step lands on its own card underneath (or on the pile, when it's buried too deep to be drawn).
   Several units of one side defeated in one step go one after another (`GRAVE_STAGGER`, 260 ms), in the order they
   land on the pile: the charging unit first, underneath, then the revealed unit on top. The two sides go at the same time.
+- Battle ink (js/ui/19-battle-ink.js; numbers tuned in the "Oasis battle lab: ink helpers" artifact): every effect is a
+  calligraphy-style stroke on the table, under the cards, growing as the step plays. Weight follows damage; a blot with
+  the number spreads at its middle; one pressed wedge at the tip, square to the stroke, on a short straight run square
+  to the card. Attacks bow out mirrored (yours left, the opponent's right); same-side effects loop past the row;
+  strokes between the same two cards take nested lanes. Overrun carries on from the tip of the stroke into the unit it
+  spilled through. Ability notes are joined to their card by brush dabs pressed one at a time, which follow the unit
+  and the note live; the note slides in as they arrive. Abilities play one after another; one logged after the step's
+  first defeat waits until the defeated cards have landed. Moving on, the old ink soaks away; Back shows a step at once;
+  2× halves it all. The old straight arrows and dotted note lines are gone.
+- Tokens: a new token splays out from behind the card (`labSplayIn`); one more of a kind already there splays out on top
+  of it and the count goes up as it lands (the token underneath never disappears). A Shield that stops a hit glows gold
+  like an ability; when you move on it cracks and its halves (copies of the token, cut to what showed) tumble up and away
+  from behind the card. Might a Fencer discards breaks the same way.
+- A defeated card flies to the graveyard inside the tilted table (same perspective as the cards), re-aiming every frame
+  at its card in the pile. Sand Sailor slides a full card width out of its deck (left for yours, right for the
+  opponent's), over the new top card, then back in under it. Each graveyard's pile sits level with its row's charging card.
 - Flips are real 3D turns (pattern in docs/code-map.md). The slide into the charge zone starts slow.
 - Damage cubes: real 3D wooden cubes dropped straight onto the top card with a random starting angle, contained on
   it; lifted upward to remove; a defeated unit's cubes lift as its card flips to the graveyard. Shadows fade in.

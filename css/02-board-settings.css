@@ -94,10 +94,7 @@ body.lab-v-lean .line.table>.city.s0{transform:translateZ(calc(var(--ldepth, 260
 :root{--labmask:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA3NTAgNzI4JyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSdub25lJz48cGF0aCBmaWxsPScjMDAwJyBkPSdNMCw0MCBRMCwwIDQwLDAgSDcxMCBRNzUwLDAgNzUwLDQwIFY2NTAuNSBRNzUwLDY4Mi41IDcxOCw2ODIuNSBINTE1LjUgTDUxMyw2OTAgTDUwNyw3MDAgTDUwMSw3MTAgTDQ5NSw3MjAgTDQ5NCw3MjIgSDI5MC41IEwyODcsNzE4IEwyODEsNzEwIEwyNzQsNzAwIEwyNjcsNjkwIEwyNjQuNSw2ODIuNSBIMzIgUTAsNjgyLjUgMCw2NTAuNSBaJy8+PC9zdmc+")}
 body.lab-crop .table .card.hasart:not(.mini)>.cartbg,body.lab-crop .table .card.hasart>.tk,body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .gart{clip-path:none!important;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
 /* a breaking Shield token: its shards come from the cropped card too */
-body.lab-crop .shpiece.artpc{background-size:100% auto!important;background-position:center top!important;border-radius:0!important;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
 /* battle arrows, their labels, and ability notes with their lines draw above the damage cubes */
-#view-play .stage .arrows{z-index:8}
-#view-play .stage .ablines{z-index:9}
 #view-play .stage .abwin,.abghost{z-index:10}
 /* --- performance: depth drawn without filter chains or blend modes, so moving cards stay smooth ---
    the card edge is solid layers under the face; one soft shadow sits on a plain rounded box; tucked cards darken with

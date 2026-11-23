@@ -209,7 +209,9 @@ function runBattle(cfgs, record){
   }
   // token arrows: who gave what to whom (from a unit, a graveyard entry, or null for a building)
   const tokMeta = (from, to, side, tok, amt) => record && to ? {from: from ? `${from.owner}-${from.uid}` : null, to:`${to.owner}-${to.uid}`, by:side, amt, tok} : undefined;
-  const hitMeta = (u, src, side, amt) => { const f = srcUnit(src); return {from: f ? `${f.owner}-${f.uid}` : null, to:`${u.owner}-${u.uid}`, by:side, amt}; };
+  // atk: the hit comes from an attack (a fight hit, a Marksman shot or its overrun), even with an ability's tag on it
+  // via: an Overrun spill's line names the unit it spilled through (the screen draws it carrying on from that unit)
+  const hitMeta = (u, src, side, amt) => { const f = srcUnit(src); return {from: f ? `${f.owner}-${f.uid}` : null, to:`${u.owner}-${u.uid}`, by:side, amt, ...(ATK ? {atk:true} : {}), ...(OVFROM ? {via:`${OVFROM.owner}-${OVFROM.uid}`} : {})}; };
   /* A round of abilities resolves at the same time for both players. Tokens (Shields, Armaments, Training) land as
      each ability resolves; damage waits until the round's end. Then each unit takes its biggest hit first (so a Shield
      blocks the biggest one, whoever's ability it was), and overrun spills land after every first hit. Neither seat
@@ -504,12 +506,14 @@ function runBattle(cfgs, record){
           withAb(abM('Second Wind', p), () => log(`Second Wind saves ${nameOf(u)} and sends it to the bottom of the deck${extra ? ` (${extra === 1 ? 'the other Second Wind is' : `${extra} more are`} wasted)` : ''}.`, p, record ? {from:null, to:`${u.owner}-${u.uid}`, by:p, amt:0, tok:'ret', ...mvs([[u, z, 'deck-bottom', 'save']])} : undefined));
         }
       }
-      frameIf('Saves');
       const dying = [];
       for (const p of [0,1]){
         const c = P[p].charge; if (c && isDead(c)) dying.push({p, u:c, zone:'c'});
         P[p].deck.forEach((u, i) => { if (isDead(u)) dying.push({p, u, zone:'d', i}); });
       }
+      // a save shares the step with the defeats that follow it, so the saved unit goes back to its deck as the others go
+      // to the graveyard (the screen points at the unit to be saved in the step before); with no defeats it has its own
+      if (!dying.length) frameIf('Saves');
       if (!dying.length){
         frameIf('Casualties');   // (the saves already had their own step)
         if (newReveals()){ any = true; frameIf('Reveal abilities'); continue; }
@@ -587,7 +591,7 @@ function runBattle(cfgs, record){
       const e = c[1-p];
       if (key(c[p]) === 'Fencer' && ab(c[p]) && e.arm > 0){
         const k = e.arm; e.arm = 0;
-        withAb(abU(c[p], p), () => log(`${nameOf(c[p])} removes ${many(k, 'an Armament', 'Armaments')} from ${nameOf(e)} (${power(e)} power).`, p));
+        withAb(abU(c[p], p), () => log(`${nameOf(c[p])} removes ${many(k, 'an Armament', 'Armaments')} from ${nameOf(e)} (${power(e)} power).`, p, record ? {from:`${c[p].owner}-${c[p].uid}`, to:`${e.owner}-${e.uid}`, by:p, drop:{tok:'arm', n:k}} : undefined));   // drop: the tokens it discards (the screen breaks them)
       }
     }
     const atk = [0,1].map(p => {

@@ -18,31 +18,60 @@ function mirTurn(el, k, apply){
 }
 // A card that dies: a copy of it slides toward the graveyard, flips face down, and shrinks into its name in the list.
 // delay (ms): the copy waits where the card was, and its spot in the graveyard stays hidden until it lands
+// where an element sits in the battle table's own coordinates: its offsets up to the table, before any transform (the
+// table's tilt, a lunge), so a copy placed there inside the table sits exactly on it and tilts with the table
+function tableXY(el, line){
+  let x = 0, y = 0, n = el;
+  while (n && n !== line){ x += n.offsetLeft || 0; y += n.offsetTop || 0; n = n.offsetParent; }
+  return n === line ? {left:x, top:y, width:el.offsetWidth, height:el.offsetHeight} : null;
+}
 function deathFly(r0, nameEl, delay = 0){
-  const g = r0.clone, r1 = nameEl.getBoundingClientRect();
+  const g = r0.clone, uid = g.dataset.uid, line = $('view-play').querySelector('.stage .line.table');
+  // it flies inside the tilted table, like the cards (on the page it would fly flat), in the table's own coordinates
+  const a0 = r0.loc && {...r0.loc}, aim0 = line && a0 && tableXY(nameEl, line);
+  if (!aim0) return;
   g.classList.remove('shake', 'lunge0', 'lunge1'); g.classList.add('deathfly');
-  for (const f of g.querySelectorAll('.float')) f.remove();
-  Object.assign(g.style, {left:r0.left + 'px', top:r0.top + 'px', width:r0.width + 'px', height:r0.height + 'px'});
+  g.removeAttribute('data-uid'); g.dataset.fly = uid; g.setAttribute('data-keep', ''); g.setAttribute('aria-hidden', 'true');   // (a redraw mid-flight leaves it alone)
+  for (const f of g.querySelectorAll('.float, .trigglow, .hprow')) f.remove();   // (its health row would show through, mirrored, on the back)
+  Object.assign(g.style, {position:'absolute', left:a0.left + 'px', top:a0.top + 'px', width:a0.width + 'px', height:a0.height + 'px'});
   const back = document.createElement('span'); back.className = 'dfback'; g.appendChild(back);
-  document.body.appendChild(g);
-  // the page can give fixed elements an offset container (a transformed or contained ancestor); line the clone up
-  // with where the card really was before it flies
-  { const gr = g.getBoundingClientRect(); if (Math.abs(gr.left - r0.left) > 1 || Math.abs(gr.top - r0.top) > 1){
-      g.style.left = (2 * r0.left - gr.left) + 'px'; g.style.top = (2 * r0.top - gr.top) + 'px'; } }
-  const dx = (r1.left + r1.width / 2) - (r0.left + r0.width / 2), dy = (r1.top + r1.height / 2) - (r0.top + r0.height / 2);
-  const sx = Math.max(0.1, r1.width / r0.width), sy = Math.max(0.05, r1.height / r0.height);
+  line.appendChild(g);
+  // the redraw can move the whole table (its rows resize): start from where the card really was on screen, not from its
+  // old place in the table, so the copy doesn't jump as it takes off
+  { const gr = g.getBoundingClientRect(), kx = gr.width / a0.width || 1, ky = gr.height / a0.height || 1;
+    const ox = (r0.left - gr.left) / kx, oy = (r0.top - gr.top) / ky;
+    if (Math.abs(ox) > .5 || Math.abs(oy) > .5){ a0.left += ox; a0.top += oy; g.style.left = a0.left + 'px'; g.style.top = a0.top + 'px'; } }
   const T = 500;
   // perspective goes first so the turn reads as 3D: the near edge grows, the far edge and the face's text foreshorten
-  const P = Math.max(360, r0.width * 3.4), pf = `perspective(${P}px) `;
-  const a = g.animate([
-    {transform:pf + 'translate(0,0) rotateY(0deg) scale(1)', filter:'brightness(1)', offset:0},
-    {transform:pf + `translate(${dx * 0.25}px,${dy * 0.25 - 12}px) rotateY(0deg) scale(.93)`, filter:'brightness(1)', offset:.14},
-    {transform:pf + `translate(${dx * 0.55}px,${dy * 0.55 - 8}px) rotateY(90deg) scale(.7)`, filter:'brightness(.72)', offset:.45},
-    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:.85, offset:.88},
-    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, filter:'brightness(1)', opacity:0, offset:1}
-  ], {duration:T, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'both'});
+  const P = Math.max(360, a0.width * 3.4), pf = `perspective(${P}px) `;
+  const path = r1 => { const dx = (r1.left + r1.width / 2) - (a0.left + a0.width / 2), dy = (r1.top + r1.height / 2) - (a0.top + a0.height / 2);
+    const sx = Math.max(0.1, r1.width / a0.width), sy = Math.max(0.05, r1.height / a0.height);
+    return [
+    {transform:pf + 'translate(0,0) rotateY(0deg) scale(1)', offset:0},
+    {transform:pf + `translate(${dx * 0.25}px,${dy * 0.25 - 12}px) rotateY(0deg) scale(.93)`, offset:.14},
+    {transform:pf + `translate(${dx * 0.55}px,${dy * 0.55 - 8}px) rotateY(90deg) scale(.7)`, offset:.45},
+    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, opacity:.85, offset:.88},
+    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, opacity:0, offset:1}
+  ]; };
+  const a = g.animate(path(aim0), {duration:T, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'both'});
+  let aim = aim0;
   back.animate([{opacity:0}, {opacity:0, offset:.45}, {opacity:1, offset:.451}, {opacity:1}], {duration:T, delay, fill:'both'});
-  nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1}], {duration:T, delay, fill:'backwards'});
+  // the card in the pile is fully there before the copy starts to fade (.88), so the two never dip through each other
+  nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1, offset:.87}, {opacity:1}], {duration:T, delay, fill:'backwards'});
+  // until the copy lands, the unit's card in the graveyard stays hidden, also when the board is redrawn mid-flight (the step
+  // landing replaces the pile, and a staggered second unit is still in the air then): otherwise the card shows on the pile
+  // early and the copy lands on top of it and flickers out
+  const hold = () => {
+    if (!g.isConnected){ for (const el of document.querySelectorAll(`.gyhold[data-uid="${uid}"], .gyhold[data-guid="${uid}"]`)) el.classList.remove('gyhold'); return; }
+    const t = (a.currentTime || 0) - delay, landed = t >= T * .8;   // from .8 the card fades in under the copy, as above
+    const st = $('view-play').querySelector('.stage');
+    // the redraw can also move the card's place in the pile: the copy re-aims at where it is now
+    const live = st && (st.querySelector(`.gcard[data-guid="${uid}"]`) || (nameEl.isConnected ? nameEl : null)), r = live && !landed && tableXY(live, line);
+    if (r && r.width && (Math.abs(r.left - aim.left) > 1 || Math.abs(r.top - aim.top) > 1 || Math.abs(r.width - aim.width) > 1)){ aim = r; a.effect.setKeyframes(path(r)); }
+    if (st) for (const el of st.querySelectorAll(`.line [data-uid="${uid}"], .gcard[data-guid="${uid}"]`)) if (el !== nameEl) el.classList.toggle('gyhold', !landed);
+    requestAnimationFrame(hold);
+  };
+  if (uid) requestAnimationFrame(hold);
   a.onfinish = a.oncancel = () => g.remove();
 }
 // The card moves the engine recorded for a step (see mvs in runBattle)
@@ -54,7 +83,9 @@ function bDeckEl(side){
   const row = document.querySelector(`#view-play .stage .trow.s${VS(side)}`), dz = row && row.querySelector('.deckz');
   return dz && (dz.querySelector(`.tzc > .card[data-side="${side}"]:not(.mini):not(.deckfly)`) || dz.querySelector('.tzc > .slot'));
 }
-function deckFly(r0, side){
+// out: a unit moving itself to the back of its deck (Sand Sailor) first slides a full card width out of the deck, over
+// the new top card (to the left for yours, to the right for the opponent's), then back in under it
+function deckFly(r0, side, out){
   const tgt = bDeckEl(side), dz = tgt && tgt.closest('.deckz'), box = tgt && tgt.parentNode;
   if (!tgt || !dz || !box || !r0.clone || !tgt.animate) return;
   const g = r0.clone, W = tgt.offsetWidth, H = tgt.offsetHeight;
@@ -74,8 +105,19 @@ function deckFly(r0, side){
   const dx = ((r0.left + r0.width / 2) - (rt.left + rt.width / 2)) * kx, dy = ((r0.top + r0.height / 2) - (rt.top + rt.height / 2)) * ky;
   const s0 = Math.max(.5, Math.min(2, r0.width / rt.width));
   box.insertBefore(g, tgt);   // before the top card, and under it
-  const T = 620;
-  const a = g.animate([
+  const T = out ? 760 : 620;
+  let a;
+  if (out){
+    // out over the new top card, then back in under it (it changes layers at the far end, out of the deck's way)
+    const ox = (VS(side) === 0 ? -1 : 1) * W * 1.06, oy = 0;
+    g.style.setProperty('z-index', '3', 'important');
+    a = g.animate([
+      {transform:`translate(${dx}px,${dy}px) scale(${s0})`},
+      {transform:`translate(${ox}px,${oy}px) scale(1)`, offset:.48, easing:'cubic-bezier(.4,0,.3,1)'},
+      {transform:'translate(0px,0px) scale(1)'}
+    ], {duration:T, easing:'cubic-bezier(.3,0,.3,1)', fill:'forwards'});
+    setTimeout(() => g.style.setProperty('z-index', '-1', 'important'), T * .5);
+  } else a = g.animate([
     {transform:`translate(${dx}px,${dy}px) scale(${s0})`, filter:'brightness(1)'},
     {transform:'translate(0px,0px) scale(1)', filter:'brightness(.85)'}
   ], {duration:T, easing:'cubic-bezier(.5,0,.2,1)', fill:'forwards'});
@@ -108,10 +150,21 @@ function animateTokens(prevF, curF){
         const pp = pokeParts(order.slice(0, n), VS(side), 0, art);
         el.style.boxShadow = pp.shadow;
         if (art) applyRoom(el, pp.room); else Object.assign(el.style, {marginLeft:'', marginRight:'', marginTop:'', marginBottom:''}, n ? pp.room : {});
-        for (const x of el.querySelectorAll(':scope > .pk, :scope > .gtk, :scope > .ctk')) x.remove();
-        const bg = el.querySelector(':scope > .cartbg');
-        bg ? bg.insertAdjacentHTML('afterend', pp.html) : el.insertAdjacentHTML('afterbegin', pp.html);
-        if (pop){ const all = el.querySelectorAll(':scope > .pk'), last = all[all.length - 1]; if (last) last.classList.add(art ? 'tknew' : 'pknew'); }
+        const k = order[n - 1], had = pop && art ? el.querySelector(`:scope > .pk.tk[data-k="${k}"]:not(.pkfly)`) : null;
+        if (had){
+          const cp = had.cloneNode(true); cp.classList.add('pkfly'); cp.classList.remove('shhit'); const c = cp.querySelector('.tkn'); if (c) c.remove();
+          had.after(cp);
+          labSplayIn(el, 0, [cp], () => { cp.remove(); draw(); });
+          return;
+        }
+        draw();
+        if (pop){ const nw = art ? el.querySelector(`:scope > .pk.tk[data-k="${k}"]:not(.pkfly)`) : [...el.querySelectorAll(':scope > .pk')].pop();
+          if (nw){ if (art) labSplayIn(el, 0, [nw]); else nw.classList.add('pknew'); } }
+        function draw(){
+          for (const x of el.querySelectorAll(':scope > .pk:not(.pkfly):not(.pkcrack), :scope > .gtk, :scope > .ctk')) x.remove();
+          const bg = el.querySelector(':scope > .cartbg');
+          bg ? bg.insertAdjacentHTML('afterend', pp.html) : el.insertAdjacentHTML('afterbegin', pp.html);
+        }
       };
       set(start, false);              // back to how it looked before this step...
       void el.offsetWidth; el.classList.add('tokanim');
@@ -124,23 +177,22 @@ function animateTokens(prevF, curF){
 }
 // Moving on from a step where a Shield blocked a hit: the shield (its token card peeking out behind the unit, and its
 // icon) cracks, splits and falls away. Measured from the board before it is redrawn without that shield.
-function shieldsToBreak(){
-  const out = [];
-  for (const pk of $('view-play').querySelectorAll('.stage .card > .pk.shhit')){
-    const card = pk.parentElement, cr = card.getBoundingClientRect(), pr = pk.getBoundingClientRect(); if (!cr.width) continue;
-    const cs = getComputedStyle(card), px = parseFloat(cs.getPropertyValue('--px')) || 12, py = parseFloat(cs.getPropertyValue('--py')) || 8;
-    const j = +pk.style.getPropertyValue('--j') || 0, side = +card.dataset.side, sg = side === 1 ? -1 : 1;
-    if (pk.classList.contains('tk')){ const ty = parseFloat(cs.getPropertyValue('--tky')) || 26, tl = parseFloat(cs.getPropertyValue('--tkl')) || 5;
-      out.push({art:true, cr, pr, ty, tl, side, rad:cs.borderRadius, uid:card.dataset.uid, z:+(pk.style.zIndex || -1)}); continue; }
-    out.push({cr, pr, dx:sg * px * (j + 1), dy:-sg * py * (j + 1), sx:sg * px, sy:-sg * py, side, icon:pk.innerHTML, rad:cs.borderRadius});
-  }
-  return out;
+function shieldsToBreak(){ return [...$('view-play').querySelectorAll('.stage .card > .pk.shhit')].map(tokenBreakInfo).filter(Boolean); }
+// what breaking one token takes: measured from the board before it is redrawn without that token (a Shield that blocked a
+// hit, Might a Fencer discards)
+function tokenBreakInfo(pk){   // (el is a copy: the in-place redraw can reuse the token's element for something else)
+  const card = pk.parentElement, cr = card.getBoundingClientRect(), pr = pk.getBoundingClientRect(); if (!cr.width) return null;
+  const cs = getComputedStyle(card), px = parseFloat(cs.getPropertyValue('--px')) || 12, py = parseFloat(cs.getPropertyValue('--py')) || 8;
+  const j = +pk.style.getPropertyValue('--j') || 0, side = +card.dataset.side, sg = side === 1 ? -1 : 1, kind = pk.dataset.k;
+  if (pk.classList.contains('tk')){ const ty = parseFloat(cs.getPropertyValue('--tky')) || 26, tl = parseFloat(cs.getPropertyValue('--tkl')) || 5;
+    return {art:true, el:pk.cloneNode(true), cr, pr, ty, tl, side, kind, rad:cs.borderRadius, uid:card.dataset.uid, z:+(pk.style.zIndex || -1)}; }
+  return {cr, pr, dx:sg * px * (j + 1), dy:-sg * py * (j + 1), sx:sg * px, sy:-sg * py, side, kind, icon:pk.innerHTML, rad:cs.borderRadius};
 }
-function breakShields(list){
+function breakTokens(list){
   if (reduceMotion()) return;
   try{ sfx.tick(); }catch(e){}
   for (const b of list){
-    if (b.art){ breakArtShield(b); continue; }
+    if (b.art){ breakArtToken(b); continue; }
     const {cr, dx, dy, sx, sy} = b, W = cr.width, H = cr.height;
     // the visible sliver of the shield's token card: the one-token-wide edge that sticks out past the card (or token)
     // just inside it, an L shape
@@ -175,36 +227,38 @@ function breakShields(list){
   }
 }
 // a Shield token card tucked behind an art card: its visible part (the banner strip and the sliver down the left)
-// splits along a crack and the halves fall away
-function breakArtShield(b){
-  const {pr, ty, tl} = b, W = pr.width, H = pr.height;
-  const L = [[0,0],[W,0],[W,ty],[tl,ty],[tl,H],[0,H]];
-  const wrap = document.createElement('div'); wrap.className = 'shbreak'; wrap.setAttribute('aria-hidden', 'true');
-  // the pieces go inside the card, behind its face, so they fall away behind it instead of across it
-  const card = b.uid && document.querySelector(`#view-play .card[data-uid="${b.uid}"]:not(.mini)`);
-  if (card) wrap.style.cssText = `position:absolute;left:${pr.left - b.cr.left}px;top:${pr.top - b.cr.top}px;width:${W}px;height:${H}px;z-index:${b.z}`;
-  else wrap.style.cssText = `left:${pr.left}px;top:${pr.top}px;width:${W}px;height:${H}px`;
-  const mid = W * .45;
+// jolts, cracks, and the two halves tumble up and away from behind the card. The halves are copies of the token
+// itself, so it looks the same until it cracks.
+function breakArtToken(b){
+  const {el, ty, tl, pr} = b, W = pr.width, H = pr.height;
+  const card = b.uid && document.querySelector(`#view-play .card[data-uid="${b.uid}"]:not(.mini)`); if (!card || !el) return;
+  const L = [[0,0],[W,0],[W,ty],[tl,ty],[tl,H],[0,H]], mid = W * .45;
   const half = keepLeft => L.map(([x, y]) => [keepLeft ? Math.min(x, mid + (y < ty / 2 ? 8 : -8)) : Math.max(x, mid + (y < ty / 2 ? 8 : -8)), y]);
-  for (const [keepLeft, rot, tx] of [[true, -14, -18], [false, 12, 18]]){
-    const pc = document.createElement('div'); pc.className = 'shpiece artpc'; pc.style.borderRadius = b.rad;
-    pc.style.backgroundImage = `url('${tokArtURL('sh')}')`;
-    pc.style.clipPath = `polygon(${half(keepLeft).map(([x, y]) => `${x}px ${y}px`).join(',')})`;
-    wrap.appendChild(pc);
-    pc.animate([{transform:'none', opacity:1}, {transform:'translateX(0) rotate(0)', opacity:1, offset:.25},
-                {transform:`translate(${tx}px, 34px) rotate(${rot}deg)`, opacity:0}], {duration:620, delay:120, easing:'cubic-bezier(.5,0,.75,.4)', fill:'forwards'});
+  const cr = card.getBoundingClientRect(), x0 = pr.left - cr.left, y0 = pr.top - cr.top;   // where it was, inside the card
+  for (const g of card.querySelectorAll(':scope > .tkglow')) g.remove();   // (a glow still going goes with it)
+  for (const [keepLeft, rot, tx, ty2] of [[true, -16, -20, -10], [false, 14, 12, -18]]){
+    const pc = el.cloneNode(true); pc.classList.remove('shhit');   // same classes and place as the token, so it looks the same
+    pc.classList.add('pkcrack');
+    // only the part that was showing breaks off (important: some board looks force their own clip on tokens)
+    pc.style.setProperty('clip-path', `polygon(${half(keepLeft).map(([x, y]) => `${x}px ${y}px`).join(',')})`, 'important');
+    card.appendChild(pc);
+    // (translate/rotate/scale, not transform: a fanned stack already uses transform to place the token)
+    const a = pc.animate([{scale:1, translate:'0px 0px', rotate:'0deg', opacity:1}, {scale:1.04, opacity:1, offset:.14}, {scale:1, translate:'0px 0px', rotate:'0deg', opacity:1, offset:.24},
+                          {scale:1, translate:`${tx}px ${ty2}px`, rotate:`${rot}deg`, opacity:0}], {duration:640, easing:'cubic-bezier(.4,0,.7,.5)', fill:'forwards'});
+    a.onfinish = a.oncancel = () => pc.remove();
   }
+  const wrap = document.createElement('div'); wrap.className = 'shbreak'; wrap.setAttribute('aria-hidden', 'true');
+  wrap.style.cssText = `position:absolute;left:${x0}px;top:${y0}px;width:${W}px;height:${H}px;z-index:7`;
   const crack = document.createElement('span'); crack.className = 'shflash';
   crack.style.cssText = `left:${mid}px;top:${ty / 2}px`;
-  wrap.appendChild(crack);
-  crack.animate([{transform:'translate(-50%,-50%) scale(.2)', opacity:.9}, {transform:'translate(-50%,-50%) scale(1.6)', opacity:0}], {duration:360, easing:'ease-out', fill:'forwards'});
-  (card || document.body).appendChild(wrap);
-  setTimeout(() => wrap.remove(), 900);
+  wrap.appendChild(crack); card.appendChild(wrap);
+  const c = crack.animate([{transform:'translate(-50%,-50%) scale(.2)', opacity:.9}, {transform:'translate(-50%,-50%) scale(1.6)', opacity:0}], {duration:360, easing:'ease-out', fill:'forwards'});
+  c.onfinish = c.oncancel = () => wrap.remove();
 }
 // break the shields now and redraw those cards without them (the next step's arrows then aim at the board as it is)
 function breakShieldsNow(){
   const list = shieldsToBreak(); if (!list.length) return;
-  breakShields(list);
+  breakTokens(list);
   const units = unitsOf(ui.battle.frames[ui.frame], ['charge', 'deck']);
   for (const card of new Set([...$('view-play').querySelectorAll('.stage .card > .pk.shhit')].map(x => x.parentElement))){
     const u = units.get(card.dataset.uid), side = +card.dataset.side; if (!u) continue;
@@ -213,8 +267,8 @@ function breakShieldsNow(){
     const t = art ? tokenList(u) : tokenList(u).slice(0, pokeCap()), pp = pokeParts(t, side, 0, art);
     card.style.boxShadow = t.length || art ? pp.shadow : '';
     // the card eases into its new spot as the stack behind it shrinks, instead of jumping
-    if (art){ card.classList.add('tokanim'); applyRoom(card, pp.room); setTimeout(() => card.classList.remove('tokanim'), 480); try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){} }
-    for (const x of card.querySelectorAll(':scope > .pk, :scope > .gtk, :scope > .ctk')) x.remove();
+    if (art) setTimeout(() => { card.classList.add('tokanim'); applyRoom(card, pp.room); setTimeout(() => card.classList.remove('tokanim'), 480); try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){} }, reduceMotion() ? 0 : 160);
+    for (const x of card.querySelectorAll(':scope > .pk:not(.pkcrack), :scope > .gtk, :scope > .ctk')) x.remove();
     const bg = card.querySelector(':scope > .cartbg');
     bg ? bg.insertAdjacentHTML('afterend', pp.html) : card.insertAdjacentHTML('afterbegin', pp.html);
   }
@@ -228,6 +282,7 @@ function stepForward(){
   if (ui.frame >= last) return;
   breakShieldsNow();   // a shield that blocked a hit in the step on screen breaks as soon as you move on
   const prev = ui.battle.frames[ui.frame], next = ui.battle.frames[ui.frame + 1], to = ui.frame + 1;
+  ui.inkStart = to;   // the battle ink starts drawing this step now, as it begins (js/ui/19-battle-ink.js)
   try{ glowStep(next); ui.abFrame = to; mountAbWin(); }catch(e){}   // abilities firing this step glow, and their notes show, as it begins
   if (reduceMotion()){ goFrame(to, true); return; }
   const before = unitsOf(prev, ['charge', 'deck']), after = unitsOf(next, ['charge', 'deck']), grave = unitsOf(next, ['grave']);
@@ -244,14 +299,12 @@ function stepForward(){
   const heals = (next.hits || []).some(x => x.heal > 0);
   if (!fought && !hits.length && !arrows.length && !heals){ goFrame(to, true); return; }
   const root = $('view-play');
-  // where everything sits before the charging units lunge, so the arrows aim at resting cards
-  const rest = new Map(); for (const el of root.querySelectorAll('.stage [data-uid]')) rest.set(el.dataset.uid, el.getBoundingClientRect());
   const hitT = fought ? labClash(root) : 0;   // the charging units rush in and collide; hits land at the impact
   if (!fought && !hits.length) sfx.tick();
   if (fought) setTimeout(() => sfx.clash(), Math.max(0, hitT - 30));
   ui.pendingFrame = to;
   ui.animT = setTimeout(() => {
-    drawArrows(arrows, true, rest); ui.arrowsFor = to;
+    for (const l of arrows) if (l.to && l.from && !l.tok && l.amt === 0) cubeGlow('sh:' + l.to);   // a Shield stops this hit
     const koOnly = hits.length && hits.every(h => h.ko) && !fought && !heals;   // a casualty step: nothing lands, cards just leave
     if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.some(h => !h.save) && !koOnly) sfx.ko();
     for (const h of hits){
