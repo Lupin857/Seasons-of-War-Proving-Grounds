@@ -32,6 +32,8 @@ body.ingame .wrap:has(> #view-play:not([hidden]) #gtop) > .tabs{display:none}
   body:has(#view-play:not([hidden]) #gtop) .topboard{grid-template-columns:1fr 1fr}
   /* the deck tiles, if they stick while scrolling, stop under the bar instead of behind it */
   body:has(#view-play:not([hidden]) #gtop) .board.topboard{top:calc(var(--bh,0px) + 8px + env(safe-area-inset-top,0px))}
+  /* the battle buttons too (they stuck at the top, behind the bar, once the page scrolled) */
+  body:has(#view-play:not([hidden]) #gtop) .battlectl{top:calc(var(--bh,0px) + env(safe-area-inset-top,0px))}
 }
 
 /* the menu */

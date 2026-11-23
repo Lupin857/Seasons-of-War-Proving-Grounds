@@ -3,6 +3,8 @@
 ## Phone vs. desktop
 - They are separate layouts. Work on the one Brian names; don't change the other unless asked. If shared code
   changes, screenshot both and confirm the other looks the same. If unclear which one a request is for, ask.
+- Desktop: the game bar (`#gtop`) is pinned at the top; anything else that sticks while scrolling (deck tiles, battle
+  buttons) stops under it, using its height `--bh` (css/10-game-menu.css).
 - Phone: things you tap at the bottom, information at the top (top bar pinned clear of the notch). Keep bars as small
   as possible so the phone shows as many market cards as it can; readability fixes must not make bars taller. Battle
   runs edge to edge (no borders). Cards are cropped to the type tab (shop, Mobilize, battle); tap for the full card.
