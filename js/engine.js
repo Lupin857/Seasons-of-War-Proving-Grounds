@@ -153,7 +153,8 @@ function runBattle(cfgs, record){
   // Card moves, recorded on the Chronicle line that reports them (the screen animates from these, never from the
   // sentence or by comparing board pictures). Each move: {u:'side-uid', from, to, k}. Zones: 'new' (a card that wasn't
   // in play), 'deck', 'deck-top', 'deck-bottom', 'charge', 'grave'. k: 'charge', 'defeat', 'save', 'back', 'arrive'.
-  const mvs = list => record ? {mv:list.map(([u, from, to, k]) => ({u:`${u.owner}-${u.uid}`, from, to, k}))} : undefined;
+  // place (optional): the defeated unit whose spot an arriving card takes, keeping its tokens and gear (Cowardly Squire).
+  const mvs = list => record ? {mv:list.map(([u, from, to, k, pl]) => ({u:`${u.owner}-${u.uid}`, from, to, k, ...(pl ? {place:`${pl.owner}-${pl.uid}`} : {})}))} : undefined;
   const withAb = (ab, fn) => { if (!record) return fn(); const o = AB; AB = ab; try{ return fn(); } finally { AB = o; } };
   const abU = (u, p) => ({n:u.name, as:u.copyOf || null, u:`${u.owner}-${u.uid}`, s:p});
   const abB = (n, p) => ({n, b:true, s:p});
@@ -473,10 +474,11 @@ function runBattle(cfgs, record){
     survive('balm', (u, w) => u.gear === 'Healing Balm' ? w : 0, u => abG(u, u.owner), (u, k) => `Healing Balm removes ${k} damage from ${nameOf(u)}.`);
     frameIf('Survival heals');
     for (let guard = 0; guard < 200; guard++){
-      // Barber-Surgeon (While Revealed): a charging unit that would die goes to the bottom of the deck, undamaged
+      // Barber-Surgeon (While Revealed): a charging unit that would die goes to the bottom of the deck, undamaged.
+      // Units defeated in the same step fall together, so a Field Medic defeated alongside its charging unit still saves it.
       for (const p of [0,1]){
         const c = P[p].charge, t = top(p);
-        if (c && isDead(c) && t && key(t) === 'Barber-Surgeon' && ab(t) && !isDead(t) && (t.saves || 0) < val(t)){
+        if (c && isDead(c) && t && key(t) === 'Barber-Surgeon' && ab(t) && (t.saves || 0) < val(t)){
           t.saves = (t.saves || 0) + 1; c.dmg = 0; P[p].charge = null; toBottom(P[p], c);
           withAb(abU(t, p), () => log(`${nameOf(t)} saves ${nameOf(c)} and sends it to the bottom of the deck${c.sw ? ' (its Second Wind is wasted)' : ''}.`, p, record ? {from:`${t.owner}-${t.uid}`, to:null, by:p, amt:0, ...mvs([[c, 'charge', 'deck-bottom', 'save']])} : undefined));
           c.sw = 0;
@@ -544,7 +546,7 @@ function runBattle(cfgs, record){
       const replace = (u, p) => { if (key(u) === 'Cowardly Squire' && ab(u)){ const k = val(u); if (k <= 0) return []; const rs = Array.from({length:k}, () => recruit(p));
         const r = rs[0]; r.arm = u.arm; r.sh = u.sh; r.train = Math.max(r.train, u.train); r.gear = u.gear; u.gear = null; r.sw = u.sw || 0;
         const atC = P[p].charge === u;
-        withAb(abU(u, p), () => log(`${nameOf(u)} is replaced by ${many(k, 'a Recruit', 'Recruits')}${r.gear || r.arm || r.sh ? ' that keeps its tokens and gear' : ''}.`, p, record ? {...tokMeta(u, rs[0], p, 'rec', k), ...mvs(rs.map((x, i) => [x, 'new', atC && i === 0 ? 'charge' : 'deck', 'arrive']))} : undefined)); return rs; } return []; };
+        withAb(abU(u, p), () => log(`${nameOf(u)} is replaced by ${many(k, 'a Recruit', 'Recruits')}${r.gear || r.arm || r.sh ? ' that keeps its tokens and gear' : ''}.`, p, record ? {...tokMeta(u, rs[0], p, 'rec', k), ...mvs(rs.map((x, i) => [x, 'new', atC && i === 0 ? 'charge' : 'deck', 'arrive', i === 0 ? u : null]))} : undefined)); return rs; } return []; };
       if (record) for (const d of dying) log(`${nameOf(d.u)} dies.`, d.p, mvs([[d.u, d.zone === 'c' ? 'charge' : 'deck', 'grave', 'defeat']]));
       for (const p of [0,1]){
         const pl = P[p];
@@ -669,6 +671,9 @@ function runBattle(cfgs, record){
   // battle miracles placed ahead of the Vanguard resolve first, before the Vanguard is revealed and before any building
   if (surface(null)) frameIf('Battle miracles');
   for (const p of [0,1]){ const t = top(p); if (t){ P[p].revealed = t.uid; log(`${nameOf(t)} is revealed as the Vanguard.`, p); } }
+  // the board as the battle opens, before anything acts on it: the effects below get a step of their own, so the screen
+  // plays them (glow, ink, cubes) instead of showing them already done
+  frame('Battle start');
   for (const p of [0,1]){ const t = top(p); if (P[p].armory && t && addSh(t, P[p].armory, p)){ withAb(abB('Armory', p), () => log(`Armory gives ${nameOf(t)} ${P[p].armory} ${plural(P[p].armory, 'Shield')}.`, p, tokMeta(null, t, p, 'sh', P[p].armory))); } }
   for (const p of [0,1]){ if (!P[p].drill) continue; const rs = P[p].deck.filter(u => u.name === 'Recruit'); if (!rs.length) continue;
     withAb(abB('Muster Hall', p), () => { for (const u of rs){ u.train = Math.max(u.train, P[p].drill); log(`${P[p].nm} Muster Hall trains ${nameOf(u)} to level ${lvl(u)} (${power(u)} power).`, p, tokMeta(null, u, p, 'tr', P[p].drill)); } }); }
@@ -677,7 +682,7 @@ function runBattle(cfgs, record){
     if (P[p].treb){ const t = top(1-p); if (t) withAb(abB('Trebuchet', p), () => round(() => overrunHit(t, BDEFS.Trebuchet.lv[P[p].treb-1], `${P[p].nm} Trebuchet`, p, P[1-p].deck[1], null, true))); }
   }
   revealRound([top(0), top(1)]);
-  frame('Battle start');
+  frameIf('Battle start abilities');
   stepTag = 'Start · ';
   casualties(); frameIf('Casualties');
 

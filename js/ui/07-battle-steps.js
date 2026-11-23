@@ -180,9 +180,10 @@ function reserveRows(){
   // a row drawn taller than its reserve (the hidden copy can measure a little short) raises the reserve for good
   const keep = window.__rowKeep && ui.battle.rowGk ? window.__rowKeep[ui.battle.rowGk] : null;
   [r0, r1].forEach((r, i) => { if (!r) return; const h = r.offsetHeight; if (h > ui.battle.rowH[i]){ ui.battle.rowH[i] = h; if (keep) keep[i] = Math.max(keep[i], h); r.style.minHeight = h + 'px'; } });
-  // each graveyard's pile sits level with its row's charging card (or that card's empty spot), like the deck does
+  // each graveyard sits level with its row's charging card (or that card's empty spot), like the deck does: the pile
+  // when there is one, else its empty outline, so the outline is drawn exactly where the first defeated card lands
   for (const r of [r0, r1]){
-    const g = r && r.querySelector('.grz .grave'), box = g && g.closest('.tzc'), c = r && r.querySelector('.chz .charge > .card:not(.mini), .chz .charge > .slot.labempty, .chz .slot.labempty');
+    const g = r && (r.querySelector('.grz .grave') || r.querySelector('.grz .tzc > .labslot')), box = g && g.closest('.tzc'), c = r && r.querySelector('.chz .charge > .card:not(.mini), .chz .charge > .slot.labempty, .chz .slot.labempty');
     if (!g || !box || !c) continue;
     box.style.marginTop = ''; const a = tableXY(c, line), b = tableXY(g, line); if (!a || !b) continue;   // (the pile's box moves, its empty spot with it)
     if (Math.abs(a.top - b.top) > .5) box.style.marginTop = (parseFloat(getComputedStyle(box).marginTop) || 0) + a.top - b.top + 'px';
@@ -191,6 +192,7 @@ function reserveRows(){
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
 /* Show battle step k (glide: animate from the step on screen). Steps around the redraw come from the cubes
    (js/mobile-crop.js) and Board settings (js/board-settings.js); until v58 they were wrappers. Add steps here. */
+const DEATH_FLY_MS = 520;    // a defeated card's flight to the graveyard (deathFly)
 const GRAVE_STAGGER = 260;   // ms between two units of one side flying to the graveyard in the same step
 function goFrame(k, glide){
   const lab = labBeforeStep();             // Board settings: which units are revealed before the step
@@ -212,6 +214,9 @@ function showFrame(k, glide){
     for (const pk of $('view-play').querySelectorAll(`.stage .card[data-uid="${l.to}"] > .pk[data-k="${l.drop.tok}"]:not(.mbn)`)){ const b = tokenBreakInfo(pk); if (b) broken.push(b); }
   const under = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-bottom') : [];   // cards going back under their deck
   const died = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'grave') : [];   // cards defeated this step
+  // revealed units buried this step under cards put on top of their deck (the engine's deck-top moves)
+  const buried = ui.battle && k === ui.frame + 1 ? [...new Set(frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-top').map(m => +m.u.split('-')[0]))]
+    .map(side => { const u = ui.battle.frames[ui.frame].snap[side].deck[0]; return u ? `${side}-${u.uid}` : null; }).filter(Boolean) : [];
   ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay(); reserveRows();
   if (prevF && ui.battle) animateTokens(prevF, ui.battle.frames[k]); else clearTimeout(ui.tokT);
   if (broken.length) breakTokens(broken);
@@ -256,12 +261,18 @@ function showFrame(k, glide){
   // charging unit first, underneath, then the revealed unit on top); the two sides still go at the same time
   const order = died.map(m => m.u), seen = [0, 0];
   flies.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
-  for (const [uid, r0, tgt] of flies){ const s = +uid.split('-')[0]; deathFly(r0, tgt, GRAVE_STAGGER * seen[s]++); }
+  // a unit whose place a new card takes (Cowardly Squire) leaves its tokens and gear behind for it
+  const placed = new Set(ui.battle && k === ui.frame ? frameMoves(ui.battle.frames[k]).filter(m => m.place).map(m => m.place) : []);
+  for (const [uid, r0, tgt] of flies){ const s = +uid.split('-')[0]; deathFly(r0, tgt, GRAVE_STAGGER * seen[s]++, placed.has(uid)); }
   // a card that went back under its deck and is out of sight now slides in there (alone in its deck it's the revealed
   // card instead, and the FLIP above already moved it)
   for (const m of under){
     const r0 = from.get(m.u);
     if (r0 && r0.clone && !$('view-play').querySelector(`.line .card[data-uid="${m.u}"]:not(.mini)`)) deckFly(r0, +m.u.split('-')[0], m.k === 'back');
+  }
+  for (const id of buried){
+    const r0 = from.get(id);
+    if (r0 && r0.clone && !$('view-play').querySelector(`.line .card[data-uid="${id}"]:not(.mini)`)) buryTuck(r0, +id.split('-')[0]);
   }
 }
 

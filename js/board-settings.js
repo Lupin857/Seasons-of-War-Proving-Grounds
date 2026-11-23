@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v81';
+const OASIS_BUILD = 'v86';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -64,12 +64,13 @@ function labDeck(sd, side, names){
   const cnt = `<button type="button" class="labcnt" data-labdeck="${side}" title="See the whole deck">${sd.deck.length} in deck${nsp ? `<i>✶ ${nsp}</i>` : ''}</button>`;
   return `<div class="tz deckz"><span class="zl labzl" data-labdeck="${side}">${names[side]} deck ${sd.deck.length ? cnt : ''}${sd.sil ? ' · next reveal silenced' : ''}</span><div class="tzc">${top}</div></div>`;
 }
-// the graveyard: a face-up pile, the last unit defeated on top, lit like the rest, art muted, with a count. The cards
-// below stay in the pile (a little crooked), so a unit dying onto it lands on the one before instead of replacing it.
+// the graveyard: a face-down pile, as at the table (defeated units flip face down onto it), lit like the rest, with a
+// count; tap it for the list. The cards below stay in the pile (a little crooked), so a unit dying onto it lands on the
+// one before instead of replacing it. The back is the shared placeholder card back (.oback, css/02-board-settings.css).
 function labGcard(u, side, top, k){
-  const url = labArt(u), rot = top ? 0 : (((u.uid * 37) % 9) - 4) * .8, dx = top ? 0 : (((u.uid * 53) % 7) - 3);
+  const rot = top ? 0 : (((u.uid * 37) % 9) - 4) * .8, dx = top ? 0 : (((u.uid * 53) % 7) - 3);
   const tag = top ? 'b' : 'span';
-  return `<${tag} class="gcard${top ? '' : ' gunder'}"${top ? ` data-uid="${side}-${u.uid}"` : ` data-guid="${side}-${u.uid}"`}${top ? '' : ` style="position:absolute;left:${dx}px;top:${k * 1.5}px;transform:rotate(${rot}deg);z-index:${-1 - k}"`}><span class="labsh" aria-hidden="true">${labEdges(0)}<i></i></span>${url ? `<span class="gart" style="background-image:url('${url}')"></span>` : `<span class="gplain">${esc(u.name)}</span>`}<span class="lablt" aria-hidden="true"></span></${tag}>`;
+  return `<${tag} class="gcard${top ? '' : ' gunder'}"${top ? ` data-uid="${side}-${u.uid}"` : ` data-guid="${side}-${u.uid}"`}${top ? '' : ` style="position:absolute;left:${dx}px;top:${k * 1.5}px;transform:rotate(${rot}deg);z-index:${-1 - k}"`}><span class="labsh" aria-hidden="true">${labEdges(0)}<i></i></span><span class="oback" aria-hidden="true"></span><span class="lablt" aria-hidden="true"></span></${tag}>`;
 }
 function labGrave(sd, side, names){
   const g = sd.grave, last = g[g.length - 1];
@@ -177,17 +178,32 @@ addEventListener('resize', () => { if (compact() !== labWasCompact){ labWasCompa
 // a newly revealed unit: the cards attached to it (copies, gear, tokens) slide out from behind it into their splay
 const labRevealed = f => f ? f.snap.map(sd => sd.deck[0] ? sd.deck[0].uid : null) : [null, null];
 // only: just these of its peeking cards (a token just gained); done: called once the last has landed
+// where a peeking card sits when it is tucked all the way behind its card (as {translate, rotate} keyframe values)
+function labTuckedAt(el, t, i){
+  const tky = parseFloat(getComputedStyle(el).getPropertyValue('--tky')) || 26, fan = LAB.splay === 'fanL' ? 1 : LAB.splay === 'fanR' ? -1 : 0;
+  const j = parseInt(t.style.getPropertyValue('--j')) || i;
+  return {translate:`${-t.offsetLeft}px ${-t.offsetTop + (fan ? tky * .55 * (j + 1) : 0)}px`, rotate:`${fan * 7 * (j + 1)}deg`};
+}
 function labSplayIn(el, delay, only, done){
   if (!el || reduceMotion()){ if (done) done(); return; }
   const tks = only || [...el.querySelectorAll(':scope > .tk')]; if (!tks.length){ if (done) done(); return; }
-  const cs = getComputedStyle(el), tky = parseFloat(cs.getPropertyValue('--tky')) || 26, fan = LAB.splay === 'fanL' ? 1 : LAB.splay === 'fanR' ? -1 : 0;
   tks.forEach((t, i) => {
-    const j = parseInt(t.style.getPropertyValue('--j')) || i;
-    const x = -t.offsetLeft, y = -t.offsetTop + (fan ? tky * .55 * (j + 1) : 0);
-    const a = t.animate([{translate:`${x}px ${y}px`, rotate:`${fan * 7 * (j + 1)}deg`}, {translate:'0px 0px', rotate:'0deg'}],
+    const a = t.animate([labTuckedAt(el, t, i), {translate:'0px 0px', rotate:'0deg'}],
       {duration:480, delay:delay + 80 * i, easing:'cubic-bezier(.2,.8,.3,1)', fill:'backwards'});
     if (done && i === tks.length - 1){ a.onfinish = a.oncancel = done; }
   });
+}
+// the reverse, for a unit about to leave its spot (defeated, saved back into its deck, buried under a new top card):
+// its copies, gear and tokens slide back in behind it, the last one first, and stay there. Returns when they're all in
+// (delay itself when there's nothing to tuck), so the unit's own move can start then.
+const LAB_TUCK = 300;
+function labSplayOut(el, delay){
+  if (!el || reduceMotion()) return delay;
+  const tks = [...el.querySelectorAll(':scope > .tk')]; if (!tks.length) return delay;
+  const n = tks.length;
+  tks.forEach((t, i) => t.animate([{translate:'0px 0px', rotate:'0deg'}, labTuckedAt(el, t, i)],
+    {duration:LAB_TUCK, delay:delay + 60 * (n - 1 - i), easing:'cubic-bezier(.5,0,.6,1)', fill:'forwards'}));
+  return delay + LAB_TUCK + 60 * (n - 1);
 }
 function labSplayRevealed(prev, delay){
   if (!ui.battle) return;

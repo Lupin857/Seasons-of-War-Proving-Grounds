@@ -78,12 +78,18 @@
     // reacting to a defeat) waits until the defeated units have landed in the graveyard, and so do the cards it brings in
     const defeats = new Set(), firstDefeat = f.lines.findIndex(l => (l.mv || []).some(m => m.k === 'defeat'));
     for (const l of f.lines) for (const m of (l.mv || [])) if (m.k === 'defeat') defeats.add(m.u);
-    const waits = new Set(), arrivals = new Set();
-    if (firstDefeat >= 0) gs.forEach((g, i) => { const at = Math.min(...g.lines.map(l => f.lines.indexOf(l)).filter(x => x >= 0)); if (at > firstDefeat){ waits.add(i); for (const l of g.lines) for (const m of (l.mv || [])) if (m.from === 'new') arrivals.add(m.u); } });
+    const waits = new Set();
+    if (firstDefeat >= 0) gs.forEach((g, i) => { const at = Math.min(...g.lines.map(l => f.lines.indexOf(l)).filter(x => x >= 0)); if (at > firstDefeat) waits.add(i); });
+    // cards an ability brings in (Recruiter's Drifters, the Drifter taking Cowardly Squire's place) arrive as it plays,
+    // the n-th of one deck a beat after the one before (see the tick)
+    const arrivals = [];
+    gs.forEach((g, i) => { let j = 0; for (const l of g.lines) for (const m of (l.mv || [])) if (m.from === 'new')
+      arrivals.push({u: m.u, i, side: +m.u.split('-')[0], place: m.place || null, top: m.to === 'deck-top', t0: (start[i] || 0) + (fx.some(e => e.g === i) ? INK.draw * .6 : 0) + ARRIVE_GAP * j++}); });
     if (waits.size){
       const base = Math.min(...[...waits].map(i => start[i] || 0));
       fx.forEach(e => { if (waits.has(e.g)) e.rel = e.t0 - base; });
       notes.forEach(n => { if (waits.has(n.i)) n.rel = n.t0 - base; });
+      arrivals.forEach(a => { if (waits.has(a.i)) a.rel = a.t0 - base; });
     }
     return {k, fx, notes, defeats, waits, arrivals, release: null};
   }
@@ -176,7 +182,7 @@
   let layer = null, under = null, plan = null, t0 = 0, curK = -1, curBattle = null, lastFrame = -1, ghostN = 0;
   let lastInk = null, lastHtml = '', lastInkU = null, lastHtmlU = '', lastSig = '', lastDabSig = '', strokeCache = null;
   const ghosts = [], touched = new Set();
-  function restoreNotes(){ touched.forEach(b => { b.style.opacity = ''; b.style.transform = ''; b.style.animation = ''; b._inkDX = 0; }); touched.clear(); }
+  function restoreNotes(){ touched.forEach(b => { b.style.opacity = ''; b.style.transform = ''; b.style.animation = ''; b._inkDX = 0; arriveShow(b, null, 'now'); }); touched.clear(); }
   // moving on: the last step's ink soaks away (the game may already have redrawn the board, and the layers with it)
   function soakAway(stage){
     const line = stage.querySelector('.line.table');
@@ -229,9 +235,18 @@
       if (t0 < 0 || (ui.frame >= plan.k && !flying)) plan.release = t0 < 0 ? -1e9 : T;
     }
     const startOf = o => o.rel != null ? (plan.release == null ? Infinity : plan.release + o.rel) : o.t0;
-    // cards brought in by a waiting ability stay hidden until it plays, then fade in
-    for (const u of plan.arrivals){ const el = stage.querySelector(`.card[data-uid="${u}"]`); if (!el) continue; touched.add(el);
-      el.style.opacity = plan.release == null ? 0 : Math.min(1, Math.max(0, (T - plan.release) / 200)); }
+    // cards an ability brings in stay hidden until it plays, then slide in from their side's edge of the board (a
+    // Drifter taking a unit's place keeps that unit's tokens and gear in view where it stood, and slides in under them).
+    // A card that isn't drawn (one under the top card) slides in as a copy of the top card, before it.
+    // Nothing happens until the board shows this step (the ink plays a step before it lands); on a deck that buries
+    // its revealed unit the cards wait for that unit to tuck its attachments in (buryTuck) before they slide on top.
+    if (plan.landed == null && ui.frame >= plan.k) plan.landed = T;
+    if (plan.landed != null) for (const a of plan.arrivals){
+      const at = Math.max(startOf(a), plan.landed + (a.top && t0 > 0 ? LAB_TUCK + 60 : 0));
+      const el = stage.querySelector(`.card[data-uid="${a.u}"]`);
+      if (el){ touched.add(el); arriveShow(el, a, T < at ? 'wait' : t0 < 0 ? 'now' : 'slide'); }
+      else if (T >= at && t0 > 0 && !a.done){ a.done = true; arriveGhost(stage, a); }
+    }
     // nothing moving and nothing changed: skip the redraw; when only the dabs' ends moved, redraw just the dabs
     const settleAt = Math.max(0, ...plan.fx.map(e => Math.max(startOf(e), e.seen != null && t0 > 0 ? e.seen : 0) + durOf(e)), ...plan.notes.map(n => startOf(n) + INK.dabTime + INK.slideTime)) + 300;
     const sig = (plan.watch || (plan.watch = [...new Set([...plan.fx.flatMap(e => [e.from, e.to, e.via]), ...plan.notes.map(n => n.g.ab.u)].filter(Boolean))])).map(u => { const el = findCard(stage, u); return el ? layoutSig(el, line) : '-'; }).join(';') + '|' + line.offsetWidth + 'x' + line.offsetHeight;

@@ -36,7 +36,7 @@ body.lab-crop .table .card.hasart:not(.mini){background-color:transparent!import
 body.lab-crop .table .card.hasart:not(.mini)>.cartbg{background-size:100% auto!important;background-position:center top!important;background-color:transparent!important;border-radius:0!important;clip-path:url(#tabclip)}
 body.lab-crop .table .card.hasart>.tk{background-size:100% auto;background-position:center top;border-radius:0!important;clip-path:url(#tabclip)}
 body.lab-crop .table .card.hasart>.tk>:is(img,canvas){object-fit:cover;object-position:center top}
-body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .gart{border-radius:0!important;clip-path:url(#tabclip)}
+body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .oback{border-radius:0!important;clip-path:url(#tabclip)}
 html body.lab-full{--bch:calc(var(--bcw) * 1.3827)!important}
 body.lab-full .table .card.hasart:not(.mini){border-radius:5% / 3.6%!important}
 body.lab-full .table .card.hasart:not(.mini)>.cartbg{clip-path:none!important;border-radius:5% / 3.6%!important;background-size:100% 100%!important}
@@ -57,12 +57,21 @@ body.lab-sp-fanR .card.hasart>.tk{transform:rotate(calc(7deg * (var(--j) + 1))) 
 .labcnt{position:static;display:inline-block;vertical-align:middle;margin-left:6px;letter-spacing:0;text-transform:none;z-index:6;padding:1px 9px;border-radius:999px;background:linear-gradient(#cfae6e,#a8843f);border:1px solid #6e5223;color:#2b1d0c;font:400 12px/18px Marcellus,serif;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.3);cursor:pointer;min-height:20px}
 .labcnt i{font-style:normal;font-size:11px;margin-left:4px;color:#5a3a8a}
 .table .zl.labzl{cursor:pointer}
-/* --- the graveyard: last defeated unit on top, lit like the others, art muted, with a count --- */
+/* --- the graveyard: a face-down pile, lit like the others, with a count --- */
 .table .grave.labgpile{width:auto!important;background:none!important;padding:0!important;min-height:0!important;display:block;cursor:pointer}
 .gcard{display:block!important;position:relative;width:var(--bcw);height:var(--bch);isolation:isolate}
-.gcard .gart{position:absolute;inset:0;z-index:0;background:#2a2320 center top / 100% auto no-repeat;border-radius:5% / 3.6%;filter:grayscale(.45) brightness(.86) sepia(.12)}
-body.lab-full .gcard .gart{background-size:100% 100%}
-.gcard .gplain{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;font:400 13px/1.15 Marcellus,serif;color:var(--ink);background:var(--sunk);border-radius:8px}
+.gcard .oback{position:absolute;inset:0;z-index:0}
+/* the card back: a placeholder until Brian's card back art (to-do "Add card back art"); swap the look here only. Used by
+   the graveyard pile and by a defeated card's flip (.dfback) */
+.oback{display:flex;align-items:center;justify-content:center;box-sizing:border-box;border-radius:5% / 3.6%;
+  background:radial-gradient(ellipse at 50% 42%,#4a3626 0%,#2e2118 62%,#21170f 100%);
+  box-shadow:inset 0 0 calc(var(--bcw,140px) * .12) rgba(0,0,0,.45);
+  color:#c9a45f;font:400 calc(var(--bcw,140px) * .13)/1 Marcellus,serif;letter-spacing:.14em;text-indent:.14em;overflow:hidden}
+.oback::before{content:"Oasis";text-transform:uppercase;padding:.35em .2em;border-top:1px solid rgba(201,164,95,.55);border-bottom:1px solid rgba(201,164,95,.55)}
+.oback::after{content:"";position:absolute;inset:calc(var(--bcw,140px) * .035);border:calc(var(--bcw,140px) * .01) solid #b8924f;border-radius:3% / 2.2%;pointer-events:none}
+/* a cropped card (phone) is cut to its type tab at the bottom: the frame and the mark stay inside the card body above it */
+body.lab-crop .oback{padding-bottom:calc(var(--bch,140px) * .0625)}
+body.lab-crop .oback::after{bottom:calc(var(--bch,140px) * .0625 + var(--bcw,140px) * .035)}
 .gcard .gn{position:absolute;right:-8px;top:-10px;z-index:6;background:#6b6258;color:#fff;font:800 11px/16px var(--f-body);padding:0 7px;border-radius:999px}
 
 /* --- zones as mats printed on the table (lean and table views) --- */
@@ -91,7 +100,7 @@ body.lab-v-lean .line.table>.city.s0{transform:translateZ(calc(var(--ldepth, 260
 @media (max-width:640px){ body.lab-v-lean .line.table{perspective:700px;perspective-origin:50% 30%} }
 /* the crop as an inline mask (the clip path could fail to apply inside the tilted views, leaving square corners) */
 :root{--labmask:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA3NTAgNzI4JyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSdub25lJz48cGF0aCBmaWxsPScjMDAwJyBkPSdNMCw0MCBRMCwwIDQwLDAgSDcxMCBRNzUwLDAgNzUwLDQwIFY2NTAuNSBRNzUwLDY4Mi41IDcxOCw2ODIuNSBINTE1LjUgTDUxMyw2OTAgTDUwNyw3MDAgTDUwMSw3MTAgTDQ5NSw3MjAgTDQ5NCw3MjIgSDI5MC41IEwyODcsNzE4IEwyODEsNzEwIEwyNzQsNzAwIEwyNjcsNjkwIEwyNjQuNSw2ODIuNSBIMzIgUTAsNjgyLjUgMCw2NTAuNSBaJy8+PC9zdmc+")}
-body.lab-crop .table .card.hasart:not(.mini)>.cartbg,body.lab-crop .table .card.hasart>.tk,body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .gart{clip-path:none!important;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
+body.lab-crop .table .card.hasart:not(.mini)>.cartbg,body.lab-crop .table .card.hasart>.tk,body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .oback{clip-path:none!important;-webkit-mask:var(--labmask) center / 100% 100% no-repeat;mask:var(--labmask) center / 100% 100% no-repeat}
 /* a breaking Shield token: its shards come from the cropped card too */
 /* battle arrows, their labels, and ability notes with their lines draw above the damage cubes */
 #view-play .stage .abwin,.abghost{z-index:10}

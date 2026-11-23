@@ -68,6 +68,8 @@ docs/code-map.md), and the repo clone is the working copy.
    and merge onto the newest files, never over them. Publish with `publish_files` (default patch mode), listing only
    the files that changed (`git status --short`), with `as` = the same relative path. New files are listed the same
    way; deleted files go in `remove`. Art changes: list the changed `art/*.webp` too.
+   If you added, removed or renamed a file the page loads, also update `CORE`/`ART` and bump `VERSION` in
+   `sw.js` (offline app cache; see docs/code-map.md).
 5. After Brian approves: commit and push to `main`. Commit messages end with "(artifact vNNN)".
 
 ## Tests (`tools/`)

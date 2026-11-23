@@ -16,7 +16,7 @@ function mirTurn(el, k, apply){
       {duration:220, easing:'cubic-bezier(.25,.5,.4,1)'});
   };
 }
-// A card that dies: a copy of it slides toward the graveyard, flips face down, and shrinks into its name in the list.
+// A card that dies: a copy of it turns over the edge nearest the graveyard, landing face down on the pile.
 // delay (ms): the copy waits where the card was, and its spot in the graveyard stays hidden until it lands
 // where an element sits in the battle table's own coordinates: its offsets up to the table, before any transform (the
 // table's tilt, a lunge), so a copy placed there inside the table sits exactly on it and tilts with the table
@@ -25,7 +25,7 @@ function tableXY(el, line){
   while (n && n !== line){ x += n.offsetLeft || 0; y += n.offsetTop || 0; n = n.offsetParent; }
   return n === line ? {left:x, top:y, width:el.offsetWidth, height:el.offsetHeight} : null;
 }
-function deathFly(r0, nameEl, delay = 0){
+function deathFly(r0, nameEl, delay = 0, leave = false){
   const g = r0.clone, uid = g.dataset.uid, line = $('view-play').querySelector('.stage .line.table');
   // it flies inside the tilted table, like the cards (on the page it would fly flat), in the table's own coordinates
   const a0 = r0.loc && {...r0.loc}, aim0 = line && a0 && tableXY(nameEl, line);
@@ -35,36 +35,44 @@ function deathFly(r0, nameEl, delay = 0){
   for (const f of g.querySelectorAll('.float, .trigglow, .hprow')) f.remove();   // (its health row would show through, mirrored, on the back)
   Object.assign(g.style, {position:'absolute', left:a0.left + 'px', top:a0.top + 'px', width:a0.width + 'px', height:a0.height + 'px'});
   g.style.setProperty('margin', '0', 'important');   // (a charging card's reserved room above it is an !important margin: the copy must not keep it)
-  const back = document.createElement('span'); back.className = 'dfback'; g.appendChild(back);
+  const back = document.createElement('span'); back.className = 'dfback gcard';   // the same layers (edges, back, light) and phone crop as the pile's cards, so nothing changes as it lands
+  back.innerHTML = `<span class="labsh" aria-hidden="true">${labEdges(0)}<i></i></span><span class="oback" aria-hidden="true"></span><span class="lablt" aria-hidden="true"></span>`; g.appendChild(back);
   line.appendChild(g);
+  if (leave) for (const t of arriveKeeps(g)) t.remove();   // its tokens and gear stay for the card taking its place
+  delay = labSplayOut(g, delay);   // its copies, gear and tokens tuck in behind it first, then it flies
   // the redraw can move the whole table (its rows resize): start from where the card really was on screen, not from its
   // old place in the table, so the copy doesn't jump as it takes off
   { const gr = g.getBoundingClientRect(), kx = gr.width / a0.width || 1, ky = gr.height / a0.height || 1;
     const ox = (r0.left - gr.left) / kx, oy = (r0.top - gr.top) / ky;
     if (Math.abs(ox) > .5 || Math.abs(oy) > .5){ a0.left += ox; a0.top += oy; g.style.left = a0.left + 'px'; g.style.top = a0.top + 'px'; } }
-  const T = 500;
+  const T = DEATH_FLY_MS;
   // perspective goes first so the turn reads as 3D: the near edge grows, the far edge and the face's text foreshorten
   const P = Math.max(360, a0.width * 3.4), pf = `perspective(${P}px) `;
+  // it turns over the edge nearest the graveyard, like a card flipped onto a pile by hand: that edge stays put while the
+  // far edge rises toward you and over (the back shows from 90°, offset .5), and the card lands face down on the pile;
+  // the pile's top card is a card back too, so the copy simply hands over to it. (rotateY(+) lifts the left edge, so the
+  // turn's sign follows which side the graveyard is on; e: from the card's middle to the edge it turns on)
   const path = r1 => { const dx = (r1.left + r1.width / 2) - (a0.left + a0.width / 2), dy = (r1.top + r1.height / 2) - (a0.top + a0.height / 2);
-    const sx = Math.max(0.1, r1.width / a0.width), sy = Math.max(0.05, r1.height / a0.height);
+    const sx = Math.max(0.1, r1.width / a0.width), sy = Math.max(0.05, r1.height / a0.height), mx = (1 + sx) / 2, my = (1 + sy) / 2;
+    const dir = dx >= 0 ? 1 : -1, e0 = dir * a0.width / 2, em = e0 * mx, e1 = e0 * sx;
+    const k = (px, py, deg, e, kx, ky) => pf + `translate(${px}px,${py}px) rotateY(${dir * deg}deg) translate(${-e}px,0px) scale(${kx},${ky})`;
     return [
-    {transform:pf + 'translate(0,0) rotateY(0deg) scale(1)', offset:0},
-    {transform:pf + `translate(${dx * 0.25}px,${dy * 0.25 - 12}px) rotateY(0deg) scale(.93)`, offset:.14},
-    {transform:pf + `translate(${dx * 0.55}px,${dy * 0.55 - 8}px) rotateY(90deg) scale(.7)`, offset:.45},
-    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, opacity:.85, offset:.88},
-    {transform:pf + `translate(${dx}px,${dy}px) rotateY(180deg) scale(${sx},${sy})`, opacity:0, offset:1}
+    {transform:k(e0, 0, 0, e0, 1, 1), offset:0, easing:'cubic-bezier(.45,0,.55,1)'},
+    {transform:k((e0 + dx - e1) / 2, dy / 2, 90, em, mx, my), offset:.5, easing:'cubic-bezier(.45,0,.55,1)'},
+    {transform:k(dx - e1, dy, 180, e1, sx, sy), opacity:1, offset:.93},
+    {transform:k(dx - e1, dy, 180, e1, sx, sy), opacity:0, offset:1}
   ]; };
-  const a = g.animate(path(aim0), {duration:T, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'both'});
+  const a = g.animate(path(aim0), {duration:T, delay, fill:'both'});
   let aim = aim0;
-  back.animate([{opacity:0}, {opacity:0, offset:.45}, {opacity:1, offset:.451}, {opacity:1}], {duration:T, delay, fill:'both'});
-  // the card in the pile is fully there before the copy starts to fade (.88), so the two never dip through each other
-  nameEl.animate([{opacity:0}, {opacity:0, offset:.8}, {opacity:1, offset:.87}, {opacity:1}], {duration:T, delay, fill:'backwards'});
+  back.animate([{opacity:0}, {opacity:0, offset:.5}, {opacity:1, offset:.501}, {opacity:1}], {duration:T, delay, fill:'both'});
+  // the card in the pile is fully there under the copy as it lands (.93), before the copy fades, so nothing flickers
+  nameEl.animate([{opacity:0}, {opacity:0, offset:.88}, {opacity:1, offset:.93}, {opacity:1}], {duration:T, delay, fill:'backwards'});
   // until the copy lands, the unit's card in the graveyard stays hidden, also when the board is redrawn mid-flight (the step
   // landing replaces the pile, and a staggered second unit is still in the air then): otherwise the card shows on the pile
   // early and the copy lands on top of it and flickers out
   const hold = () => {
     if (!g.isConnected){ for (const el of document.querySelectorAll(`.gyhold[data-uid="${uid}"], .gyhold[data-guid="${uid}"]`)) el.classList.remove('gyhold'); return; }
-    const t = (a.currentTime || 0) - delay, landed = t >= T * .8;   // from .8 the card fades in under the copy, as above
+    const t = (a.currentTime || 0) - delay, landed = t >= T * .88;   // from .88 the card fades in under the copy, as above
     const st = $('view-play').querySelector('.stage');
     // the redraw can also move the card's place in the pile: the copy re-aims at where it is now
     const live = st && (st.querySelector(`.gcard[data-guid="${uid}"]`) || (nameEl.isConnected ? nameEl : null)), r = live && !landed && tableXY(live, line);
@@ -106,7 +114,7 @@ function deckFly(r0, side, out){
   const dx = ((r0.left + r0.width / 2) - (rt.left + rt.width / 2)) * kx, dy = ((r0.top + r0.height / 2) - (rt.top + rt.height / 2)) * ky;
   const s0 = Math.max(.5, Math.min(2, r0.width / rt.width));
   box.insertBefore(g, tgt);   // before the top card, and under it
-  const T = out ? 760 : 620;
+  const T = out ? 760 : 620, wait = labSplayOut(g, 0);   // its copies, gear and tokens tuck in behind it first, then it slides
   let a;
   if (out){
     // out over the new top card, then back in under it (it changes layers at the far end, out of the deck's way)
@@ -116,14 +124,86 @@ function deckFly(r0, side, out){
       {transform:`translate(${dx}px,${dy}px) scale(${s0})`},
       {transform:`translate(${ox}px,${oy}px) scale(1)`, offset:.48, easing:'cubic-bezier(.4,0,.3,1)'},
       {transform:'translate(0px,0px) scale(1)'}
-    ], {duration:T, easing:'cubic-bezier(.3,0,.3,1)', fill:'forwards'});
-    setTimeout(() => g.style.setProperty('z-index', '-1', 'important'), T * .5);
+    ], {duration:T, delay:wait, easing:'cubic-bezier(.3,0,.3,1)', fill:'both'});
+    setTimeout(() => g.style.setProperty('z-index', '-1', 'important'), wait + T * .5);
   } else a = g.animate([
     {transform:`translate(${dx}px,${dy}px) scale(${s0})`, filter:'brightness(1)'},
     {transform:'translate(0px,0px) scale(1)', filter:'brightness(.85)'}
-  ], {duration:T, easing:'cubic-bezier(.5,0,.2,1)', fill:'forwards'});
-  setTimeout(() => { try{ sfx.flick(); }catch(e){} }, T * .7);   // as it slips under the pile
+  ], {duration:T, delay:wait, easing:'cubic-bezier(.5,0,.2,1)', fill:'both'});
+  setTimeout(() => { try{ sfx.flick(); }catch(e){} }, wait + T * .7);   // as it slips under the pile
   a.onfinish = a.oncancel = () => { g.remove(); dz.style.position = prev.pos; dz.style.zIndex = prev.z; box.style.isolation = prev.iso; box.style.position = prev.bpos; };
+}
+// A revealed unit buried under new cards put on top of its deck (a Recruiter's Drifters): a copy of it stays in the
+// deck spot, under the new top card, while its copies, gear and tokens tuck in behind it, and goes once the new top
+// card is in view (it may wait for its ability to play before it fades in)
+function buryTuck(r0, side){
+  const tgt = bDeckEl(side), box = tgt && tgt.parentNode;
+  if (!tgt || !box || !r0.clone || !tgt.animate) return;
+  const g = r0.clone;
+  g.removeAttribute('data-uid'); g.removeAttribute('id');
+  g.classList.remove('shake', 'lunge0', 'lunge1', 'tokanim'); g.classList.add('deckfly');
+  for (const f of g.querySelectorAll('.float, .trigglow, .hprow')) f.remove();
+  g.setAttribute('aria-hidden', 'true'); g.setAttribute('data-keep', '');   // a redraw leaves it alone
+  const prev = {iso:box.style.isolation, bpos:box.style.position};
+  box.style.isolation = 'isolate';
+  if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+  for (const [k, v] of [['position', 'absolute'], ['margin', '0'], ['left', tgt.offsetLeft + 'px'], ['top', tgt.offsetTop + 'px'],
+    ['width', tgt.offsetWidth + 'px'], ['height', tgt.offsetHeight + 'px'], ['pointer-events', 'none'], ['z-index', '-1']]) g.style.setProperty(k, v, 'important');
+  box.insertBefore(g, tgt);
+  const t0 = performance.now(), tucked = labSplayOut(g, 0);
+  const tick = () => {
+    const top = bDeckEl(side), shown = top && top.classList.contains('card') && +getComputedStyle(top).opacity >= .99
+      && getComputedStyle(top).visibility === 'visible' && !top.getAnimations().some(x => x.playState === 'running');
+    const t = performance.now() - t0;
+    if (!g.isConnected || (t > tucked && shown) || t > 4000){ g.remove(); box.style.isolation = prev.iso; box.style.position = prev.bpos; return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+// Cards an ability brings into a battle (Recruiter's Drifters, the Drifter taking Cowardly Squire's place) slide in from
+// the edge of the board on their owner's side, as if taken from the supply beside the table. The ink layer's tick times
+// them by the ability (arrivals in stepPlan): until then the card is hidden, except the tokens and gear it keeps from the
+// unit whose place it takes, which stay in view where that unit stood; the card then slides in under them.
+const ARRIVE_T = 560, ARRIVE_GAP = 170;
+function arriveKeeps(el){ return el.querySelectorAll(':scope > .tk.gtk, :scope > .tk.pk'); }
+function arriveShow(el, a, mode){
+  if (mode === 'wait'){ el.style.visibility = 'hidden'; if (a.place) for (const t of arriveKeeps(el)) t.style.visibility = 'visible'; return; }
+  el.style.visibility = ''; for (const t of arriveKeeps(el)) t.style.visibility = '';
+  if (mode === 'slide' && a && !a.done){ a.done = true; arriveSlide(el, a.side, !!a.place, 0); }
+  else if (a) a.done = true;
+}
+function arriveSlide(el, side, keep, delay){
+  if (!el.animate || reduceMotion()) return;
+  const st = el.closest('.stage'), r = el.getBoundingClientRect(), sr = st ? st.getBoundingClientRect() : r;
+  const dy = side === 0 ? Math.max(sr.bottom, r.bottom) - r.top + 14 : -(r.bottom - Math.min(sr.top, r.top) + 14);
+  const o = {duration:ARRIVE_T / (autoFast() ? 2 : 1), delay, easing:'cubic-bezier(.15,.75,.3,1)', fill:'backwards'};
+  el.animate([{translate:`0px ${dy}px`}, {translate:'0px 0px'}], o);
+  if (keep) for (const t of arriveKeeps(el)) t.animate([{translate:`0px ${-dy}px`}, {translate:'0px 0px'}], o);   // they stay put
+  setTimeout(() => { try{ sfx.flick(); }catch(e){} }, delay + o.duration * .75);
+}
+// an arriving card that isn't drawn (it ends up under the top card): a copy of the top card slides in for it, then
+// stays under the top card until that one has slid in too
+function arriveGhost(stage, a){
+  const top = bDeckEl(a.side), box = top && top.parentNode;
+  if (!top || !box || !top.classList.contains('card')) return;
+  const g = top.cloneNode(true);
+  g.removeAttribute('data-uid'); g.removeAttribute('id'); g.style.visibility = '';
+  for (const f of g.querySelectorAll('.tk, .float, .trigglow, .hprow')) f.remove();
+  g.classList.add('deckfly'); g.setAttribute('aria-hidden', 'true'); g.setAttribute('data-keep', '');
+  const prev = {iso:box.style.isolation, bpos:box.style.position};
+  box.style.isolation = 'isolate';
+  if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+  for (const [k, v] of [['position', 'absolute'], ['margin', '0'], ['left', top.offsetLeft + 'px'], ['top', top.offsetTop + 'px'],
+    ['width', top.offsetWidth + 'px'], ['height', top.offsetHeight + 'px'], ['pointer-events', 'none'], ['z-index', '-1']]) g.style.setProperty(k, v, 'important');
+  box.insertBefore(g, top);
+  arriveSlide(g, a.side, false, 0);
+  const t0 = performance.now();
+  const tick = () => {
+    const t = bDeckEl(a.side), landed = t && getComputedStyle(t).visibility === 'visible' && !t.getAnimations().some(x => x.playState === 'running');
+    if (!g.isConnected || (performance.now() - t0 > ARRIVE_T / (autoFast() ? 2 : 1) && landed) || performance.now() - t0 > 4000){ g.remove(); box.style.isolation = prev.iso; box.style.position = prev.bpos; return; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 // Ability notes for a save (Infirmary Tent, Field Medic, Second Wind) point into the deck the unit went back into
 const abIsSave = g => g.lines.some(l => (l.mv || []).some(m => m.k === 'save'));
