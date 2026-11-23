@@ -13,6 +13,9 @@
   they live in the shop's bottom bar (phone) and the deck tiles (desktop). During a game the Oasis title, sound button
   and tabs are hidden; the ☰ opens the tabs and a Sound effects switch. Desktop pins the bar across the top and
   drops the score that used to sit between the deck tiles.
+- Mobilize keeps two columns (deck, bench) on every screen. Its cards are as wide as their column allows, up to
+  240px (each panel is a size container; `--mzw` is set on `.mzstack` in css/09-mobilize.css). On phones the two
+  columns run nearly edge to edge (4px sides and a 4px gap).
 - Desktop: a card panel on the right (≥1200 px); hover any card to read it full size. `solidArt` swaps its picture
   for a canvas, so its CSS sizes `:is(img,canvas)`.
 

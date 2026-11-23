@@ -4,7 +4,7 @@
    above it, back to the card at the top. Gear and tokens are whole cards tucked behind their unit, each a step up
    and a little left so its banner shows. Every size comes from --mzw (the card width). */
 .mz{--mzw:var(--card-sq);--mzr:1.3827;--mzh:calc(var(--mzw) * var(--mzr));--mzstrip:calc(var(--mzw) * .36);--mztk:calc(var(--mzw) * .175);--mzrail:30px}
-@media (max-width:640px){ .mz{--mzr:var(--crop, .9707);--mzrail:26px} }
+@media (max-width:640px){ .mz{--mzr:var(--crop, .9707);--mzrail:24px} .forces.mz .panel{padding-left:8px;padding-right:8px} }
 .forces.mz{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
 .forces.mz .panel{gap:8px;min-width:0}
 .forces.mz h2{display:flex;align-items:center;gap:8px}
@@ -12,6 +12,11 @@
 /* the piles */
 .mzstack{display:flex;flex-direction:column;align-items:flex-start;position:relative;padding:6px 0 6px var(--mzrail);min-height:var(--mzh)}
 #mz-bench.mzstack{padding-left:6px}
+/* cards are as big as their column allows (each panel is a size container), up to 240px wide; the piles reset the
+   sizes that follow from --mzw so they use their own width */
+.forces.mz :is(.mz-deck,.mz-bench){container-type:inline-size}
+.mz .mzstack{--mzw:min(240px, calc(100cqw - var(--mzrail) - 6px));--mzh:calc(var(--mzw) * var(--mzr));--mzstrip:calc(var(--mzw) * .36);--mztk:calc(var(--mzw) * .175)}
+.mz #mz-bench.mzstack{--mzw:min(240px, calc(100cqw - 14px))}
 .mzstack>.mzc:not(:last-child){margin-bottom:calc(var(--mzstrip) - var(--mzh))}
 /* the lifted card is hidden while you drag it: the card before it is the front card for now */
 .mzstack>.mzc:has(+ .mz-gone:last-child){margin-bottom:0}
@@ -98,7 +103,7 @@ body.mz-dragging,body.mz-dragging *{cursor:grabbing!important}
 
 /* phones: Lock in lives in the bottom bar */
 @media (max-width:640px){
-  .forces.mz{gap:8px}
+  .forces.mz{gap:4px;margin-inline:calc(4px - max(16px, env(safe-area-inset-left,0px)))}   /* nearly edge to edge: the page's 16px sides become 4px */
   .mz-deck .mzacts [data-act="lock"]{display:none}
   .mzlim{gap:3px 8px;font-size:.66rem}
   .mzpips i{width:7px;height:7px}
