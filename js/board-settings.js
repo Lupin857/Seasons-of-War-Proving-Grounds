@@ -2,10 +2,11 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v79';
+const OASIS_BUILD = 'v80';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
+LAB.open = false;   // the panel opens only from the game menu (☰ → Board settings), never by itself on load
 // one time only: everyone moves to the new default splay (up-left); after that, a player's own choice sticks
 try{ if (!localStorage.getItem('oasisBoardSplayUL')){ LAB.splay = 'now'; localStorage.setItem('oasisBoard', JSON.stringify(LAB)); localStorage.setItem('oasisBoardSplayUL', '1'); } }catch(e){}
 const labSave = () => { try{ localStorage.setItem('oasisBoard', JSON.stringify(LAB)); }catch(e){} };
@@ -127,7 +128,9 @@ const LAB_OPTS = [
   ['splay', 'Splay', [['up', 'Up'], ['now', 'Up-left (now)'], ['diag', 'Stepped right'], ['fanL', 'Fan left'], ['fanR', 'Fan right']]],
 ];
 // (a step of renderPlay)
-function labAfterDraw(){ document.body.classList.toggle('lab-inbattle', !!(ui && ui.battle)); }
+function labAfterDraw(){ const inb = !!(ui && ui.battle); document.body.classList.toggle('lab-inbattle', inb); if (!inb && LAB.open) labShow(false); }
+// open or close the Board settings panel (the game menu's "Board settings" item opens it; its Done button closes it)
+function labShow(open){ LAB.open = !!open; labPanel(); if (open){ const b = document.querySelector('.labbar .labtog'); if (b) b.focus(); } }
 function labApply(redraw = true){
   const b = document.body, cl = b.classList;
   for (const c of [...cl]) if (c.startsWith('lab-') && c !== 'lab-inbattle') cl.remove(c);
@@ -147,15 +150,16 @@ function labPanel(){
     p.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.o){ LAB[b.dataset.o] = b.dataset.v; labSave(); labApply(); }
-      else if (b.dataset.t === 'tog'){ LAB.open = !LAB.open; labSave(); labPanel(); }
-      else if (b.dataset.t === 'reset'){ LAB = {...LAB_DEF}; labSave(); labApply(); }
+      else if (b.dataset.t === 'tog'){ labShow(false); }
+      else if (b.dataset.t === 'reset'){ LAB = {...LAB_DEF, open:true}; labSave(); labApply(); }
     });
     p.addEventListener('change', e => { const i = e.target; if (i.dataset.z){ labSave(); labApply(); return; } if (i.dataset.c){ LAB[i.dataset.c] = i.checked; labSave(); labApply(); } });
     p.addEventListener('input', e => { const i = e.target; if (i.dataset.z){ LAB.zoom = +i.value; p.querySelector('.zoomv').textContent = LAB.zoom + '%'; document.body.style.setProperty('--bcw', Math.round((compact() ? 98 : 150) * LAB.zoom / 100) + 'px'); return; } if (i.dataset.r){ LAB.tilt = +i.value; labSave(); document.body.style.setProperty('--tilt', LAB.tilt + 'deg'); document.body.style.setProperty('--ldepth', Math.round(LAB.tilt * (compact() ? 7 : 11)) + 'px'); p.querySelector('.tiltv').textContent = LAB.tilt + '°'; try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){} } });
   }
   p.classList.toggle('shut', !LAB.open);
   const seg = ([k, lab, vals]) => `<fieldset><legend>${lab}</legend><div class="seg">${vals.map(([v, t]) => `<button type="button" data-o="${k}" data-v="${v}" aria-pressed="${LAB[k] === v}">${t}</button>`).join('')}</div></fieldset>`;
-  p.innerHTML = `<div class="labhd">${LAB.open ? `<b>Board settings</b><small class="labbuild" title="Game version (artifact publish number)">${OASIS_BUILD}</small>` : ''}<button type="button" class="labtog" data-t="tog" aria-expanded="${LAB.open}">${LAB.open ? 'Hide' : 'Board settings'}</button></div>
+  p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', 'Board settings');
+  p.innerHTML = `<div class="labhd"><b>Board settings</b><small class="labbuild" title="Game version (artifact publish number)">${OASIS_BUILD}</small><button type="button" class="labtog" data-t="tog">Done</button></div>
   <div class="labin">${seg(LAB_OPTS[0])}
   <fieldset><legend>Zoom <span class="zoomv">${LAB.zoom}%</span></legend><input type="range" min="60" max="150" step="5" value="${LAB.zoom}" data-z="zoom" aria-label="Zoom"></fieldset>
   <fieldset${LAB.view === 'flat' ? ' disabled style="opacity:.45"' : ''}><legend>Tilt <span class="tiltv">${LAB.tilt}°</span></legend><input type="range" min="8" max="40" step="1" value="${LAB.tilt}" data-r="tilt" aria-label="Tilt angle"></fieldset>
@@ -165,6 +169,7 @@ function labPanel(){
   <fieldset><legend>Depth</legend><label class="chk"><input type="checkbox" data-c="stock" ${LAB.stock ? 'checked' : ''}> Card stock</label><label class="chk"><input type="checkbox" data-c="light" ${LAB.light ? 'checked' : ''}> Light</label></fieldset>
   <div class="rowb"><button type="button" class="labbtn" data-t="reset">Reset switches</button></div></div>`;
 }
+addEventListener('keydown', e => { if (e.key === 'Escape' && LAB.open){ labShow(false); const m = document.querySelector('#gtop [data-gmenu]'); if (m) m.focus(); } });
 let labWasCompact = compact();
 addEventListener('resize', () => { if (compact() !== labWasCompact){ labWasCompact = compact(); if (LAB.size === 'auto') labApply(); } });
 

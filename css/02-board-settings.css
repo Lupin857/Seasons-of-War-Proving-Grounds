@@ -3,8 +3,7 @@
 /* --- switches panel (battle only) --- */
 body:not(.lab-inbattle) .labbar{display:none!important}
 .labbar{position:fixed;right:14px;bottom:14px;z-index:96;width:300px;max-height:calc(100vh - 28px);overflow:auto;background:#1d1712;color:#f3ead8;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:500 13px/1.3 var(--f-body);padding:10px 12px 12px}
-.labbar.shut{width:auto;padding:0;background:none;box-shadow:none;overflow:visible}
-.labbar.shut .labin{display:none}
+.labbar.shut{display:none}   /* opened from the game menu (☰ → Board settings) */
 .labbar .labhd{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .labbar .labhd b{font:400 17px/1 Marcellus,serif;letter-spacing:.02em}
 .labbar .labhd .labbuild{margin-right:auto;font-size:11px;color:var(--muted);letter-spacing:.04em}
@@ -18,7 +17,7 @@ body:not(.lab-inbattle) .labbar{display:none!important}
 .labbar input[type=range]{width:100%;accent-color:#e8cf95}
 .labbar .rowb{display:flex;gap:6px;margin-top:12px}
 .labbar .labbtn{background:#2c241c}
-@media (max-width:640px){ .labbar{right:6px;left:6px;width:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-height:60vh} .labbar.shut{left:auto} }
+@media (max-width:640px){ .labbar{right:6px;left:6px;width:auto;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-height:60vh} }
 
 /* --- card stock: a dark side edge under the face plus a contact and a soft shadow, drawn by a layer shaped like the face --- */
 .labsh,.lablt{display:none}

@@ -2,7 +2,8 @@
    While a game is on screen, the Oasis title, the sound button and the tabs are hidden so the screen starts with the
    game (css/10-game-menu.css). The ☰ button at the left end of the game's top bar (pbarHTML, the same bar on every
    screen) opens them instead: the same tabs (it clicks the real tab buttons, so switching views works as before) and
-   the sound toggle (it clicks the real #snd-toggle). Opening another tab brings the title and tabs back, so Play is
+   the sound toggle (it clicks the real #snd-toggle) and, during a battle, Board settings (it opens the panel in
+   js/board-settings.js with labShow). Opening another tab brings the title and tabs back, so Play is
    there to return to the game. The bar is redrawn often, so the button is found fresh each time; the menu itself
    lives outside the game view and survives redraws. */
 (function(){
@@ -21,7 +22,9 @@
       return `<button type="button" role="menuitem" class="gmenu-item${on ? ' on' : ''}" data-gtab="${b.dataset.tab}">${b.textContent.trim()}${on ? '<span class="gmenu-here">this game</span>' : ''}</button>`;
     }).join('');
     const s = snd() ? `<div class="gmenu-sep"></div><button type="button" role="menuitemcheckbox" aria-checked="${soundOn()}" class="gmenu-item gmenu-snd" data-gsnd="1">Sound effects<span class="gmenu-sw${soundOn() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
-    pop.innerHTML = items + s;
+    const bs = document.body.classList.contains('lab-inbattle') && typeof labShow === 'function'
+      ? `<button type="button" role="menuitem" class="gmenu-item" data-gboard="1" aria-haspopup="dialog">Board settings</button>` : '';
+    pop.innerHTML = items + s + (bs ? (s ? '' : '<div class="gmenu-sep"></div>') + bs : '');
   }
   function mark(){ const b = btn(); if (b) b.setAttribute('aria-expanded', String(!pop.hidden)); }
   function place(){
@@ -39,11 +42,13 @@
     if (!pop.hidden && !pop.contains(e.target)) close();
   }, true);
   pop.addEventListener('click', e => {
-    const t = e.target.closest('[data-gtab]'), s = e.target.closest('[data-gsnd]');
+    const t = e.target.closest('[data-gtab]'), s = e.target.closest('[data-gsnd]'), bd = e.target.closest('[data-gboard]');
     if (t){
       const real = document.querySelector(`.tabs button[data-tab="${t.dataset.gtab}"]`);
       close();
       if (real && real.getAttribute('aria-selected') !== 'true'){ real.click(); try { scrollTo({top:0}); } catch(_){} }
+    } else if (bd){
+      close(); labShow(true);
     } else if (s){
       const real = snd(); if (real) real.click();
       build();   // show the new state, keep the menu open

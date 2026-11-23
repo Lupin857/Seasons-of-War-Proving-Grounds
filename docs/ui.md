@@ -62,7 +62,9 @@
 - The health text and LV tag sit on the light table, so they use fixed card colors (ink `#2b211a`, hurt `#a3322a`,
   tag `#f3ead8`), never theme variables like `--ink` (which turn light in dark mode).
 - With card stock on, cards tucked behind a unit (copies, gear, tokens) get a light 8% shade so they read as behind it.
-- The open Board settings panel shows the game version (`OASIS_BUILD`, the artifact publish number, e.g. `v55`).
+- Board settings has no button on the board: during a battle it opens from the game menu (☰ → Board settings, `labShow`),
+  and closes with Done, Esc or when the battle ends. It never opens by itself on load. The panel shows the game version
+  (`OASIS_BUILD`, the artifact publish number, e.g. `v55`).
 - Board settings (js/board-settings.js, `LAB_DEF`): default table view tipped 15°, zoom 115%, AI's side further back and smaller,
   splay up-left (`'now'`; everyone was switched to it once via `localStorage.oasisBoardSplayUL`).
 - **Nothing on the board moves.** Every charge and deck spot always keeps room for the biggest stack a card can have
