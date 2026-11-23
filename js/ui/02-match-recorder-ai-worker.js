@@ -58,15 +58,19 @@ SHOP_WATCH = {
 function recText(r){ return 'SOW match record. Paste this to Claude to review the game.\n' + JSON.stringify(r); }
 function copyMatch(r){
   if (!r){ showToast('No recorded game yet.'); return; }
-  const text = recText(r);
+  copyText(recText(r), 'Copy this match', 'Match copied. Paste it to Claude.');
+}
+// Copies text to the clipboard; where the browser won't allow it, shows the text in a box to select and copy by hand
+// (match records, battle codes)
+function copyText(text, title, done){
   const fallback = () => {
     const w = document.createElement('div'); w.className = 'remind';
-    w.innerHTML = `<div class="remindbox"><h3>Copy this match</h3><p class="note">Select all of the text below, copy it, and paste it to Claude.</p><textarea readonly style="min-height:200px"></textarea><div class="row"><span class="grow"></span><button type="button" class="primary">Done</button></div></div>`;
+    w.innerHTML = `<div class="remindbox"><h3>${esc(title)}</h3><p class="note">Select all of the text below, copy it, and paste it to Claude.</p><textarea readonly style="min-height:200px"></textarea><div class="row"><span class="grow"></span><button type="button" class="primary">Done</button></div></div>`;
     const ta = w.querySelector('textarea'); ta.value = text;
     w.querySelector('button').onclick = () => w.remove();
     document.body.appendChild(w); ta.focus(); ta.select();
   };
-  try{ navigator.clipboard.writeText(text).then(() => showToast('Match copied. Paste it to Claude.'), fallback); }catch(e){ fallback(); }
+  try{ navigator.clipboard.writeText(text).then(() => showToast(done), fallback); }catch(e){ fallback(); }
 }
 function matchesHTML(){
   const all = LS.get(MATCH_KEY) || [];

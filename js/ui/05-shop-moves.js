@@ -234,7 +234,13 @@ function defaultDraft(){
 // doesn't give the result away. It catches up once the last step is shown (or the battle is skipped to its end).
 const hideResult = () => !!(ui.battle && !ui.revealed && ui.pre);
 const boardSnap = () => ({tot:G.players.map(p => total(p)), money:G.players.map(p => p.money), inc:G.players.map(p => income(p)), cath:G.players.map(p => !!p.city.Cathedral)});
+// the button that ends a battle (the dock and the battle panel)
+function battleDoneLabel(){
+  if (G.replay) return 'Back to your game';
+  return G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`;
+}
 function phaseLabel(){
+  if (G.replay) return 'Replay';   // a battle loaded from a battle code (js/ui/18-game-menu.js)
   if (ui.battle) return G.over && !hideResult() ? 'Game over' : 'Battle';
   return {shop:'Shop', mobilize:'Mobilize', battle:'Battle', over:'Game over'}[G.phase];
 }

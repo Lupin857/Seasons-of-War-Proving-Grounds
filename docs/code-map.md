@@ -31,7 +31,7 @@ global scope and run in the order index.html loads them, exactly like the old in
   `13-stats-view` · `14-balance-lab` · `15-sync-roles-ratings` (keep scroll, share with Claude, one AI everywhere,
   player mode, finalized balance, ratings) · `16-new-game` · `17-card-peek-tooltips` (ends with the STARTUP SYNC,
   which must start after every UI file has loaded) · `18-game-menu` (the ☰ menu in the game top bar: the tabs and the
-  sound switch while a game is on screen; after `js/cards-tab.js`) · `19-battle-ink` (the battle's ink strokes and the
+  sound switch while a game is on screen, plus BATTLE CODES: copy / load / replay a battle; after `js/cards-tab.js`) · `19-battle-ink` (the battle's ink strokes and the
   ability notes' brush dabs, on its own animation loop; it reads the step being started from `ui.inkStart`, set by
   `stepForward`; designed in the "Oasis battle lab: ink helpers" artifact).
 - `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
@@ -84,6 +84,13 @@ Banners: SHARED UI HELPERS → SOUND → WHO IS VIEWING → GAME LENGTHS → BAT
 CARD PEEK (keywords) → TOOLTIPS.
 - During a game the Oasis title, sound button and tabs are hidden; the ☰ at the left of the game top bar
   (`pbarHTML` in 06, the same bar on every game screen) opens them (`js/ui/18-game-menu.js`).
+- Battle codes (`js/ui/18-game-menu.js`): `runBattle(cfgs, true)` keeps a copy of both armies as `res.cfgs`;
+  `bcodeOf(res)` turns them (plus build, round, score, names, winner) into `OASIS-BATTLE:<base64 JSON>`, `bcodeParse`
+  reads one back. `replayStart(d)` plays a code in a throwaway game: the real `{G, ui}` waits in `G.replay`, `saveNow`
+  skips a replay, `phaseLabel` says Replay, `battleDoneLabel` says "Back to your game", `replayEnd()` restores it.
+  The paste box is `bcodeWinHTML` in the one pop-up (`ui.codeWin`; `peekWinHTML` draws it). Copying goes through
+  `copyText` (02, shared with "Copy match for Claude"). To look at a battle Brian sends: load the page headless,
+  then `bcodeLoad(code)`.
 - Tabs: Play, Cards, Train the AI, Balance & stats (`view-lab` on top, designers only; `view-stats` below), Rules.
 - Roles: `applyRole`, `isPlayer()`. The owner is the designer; shared viewers are players (no lab or training).
 - Balance: `FINAL = {ov, at, patches}`, server doc `balance/final`. `setBaseline`, `finalizeBalance(ov, back)` pushes

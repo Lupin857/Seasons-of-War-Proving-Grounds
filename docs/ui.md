@@ -65,6 +65,9 @@
 - The health text and LV tag sit on the light table, so they use fixed card colors (ink `#2b211a`, hurt `#a3322a`,
   tag `#f3ead8`), never theme variables like `--ink` (which turn light in dark mode).
 - With card stock on, cards tucked behind a unit (copies, gear, tokens) get a light 8% shade so they read as behind it.
+- Battle codes: the game menu has "Copy battle code" during a battle and "Load battle code…" in any game that isn't
+  online (blocked while the AI is setting its deck). A loaded code plays in the normal battle view with a REPLAY tag;
+  the end button reads "Back to your game" (also in the menu) and returns to the real game exactly as it was.
 - Board settings has no button on the board: during a battle it opens from the game menu (☰ → Board settings, `labShow`),
   and closes with Done, Esc or when the battle ends. It never opens by itself on load. The panel shows the game version
   (`OASIS_BUILD`, the artifact publish number, e.g. `v55`).

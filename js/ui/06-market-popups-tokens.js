@@ -177,7 +177,7 @@ function dockHTML(){
     mine = atEnd;
     acts = atEnd
       ? (G.over ? `<button type="button" class="primary act" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button>`
-                : `<button type="button" class="primary act" data-act="continue">${G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`}</button>`)
+                : `<button type="button" class="primary act" data-act="continue">${battleDoneLabel()}</button>`)
       : `<button type="button" class="act" data-act="b-prev" ${ui.frame === 0 ? 'disabled' : ''}>Back</button><button type="button" class="primary act" data-act="b-next">Next step</button>`;
   } else if (G.phase === 'shop'){
     const me = G.players[S], myTurn = cur(G) === S;
@@ -345,6 +345,7 @@ function myPeeks(){ const S = seat(); return PEEK_BY.map(by => peekOf(G, S, by))
    by its top strip, tap ✕, Close or outside it to close. Closing a peek keeps the cards set aside: the deck glows
    "Peek 3" until you buy one or the shop ends. */
 function peekWinHTML(){
+  if (ui.codeWin) return bcodeWinHTML();   // paste a battle code (js/ui/18-game-menu.js)
   if (ui.deckView === 0 || ui.deckView === 1){
     if (!G || ui.start || ui.roll || ui.remind){ ui.deckView = null; return ''; }
     const d = deckSheetHTML(); if (!d) return '';
@@ -407,7 +408,7 @@ function popWinHTML(label, cls, top, body, foot){
     ${top}<div class="pkbody mktp">${body}</div>
     <div class="pkfoot"><p class="note">${foot}</p><button type="button" data-act="pk-close">Close</button></div></div></div>`;
 }
-const popShut = () => { ui.pkWin = null; ui.pkPending = false; ui.deckView = null; ui.mason = null; };
+const popShut = () => { ui.pkWin = null; ui.pkPending = false; ui.deckView = null; ui.mason = null; ui.codeWin = false; };
 function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); popShut(); renderPlay(); }
 // every card in a pop-up or the turn summary is exactly the size of a market card: measure one and share it
 function syncCardSize(){
@@ -459,7 +460,7 @@ function battleHTML(){
   else if (G.over){
     const msg = G.winner < 0 ? 'The game ends in a draw.' : PP() ? `${esc(nm(G.winner))} wins the game.` : G.winner === 0 ? 'You win the game.' : 'The AI wins the game.';
     tail = `<div class="row"><span class="verdict ${VS(G.winner)===0?'a':VS(G.winner)===1?'b':'d'}">${msg}</span><span class="note">${esc(res.result.why)}</span>${ratingNoteHTML()}<span class="grow"></span>${G.rec ? '<button type="button" data-act="rec-copy">Copy match for Claude</button>' : ''}<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button></div>`;
-  } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`}</button></div>`;
+  } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${battleDoneLabel()}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
   if (!atEnd) tail = tail.replace('<div class="row">', '<div class="row tailwait" aria-hidden="true" inert>');
   return `<div class="panel">

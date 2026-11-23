@@ -130,6 +130,8 @@ function zhChip(name){
 /* ===================== BATTLE ENGINE ===================== */
 function runBattle(cfgs, record){
   if (record === undefined) record = true;
+  // a recorded battle keeps a copy of both armies as they were sent in: a battle code rebuilds the fight from them
+  const cfgCopy = record ? JSON.parse(JSON.stringify(cfgs)) : undefined;
   let uidc = 0;
   const logs = [], frames = [], hitsLog = [];
   let OVQ = [], OVFROM = null;   // Overrun excess waiting for the casualty step, and the unit it spills from (for the cubes)
@@ -710,7 +712,7 @@ function runBattle(cfgs, record){
   if (result.w >= 0) result.why += ` ${P[result.w].nm} ${P[result.w].nm === 'You' ? 'have' : 'has'} ${left(result.w)} unit${left(result.w)===1?'':'s'} left.`;
   log(result.w < 0 ? 'Draw.' : `${P[result.w].nm} ${P[result.w].nm === 'You' ? 'win' : 'wins'} the battle and ${P[result.w].nm === 'You' ? 'score' : 'scores'} 1 point.`, result.w < 0 ? undefined : result.w);
   frame('Result');
-  return {frames, result, left:[left(0), left(1)]};
+  return {frames, result, left:[left(0), left(1)], cfgs:cfgCopy};
 }
 
 /* ===================== FULL GAME ===================== */

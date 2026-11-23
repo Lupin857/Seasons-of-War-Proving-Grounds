@@ -196,7 +196,7 @@ function saveGame(){ clearTimeout(saveT); saveT = setTimeout(saveNow, 300); }
 function saveNow(){
   clearTimeout(saveT); saveT = null;
   try{
-    if (!G || G.net) return;
+    if (!G || G.net || G.replay) return;   // a battle-code replay is never saved over the real game
     if (G.over && !hideResult()){ localStorage.removeItem(SAVE_KEY); return; }
     const u = {}; for (const k of SAVE_UI) if (ui[k] !== undefined) u[k] = ui[k];
     const {rnd, ...g} = G;
@@ -648,6 +648,7 @@ $('view-play').addEventListener('click', e => {
     case 'vis-cancel': ui.visArm = false; sfx.soft(); renderPlay(); return;
     case 'vis-u': case 'vis-b': { const k = act === 'vis-b' ? 'b' : 'u'; ui.visArm = false; ui.pkWin = 'peek'; ui.pkFocus = k; ui.pkPending = true; playerMove(['v', k]); return; }
     case 'pk-open': ui.deckView = null; ui.mason = null; ui.pkWin = 'peek'; ui.pkFocus = t.dataset.k; ui.pkPending = false; sfx.pick(); renderPlay(); return;
+    case 'bc-load': sfx.soft(); bcodeLoad(ui.codeText); return;
     case 'pk-close': if (t.classList.contains('pkwin') && e.target.closest('.pksheet')) return; popShut(); sfx.soft(); renderPlay(); return;
     case 'mirm-use': { mirUse(); return; }
     case 'mir-peek': { const k = t.dataset.k; mirTurn(t.closest('.mcard'), k, () => { ui.mirOpen = ui.mirOpen === k ? null : k; }); return; }
@@ -686,7 +687,8 @@ $('view-play').addEventListener('click', e => {
     case 'b-last': sfx.soft(); goFrame(ui.battle.frames.length - 1); return;
     case 'fr': sfx.soft(); goFrame(+t.dataset.k); return;
     case 'banner-off': sfx.soft(); ui.bannerOff = true; renderPlay(); return;
-    case 'continue': if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
+    case 'continue': if (G.replay){ sfx.soft(); replayEnd(); return; }
+      if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
       sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
     case 'rec-copy': { sfx.soft(); const id = t.dataset.id; copyMatch(id ? (LS.get(MATCH_KEY) || []).find(r => String(r.id) === id) : G && G.rec); return; }
     case 'newgame': sfx.soft(); startMode = G && G.over ? (G.net ? 'net' : PP() ? 'pp' : 'ai') : null; ui.start = true; ui.resignArm = false; renderPlay(); window.scrollTo({top:0}); return;

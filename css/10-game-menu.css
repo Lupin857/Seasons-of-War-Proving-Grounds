@@ -49,3 +49,8 @@ body.ingame .wrap:has(> #view-play:not([hidden]) #gtop) > .tabs{display:none}
 .gmenu-sw i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
 .gmenu-sw.on{background:var(--or)}
 .gmenu-sw.on i{transform:translateX(14px)}
+/* Load battle code (js/ui/18-game-menu.js): the paste box in the one pop-up */
+.bcode .bcodeh{margin:0;font-family:Marcellus,serif;font-weight:400}
+.bcode{display:flex;flex-direction:column;gap:10px;padding:4px 2px}
+.bcode textarea{width:100%;box-sizing:border-box;min-height:110px;font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;word-break:break-all;resize:vertical}
+.bcode .err{margin:0}

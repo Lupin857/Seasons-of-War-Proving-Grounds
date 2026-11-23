@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v86';
+const OASIS_BUILD = 'v88';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
