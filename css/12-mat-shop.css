@@ -18,6 +18,11 @@ html:has(#view-play .osshop),body:has(#view-play .osshop){overflow:hidden}   /* 
    the first term, three cards across, as before. */
 /* the bars' heights (the rival's, yours) */
 #view-play{--osbt:52px;--osbb:58px}
+/* the top bar is pinned under the notch on the mat: it was sticky, but the mat keeps the page at scroll 0, so it sat
+   where the page flow put it (71px too low on an iPhone with a notch, Brian's v89 screenshot) */
+body.os-mat #view-play:not([hidden]) #gtop{position:fixed!important;top:env(safe-area-inset-top,0px)!important;left:0!important;right:0!important;margin:0!important}
+/* the battle's board is laid out in the page below the top bar: hold the room the pinned bar no longer takes */
+body.os-mat #view-play:not([hidden]):has(.osbars){padding-top:var(--bh,38px)!important}
 /* the plane is taller than the screen gap so that, tipped back, its far edge still lands on the top bar: the extra
    height it needs grows with the gap (about 192px on a 390x844 phone, 112px on an iPhone SE); this line fits both */
 /* Sharpness: browsers draw a tipped-back layer at a low resolution. So the plane is --osres times the size (around the

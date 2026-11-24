@@ -72,8 +72,38 @@ function matBarsAfterDraw(){
   if (window.scrollY && !matBarsAfterDraw.busy){ matBarsAfterDraw.busy = true; window.scrollTo(0, 0); matBarsAfterDraw.busy = false; }   // the page sits at its top in every phase on the mat, so nothing shifts between them
   const g = $('gtop'), b = g && g.offsetHeight ? Math.round(g.getBoundingClientRect().bottom) : null;
   if (b != null && document.documentElement.style.getPropertyValue('--gtb') !== b + 'px') document.documentElement.style.setProperty('--gtb', b + 'px');
+  // your bar sits on the dock's real top edge: measured, so the home-bar padding or a dock that grows after the
+  // first draw (fonts, a second row) can never cover it (Brian's iPhone, v89)
+  const dk = $('dock'), dh = dk && dk.offsetHeight ? Math.max(0, Math.round(window.innerHeight - dk.getBoundingClientRect().top)) : null;
+  if (dh != null && document.documentElement.style.getPropertyValue('--dockh') !== dh + 'px') document.documentElement.style.setProperty('--dockh', dh + 'px');
+  for (const e of [g, dk]) if (e && !MATBARS_SEEN.has(e)){ MATBARS_SEEN.add(e); MATBARS_RO.observe(e, {box:'border-box'}); }   // border box: the home-bar room is padding
+  matFitMat();
 }
+// the shop's cards fit between the two bars on any screen: if the trays still reach under a bar (a short or odd-sized
+// phone), the card width (--mw) shrinks in proportion until they fit. Measured on screen, so the tilt is included.
+function matFitMat(){
+  const V = $('view-play'), shop = V && V.querySelector('.osshop'), me = V && V.querySelector('.osbar.me'), opp = V && V.querySelector('.osbar.opp');
+  if (!shop || !me || !opp) return;
+  shop.style.removeProperty('--mw');
+  const cards = [...shop.querySelectorAll('.osmkt .mcard')];
+  const span = () => { let t = 1e9, b = -1e9; for (const c of cards){ const r = c.getBoundingClientRect(); if (r.height){ t = Math.min(t, r.top); b = Math.max(b, r.bottom); } } return b > t ? {t, b} : null; };
+  const top = opp.getBoundingClientRect().bottom + 2, lim = me.getBoundingClientRect().top - 4;
+  const fits = () => { const sp = span(); return !sp || (sp.t >= top && sp.b <= lim); };
+  const w0 = cards.length ? cards[0].offsetWidth : 0;
+  if (!w0 || fits()) return;
+  // the mat's open space above the trays grows twice as fast as below, so a shrink frees less room at the bottom than
+  // it saves: search for the widest card that fits (7 layouts at most, only on a screen that needs it)
+  let lo = 40, hi = w0;
+  for (let i = 0; i < 7 && hi - lo > 0.5; i++){
+    const m = (lo + hi) / 2; shop.style.setProperty('--mw', m + 'px');
+    if (fits()) lo = m; else hi = m;
+  }
+  shop.style.setProperty('--mw', Math.floor(lo * 10) / 10 + 'px');
+}
+const MATBARS_SEEN = new WeakSet();
+const MATBARS_RO = new ResizeObserver(() => { if (document.querySelector('#view-play .osbar')) matBarsAfterDraw(); });
 window.addEventListener('scroll', () => { if (document.querySelector('#view-play .osbar')) matBarsAfterDraw(); }, {passive:true});
+for (const t of [window, window.visualViewport]) if (t) t.addEventListener('resize', () => { if (document.querySelector('#view-play .osbar')) matBarsAfterDraw(); });
 // the two trays and the discard pile between them (deck: the tray's shop deck, row: its market row)
 function matTraysHTML(deck, row, extra){
   return `<div class="osmid"><div class="mktp osmkt">${extra[0] || ''}

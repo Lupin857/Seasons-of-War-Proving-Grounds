@@ -43,6 +43,11 @@ global scope and run in the order index.html loads them, exactly like the old in
   (`matArc`, `matPose`/`matTiltMatrix`, `matCrop`, `matFlyBox` `.osfly`, `matLand`, `matSpotRect`, MATLANDS /
   `matLandAfterDraw`, `matFlightFrame`, MATOPP / `matOppBuy` / `matOppSell` / `matOppStand`). Built in the
   "Oasis one-screen (dev)" artifact, dev4–dev30; build notes in the Project docs "Oasis one-screen ..." ).
+  Fitting any phone (v90): on the mat `#gtop` is pinned under the notch (it was sticky, but the mat holds the page
+  at scroll 0); `matBarsAfterDraw` measures `--gtb` (top bar's bottom) and `--dockh` (from the dock's real top edge)
+  and re-runs on resize, visualViewport resize and a ResizeObserver (border box) on #gtop and #dock; `matFitMat`
+  shrinks the shop's `--mw` (searching for the widest that fits) when the trays would reach under a bar. In the battle
+  `#view-play` gets `padding-top: var(--bh)` for the room the pinned bar no longer takes.
   `js/rug.js` (`rugAfterDraw`: sets `body.os-mat` and, by default, `body.os-sand` (flat sand page); with
   `oasisRug = '1'` draws Brian's WebGL rug `#rugworld` from `art/rug/`). CSS: `css/11-rug.css`, `css/12-mat-shop.css`.
 - `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
