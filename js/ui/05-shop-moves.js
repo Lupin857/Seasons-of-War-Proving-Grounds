@@ -613,6 +613,13 @@ function bldgLine(n, c, canSell, isNew){
   const lv = n === 'Field' ? `×${c}` : `Lv ${Math.min(c, BDEFS[n].lv.length)}`;
   return `<div class="li${isNew ? ' isnew' : ''}"><span class="nm">${esc(n)}${isNew ? ' <span class="newb">NEW</span>' : ''}</span><span class="mono">${lv}</span>${canSell ? `<button type="button" class="small" data-act="sell-b" data-name="${esc(n)}" title="Sell one level for $1">Sell $1</button>` : ''}</div>`;
 }
+// the Sell button on one of your cards (the deck sheet's cards and the Caravan and hand cards on the mat); none for
+// cards that can't be sold
+function shopSellBtnHTML(n, kind){
+  if ((kind === 'u' && n === 'Recruit') || n === 'Altar of Blood') return '';
+  const sp = SELL_PRICE + (G ? bVal(G.players[seat()], 'The Bazaar') : 0);
+  return `<button type="button" data-act="sell-${kind}" data-name="${esc(n)}" title="${kind === 'u' ? 'Sell one copy' : isGear(n) ? 'Sell this gear' : 'Sell one level'} for $${sp}">Sell $${sp}</button>`;
+}
 // Owned cards are drawn like market cards (name, power curve with the current level lit, full text) so you can read them.
 function forceCard(n, c, kind, canSell, isNew, ai){
   const d = kind === 'u' ? DEFS[n] : BDEFS[n]; if (!d) return '';
@@ -623,9 +630,7 @@ function forceCard(n, c, kind, canSell, isNew, ai){
   const owner = mine ? 'You' : PP() ? esc(nm(ai ? 1 - seat() : seat())) : 'AI';
   const verb = mine ? 'own' : 'owns';
   const own = isGear(n) ? `${owner} ${verb} ×${c}` : !hasLevels(n, kind) ? `${owner} ${verb} it` : `${owner} ${verb} ${have}`;
-  const sp = SELL_PRICE + (G ? bVal(G.players[seat()], 'The Bazaar') : 0);
-  const sell = canSell && !(kind === 'u' && n === 'Recruit') && n !== 'Altar of Blood'
-    ? `<button type="button" data-act="sell-${kind}" data-name="${esc(n)}" title="${kind === 'u' ? 'Sell one copy' : isGear(n) ? 'Sell this gear' : 'Sell one level'} for $${sp}">Sell $${sp}</button>` : '';
+  const sell = canSell ? shopSellBtnHTML(n, kind) : '';
   const oside = ai ? 1 - seat() : seat();   // whose card this is: blue for seat 0, red for seat 1
   return `<div class="mcard fcard ${kind}${ai ? ' ai' : ''} so${VS(oside)}${isNew ? ' isnew hasst' : ''}" data-card="${esc(n)}"${copyStyle(extraCopies(n, kind, c), kind)}>
     ${cardFace(n, kind, c)}

@@ -16,7 +16,7 @@ function playArtAfter({v, sel, pool}){
       const a = pool.get(n.getAttribute('src'));
       if (!a || !a.length) return;
       const o = a.shift();
-      if (o === n || o.isConnected) return;
+      if (o === n || o.isConnected || o.getAttribute('src') !== n.getAttribute('src')) return;   // (a redraw may have reused it for another card and changed its picture)
       o.className = n.className; o.alt = n.alt;
       if (n.hasAttribute('aria-hidden')) o.setAttribute('aria-hidden', n.getAttribute('aria-hidden')); else o.removeAttribute('aria-hidden');
       const ph = document.createTextNode(''); n.replaceWith(ph); o.replaceWith(n); ph.replaceWith(o);

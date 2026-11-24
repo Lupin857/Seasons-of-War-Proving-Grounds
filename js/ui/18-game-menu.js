@@ -28,7 +28,10 @@
     const bc = (ui.battle && ui.battle.cfgs ? `<button type="button" role="menuitem" class="gmenu-item" data-gcode="copy">Copy battle code</button>` : '') +
       (G && G.replay ? `<button type="button" role="menuitem" class="gmenu-item" data-gcode="leave">Back to your game</button>` : '') +
       (G && !G.net ? `<button type="button" role="menuitem" class="gmenu-item" data-gcode="load" aria-haspopup="dialog">Load battle code…</button>` : '');
-    pop.innerHTML = items + s + (bs ? (s ? '' : '<div class="gmenu-sep"></div>') + bs : '') + (bc ? '<div class="gmenu-sep"></div>' + bc : '');
+    // the phone battle on the mat has no controls row: its speed switch lives here (the same setting as the row's 1× / 2×)
+    const sp = ui.battle && typeof labMatZones === 'function' && labMatZones()
+      ? `<button type="button" role="menuitemcheckbox" aria-checked="${autoFast()}" class="gmenu-item gmenu-snd" data-gspeed="1">Fast battles (2×)<span class="gmenu-sw${autoFast() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
+    pop.innerHTML = items + s + sp + (bs ? (s || sp ? '' : '<div class="gmenu-sep"></div>') + bs : '') + (bc ? '<div class="gmenu-sep"></div>' + bc : '');
   }
   function mark(){ const b = btn(); if (b) b.setAttribute('aria-expanded', String(!pop.hidden)); }
   function place(){
@@ -46,7 +49,8 @@
     if (!pop.hidden && !pop.contains(e.target)) close();
   }, true);
   pop.addEventListener('click', e => {
-    const t = e.target.closest('[data-gtab]'), s = e.target.closest('[data-gsnd]'), bd = e.target.closest('[data-gboard]'), gc = e.target.closest('[data-gcode]');
+    const t = e.target.closest('[data-gtab]'), s = e.target.closest('[data-gsnd]'), bd = e.target.closest('[data-gboard]'), gc = e.target.closest('[data-gcode]'), sp = e.target.closest('[data-gspeed]');
+    if (sp){ try { sfx.soft(); } catch(_){} LS.set('sow-autofast', !autoFast()); if (autoOn() && autoT) startAuto(200); build(); return; }
     if (gc){
       close(); try { sfx.soft(); } catch(_){}
       const k = gc.dataset.gcode;

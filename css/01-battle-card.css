@@ -74,6 +74,6 @@ html body .battlectl .note{white-space:nowrap;overflow:hidden;text-overflow:elli
 .cubegl{position:fixed;left:0;top:0;right:0;bottom:0;width:100%;height:100%;pointer-events:none;z-index:7;display:block}
 /* a unit flying to the graveyard: its card in the pile waits, hidden, until the flying copy lands (deathFly) */
 .gyhold{opacity:0!important}
-/* the battle ink (js/ui/19-battle-ink.js): strokes on the table under the cards, note dabs over everything */
-.inkunder,.inkghost,.inklayer{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+/* the battle ink (js/ui/19-battle-ink.js): strokes over the tokens, under the card faces; note dabs over everything */
+.inkover,.inkghost,.inklayer{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
 .inklayer,.stage > .inkghost{z-index:8}

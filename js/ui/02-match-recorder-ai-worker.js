@@ -200,6 +200,20 @@ function aiThink(cmd, extra){
     catch(e){ aiWPending.delete(id); res(null); }
   });
 }
+// Against the AI, it sets its Mobilize deck while you set yours (Brian, Nov 24): the thinking starts as soon as
+// Mobilize is on screen (a renderPlay step), from the same public information as before (your deck is never sent), and
+// Lock in uses the answer (lockDeck), waiting for it with "Waiting for other player…" if it isn't in yet.
+let AIMOB = null;   // {g, round, p (the promise), r (the answer once in)}
+function aiMobStart(){
+  if (!G || PP() || G.net || G.over || G.phase !== 'mobilize' || ui.battle || ui.start || ui.roll || ui.planning) return;
+  if (AIMOB && AIMOB.g === G && AIMOB.round === G.round) return;
+  const a = AIMOB = {g:G, round:G.round, r:undefined};
+  a.p = aiThink('mob', {K:60, depth:AI_DEPTH()}).then(r => (a.r = r));
+}
+function aiMobResult(){
+  if (!(AIMOB && AIMOB.g === G && AIMOB.round === G.round)){ AIMOB = null; aiMobStart(); }
+  return AIMOB ? AIMOB.p : aiThink('mob', {K:60, depth:AI_DEPTH()});
+}
 // the depth the AI plays at when no rated level is set (today's full-strength AI)
 const AI_DEPTH = () => DEPTH.master;
 function scheduleAI(){

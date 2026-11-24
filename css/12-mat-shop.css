@@ -1,0 +1,217 @@
+/* ===================== THE SHOP ON THE MAT (one-screen dev, phones) =====================
+   js/ui/20-mat-shop.js. One fixed screen between the top bar and the bottom bar, no page scroll. .osplane is the mat:
+   it tips back by --ostilt (the rug camera's tilt) from its bottom edge, so the far side is further away. The players'
+   bars (.osbar: Caravan, hand spot, deck pile) are flat and fixed, the rival's under the top bar and yours above the
+   bottom bar, the same in the shop, Mobilize and the battle; the mat lies between them.
+   --mw: one market card's width: three across a tray, or less when the screen is short. */
+html:has(#view-play .osshop),body:has(#view-play .osshop){overflow:hidden}   /* one screen: nothing to scroll */
+/* everything else the Play tab draws around the shop (recent moves, the New game row) stays off the mat */
+#view-play > div:has(> .osshop) > :not(.osshop):not(.osmob):not(.osbar):not(.mirtray):not(.mirmodal){display:none!important}
+#view-play .osshop{position:fixed;left:0;right:0;top:calc(var(--gtb, var(--bh,46px)) + var(--osbt));bottom:calc(var(--dockh,64px) + var(--osbb));z-index:1;
+  perspective:1000px;perspective-origin:50% 100%;--ostilt:14deg;--osres:2;
+  --mw:min(calc((100vw - 52px) / 3), calc((100dvh - var(--bh,46px) - var(--dockh,64px) - var(--osbt) - var(--osbb) - 74px) / 4 * 1.14))}
+/* the bars' heights (the rival's, yours) */
+#view-play{--osbt:52px;--osbb:58px}
+/* the plane is taller than the screen gap so that, tipped back, its far edge still lands on the top bar: the extra
+   height it needs grows with the gap (about 192px on a 390x844 phone, 112px on an iPhone SE); this line fits both */
+/* Sharpness: browsers draw a tipped-back layer at a low resolution. So the plane is --osres times the size (around the
+   same bottom middle) and shrunk back inside its tilt, and .osinner, laid out at the normal size, is blown up by a plain
+   scale() to fill it: the same layout, drawn at 2x. No CSS zoom: Safari lays zoom out
+   differently inside a tilt (Nov 23: the market grid fell apart on Brian's iPhone).
+   2x on every phone (Nov 23: 3x on sharp screens made a layer too big for the phone to redraw smoothly). */
+#view-play .osplane{position:absolute;left:calc(50% - 50% * var(--osres));bottom:0;width:calc(100% * var(--osres));height:calc((146.2% - 147px) * var(--osres));
+  transform:rotateX(var(--ostilt)) scale(calc(1 / var(--osres)));transform-origin:50% 100%}
+#view-play .osinner{position:absolute;left:0;top:0;width:calc(100% / var(--osres));height:calc(100% / var(--osres));transform:scale(var(--osres));transform-origin:0 0;
+  display:flex;flex-direction:column;gap:4px;padding:6px 8px 6px;box-sizing:border-box}
+/* the market sits a little below the middle of the open rug: twice the space above it as below */
+#view-play .osinner::before,#view-play .osinner::after{content:"";flex:2 1 0}
+#view-play .osinner::after{flex-grow:1}
+
+/* labels on the mat: small caps in the card-number style */
+#view-play .osshop .oslbl{font:700 .62rem/1.1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:#e8d9b8;text-shadow:0 1px 2px #000;white-space:nowrap}
+#view-play .osseat.s0 .oslbl{color:#a9cbe6} #view-play .osseat.s1 .oslbl{color:#f0b2a4}
+
+
+/* ---------- the middle: two trays (each with its shop deck tucked at the corner), the discard pile between ---------- */
+#view-play .osmid{flex:none;display:flex;justify-content:center}
+#view-play .ostray{position:relative;padding:6px;border-radius:10px;background:rgba(232,214,178,.08);box-shadow:inset 0 1px 3px rgba(0,0,0,.35)}
+body.os-sand #view-play .ostray{background:rgba(74,52,32,.14);box-shadow:inset 0 1px 3px rgba(40,26,14,.25)}
+#view-play .ostray>.msec>.oslbl{display:block;height:20px;line-height:20px;padding-left:44px;font:400 .78rem/20px Marcellus,serif!important;letter-spacing:.06em!important;text-transform:none!important}
+/* the tray's shop deck, like a dealer's shoe at its top left corner */
+#view-play .ostray>:is(.sdeck,.osswept){position:absolute;left:4px;top:-10px;z-index:3;margin:0}
+#view-play .ostray .sdeck{display:flex;flex-direction:column;align-items:center;gap:0;padding:0;margin:0;border:0;background:none}
+#view-play .ostray .sdeck>:not(.dealdeck){display:none!important}
+/* the shop decks wear the Oasis card back (.oback); the count sits in a pill at the bottom so the back's mark shows */
+#view-play .ostray .dealdeck{width:34px!important;height:auto!important;aspect-ratio:750/728;margin:0 3px 3px 0!important;--bcw:34px}
+#view-play .ostray .dealdeck .cb.oback{background:radial-gradient(ellipse at 50% 42%,#4a3626 0%,#2e2118 62%,#21170f 100%)!important;border:0!important;border-radius:4px!important;box-shadow:inset 0 0 6px rgba(0,0,0,.45),0 2px 3px rgba(0,0,0,.55)!important}
+#view-play .ostray .dealdeck .cb.oback:not(:nth-child(3))::before{visibility:hidden}
+#view-play .ostray .dealdeck .pcount{inset:auto -6px -6px auto;margin:0;width:max-content;height:14px;padding:0 4px;border-radius:7px;background:rgba(20,15,11,.9);border:1px solid #6e5534;
+  font:400 .66rem/14px Marcellus,serif;color:#fff;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+#view-play .ostray .osswstack{left:0;width:34px}
+/* the discard pile between the trays: the top card sideways, small, with its word */
+#view-play .osdisc{display:flex;justify-content:center;height:30px;margin:-2px 0}
+#view-play .osdisc .mpile{flex-direction:row-reverse;align-items:center;gap:6px;padding:0}
+#view-play .osdisc .mpcards{width:30px!important;height:29px!important;transform:rotate(90deg)}
+#view-play .osdisc :is(.mpc,.mpface){width:28px!important;height:27px!important}
+#view-play .osdisc .bmtag{font-size:.55rem}
+#view-play .osdisc .mplbl{font:400 .7rem/1 Marcellus,serif!important;letter-spacing:.04em!important;text-transform:none!important;color:#c4b597}
+body.os-sand #view-play .osdisc .mplbl{color:#4a3420}
+body.os-sand #view-play .osdisc .mpe{border-color:rgba(74,52,32,.45)!important;background:rgba(74,52,32,.06)!important;color:#5e4429!important}
+
+#view-play .osmkt{flex:none;width:calc(var(--mw) * 3 + 24px);row-gap:6px!important;margin:0!important;padding:0!important;background:none!important;border:0!important;
+  box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;display:flex;flex-direction:column;gap:6px}
+#view-play .osmkt .msec{gap:2px!important;border:0!important;padding:0!important;margin:0!important}
+#view-play .osmkt .msec>.market{display:grid!important;grid-template-columns:repeat(3,var(--mw));column-gap:6px!important;row-gap:8px!important;
+  margin:0!important;padding:0!important;overflow:visible!important;flex-wrap:initial!important}
+#view-play .osmkt .market>.mcard,#view-play .osmkt .astack>.mcard{width:var(--mw)!important;min-width:0!important;max-width:none!important;margin:0!important}
+#view-play .osmkt .mdiv,#view-play .osmkt .alwaysw .alab{display:none!important}
+/* the always-for-sale pile leads its row (top left; Brian, Nov 24), with a gold ALWAYS tag */
+#view-play .osmkt .alwaysw{order:-1;position:relative;width:var(--mw);gap:0}
+#view-play .osmkt .alwaysw::after{content:"Always";position:absolute;left:4px;bottom:-5px;z-index:4;padding:0 5px;border-radius:7px;background:#e6c06a;color:#2a2119;
+  font:800 .58rem/14px var(--f-body);letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+
+/* ---------- the players' bars (matSeatHTML): flat, fixed, the same in the shop, Mobilize and the battle ----------
+   Yours above the bottom bar, the rival's under the top bar: the Caravan (empty spots up to the limit), then in the
+   shop and Mobilize the hand spot, the deck pile and (the rival's) the water. --osbw: one Caravan card's width,
+   shrinking to fit when the limit is high or the phone narrow. Whoever's turn it is, their bar glows (.osact). */
+#view-play .osbar{position:fixed;left:0;right:0;z-index:3;display:flex;align-items:center;gap:6px;padding:0 10px;box-sizing:border-box;
+  background:rgba(18,12,9,.72);transition:box-shadow .35s,background-color .35s}
+#view-play .osbar.me{bottom:var(--dockh,64px);height:var(--osbb);border-top:1px solid rgba(232,214,178,.18);--osbw:min(46px, calc((100vw - 153px - (var(--n, 5) - 1) * 4px) / var(--n, 5)))}
+#view-play .osbar.opp{top:var(--gtb, var(--bh,46px));height:var(--osbt);border-bottom:1px solid rgba(232,214,178,.18);--osbw:min(40px, calc((100vw - 156px - var(--osh, 0px) - (var(--n, 5) - 1) * 4px) / var(--n, 5)))}
+#view-play .osbar.opp:has(.oshand){--osh:36px}
+body.os-sand #view-play .osbar{background:#d3b987;border-color:rgba(74,52,32,.25)}
+#view-play .osbar.me.osact{box-shadow:0 -5px 16px rgba(230,192,106,.7),inset 0 0 12px rgba(230,192,106,.45);border-top:3px solid #e6c06a}
+#view-play .osbar.opp.osact{box-shadow:0 5px 16px rgba(230,192,106,.7),inset 0 0 12px rgba(230,192,106,.45);border-bottom:3px solid #e6c06a}
+body.os-sand #view-play .osbar.osact{background:#e4c98c}
+#view-play .osbar .fcards{display:flex!important;gap:4px!important;margin:0!important;padding:0!important;flex-wrap:nowrap!important;grid-template-columns:none!important}
+#view-play .osbar .oscarrow{--n:5}
+#view-play .osbar .mcard{margin:0!important;padding:0!important;flex:none;min-width:0!important}
+#view-play .osbar .mcard>.ccost,#view-play .osbar .mcard .hgtok{display:none!important}
+#view-play .osbar .oscarrow>*{width:var(--osbw)!important}
+#view-play .osbar .osslot{display:block;flex:none;aspect-ratio:750/728;border:1.5px dashed rgba(238,227,204,.28);border-radius:5px;box-sizing:border-box}
+#view-play .osbar.s0 .oscarrow .osslot{border-color:rgba(127,176,212,.4)} #view-play .osbar.s1 .oscarrow .osslot{border-color:rgba(224,144,127,.4)}
+#view-play .osbardiv{flex:none;width:1px;align-self:stretch;margin:9px 1px;background:rgba(232,214,178,.22)}
+body.os-sand #view-play .osbardiv{background:rgba(74,52,32,.3)}
+#view-play .osbar .oshandrow>*{width:36px!important}
+#view-play .osbar .oshandrow>*+*{margin-left:-24px!important}
+#view-play .osbar.opp .oshandrow>*{width:30px!important}
+#view-play .osbar .oshandslot{display:flex!important;align-items:center;justify-content:center;font:400 .58rem/1 var(--f-body);color:#c4b597}
+/* the deck pile: the top unit face up, copies as edges under it, units used of the limit on a pill */
+#view-play .osbar .ospile{position:relative;flex:none;width:calc(var(--osbw) + 2px);padding:0;margin:0 0 6px;border:0;background:none;display:block;min-height:0;box-shadow:none}
+#view-play .osbar .ospile .ostop,#view-play .osbar .ospile>.osslot{position:relative;z-index:2;width:100%;aspect-ratio:750/728!important;height:auto!important;min-height:0;overflow:hidden;display:block}
+#view-play .osbar .ospile>.osslot{display:flex;align-items:center;justify-content:center;font:700 .55rem var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:#c4b597}
+#view-play .osbar .ospile .osedge{position:absolute;left:0;width:100%;top:calc(var(--k) * 2px);aspect-ratio:750/728;border-radius:5px;background:#e3d6b8;border:1px solid #8c7552;box-shadow:0 2px 3px rgba(0,0,0,.5);z-index:1;clip-path:url(#tabclip)}
+#view-play .osbar .ospile .oscount{position:absolute;right:-6px;bottom:-4px;z-index:4;padding:0 4px;height:15px;border-radius:8px;background:rgba(20,15,11,.9);border:1px solid #7fb0d4;
+  font:400 .68rem/15px Marcellus,serif;color:#fff;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+#view-play .osbar .ospile.s1 .oscount{border-color:#e0907f}
+#view-play .osbar .ospile.on .ostop{outline:2px solid #e8d9b8;outline-offset:1px;border-radius:4px}
+#view-play .osbar.opp .ospurse{margin-left:auto}
+/* Mobilize: your deck is in your hand and the rival's is off the top edge (both shown only while they lift); your gear is on the bench */
+#view-play .osbar.osbar-mob:not(.oslifting) :is(.ospile,.oshand){visibility:hidden}
+/* the battle: the Caravans alone, where they were (the bars sit inside the battle's stage) */
+#view-play .osbars{display:contents}
+
+/* water: medallion coins in a heap, and the count pill (card-number style: white, black outline) */
+#view-play .ospurse{display:inline-flex;align-items:center;gap:4px;flex:none}
+#view-play .osheap{position:relative;width:44px;height:30px;flex:none}
+#view-play .osmed{position:absolute;left:calc(var(--x) * 1px);top:calc(4px + var(--y) * 1px);width:22px;height:22px;transform:rotate(var(--r));filter:drop-shadow(0 2px 2px rgba(0,0,0,.7))}
+#view-play .ospill{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px 0 2px;border-radius:12px;background:rgba(20,15,11,.85);border:1px solid #7fb0d4}
+#view-play .ospurse.s1 .ospill{border-color:#e0907f}
+#view-play .ospill img{width:20px;height:20px}
+#view-play .ospill b{font:400 16px/1 Marcellus,serif;color:#fff;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+#view-play .ospill i{font:700 12px/1 var(--f-body);font-style:normal;color:#c4b597}
+#view-play .osbar.opp .osheap{display:none}   /* (the rival's bar has no room for the coin heap: the pill says it) */
+
+/* ---------- on sand (body.os-sand, js/rug.js): the mat's words and empty spots in dark ink instead of light ---------- */
+body.os-sand #view-play .osshop .oslbl{color:#4a3420;text-shadow:0 1px 0 rgba(255,244,220,.45)}
+body.os-sand #view-play .osbar .osslot{border-color:rgba(74,52,32,.38)!important;color:#5e4429}
+body.os-sand #view-play .osbar.s0 .oscarrow .osslot{border-color:rgba(36,86,124,.45)!important} body.os-sand #view-play .osbar.s1 .oscarrow .osslot{border-color:rgba(154,53,35,.45)!important}
+
+/* ---------- the bottom bar on the mat: purse, buys left, Miracles, Pass ---------- */
+#view-play .dock.osdock{flex-direction:row!important;align-items:center;gap:8px;padding:6px 10px calc(6px + env(safe-area-inset-bottom,0px))!important;
+  background:rgba(18,12,9,.86)!important;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#view-play .dock.osdock .tslots{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:.52rem;min-width:0}
+#view-play .dock.osdock .tslots .pip{width:11px;height:11px}
+#view-play .dock.osdock .dbtns{display:flex;gap:6px;flex:none}
+#view-play .dock.osdock .dbtns button{min-height:44px;padding:8px 18px}
+
+/* ---------- tap to read: the card lifted off the mat (matLiftOpen in js/ui/20-mat-shop.js) ----------
+   A dimmed full screen; the full card in a column, its one button under it, the keywords under that, any miracles
+   above. Scrolls when the keywords run long. The card itself is the shared pop-up card (.cardpop), set flat here. */
+.peekwrap.osliftwrap{background:rgba(12,8,5,.62);overflow-y:auto;overscroll-behavior:contain;display:flex;justify-content:center;align-items:flex-start;animation:none}
+.osliftwrap .oslift{width:min(290px,calc(100vw - 72px),calc((100dvh - var(--bh,46px) - 130px) * 750 / 1037));margin:calc(var(--bh,46px) + 16px) auto 24px;display:flex;flex-direction:column;gap:12px}
+.osliftwrap .mcard.peek{position:relative!important;left:auto!important;top:auto!important;width:100%!important;height:auto!important;max-height:none!important;overflow:visible!important;
+  margin:0!important;padding:0!important;gap:0!important;background:none!important;border:0!important;box-shadow:none!important;outline:none;transform-origin:0 0;font-size:1.05rem}
+.osliftwrap .mcard.peek>.cface{box-shadow:0 18px 30px rgba(0,0,0,.8)}
+.osliftwrap .mcard.peek>button{display:block;width:100%;font-size:1.08rem!important;min-height:50px;padding:10px 14px!important;margin-top:14px!important}
+.osliftwrap .mcard.peek>button:disabled{background:rgba(22,16,12,.85)!important;color:#b9a888!important;border:1px solid #4a3a28!important;opacity:1!important}
+.osliftwrap .mcard.peek .ctag,.osliftwrap .mcard.peek>.pkdrag{display:none!important}
+.osliftwrap .mcard.peek>.kwgloss{margin-top:12px!important}
+.osliftwrap .osliftmir{font-size:1rem}
+/* the card stays hidden on the mat while it is up, and the Sell buttons of your seat cards show only on the lifted card */
+#view-play .mcard.oslifted,#view-play .osmob .oslifted{visibility:hidden!important}
+#view-play .osbar .mcard>button{display:none!important}
+/* a card in flight off or onto the mat: .osfly carries the move (matArc), the card inside is the crop's window (matCrop) */
+.osfly{transform-origin:0 0}
+/* a card dealt onto the mat flies face down in the Oasis card back (the shop decks' back), cut to the crop like the card */
+.dealback.oback{inset:0;border:0!important;border-radius:0;clip-path:url(#tabclip);box-shadow:inset 0 0 calc(var(--bcw) * .12) rgba(0,0,0,.45)!important;
+  background:radial-gradient(ellipse at 50% 42%,#4a3626 0%,#2e2118 62%,#21170f 100%)!important;padding-bottom:calc(var(--bch) * .0625)}
+.dealback.oback::after{bottom:calc(var(--bch) * .0625 + var(--bcw) * .035)}
+.mcard.osheld{padding:0!important;background:none!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+/* the rival's coins leaving their purse (or arriving) as their buys and sells play out (matPurseSet) */
+.osflycoin{position:fixed;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.7))}
+
+/* ===================== MOBILIZE ON THE MAT (matMobHTML in js/ui/20-mat-shop.js) =====================
+   The mat stays where the shop left it (same layout, so nothing on it moves), dimmed; Mobilize lies flat over it in
+   .osmob, between the bars: your deck as a cascade on the left (card 1 at the top, the last card in full), the bench on
+   the right. The deck's card width fits its cards into the height: --n is the number of cards in the deck. */
+#view-play .osmobmat{pointer-events:none}
+/* the market's display spots are empty (the leftovers lie on their decks); the always piles stay */
+#view-play .osmobmat .osmkt .market>.mcard{visibility:hidden}
+#view-play .osmobmat .osmkgap{display:block;width:var(--mw);aspect-ratio:750/728}
+#view-play .ospile .osbackcover{position:absolute;left:0;top:0;width:100%;aspect-ratio:750/728;z-index:3;opacity:0;border-radius:5px;clip-path:url(#tabclip);--fs:7px}
+/* last shop's leftovers, face up on top of their deck */
+#view-play .osswept{position:relative;display:flex;justify-content:center}
+#view-play .osswstack{position:absolute;left:0;top:0;width:34px;aspect-ratio:750/728;z-index:3;pointer-events:none}
+#view-play .osswtop{position:relative;z-index:2;display:block;width:100%!important;height:auto!important;aspect-ratio:750/728!important;min-height:0;margin:0!important;padding:0!important;overflow:hidden;clip-path:url(#tabclip)}
+#view-play .osswtop>.ccost,#view-play .osswtop .hgtok{display:none!important}
+#view-play .osswedge{position:absolute;left:0;width:100%;top:calc(var(--k) * 2px);aspect-ratio:750/728;border-radius:5px;background:#e3d6b8;border:1px solid #8c7552;z-index:1;clip-path:url(#tabclip)}
+
+#view-play .osmob{position:fixed;left:0;right:0;top:calc(var(--gtb, var(--bh,46px)) + var(--osbt));bottom:calc(var(--dockh,64px) + var(--osbb));z-index:2;overflow:hidden}
+#view-play .osmobdim{position:absolute;inset:0;background:rgba(12,8,5,.66)}
+#view-play .forces.mz.osmz{position:relative;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:6px;height:100%;box-sizing:border-box;
+  margin:0!important;padding:8px 8px 6px 2px;align-items:stretch}
+#view-play .osmz :is(.mz-deck,.mz-bench){display:flex;flex-direction:column;gap:4px;min-width:0;background:none;border:0;padding:0;box-shadow:none}
+#view-play .osmz .osmzhd{font:400 .78rem/1.2 Marcellus,serif;letter-spacing:.12em;text-transform:uppercase;color:#eee3cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-play .osmz .mz-deck .osmzhd,#view-play .osmz .mz-deck .mzlim,#view-play .osmz .mz-deck .err{padding-left:var(--mzrail)}
+#view-play .osmz .mzlim{color:#c4b597}
+#view-play .osmz .err{margin:0;color:#f0b2a4;font-size:.75rem}
+/* the cascade: full cards (not cropped), a name strip each. Sized from the column's own height (container query): --n
+   cards, --tt cards tucked behind them (each takes a step of room above its unit) */
+#view-play .osmz .mz-deck,#view-play .osmz .mobright{height:100%;min-height:0;display:flex;flex-direction:column;gap:4px}
+#view-play .osmz :is(#mz-deck,#mz-bench).mzstack{flex:1 1 0;min-height:0;container-type:size;padding-top:2px;padding-bottom:4px}
+#view-play .osmz .mz-bench{flex:1 1 0;min-height:0}
+#view-play .osmz #mz-deck.mzstack>*{--mzr:1.3827;--mzw:min(200px, calc(100cqw - 4px), calc((100cqh - 4px) / ((var(--n) - 1) * .42 + 1.3827 + var(--tt) * .175)));
+  --mzh:calc(var(--mzw) * var(--mzr));--mzstrip:calc(var(--mzw) * .42);--mztk:calc(var(--mzw) * .175)}
+/* the bench: cropped cards, a strip each, --bn of them */
+#view-play .osmz #mz-bench.mzstack{padding-left:4px}
+#view-play .osmz #mz-bench.mzstack>*{--mzr:var(--crop, .9707);--mzw:min(130px, calc(100cqw - 8px), calc((100cqh - 4px) / ((var(--bn) - 1) * .42 + .9707)));
+  --mzh:calc(var(--mzw) * var(--mzr));--mzstrip:calc(var(--mzw) * .42);--mztk:calc(var(--mzw) * .175)}
+#view-play .osmz .mzempty{color:#c4b597;border-color:rgba(238,227,204,.3)}
+#view-play .osmz .mzno{background:#1f1710;border-color:#6e5534;color:#eee3cc}
+#view-play .osmz .mzc[data-no="1"]>.mzno{background:#7fb0d4;border-color:#7fb0d4;color:#120d09}
+/* the bottom bar: Suggest, then Lock in across the rest */
+#view-play .dock.osmobdock>.act{min-height:44px;padding:8px 14px;flex:none}
+#view-play .dock.osmobdock .dbtns{flex:1}
+#view-play .dock.osmobdock .dbtns button{flex:1}
+/* the cascade's cards are whole cards: no crop shape on their art (its tab would hang under the card) */
+#view-play .osmz #mz-deck .cface.art{clip-path:none!important}
+/* the always-for-sale piles are off the mat during Mobilize (they slid off the left edge); their spot stays, empty */
+#view-play .osmobmat .osmkt .alwaysw{visibility:hidden}
+
+/* the battle on the mat: the step line comes out of the top bar and sits under the rival's Caravan bar, so the top bar
+   keeps the shop's height and the bar stays exactly where it was in the shop and Mobilize */
+body.os-mat:has(#view-play .osbars) #gtop .pbhint{position:fixed!important;left:0;right:0;top:calc(var(--gtb, var(--bh,46px)) + var(--osbt));z-index:3;margin:0!important}
+/* the same bottom bar height as the shop's, so your bar stays put too */
+body.os-mat:has(#view-play .osbars) #dock{padding-top:6px!important;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))!important}
+body.os-mat:has(#view-play .osbars) #dock :is(button,.act){min-height:44px!important;max-height:44px;padding-top:8px!important;padding-bottom:8px!important}

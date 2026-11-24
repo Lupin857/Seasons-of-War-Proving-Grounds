@@ -95,10 +95,11 @@ function lineHTML0(f, names){
     const wait = (nsp ? ` · ✶ ${nsp}` : '') + (sd.sil ? ' · next reveal silenced' : '');
     return `<div class="tz deckz"><span class="zl">${names[side]} revealed · ${sd.deck.length} in deck${wait}</span><div class="tzc">${VS(side) === 1 ? stack + top : top + stack}</div></div>`;
   };
-  const chargeZone = (sd, side) => `<div class="tz chz"><span class="zl">${names[side]} charge</span><div class="tzc"><div class="charge"><div class="slot labempty labslot${sd.charge ? ' under' : ''}" aria-hidden="${sd.charge ? 'true' : 'false'}">Empty</div>${cardHTML(sd.charge, side, 'charging') || ''}</div></div></div>`;
+  const mz = labMatZones();   // phone battle on the mat: one-word labels, no boxes, no ⚔︎ (board-settings.js)
+  const chargeZone = (sd, side) => `<div class="tz chz"><span class="zl">${mz ? '<span class="labw">Charge</span>' : `${names[side]} charge`}</span><div class="tzc"><div class="charge"><div class="slot labempty labslot${sd.charge ? ' under' : ''}" aria-hidden="${sd.charge ? 'true' : 'false'}"${mz ? ' aria-label="Charge: empty"' : ''}>${mz ? '' : 'Empty'}</div>${cardHTML(sd.charge, side, 'charging') || ''}</div></div></div>`;
   const graveZone = (sd, side) => `<div class="tz grz"><span class="zl">${names[side]} graveyard</span><div class="tzc">${graveHTML(sd.grave, side)}</div></div>`;
   const cityRow = side => {
-    const pl = G && G.players && G.players[side]; if (!pl) return '';
+    const pl = G && G.players && G.players[side]; if (!pl || mz) return '';   // (on the mat the Caravans are in the fixed bars: below)
     const fire = new Set(['Trebuchet', 'Training Yard', 'Infirmary', 'Muster Hall']);
     const items = Object.keys(pl.city).filter(n => pl.city[n] > 0 && BDEFS[n]).sort((a, b) => (fire.has(b) - fire.has(a)) || (a === 'Field') - (b === 'Field'));
     // each building is drawn like the battle's unit cards (same square, name and level, then its chip), with extra
@@ -108,7 +109,7 @@ function lineHTML0(f, names){
       const t = Array(Math.min(3, extra)).fill('cp'), pp = t.length ? pokeParts(t, VS(side)) : null;
       const room = !pp ? '' : VS(side) === 1 ? `margin-left:calc(var(--px) * ${t.length});margin-bottom:calc(var(--py) * ${t.length})` : `margin-right:calc(var(--px) * ${t.length});margin-top:calc(var(--py) * ${t.length})`;
       const curl = typeof artURL === 'function' ? artURL(n, 'b') : null;
-      const cst = [pp ? `box-shadow:${pp.shadow};${room}` : '', curl ? `background-image:url('${curl}')` : ''].filter(Boolean).join(';');
+      const cst = [pp ? `box-shadow:${pp.shadow};${room}` : '', curl ? `background-image:url('${curl.replace(/'/g, '%27')}')` : ''].filter(Boolean).join(';');   // (Dowser's Bathhouse: a ' would end the url)
       return `<div class="card citycard${pp ? ' poked' : ''}${curl ? ' hasart' : ''}" data-side="${VS(side)}" data-kind="b" data-b="${esc(n)}" data-name="${esc(n)}" data-lvl="${lv}" role="button" tabindex="0" title="${esc(n)}${extra ? ` · ${extra} extra cop${extra > 1 ? 'ies' : 'y'}` : ''}"${cst ? ` style="${cst}"` : ''}>${pp ? pp.html : ''}
         <span class="ctop"><span class="cn">${esc(n)}</span><span class="cpw">${lvN > 1 ? `<i>Lv ${lv}</i>` : ''}</span></span>
         ${zhChip(n)}</div>`;
@@ -117,13 +118,13 @@ function lineHTML0(f, names){
     return `<div class="city s${VS(side)}" data-side="${VS(side)}"><span class="zl">${names[side]} city</span><div class="citycards">${cards || '<span class="note">No buildings</span>'}</div></div>`;
   };
   const T = VS(1), M = VS(0), sn = [a, b];   // T: the side drawn across the top; M: the side drawn along the bottom
-  return `<div class="linewrap"><div class="line table">
+  return `<div class="linewrap"><div class="line table${mz ? ' matz' : ''}">
     ${cityRow(T)}
     <div class="trow s1">${labGrave(sn[T], T, names)}${chargeZone(sn[T], T)}${labDeck(sn[T], T, names)}</div>
     <div class="clash" aria-hidden="true">⚔︎</div>
     <div class="trow s0">${labDeck(sn[M], M, names)}${chargeZone(sn[M], M)}${labGrave(sn[M], M, names)}</div>
     ${cityRow(M)}
-  </div></div>`;
+  </div></div>${mz && G && G.players && typeof matSeatHTML === 'function' ? `<div class="osbars">${matSeatHTML(T, 'battle')}${matSeatHTML(M, 'battle')}</div>` : ''}`;
 }
 function chronHTML(frames, at){
   return `<div class="chron">${frames.map((f, k) => [f, k]).filter(([, k]) => k <= at).reverse().map(([f, k]) => `<div class="fr ${k===at?'on':''} ${k>at?'future':''}" data-act="fr" data-k="${k}" tabindex="0"><h3>${esc(f.label)}</h3><ul>${

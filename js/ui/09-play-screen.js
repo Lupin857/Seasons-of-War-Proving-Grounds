@@ -89,12 +89,18 @@ function toGame(){
 /* Battle: center the battle line (both sides' units, charges meeting in the middle) in the space left between the
    pinned top bar and the bottom dock, so the fight is on screen without scrolling. If the line is taller than that
    space, the clash between the two charging units sits in the middle of it instead. */
-function centerBattle(){
-  const v = $('view-play'), ln = v && v.querySelector('.stage .line'); if (!ln) return false;
+// the screen space between the pinned top bars (once stuck) and the bottom dock, in window coordinates
+function battleRoom(){
+  const v = $('view-play');
   const fixedH = el => { if (!el || !el.offsetHeight) return 0; const ps = getComputedStyle(el).position; return ps === 'sticky' || ps === 'fixed' ? el.getBoundingClientRect().height : 0; };
   const safeTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
-  const top = safeTop + fixedH($('gtop')) + fixedH(v.querySelector('.battlectl'));   // where the pinned bars end once stuck
-  const dk = $('dock'), bot = window.innerHeight - (dk && fixedH(dk) ? dk.getBoundingClientRect().height : 0);
+  const top = safeTop + fixedH($('gtop')) + fixedH(v && v.querySelector('.battlectl')) + fixedH(v && v.querySelector('.osbar.opp')) + fixedH(v && v.querySelector('.osbars') && document.querySelector('#gtop .pbhint'));   // where the pinned bars end once stuck (on the mat: and the rival's Caravan bar, with the step line under it)
+  const dk = $('dock'), bot = window.innerHeight - (dk && fixedH(dk) ? dk.getBoundingClientRect().height : 0) - fixedH(v && v.querySelector('.osbar.me'));
+  return {top, bot};
+}
+function centerBattle(){
+  const v = $('view-play'), ln = v && v.querySelector('.stage .line'); if (!ln) return false;
+  const {top, bot} = battleRoom();
   const r = ln.getBoundingClientRect(), room = bot - top, x = v.querySelector('.stage .clash');
   let y;   // how far down the page to scroll
   if (r.height <= room || !x) y = r.top - top - Math.max(8, (room - r.height) / 2);
@@ -241,6 +247,7 @@ const ROUND_FX = {leaveAt:75, leaveSpread:863, leaveGap:188, leaveDur:813, tokAt
   dealAt:500, deal:{spread:900, gap:200, dur:1319, backDur:750, backLead:313}, leaveStyle:'pile', leaveArc:0};
 const spreadGap = (n, spread, max) => n > 1 ? Math.min(max, spread / (n - 1)) : 0;
 function leaveToPile(rows){
+  if (matShopOn()) return 0;   // one-screen mat: these went to the discard pile in the sweep at the end of the last shop
   const L = G.leaving, pile = $('muster-pile'), mktp = $('view-play').querySelector('.mktp');
   if (!L || !pile || !mktp || !(L.u.length + L.b.length)) return 0;
   const pr = pile.querySelector('.mpcards').getBoundingClientRect(), pcx = pr.left + pr.width / 2, pcy = pr.top + pr.height / 2;
@@ -254,7 +261,8 @@ function leaveToPile(rows){
     for (const {name, j, at} of L[kind]){
       const slot = (at != null && slots.find(el => el.dataset.at === String(at))) || slots[j] || slots[slots.length - 1]; if (!slot) continue;
       const card = slot.classList.contains('mcard') ? slot : slot.querySelector('.mcard') || slot;
-      const r = card.getBoundingClientRect(); if (!r.width) continue;
+      const mat = matFlightFrame(card, pile.querySelector('.mpcards'));   // on the one-screen mat: it flies in the mat's tilt
+      const r = mat ? mat.r : card.getBoundingClientRect(); if (!r.width) continue;
       const d = kind === 'u' ? DEFS[name] : BDEFS[name]; if (!d) continue;
       const {g:gh} = flyer(name, kind); gh.classList.add('leaving', 'lghost'); gh.setAttribute('aria-hidden', 'true');   // the card's own face
       flyEl(gh, r, r.width, r.height, flyZ(pile), card.parentElement);   // flies into the discard pile, under the bottom bar when the pile is in it
@@ -269,7 +277,7 @@ function leaveToPile(rows){
         an.onfinish = an.oncancel = onLand;
       } else {
         try{ sfx.flick(delay / 1000); sfx.drop(dealLandAt(delay + dur), .5); }catch(e){}   // off it goes; it lands on the pile
-        cardFlight(gh, r, pr, {dur, delay, arc:ROUND_FX.leaveArc, onLand});
+        cardFlight(gh, r, mat ? mat.d : pr, {dur, delay, arc:ROUND_FX.leaveArc, onLand, pre:mat ? mat.pre(gh) : ''});
       }
       end = Math.max(end, delay + dur);
     }
@@ -326,15 +334,18 @@ const DEAL_FX = {lift:.52, rise:0, tilt:10, leaveAt:.138, land:.447, plainLand:.
 const dealLandAt = ms => Math.max(0, ms - DEAL_FX.sndEarly) / 1000;
 function dealFly(el, deck, delay, dur, o = {}){
   if (!el || !deck || !el.isConnected) return 0;
-  const r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
+  let r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
   if (!r.width || !dr.width) return 0;
   const v = dealView(el), cy = r.top + r.height / 2;
   if (cy < v.top || cy > v.bottom) return 0;
+  const mat = matFlightFrame(el, deck);   // on the one-screen mat: the whole flight happens in the mat's tilt
+  if (mat){ r = mat.r; dr = mat.d; }
   const {g} = flyer(el, null, {exact:true});
   g.classList.add('flying'); g.classList.remove('cant', 'peeked'); g.setAttribute('aria-hidden', 'true');
   Object.assign(g.style, {zIndex:flyZ(el), pointerEvents:'none'});
   pinFly(g, r.left, r.top, r.width, r.height);
   flyHost(el.parentElement).appendChild(g);   // styled exactly as the card in its spot
+  const pre = mat ? mat.pre(g) + ' ' : '';
   // until its turn the copy is hidden (the deck and its count show through); then it appears exactly on the deck, the
   // size of its top card, lifts off, tilts, travels to its spot and flips over
   const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2);
@@ -343,6 +354,8 @@ function dealFly(el, deck, delay, dur, o = {}){
   let kf, an, SWAP = 1;
   if (o.plain){
     kf = [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.18}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}];
+    // on the mat: the tilt in front of every step, each step written as the same list so each part moves on its own
+    if (pre) kf = kf.map(f => ({...f, transform:pre + (f.transform === 'none' ? 'translate(0,0)' : f.transform).replace(/^(translate\([^)]*\)) scale/, '$1 rotate(0deg) scale') + (f.transform === 'none' ? ' rotate(0deg) scale(1)' : '')}));
     an = g.animate(kf, {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'both'});
   } else {
     /* A real 3D flip. The card flies out face down and LANDS in its spot face down; a beat later it turns over about its
@@ -351,7 +364,7 @@ function dealFly(el, deck, delay, dur, o = {}){
        interpolates each part on its own. The turn is split at the edge: 0→90° shows the back, then the face comes in from
        −90°→0°, so the face is never mirrored. Perspective scales with the card so phone and desktop flips look alike. */
     const P = Math.max(360, r.width * 3.4);
-    const T = (x, y, rot, ry, s1, s2 = s1) => `perspective(${P}px) translate(${x}px,${y}px) rotate(${rot}deg) rotateY(${ry}deg) scale(${s1},${s2})`;
+    const T = (x, y, rot, ry, s1, s2 = s1) => `${pre}perspective(${P}px) translate(${x}px,${y}px) rotate(${rot}deg) rotateY(${ry}deg) scale(${s1},${s2})`;
     // the moments in order (each a little after the one before, whatever the table says)
     const up = (x, after, room) => Math.min(Math.max(x, after + .01), 1 - room);
     const oLeave = up(F.leaveAt, .01, .08), oLand = up(F.land, oLeave + .05, .06), oNear = Math.max(oLeave + .01, oLand - .06);
@@ -373,6 +386,7 @@ function dealFly(el, deck, delay, dur, o = {}){
   }
   if (!o.plain){
     const back = document.createElement('span'); back.className = 'dealback ' + (el.classList.contains('b') ? 'b' : 'u'); g.appendChild(back);
+    if (mat){ back.classList.add('oback'); back.style.setProperty('--bcw', r.width + 'px'); back.style.setProperty('--bch', r.height + 'px'); }   // on the mat: the Oasis card back, like the shop decks
     back.animate([{opacity:1}, {opacity:1, offset:SWAP}, {opacity:0, offset:SWAP + .001}, {opacity:0}], {duration:dur, delay, fill:'both'});
     // face down, nothing of the face shows (not even text or a stamp past the card's edge); it all turns up with the flip
     for (const c of g.children) if (c !== back) c.animate([{visibility:'hidden'}, {visibility:'hidden', offset:SWAP}, {visibility:'visible', offset:SWAP + .001}, {visibility:'visible'}], {duration:dur, delay, fill:'both'});
@@ -400,10 +414,13 @@ function dealMarket(){
   const returning = cards.filter(el => el.classList.contains('leaving') && !el.classList.contains('always'));
   // 2) ...while each one's hourglass token drops onto its corner like a stamp (upkeep), once the cleanup is under way
   const tokBase = leaveEnd ? ROUND_FX.tokAt : ROUND_FX.leaveAt, tokGap = spreadGap(returning.length, ROUND_FX.tokSpread, ROUND_FX.tokGap), tokDur = ROUND_FX.tokDur;
-  let tokEnd = 0, ti = 0;
+  let tokEnd = 0, ti = 0, ri = 0;
   returning.forEach(el => {
-    const tok = el.querySelector('.hgtok'); if (!tok) return;
-    const delay = tokBase + ti++ * tokGap;
+    // one-screen mat: it comes back out of the top of its deck first (matReturnFly), and is stamped as it lands
+    const k = (el.closest('.msec') || {}).dataset?.k === 'b' ? 'b' : 'u';
+    const back = matReturnFly(el, deckEl(k), ROUND_FX.leaveAt + ri * ROUND_FX.leaveGap, 620); if (back) ri++;
+    const tok = el.querySelector('.hgtok'); if (!tok){ tokEnd = Math.max(tokEnd, back); return; }
+    const delay = back ? back - 80 : tokBase + ti++ * tokGap;
     setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + tokDur * 0.64);
     tok.animate([
       {transform:'translate(14px,-46px) scale(2.1) rotate(-25deg)', opacity:0, offset:0},
@@ -413,6 +430,11 @@ function dealMarket(){
     ], {duration:tokDur, delay, easing:'cubic-bezier(.4,.1,.3,1)', fill:'backwards'});
     tokEnd = Math.max(tokEnd, delay + tokDur);
   });
+  // one-screen mat: the always-for-sale piles slide back in from off the left edge, where they went for Mobilize
+  if (matShopOn()) vp.querySelectorAll('.osmkt .msec[data-k] .alwaysw .astack > .mcard').forEach(el => {
+    const t = matReturnFly(el, matSupplyOff(matFlatRect(el)), ROUND_FX.leaveAt, 620);
+    if (t) el.closest('.alwaysw').animate([{opacity:0}, {opacity:0}], {duration:t});   // its ALWAYS tag waits for it too
+    tokEnd = Math.max(tokEnd, t); });
   // 3) ...and the new cards are dealt alongside (Recruit and Field never leave the table)
   const fresh = cards.filter(el => !el.classList.contains('always') && !el.classList.contains('leaving'));
   const end = dealIn(fresh, leaveEnd || tokEnd ? ROUND_FX.dealAt : ROUND_FX.leaveAt, ROUND_FX.deal);
@@ -543,12 +565,13 @@ function lockDeck(){
     renderPlay(); toGame(); startAuto(); return;
   }
   sfx.lock();
-  ui.err = ''; ui.lastDraft = d; ui.planning = true; renderPlay();
+  ui.err = ''; ui.lastDraft = d; ui.planning = true;
+  if (!(AIMOB && AIMOB.g === G && AIMOB.round === G.round && AIMOB.r !== undefined)) renderPlay();   // "Waiting for other player…" only if the AI isn't done
   const g0 = G;
   setTimeout(async () => {
     // the AI plans from public information only; your locked deck is not visible to it
     let aiDeck = null;
-    const r = await aiThink('mob', {K:60, depth:AI_DEPTH()});
+    const r = await aiMobResult();   // started when Mobilize opened (aiMobStart)
     if (G !== g0) return;
     if (r && !r.error && r.deck){ aiDeck = r.deck; if (r.omPending) G.omPending = r.omPending; if (r.mobWhy){ G._mobWhy = r.mobWhy; G._mobLevel = r.mobLevel; } }
     else aiDeck = aiMobilize(G, 1, 60, AI_DEPTH()) || [];
@@ -577,7 +600,7 @@ function compactFrames(frames){
   });
   return out;
 }
-function showBattle(res){ if (res && res.frames && !res.compact){ res.frames = compactFrames(res.frames); res.compact = true; } ui.battle = res; ui.frame = 0; ui.draft = null; ui.revealed = false; }
+function showBattle(res){ if (res && res.frames && !res.compact){ res.frames = compactFrames(res.frames); res.compact = true; } ui.battle = res; if (typeof labBattleRoom === 'function') labBattleRoom(); ui.frame = 0; ui.draft = null; ui.revealed = false; }
 // is this unit (or a Recruit) still waiting on the bench?
 // battle miracles in hand that aren't in the deck yet (one entry per copy)
 function batBench(me, d){
@@ -703,14 +726,23 @@ $('view-play').addEventListener('click', e => {
    has loaded, as the wrappers were: a redraw can happen while the page is still starting. Add a step here, in
    order, instead of wrapping renderPlay. */
 function renderPlay(){
+  if (typeof matMobGate === 'function' && matMobGate()) return;      // one-screen dev: the sweep into Mobilize plays first
+  if (typeof matBatGate === 'function' && matBatGate()) return;      // one-screen dev: Mobilize gathers into the battle first
   const notes = typeof playNotesBefore === 'function' ? playNotesBefore() : null;   // ability notes, measured before the stage is replaced
   const art = typeof playArtBefore === 'function' ? playArtBefore() : null;         // the card pictures already on screen
   let r;
   try{ r = drawPlay.apply(this, arguments); }
   catch(err){ console.error('renderPlay', err); const v = document.getElementById('view-play'); if (v) v.innerHTML = errBoxHTML('the Play tab', err); }   // show the error, with a way to copy it to Claude
+  // the page's classes first (body.lab-inbattle, os-mat...): the battle's rows are measured with them in place
+  if (typeof labAfterDraw === 'function') labAfterDraw();            // Board settings: body.lab-inbattle
+  if (typeof rugAfterDraw === 'function') rugAfterDraw();            // one-screen dev: the lit rug under the battle
+  if (typeof matBarsAfterDraw === 'function') matBarsAfterDraw();    // one-screen dev: the Caravan bars sit right under the top bar
   if (ui.battle) reserveRows();                     // every redraw of the battle keeps the reserved row heights
   if (art) playArtAfter(art);                       // put the decoded pictures back (no blink)
   if (typeof playNotesAfter === 'function') playNotesAfter(notes);   // damage cubes follow the board; old notes fade out
-  if (typeof labAfterDraw === 'function') labAfterDraw();            // Board settings: body.lab-inbattle
+  if (typeof matLandAfterDraw === 'function') matLandAfterDraw();    // one-screen dev: spots cards are landing on stay hidden
+  if (typeof matMobAfterDraw === 'function') matMobAfterDraw();      // one-screen dev: the deck lifts off the mat into Mobilize
+  if (typeof matBatAfterDraw === 'function') matBatAfterDraw();      // one-screen dev: the battle board lands (zoom, deck slam)
+  if (typeof aiMobStart === 'function') aiMobStart();                // against the AI: it sets its Mobilize deck while you set yours
   return r;
 }

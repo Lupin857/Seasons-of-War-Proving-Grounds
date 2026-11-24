@@ -98,14 +98,16 @@ function abSrcEl(stage, ab){
   if (ab.sh){ const c = stage.querySelector(`.card[data-uid="${ab.u}"]`); const s0 = c && (c.querySelector(':scope > .pk.shhit') || c.querySelector(':scope > .pk[data-k="sh"]')); return c ? (s0 ? (s0.querySelector('.tkband') || s0) : c) : null; }
   if (ab.g){ const c = stage.querySelector(`.card[data-uid="${ab.u}"]`); if (c){ const t = c.querySelector('.gtk'); return t ? (t.querySelector('.tkband') || t) : (c.querySelector('.cgear') || c); } }
   return ab.u ? (stage.querySelector(`.card[data-uid="${ab.u}"]`) || stage.querySelector(`.grave [data-uid="${ab.u}"]`) || stage.querySelector(`[data-uid="${ab.u}"]`))
-              : stage.querySelector(`.city[data-side="${VS(ab.s)}"] .citycard[data-b="${CSS.escape(ab.n)}"]`);
+              : (stage.querySelector(`.city[data-side="${VS(ab.s)}"] .citycard[data-b="${CSS.escape(ab.n)}"]`) || stage.querySelector(`.osbar.s${VS(ab.s)} .oscar[data-b="${CSS.escape(ab.n)}"]`));   // (on the mat: the Caravan bar)
 }
 // Where the notes sit: on phones under the battle buttons (--abtop); on wider screens between the two cities, beside the
 // battle rows (--abT/--abB on the stage), so they never cover a city card. Compared with the stage's own values, not a
 // cache: a redraw that rewrites the stage's style drops them, and the notes would jump to the edges.
 function abPlace(stage){
   const sr = stage.getBoundingClientRect();
-  if (compact()){ const bc = $('view-play').querySelector('.battlectl'); const t = bc ? Math.max(8, bc.getBoundingClientRect().bottom + 6) : 8;
+  if (compact()){ const bc = $('view-play').querySelector('.battlectl'), top = bc && bc.offsetHeight ? bc : $('gtop');
+    const low = [top, stage.querySelector('.osbar.opp'), stage.querySelector('.osbars') && document.querySelector('#gtop .pbhint')].filter(e => e && e.offsetHeight).map(e => e.getBoundingClientRect().bottom);
+    const t = low.length ? Math.max(8, ...low.map(b => b + 6)) : 8;   // (no controls row on the mat: under the top bar, the rival's Caravan bar and the step line)
     if (document.documentElement.style.getPropertyValue('--abtop') !== t + 'px') document.documentElement.style.setProperty('--abtop', t + 'px'); return; }
   const cT = stage.querySelector('.city.s1'), cB = stage.querySelector('.city.s0');
   const t = cT ? Math.max(0, Math.round(cT.getBoundingClientRect().bottom - sr.top)) : 0, b = cB ? Math.max(0, Math.round(sr.bottom - cB.getBoundingClientRect().top)) : 0;
@@ -118,14 +120,14 @@ const autoOn = () => LS.get('sow-autoplay') === true;
 const autoLabel = () => autoOn() ? '❚❚ Auto' : '▶ Auto';
 const autoFast = () => LS.get('sow-autofast') === true;
 const speedLabel = () => autoFast() ? '2×' : '1×';
-function syncAutoBtn(){ const b = $('view-play').querySelector('[data-act="b-auto"]'); if (b){ b.setAttribute('aria-pressed', autoOn() ? 'true' : 'false'); b.textContent = autoLabel(); } }
+function syncAutoBtn(){ $('view-play').querySelectorAll('[data-act="b-auto"]').forEach(b => { b.setAttribute('aria-pressed', autoOn() ? 'true' : 'false'); b.textContent = autoLabel(); }); }   // (the controls row's, and the mat dock's)
 function stopAuto(turnOff){ clearTimeout(autoT); autoT = null; if (turnOff && autoOn()){ LS.set('sow-autoplay', false); syncAutoBtn(); } }
 function startAuto(delay){ stopAuto(); if (autoOn() && ui.battle) autoT = setTimeout(autoTick, delay ?? 900); }
 function autoTick(){
   autoT = null;
   if (!autoOn() || !ui.battle || !G) return;
   if ($('view-play').hidden){ autoT = setTimeout(autoTick, 500); return; }   // paused while another tab is open
-  if (ui.animT || peekEl){ autoT = setTimeout(autoTick, 200); return; }   // let the current step finish first
+  if (ui.animT || peekEl || (typeof matBatBusy === 'function' && matBatBusy())){ autoT = setTimeout(autoTick, 200); return; }   // let the current step (or the mat's flow into the battle) finish first
   if (ui.frame >= ui.battle.frames.length - 1) return;
   stepForward(); syncAutoBtn();
   autoT = setTimeout(autoTick, (reduceMotion() ? 700 : 1150) / (autoFast() ? 2 : 1));
@@ -142,7 +144,10 @@ function applyRsv(root, rsv){
 function reserveRows(){
   const st = $('view-play').querySelector('.stage'), line = st && st.querySelector('.line.table');
   if (!st || !line || !ui.battle) return;
-  const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length + ':' + (typeof LAB === 'object' ? LAB.splay : '');
+  const mz = typeof labMatZones === 'function' && labMatZones();
+  // phone battle on the mat: the cards start at the board's own size each battle; matFitBattle shrinks them to fit
+  if (mz && ui.battle.fitW == null){ ui.battle.fitW = Math.round(98 * LAB.zoom / 100); document.documentElement.style.setProperty('--matbcw', ui.battle.fitW + 'px'); }
+  const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length + ':' + (typeof LAB === 'object' ? LAB.splay : '') + ':' + (mz ? ui.battle.fitW : '');
   if (ui.battle.rowKey !== key){
     const probe = document.createElement('div');
     probe.className = 'stage'; probe.setAttribute('aria-hidden', 'true');
@@ -167,7 +172,7 @@ function reserveRows(){
     probe.remove();
     // the rows keep the tallest height any battle has needed at this width and board look, so they never shrink
     // from one battle to the next
-    const gk = w + ':' + (typeof LAB === 'object' ? [LAB.splay, LAB.size, LAB.view, LAB.zoom, LAB.tilt].join(',') : '');
+    const gk = w + ':' + (typeof LAB === 'object' ? [LAB.splay, LAB.size, LAB.view, LAB.zoom, LAB.tilt].join(',') : '') + (mz ? ':' + LABROOM + ':' + ui.battle.fitW : '');
     const keep = (window.__rowKeep || (window.__rowKeep = {}))[gk] || [0, 0];
     mx[0] = Math.max(mx[0], keep[0]); mx[1] = Math.max(mx[1], keep[1]); window.__rowKeep[gk] = mx.slice();
     ui.battle.rowH = mx; ui.battle.rsv = rsv; ui.battle.rowKey = key; ui.battle.rowGk = gk;
@@ -188,6 +193,47 @@ function reserveRows(){
     box.style.marginTop = ''; const a = tableXY(c, line), b = tableXY(g, line); if (!a || !b) continue;   // (the pile's box moves, its empty spot with it)
     if (Math.abs(a.top - b.top) > .5) box.style.marginTop = (parseFloat(getComputedStyle(box).marginTop) || 0) + a.top - b.top + 'px';
   }
+  if (mz) matFitBattle(line);
+}
+/* One-screen phone battle on the mat (Brian, Nov 24): the whole table, both Caravans included, fits between the top
+   bars and the dock, with the cards as big as that allows (never bigger than the board's own size). The cards'
+   width is --matbcw, which css/11-rug.css gives the board as --bcw (tucks, gaps and room follow); labels and bars
+   don't scale, so the height is a straight line in the width: a few secant steps find the width, re-measuring the
+   rows each time (no redraw). Rows are reserved for the tallest frame, so the size holds for the whole battle. */
+function matFitBattle(line){
+  const b = ui.battle; if (!b || !line || b.fitting) return;
+  const base = Math.round(98 * LAB.zoom / 100), {top, bot} = battleRoom(), room = bot - top - 6;
+  if (room < 120) return;
+  const H = () => line.getBoundingClientRect().height;
+  document.documentElement.style.setProperty('--matgap', '0px');   // measured without the extra gap (added back below)
+  let w = b.fitW, h = H(), pw = null, ph = null;
+  b.fitting = true;
+  try{
+    for (let i = 0; i < 5; i++){
+      if (h <= room && (w >= base || room - h < 10)) break;   // fits, and no room to grow
+      let next = pw == null || Math.abs(h - ph) < 1 ? w * room / h : w + (room - h) * (w - pw) / (h - ph);
+      next = Math.max(56, Math.min(base, Math.floor(next)));
+      if (next === w) break;
+      pw = w; ph = h; w = next;
+      b.fitW = w; document.documentElement.style.setProperty('--matbcw', w + 'px');
+      reserveRows(); h = H();
+    }
+    if (h > room && w > 56){ b.fitW = w = Math.max(56, w - 2); document.documentElement.style.setProperty('--matbcw', w + 'px'); reserveRows(); }
+    // and across: on a narrow phone the three spots of a row (the near row is drawn wider, in the tilt) must stay on
+    // screen, so the cards shrink a little more if a spot hangs past either edge
+    const vw = document.documentElement.clientWidth;
+    const over = () => Math.max(0, ...[...line.querySelectorAll('.trow > .tz > .tzc')].map(z => { const r = z.getBoundingClientRect(); return Math.max(-r.left, r.right - vw); }));
+    for (let i = 0; i < 6 && w > 56; i++){
+      const o = over(); if (o <= 1) break;
+      const rw = line.querySelector('.trow.s0').getBoundingClientRect().width || vw;
+      b.fitW = w = Math.max(56, Math.min(w - 1, Math.floor(w * (rw - 2 * o - 4) / rw)));
+      document.documentElement.style.setProperty('--matbcw', w + 'px'); reserveRows();
+    }
+    // room left over once the cards are full size goes between the two battle rows (Brian, Nov 24: more space there),
+    // up to 90 px more than the 28 px they always keep (--matgap, css/11-rug.css)
+    const gap = Math.max(0, Math.min(90, Math.floor(room - H())));
+    b.fitGap = gap; document.documentElement.style.setProperty('--matgap', gap + 'px');
+  } finally { b.fitting = false; }
 }
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
 /* Show battle step k (glide: animate from the step on screen). Steps around the redraw come from the cubes

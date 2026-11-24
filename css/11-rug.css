@@ -1,0 +1,90 @@
+/* ===================== THE RUG WORLD (one-screen dev) =====================
+   body.os-mat: a game on a phone, on the rug (js/rug.js draws it on #rugworld, a fixed canvas behind the page). The
+   page forces the dark look and lets the rug show through; panels float over it. body.os-rug: the battle, where the
+   table itself is see-through and the zones become faint outlines on the rug. */
+#rugworld{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;display:none}
+body.os-mat #rugworld{display:block}
+html:has(body.os-mat){background:#0c0806!important}
+body.os-mat{background:transparent!important}
+body.os-mat #view-play,body.os-mat main,body.os-mat .wrap,body.os-mat .views{background:transparent!important}
+body.os-mat #view-play .panel{background:rgba(18,12,9,.78)!important;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+/* battle: see-through table, zones as chalk-and-shadow outlines */
+body.os-rug #view-play .stage{background:transparent!important}
+body.os-rug #view-play .panel:has(>.stage){background:transparent!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+body.os-rug .line.table{background:none!important;box-shadow:none!important}
+body.os-rug .table .tz{background:rgba(10,6,4,.22)!important;box-shadow:inset 0 0 0 1.5px rgba(232,214,178,.22),inset 0 2px 8px rgba(0,0,0,.35)!important}
+body.os-rug .table .tz .zl{color:#e8d9b8!important;text-shadow:0 1px 2px rgba(0,0,0,.9)}
+body.os-rug .table .charge>.note{border-color:rgba(232,214,178,.35)!important;color:#e8d9b8}
+body.os-rug .stage .table .slot.labslot{border-color:rgba(232,214,178,.35)!important;color:#e8d9b8!important;background:rgba(10,6,4,.2)!important}
+html body.os-rug .card.hasart>.hprow,html body.os-rug .table .card.hasart:not(.mini)>.hprow{color:#f3ead8;text-shadow:0 1px 2px #000}
+html body.os-rug .card.hasart>.hprow .hpn,html body.os-rug .card.hasart>.hprow .hpn b{color:#f3ead8!important;text-shadow:0 1px 2px #000}
+html body.os-rug .card.hasart>.hprow .hpn.hurt b{color:#ff8a78!important}
+/* sand (the default for now; js/rug.js rugSand): plain light-brown sand behind every phone game screen, drawn once,
+   with a faint grain. The rug canvas stays off. */
+html:has(body.os-mat.os-sand){background:#d8c196 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .12 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),radial-gradient(ellipse 90% 70% at 50% 45%,#e6d3ab 0%,#d8c196 60%,#c7ab7b 100%)!important;background-color:#d8c196!important}
+body.os-sand #rugworld{display:none!important}
+/* phone battle on the mat (.line.table.matz, js/board-settings.js labMatZones; Brian, Nov 24): no zone boxes, no ⚔︎,
+   one word per spot in the side's colour, the deck count as a second line in the same type, and empty spots as a
+   plain dashed card outline (for now: restyle here). Every spot keeps its size and place; the ⚔︎ keeps its room. */
+html body .stage .line.table.matz .tz{background:none!important;box-shadow:none!important;border-color:transparent!important}
+html body .line.table.matz>.clash{visibility:hidden}
+html body .stage .line.table.matz .tz .zl{color:#6e5a3e;font-weight:800}
+html body.os-sand .stage .line.table.matz .trow.s0 .tz .zl{color:#24567c;text-shadow:0 1px 0 rgba(255,244,220,.45)!important}
+html body.os-sand .stage .line.table.matz .trow.s1 .tz .zl{color:#9a3523;text-shadow:0 1px 0 rgba(255,244,220,.45)!important}
+html body.os-rug .stage .line.table.matz .trow.s0 .tz .zl{color:#a9cbe6!important} html body.os-rug .stage .line.table.matz .trow.s1 .tz .zl{color:#f0b2a4!important}
+html body .stage .line.table.matz .deckz>.zl{flex-direction:column;justify-content:flex-end;align-items:center;line-height:1.25}
+html body .stage .line.table.matz .trow.s0 .deckz>.zl{justify-content:flex-start}
+html body .stage .line.table.matz .labsub{display:block;font-weight:700;letter-spacing:.06em;text-transform:none}
+html body .stage .line.table.matz .labcnt{display:inline;margin:0;padding:0;min-height:0;border:0;border-radius:0;background:none;box-shadow:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;vertical-align:baseline}
+html body .stage .line.table.matz .slot.labslot,html body .stage .line.table.matz .grz .labslot{background:none!important;border:2px dashed rgba(74,52,32,.38)!important;color:transparent!important}
+html body.os-rug .stage .line.table.matz .slot.labslot,html body.os-rug .stage .line.table.matz .grz .labslot{border-color:rgba(232,214,178,.35)!important}
+/* the phone battle on the mat fits on one screen (js/ui/07-battle-steps.js matFitBattle): the cards take the fitted
+   width; the battle controls drop their second line (it repeats the Battle bar); each Caravan is a thin strip of small
+   building cards (tap one to read it). The dock's two deck buttons are gone here: tap "Deck" on the board instead. */
+html body.os-mat.lab-inbattle.lab-v-table{--bcw:var(--matbcw, 98px)!important}
+html body.os-mat.lab-inbattle #view-play .battlectl .note{display:none!important}
+html body .stage .line.table.matz .city{min-height:0!important;padding:2px 0!important;margin:0!important;display:flex!important;flex-direction:row!important;align-items:center;justify-content:center;gap:8px}
+html body .stage .line.table.matz .city>.zl{font-size:.55rem!important;min-height:0!important;height:auto!important;flex:none}
+html body .stage .line.table.matz .city.s0>.zl{color:#24567c} html body .stage .line.table.matz .city.s1>.zl{color:#9a3523}
+html body.os-rug .stage .line.table.matz .city.s0>.zl{color:#a9cbe6} html body.os-rug .stage .line.table.matz .city.s1>.zl{color:#f0b2a4}
+html body .stage .line.table.matz .citycards{display:flex!important;flex-wrap:nowrap!important;gap:5px!important;width:auto!important;min-height:0!important;flex:0 1 auto;justify-content:center}
+html body .stage .line.table.matz .citycard{zoom:.42;margin:0!important;background-color:#3b2d23;color:#f3ead8}
+html body .stage .line.table.matz .city .note{font-size:.6rem;color:#6e5a3e;padding:0}
+/* (phones crop battle cards to their picture, which unit cards draw as an <img>; Caravan cards carry theirs as a
+   background, which the crop rule hid, so they were invisible: show it again in the strip) */
+html body.lab-crop .stage .line.table.matz .card.citycard.hasart:not(.mini){background-size:cover!important;background-position:50% 0!important;background-color:#3b2d23!important;border-radius:4px!important;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+/* tighter (Brian, Nov 24: the fitted cards came out too small): the board keeps less empty space so the cards stay
+   big. One-size labels (two short lines), thin zone padding, no ⚔︎ row, small gaps; the Caravan strips sit close. */
+html body .stage .line.table.matz{padding:2px 4px 4px!important;row-gap:3px!important}
+html body .stage .line.table.matz>.clash{display:none!important}
+html body .stage .line.table.matz .trow>.tz{padding:1px 2px!important;gap:2px!important}
+html body .stage .line.table.matz .tz>.zl{height:24px!important;min-height:0!important;line-height:1.15!important;padding:0!important}
+html body .stage .line.table.matz .city{padding:0!important;margin:0!important}
+html body .stage .line.table.matz .city.s1{margin-bottom:8px!important} html body .stage .line.table.matz .city.s0{margin-top:4px!important}
+html body .stage .line.table.matz>.trow.s0{margin-top:calc(28px + var(--matgap, 0px))!important}   /* room between the rows for the ink strokes; leftover screen room adds to it (matFitBattle) */
+/* (Brian, Nov 24, later) no controls row on the mat battle: Auto and Notes are in the dock, the speed is in the ☰ menu
+   (js/board-settings.js matBattleDockBtns); the Caravan strips sit right against their rows' words, and the room that
+   frees goes between the two battle rows */
+html body.os-mat.lab-inbattle.lab-v-table #view-play .battlectl{display:none!important}
+html body.os-mat.lab-inbattle #dock.ph-battle .dbtns .act.autobtn,html body.os-mat.lab-inbattle #dock.ph-battle .dbtns .act.abtog{flex:0 0 auto;min-width:0;padding-left:10px;padding-right:10px}
+html body.os-mat.lab-inbattle #dock.ph-battle .dbtns .act.abtog[aria-pressed="true"]{border-color:#c9a45f;color:#f3e2b8;background:#3a2e14}
+html body .stage .line.table.matz .city.s1{margin-bottom:-4px!important} html body .stage .line.table.matz .city.s0{margin-top:-14px!important}   /* each Caravan strip right against its row's words */
+/* Mobilize → battle on the mat (js/ui/20-mat-shop.js matBatLand): while it plays, the board's cards wait hidden
+   (the decks slam in as themselves at the end; the Caravan strips slide in with their cards) */
+html body .stage .line.table.matbat .chz .tzc .card,html body .stage .line.table.matbat .citycard,html body .stage .line.table.matbat .grz .tzc>*{visibility:hidden}
+/* the phone battle on the mat uses the mat's own camera (css/12-mat-shop.css .osshop: 1000 px away, tipped 14° from
+   its bottom edge), so a card looks the same on the mat and on the board (__cubeTilt follows) */
+@media (max-width:640px){ html body.lab-v-table.os-mat .line.table.matz{transform:perspective(1000px) rotateX(14deg)!important;transform-origin:50% 100%!important} }
+/* (the pinned mat is only a picture for the camera move: the page keeps scrolling as the battle needs, top bar stuck) */
+html:has(#view-play > .matbatcam),body:has(#view-play > .matbatcam){overflow:visible!important}
+/* the camera's frame: the screen, clipping what it holds (contain:paint makes it the box its fixed children sit in) */
+#view-play > .matbatcam{position:fixed;inset:0;overflow:hidden;contain:paint;z-index:9;pointer-events:none}
+
+html body .stage .line.table.matbatpre .zl,html body .stage .line.table.matbatpre .labslot,html body .stage .line.table.matbatpre .deckz>.tzc,html body .stage .line.table.matbatpre>.city{opacity:0}
+/* One background in every phase (Brian, Nov 24, dev29): on sand the battle shows the same sand as the shop and
+   Mobilize. No dark panel, no lighter table board with tilted edges: the page's own sand shows through. The battle's
+   step line sits on the sand in dark ink (the mat's label style) instead of in a dark band under the top bar. */
+body.os-mat.os-sand #view-play .panel:has(>.stage),body.os-mat.os-sand #view-play .stage,html body.os-mat.os-sand .stage .line.table.matz{background:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border-color:transparent!important}
+body.os-mat.os-sand.lab-inbattle #gtop.gs{background:linear-gradient(rgb(18,23,32) 0 37px,transparent 37px) no-repeat!important;border-bottom-color:transparent!important;box-shadow:none!important}
+body.os-mat.os-sand.lab-inbattle #gtop .pbhint{background:transparent!important;color:#4a3420!important;text-shadow:0 1px 0 rgba(255,244,220,.45)}
+body.os-mat.os-sand.lab-inbattle #gtop .pbhint .dphase{background:transparent!important;color:#4a3420!important;box-shadow:inset 0 0 0 1.5px rgba(74,52,32,.45)}

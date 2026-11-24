@@ -2470,9 +2470,24 @@ function outcomeValues(g, i, n, decks, need){
   const M = myopicValues(g, i, g.players[i].genome), sh = x => (x + PO_PRIOR * x0) / (n + PO_PRIOR);
   let x0;
   x0 = M.w; const w = sh(out[0]); x0 = M.t; const t = sh(out[1]); x0 = M.l; const l = sh(out[2]);
-  return {w, t, l};
+  return inOrder({w, t, l});
 }
 const PO_PRIOR = 2;
+// Obvious knowledge the playouts can miss by luck (Brian, Nov 24): winning a battle is never worse than a draw, and a
+// draw never worse than a loss. When the noisy estimates come out in the wrong order, the ones out of order are
+// averaged together (the standard fix for noisy estimates that must be ordered), so they become equal and the battle's
+// tiebreak (units left alive) prefers the better result. Values not played out (NaN) are left alone.
+function inOrder(v){
+  const ks = ['w', 't', 'l'].filter(k => Number.isFinite(v[k])), B = [];
+  for (const k of ks){
+    B.push({s:v[k], n:1, ks:[k]});
+    while (B.length > 1 && B[B.length - 2].s / B[B.length - 2].n < B[B.length - 1].s / B[B.length - 1].n){
+      const b = B.pop(), a = B[B.length - 1]; a.s += b.s; a.n += b.n; a.ks.push(...b.ks);
+    }
+  }
+  const o = {...v}; for (const b of B) for (const k of b.ks) o[k] = b.s / b.n;
+  return o;
+}
 // Short-sighted levels in the shop: this battle counts in full, but later battles are seen only dimly. Money and the
 // army you keep still matter a little, as they would to any new player (cards carry over, money buys things later),
 // so a card that does nothing now is never 'free' and selling a unit you need is never a coin flip. They just don't

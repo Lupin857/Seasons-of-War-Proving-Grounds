@@ -21,7 +21,7 @@ let MZ_N = 0;
 const mzIds = d => { for (const u of d || []) if (u && !u.id) u.id = 'm' + (++MZ_N); return d; };
 const mzMe = () => G.players[seat()];
 const mzActive = () => !!(G && G.phase === 'mobilize' && !ui.battle && ui.draft && !ui.planning && !(PP() && ui.handoff != null)
-  && !(G.net && NET && NET.acts.length > NET.applied[NET.seat]));
+  && !(G.net && NET && NET.acts.length > NET.applied[NET.seat]) && !matMobBusy());
 const mzIdx = id => (ui.draft || []).findIndex(u => u.id === id);
 const mzUnit = id => (ui.draft || [])[mzIdx(id)] || null;
 
@@ -222,6 +222,7 @@ function mobilizeHTML(){
   if (G.net && NET && NET.acts.length > NET.applied[NET.seat]) return `<div class="panel handoff s${VS(NET.seat)}"><span class="eyebrow">Round ${G.round} · Mobilize</span><h2>Deck locked in</h2><p class="note">Waiting for ${esc(nm(1 - NET.seat))} to set their deck order. The battle starts as soon as they lock in.</p></div>`;
   if (G.net && !ui.draft) ui.draft = netClone(defaultDraft);
   if (PP() && ui.handoff != null) return handoffHTML();
+  if (matMobOn()) return matMobHTML();   // one-screen dev (phones): Mobilize over the dimmed mat
   const S = seat(), me = G.players[S], d = mzIds(ui.draft || []);
   const L = mzLimits(me, d);
   // which miracles this deck uses up (more Drifters or tokens than your own)

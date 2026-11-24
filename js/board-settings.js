@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v88';
+const OASIS_BUILD = 'v89';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -15,10 +15,28 @@ let LABPILE = 0;
 // the most bands a stack behind a battle card can have: copies (one band), gear, Might, Training, Shield. Every card
 // spot keeps this much room at all times, so nothing on the board moves as stacks grow and shrink.
 const STACK_MAX = 5;
+// One-screen phone battle on the mat (Brian, Nov 24): the room is the biggest stack any card has in this battle
+// instead (LABROOM, worked out by reserveRows before the battle is drawn; fixed for the whole battle), so the board
+// fits on a phone. LABSEEN counts the biggest stack pokeArt has drawn while reserveRows lays out every frame.
+let LABROOM = null, LABSEEN = 0;
+// the phone battle on the mat has no controls row at the top (Brian, Nov 24): Auto and Ability notes sit in the dock
+// beside Back / Next step (same buttons and actions as the row's), Skip to end is gone, and the speed is in the ☰ menu
+function matBattleDockBtns(){
+  return `<button type="button" class="act autobtn" data-act="b-auto" aria-pressed="${autoOn() ? 'true' : 'false'}" title="Play the battle step by step on its own">${autoLabel()}</button>`
+    + `<button type="button" class="act abtog" data-act="b-abwin" aria-pressed="${abOn() ? 'true' : 'false'}" title="Show a note for each ability that triggers in this step">Notes</button>`;
+}
+// showBattle step: work LABROOM out from every frame of the new battle before its first frame is drawn
+function labBattleRoom(){
+  LABROOM = null;
+  if (!ui.battle || !labMatZones()) return;
+  LABSEEN = 0; for (const fr of ui.battle.frames) lineHTML(fr, ['Your', 'AI']);
+  LABROOM = LABSEEN;
+}
+const labRoomN = () => (LABROOM != null && typeof ui === 'object' && ui && ui.battle) ? LABROOM : STACK_MAX;
 // that room as CSS, for the current splay: [above the card, left of it]
-const labFixedRoom = () => { const sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';
-  return [fan ? `calc(var(--tky) * ${(STACK_MAX * .55).toFixed(2)} + 10px)` : `calc(var(--tky) * ${STACK_MAX})`,
-          sp === 'now' ? `calc(var(--tkl) * ${STACK_MAX})` : sp === 'fanL' ? `calc(var(--bcw) * .32)` : '0px']; };
+const labFixedRoom = () => { const sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR', n = labRoomN();
+  return [fan ? `calc(var(--tky) * ${(n * .55).toFixed(2)} + ${n ? 10 : 0}px)` : `calc(var(--tky) * ${n})`,
+          sp === 'now' ? `calc(var(--tkl) * ${n})` : sp === 'fanL' ? `calc(var(--bcw) * .32)` : '0px']; };
 // solid edge layers under a card face: 2 for any card, more for the cards hidden under a deck's top card
 const labEdges = n => { const k = 2 + Math.min(n || 0, 8) * 1, c = ['#3b2d23', '#5a4636']; let h = ''; for (let i = k; i >= 1; i--) h += `<b style="--o:${(i * 1.5).toFixed(1)}px;background:${c[i % 2]}"></b>`; return h; };
 
@@ -33,7 +51,8 @@ function labCardLayers(h){
 function pokeArt(t, side, hit, art){
   const nc = t.filter(k => k === 'cp').length, g = art.gear ? 1 : 0, cnt = {}, kinds = [];
   for (const k of t) if (k !== 'cp'){ if (!(k in cnt)){ cnt[k] = 0; kinds.push(k); } cnt[k]++; }
-  const n = STACK_MAX, sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';   // room is fixed, whatever the stack holds
+  LABSEEN = Math.max(LABSEEN, (nc ? 1 : 0) + g + kinds.length);
+  const n = labRoomN(), sp = LAB.splay, fan = sp === 'fanL' || sp === 'fanR';   // room is fixed, whatever the stack holds
   const up = fan ? `calc(var(--tky) * ${(n * .55).toFixed(2)} + ${n ? 10 : 0}px)` : `calc(var(--tky) * ${n})`;
   const wide = `calc(var(--bcw) * ${Math.min(.32, .1 * n).toFixed(2)})`;
   const lf = sp === 'now' ? `calc(var(--tkl) * ${n})` : sp === 'fanL' ? wide : '0px';
@@ -48,8 +67,14 @@ function pokeArt(t, side, hit, art){
   return {shadow:(c1 + g + kinds.length) ? `inset 0 3px 0 var(${side === 1 ? '--gules' : '--azure'})` : '', room, html};
 };
 const labArt = u => { const nm = u.name.replace(/^Jester → .*/, 'Jester'); return typeof artURL === 'function' ? (DEFS[nm] && DEFS[nm].token ? artURL('Recruit', 'u') : artURL(nm, 'u')) : null; };
+// One-screen dev, phone battle on the mat (sand or rug; Brian, Nov 24): the zones lose their boxes and the ⚔︎, and
+// each spot is named by one word ("Deck", "Charge", "Defeated") with no owner in front (blue/red and the spot's place
+// say whose it is). Empty spots are a plain dashed card outline with no words. lineHTML0 marks the table .matz;
+// the look is in css/11-rug.css. Desktop and the rug switch off ('0') keep the boxes and full labels.
+function labMatZones(){ return typeof rugWanted === 'function' && rugWanted() && compact() && document.body.classList.contains('lab-v-table'); }
 // the deck: the revealed unit is the top card; the cards under it stay hidden, their edges drawn under its face
 function labDeck(sd, side, names){
+  const mz = labMatZones();
   const rev = sd.deck[0], rest = sd.deck.length - 1;
   const nsp = sd.deck.reduce((a, u) => a + (u.sp || []).length, 0) + (sd.tail || []).length;
   let top;
@@ -59,9 +84,14 @@ function labDeck(sd, side, names){
     try{ top = cardHTML(rev, side, 'revealed'); } finally { LABPILE = 0; }
   } else top = '';
   // the empty-deck outline is part of the board: always drawn in the deck's spot, covered by the top card while there is one
-  top = `<div class="slot labempty labslot${rev ? ' under' : ''}" aria-hidden="${rev ? 'true' : 'false'}">Deck empty</div>` + top;
+  top = `<div class="slot labempty labslot${rev ? ' under' : ''}" aria-hidden="${rev ? 'true' : 'false'}"${mz ? ' aria-label="Deck empty"' : ''}>${mz ? '' : 'Deck empty'}</div>` + top;
   // the count lives in the zone's label (click it for the deck view), not on the cards
   const cnt = `<button type="button" class="labcnt" data-labdeck="${side}" title="See the whole deck">${sd.deck.length} in deck${nsp ? `<i>✶ ${nsp}</i>` : ''}</button>`;
+  // on the mat: "Deck", and under it the count line in the same type (tap either for the deck view)
+  if (mz){
+    const sub = [sd.deck.length ? `<button type="button" class="labcnt" data-labdeck="${side}" title="See the whole deck">${sd.deck.length} in deck${nsp ? ` · ✶ ${nsp}` : ''}</button>` : '', sd.sil ? 'next reveal silenced' : ''].filter(Boolean).join(' · ');
+    return `<div class="tz deckz"><span class="zl labzl" data-labdeck="${side}"><span class="labw">Deck</span>${sub ? `<span class="labsub">${sub}</span>` : ''}</span><div class="tzc">${top}</div></div>`;
+  }
   return `<div class="tz deckz"><span class="zl labzl" data-labdeck="${side}">${names[side]} deck ${sd.deck.length ? cnt : ''}${sd.sil ? ' · next reveal silenced' : ''}</span><div class="tzc">${top}</div></div>`;
 }
 // the graveyard: a face-down pile, as at the table (defeated units flip face down onto it), lit like the rest, with a
@@ -73,13 +103,14 @@ function labGcard(u, side, top, k){
   return `<${tag} class="gcard${top ? '' : ' gunder'}"${top ? ` data-uid="${side}-${u.uid}"` : ` data-guid="${side}-${u.uid}"`}${top ? '' : ` style="position:absolute;left:${dx}px;top:${k * 1.5}px;transform:rotate(${rot}deg);z-index:${-1 - k}"`}><span class="labsh" aria-hidden="true">${labEdges(0)}<i></i></span><span class="oback" aria-hidden="true"></span><span class="lablt" aria-hidden="true"></span></${tag}>`;
 }
 function labGrave(sd, side, names){
-  const g = sd.grave, last = g[g.length - 1];
-  let inner = '<div class="labempty labslot">Empty</div>';
+  const g = sd.grave, last = g[g.length - 1], mz = labMatZones();
+  let inner = mz ? '<div class="labempty labslot" aria-label="Defeated: empty"></div>' : '<div class="labempty labslot">Empty</div>';
   if (last){
     const under = g.slice(-4, -1).reverse().map((u, k) => labGcard(u, side, false, k)).join('');
-    inner = `<div class="labempty labslot under" aria-hidden="true">Empty</div><div class="grave labgpile" data-labgrave="${side}" role="button" tabindex="0" title="See the graveyard" style="position:relative;isolation:isolate">${under}${labGcard(last, side, true, 0).replace(/<\/b>$/, (g.length > 1 ? `<span class="gn">${g.length}</span>` : '') + '</b>')}</div>`;
+    inner = `<div class="labempty labslot under" aria-hidden="true">${mz ? '' : 'Empty'}</div><div class="grave labgpile" data-labgrave="${side}" role="button" tabindex="0" title="See the graveyard" style="position:relative;isolation:isolate">${under}${labGcard(last, side, true, 0).replace(/<\/b>$/, (g.length > 1 ? `<span class="gn">${g.length}</span>` : '') + '</b>')}</div>`;
   }
-  return `<div class="tz grz"><span class="zl labzl" data-labgrave="${side}">${names[side]} graveyard${g.length ? ' · ' + g.length : ''}</span><div class="tzc">${inner}</div></div>`;
+  // on the mat the word is "Defeated" and the count is only the pile's own .gn
+  return `<div class="tz grz"><span class="zl labzl" data-labgrave="${side}">${mz ? '<span class="labw">Defeated</span>' : `${names[side]} graveyard${g.length ? ' · ' + g.length : ''}`}</span><div class="tzc">${inner}</div></div>`;
 }
 // the deck view (and graveyard list): compact rows, top to bottom; tap a row for the full card
 function labSheet(side, kind){
@@ -120,7 +151,7 @@ addEventListener('click', e => {
 // the cube layer draws inside the tipped table, so cubes lie on the slanted cards
 window.__cubeFrame = () => LAB.view === 'table' ? document.querySelector('#view-play .stage .line.table') : null;
 // the table's camera, matching its CSS (perspective, tilt, transform origin), so the cube scene tips the same way
-window.__cubeTilt = () => ({P:compact() ? 900 : 1500, a:(compact() ? LAB.tilt * .92 : LAB.tilt) * Math.PI / 180, fx:.5, fy:compact() ? .55 : .6});
+window.__cubeTilt = () => labMatZones() ? {P:1000, a:14 * Math.PI / 180, fx:.5, fy:1} : ({P:compact() ? 900 : 1500, a:(compact() ? LAB.tilt * .92 : LAB.tilt) * Math.PI / 180, fx:.5, fy:compact() ? .55 : .6});   // (the phone battle on the mat: the mat's own camera, css/11-rug.css)
 
 // switches
 const LAB_OPTS = [

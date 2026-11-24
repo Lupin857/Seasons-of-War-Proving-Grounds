@@ -1,9 +1,14 @@
 /* Battle ink: the battle's effects drawn as calligraphy-style ink strokes, and each ability note joined to its card by a
    line of brush dabs (designed in the "Oasis battle lab: ink helpers" artifact; numbers in INK below).
-   - A stroke runs from the effect's source to its target on the table, under the cards, and grows as the step plays.
+   - A stroke runs from the effect's source to its target on the table, over the cards' tokens but under their faces,
+     and grows as the step plays.
      Its weight follows the damage, a blot with the number spreads as the stroke passes its middle, and one pressed
-     wedge at the tip shows the direction. Attacks bow out (yours to the left, the opponent's to the right, mirrored);
-     effects to a unit on the same side loop past the row; strokes between the same two cards take nested lanes.
+     wedge at the tip shows the direction. Each stroke is one smooth arc. Attacks bow out (yours to the left, the
+     opponent's to the right, mirrored); effects to a unit on the same side loop past the row; strokes between the same
+     two cards take nested lanes; strokes into the same card land apart.
+   - Readability: the stroke that starts later lies on top (yours on top when they start together), every stroke has a
+     thin table-colored edge so one crossing another shows a gap, and the blots, numbers and token labels lie over all
+     the strokes. Each blot sits mid-stroke unless that spot is taken, then at a fixed spot further along (never moving).
    - An Overrun spill (the engine's via) carries on from the tip of the stroke into the unit it spilled through.
    - A save in the next step (Field Medic and the like) is pointed at in the step before, after that step's effects.
    - Abilities play one after another (INK.pace); one that the engine logs after the step's first defeat waits until
@@ -30,7 +35,10 @@
   const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const TOKART = {arm: 'art/Might.webp', tr: 'art/Training.webp', sh: 'art/Shield.webp', rec: 'art/Drifter.webp'};
   const speed = () => autoFast() ? 2 : 1;
-  const durOf = () => INK.draw;
+  const durOf = () => INK.draw;   // the same for every stroke: stronger hits are heavier, never slower
+  const KNOCK = '#e9dcc0', KNOCK_W = 2.6;   // the edge round every stroke: the mat's color, so a crossing shows a gap
+  const BLOT_SPOTS = [.5, .6, .4, .68, .32, .74, .26];   // where along its stroke a blot may sit, best first
+  const BLOT_SPREAD = 13;   // every blot spreads over the stroke as a 3-damage blot's does (its size still follows damage)
 
   // ---------- what a step does: its effects (with their ability group and start time) and its notes
   function stepPlan(k){
@@ -129,10 +137,9 @@
       const up = VS(e.by) === 0, mb = se.querySelector && se.querySelector('.mbn'), ch = mb ? R(mb) : fr, xs = up ? .22 : .78, bx = up ? -1 : 1;
       s0 = {x: ch.l + ch.w * .45, y: ch.t + ch.h * .5};
       E = {x: fr.l + fr.w * xs, y: up ? fr.t : fr.t + fr.h};
-      tipEnd = {x: tr.l + tr.w * xs, y: up ? tr.t + tr.h + 4 : tr.t - 4};
-      const end = {x: tipEnd.x, y: tipEnd.y - Math.sign(tipEnd.y - E.y) * RUN}, gy = end.y - E.y;
-      const M = {x: (E.x + end.x) / 2 + bx * (INK.bow * .3 + (e.lane || 0) * 22), y: (E.y + end.y) / 2}, h = gy * .3;
-      Q = {two: [[E, {x: E.x, y: E.y + h}, {x: M.x, y: M.y - h}, M], [M, {x: M.x, y: M.y + h}, {x: end.x, y: end.y - h}, end]]};
+      tipEnd = {x: tr.l + tr.w * (e.landX != null ? e.landX : xs), y: up ? tr.t + tr.h + 4 : tr.t - 4};
+      const end = {x: tipEnd.x, y: tipEnd.y - Math.sign(tipEnd.y - E.y) * RUN}, gy = end.y - E.y, bw = INK.bow * .3 + (e.lane || 0) * 22;
+      Q = [E, {x: E.x + bx * bw * 1.6, y: E.y + gy * .45}, {x: end.x, y: end.y - gy * .5}, end];   // one arc: out to its side, square into the target
     } else if (e.from && String(e.from)[0] === String(e.to)[0]){
       // to a unit on the same side: a loop over the tops (the enemy's row) or under the bottoms (yours)
       const up = VS(e.by) === 1, fy = up ? fr.t : fr.t + fr.h, ty = up ? tr.t - 3 : tr.t + tr.h + 3, ln = e.lane || 0, lift = (up ? -1 : 1) * (46 + ln * 26);
@@ -144,12 +151,12 @@
       // across the table: out of the edge facing the target, square to it, then into the target's near edge
       const down = tr.cy > fr.cy, ln = e.lane || 0, side = tr.cx > fr.cx ? 1 : -1;
       s0 = {x: fr.cx, y: fr.cy}; E = {x: fr.cx + fr.w * .12 * side - ln * 10 * side, y: down ? fr.t + fr.h : fr.t};
-      tipEnd = {x: tr.cx - ln * 10 * side, y: down ? tr.t - 3 : tr.t + tr.h + 3};
+      tipEnd = {x: e.landX != null ? tr.l + tr.w * e.landX : tr.cx - ln * 10 * side, y: down ? tr.t - 3 : tr.t + tr.h + 3};
       const end = {x: tipEnd.x, y: tipEnd.y - (down ? 1 : -1) * RUN}, gy = end.y - E.y, bowL = -side * ln * 26;   // outer lanes bow further out
-      Q = ln ? {two: (() => { const M = {x: (E.x + end.x) / 2 + bowL, y: (E.y + end.y) / 2}, h = gy * .25; return [[E, {x: E.x, y: E.y + h}, {x: M.x, y: M.y - h}, M], [M, {x: M.x, y: M.y + h}, {x: end.x, y: end.y - h}, end]]; })()}
+      Q = ln ? [E, {x: E.x + bowL * 1.6, y: E.y + gy * .45}, {x: end.x, y: end.y - gy * .5}, end]
              : [E, {x: E.x, y: E.y + gy * .45}, {x: end.x, y: end.y - gy * .45}, end];
     }
-    const bend = Q.two ? (u => u < .5 ? bez(Q.two[0], u * 2) : bez(Q.two[1], u * 2 - 1)) : (u => bez(Q, u));
+    const bend = u => bez(Q, u);
     let bl = 0, bp = bend(0); for (let n = 1; n <= 40; n++){ const q = bend(n / 40); bl += Math.hypot(q.x - bp.x, q.y - bp.y); bp = q; }
     const ce = bend(1), fa = RUN / (bl + RUN);   // the straight run's share of the stroke, by length
     const curve = u => u < 1 - fa ? bend(u / (1 - fa)) : {x: ce.x + (tipEnd.x - ce.x) * (u - 1 + fa) / fa, y: ce.y + (tipEnd.y - ce.y) * (u - 1 + fa) / fa};
@@ -179,14 +186,14 @@
   }
 
   // ---------- state
-  let layer = null, under = null, plan = null, t0 = 0, curK = -1, curBattle = null, lastFrame = -1, ghostN = 0;
+  let layer = null, over = null, plan = null, t0 = 0, curK = -1, curBattle = null, lastFrame = -1, ghostN = 0;
   let lastInk = null, lastHtml = '', lastInkU = null, lastHtmlU = '', lastSig = '', lastDabSig = '', strokeCache = null;
   const ghosts = [], touched = new Set();
   function restoreNotes(){ touched.forEach(b => { b.style.opacity = ''; b.style.transform = ''; b.style.animation = ''; b._inkDX = 0; arriveShow(b, null, 'now'); }); touched.clear(); }
   // moving on: the last step's ink soaks away (the game may already have redrawn the board, and the layers with it)
   function soakAway(stage){
     const line = stage.querySelector('.line.table');
-    if (lastInkU && line) ghostOf(lastInkU, line, true); lastInkU = null; if (under) under.innerHTML = ''; lastHtmlU = '';
+    if (lastInkU && line) ghostOf(lastInkU, line, false); lastInkU = null; if (over) over.innerHTML = ''; lastHtmlU = '';
     if (lastInk) ghostOf(lastInk, stage, false); lastInk = null; if (layer) layer.innerHTML = ''; lastHtml = '';
   }
   function ghostOf(ink, host, first){
@@ -204,6 +211,36 @@
     return s;
   }
 
+  // once per step, from where the cards lie: strokes into the same card land apart (spread from where they'd land
+  // toward the card's middle: the far side is where its own attack leaves), and each blot gets its spot (mid-stroke
+  // unless another blot or stroke is there), so it never moves
+  function layOut(plan, stage, line){
+    // (a card that isn't drawn yet gets its turn when it appears; what's settled is never changed)
+    let P = plan.fx.map(e => pathOf(e, stage, line));
+    const by = {}; plan.fx.forEach(e => { if (!e.keep && !e.via && e.to && !(e.from && String(e.from)[0] === String(e.to)[0])) (by[e.to] = by[e.to] || []).push(e); });
+    for (const g of Object.values(by)) if (g.length > 1 && !g.some(e => e.landX != null) && g.every(e => P[plan.fx.indexOf(e)])){
+      const sx = e => { const el = srcEl(stage, e); return el ? localIn(el, line).cx : 0; };
+      const nat = g[0].attack ? (VS(g[0].by) === 0 ? .22 : .78) : .5, lo = nat < .5 ? nat - .08 : nat > .5 ? nat - .22 : .36;
+      g.sort((a, b) => sx(a) - sx(b)).forEach((e, j) => e.landX = lo + .3 * j / (g.length - 1));
+      g.forEach(e => P[plan.fx.indexOf(e)] = pathOf(e, stage, line));
+    }
+    const at = (p, t) => p.pt(p.HID + (1 - p.HID) * t), wOf = e => e.tok ? INK.tokW : INK.baseW + INK.perDmg * Math.max(1, e.amt);
+    const placed = plan.fx.filter((e, i) => e.bu != null && P[i] && !e.tok && !e.save).map(e => { const q = at(P[plan.fx.indexOf(e)], e.bu); return {x: q.x, y: q.y, r: (7 + 2 * Math.max(.6, e.amt)) * INK.blot}; });
+    plan.fx.forEach((e, i) => {
+      if (e.bu != null || !P[i]) return;
+      if (e.tok || e.save){ e.bu = .5; return; }
+      const r0 = (7 + 2 * Math.max(.6, e.amt)) * INK.blot; let best = null;
+      for (const c of BLOT_SPOTS){
+        const q = at(P[i], c); let room = 1e9;
+        for (const b of placed) room = Math.min(room, Math.hypot(q.x - b.x, q.y - b.y) - (r0 + b.r) * 1.25 - 4);
+        P.forEach((p, j) => { if (j !== i && p) for (let n = 0; n <= 30; n++){ const o = at(p, n / 30); room = Math.min(room, Math.hypot(q.x - o.x, q.y - o.y) - r0 * 1.3 - wOf(plan.fx[j]) * 1.2 - 3); } });
+        if (room > 0){ best = {c, room}; break; } if (!best || room > best.room) best = {c, room};
+      }
+      e.bu = best.c; const q = at(P[i], e.bu); placed.push({x: q.x, y: q.y, r: r0});
+    });
+    plan.laid = plan.fx.every(e => e.bu != null);
+  }
+
   function tick(now){
     requestAnimationFrame(tick);
     for (let i = ghosts.length - 1; i >= 0; i--){ const g = ghosts[i], u = g.d ? Math.min(1, (now - g.t0) / g.d) : 1;
@@ -212,12 +249,13 @@
     const stage = ui.battle && !$('view-play').hidden ? $('view-play').querySelector('.stage') : null;
     const line = stage && stage.querySelector('.line.table');
     // no battle on screen: the layers go (they survive redraws on purpose, so the shop's redraw could otherwise take one in)
-    if (!stage || !line){ for (const x of [layer, under]) if (x) x.remove(); layer = under = null; lastHtml = lastHtmlU = ''; lastInk = lastInkU = null; if (!ui.battle){ curK = -1; ui.inkStart = null; } return; }
-    // the strokes lie on the table under the cards: their own layer inside the (tilted) table, before its rows; the
-    // dabs go over everything, on the stage (the notes are outside the table)
-    if (!under || under.parentNode !== line){ under = layerIn(line, 'inkunder', true); lastHtmlU = ''; lastSig = ''; }
+    if (!stage || !line){ for (const x of [layer, over]) if (x) x.remove(); layer = over = null; lastHtml = lastHtmlU = ''; lastInk = lastInkU = null; if (!ui.battle){ curK = -1; ui.inkStart = null; } return; }
+    // the strokes lie over the tokens but under the card faces: their own layer inside the (tilted) table, after its rows
+    // (re-made if a redraw puts rows after it), with the cards' faces masked out; the dabs go over everything, on the
+    // stage (the notes are outside the table)
+    if (!over || over.parentNode !== line || over !== line.lastElementChild && !line.lastElementChild.classList.contains('inkghost')){ if (over) over.remove(); over = layerIn(line, 'inkover', false); lastHtmlU = ''; lastSig = ''; }
     if (!layer || layer.parentNode !== stage){ layer = layerIn(stage, 'inklayer', false); lastHtml = ''; lastSig = ''; }
-    under.setAttribute('width', line.offsetWidth); under.setAttribute('height', line.offsetHeight);
+    over.setAttribute('width', line.offsetWidth); over.setAttribute('height', line.offsetHeight);
     if (ui.frame < lastFrame || (ui.inkStart != null && ui.frame >= ui.inkStart)) ui.inkStart = null;   // Back, or the step has landed
     lastFrame = ui.frame;
     const k = ui.inkStart != null ? ui.inkStart : ui.frame;
@@ -249,7 +287,10 @@
     }
     // nothing moving and nothing changed: skip the redraw; when only the dabs' ends moved, redraw just the dabs
     const settleAt = Math.max(0, ...plan.fx.map(e => Math.max(startOf(e), e.seen != null && t0 > 0 ? e.seen : 0) + durOf(e)), ...plan.notes.map(n => startOf(n) + INK.dabTime + INK.slideTime)) + 300;
-    const sig = (plan.watch || (plan.watch = [...new Set([...plan.fx.flatMap(e => [e.from, e.to, e.via]), ...plan.notes.map(n => n.g.ab.u)].filter(Boolean))])).map(u => { const el = findCard(stage, u); return el ? layoutSig(el, line) : '-'; }).join(';') + '|' + line.offsetWidth + 'x' + line.offsetHeight;
+    // (the tokens hang out past these). Each card's health bar and LV tag (.hprow, under the card's edge) count as face
+    // too, so a stroke never covers them (Brian, Nov 24: strokes were drawn over the health bars)
+    const faces = [...line.querySelectorAll('.card, .card > .hprow')].filter(c => !c.closest('.deathfly') && c.offsetParent).map(c => localIn(c, line)).filter(r => r.w);
+    const sig = faces.map(r => `${r.l},${r.t},${r.w},${r.h}`).join(';') + '#' + (plan.watch || (plan.watch = [...new Set([...plan.fx.flatMap(e => [e.from, e.to, e.via]), ...plan.notes.map(n => n.g.ab.u)].filter(Boolean))])).map(u => { const el = findCard(stage, u); return el ? layoutSig(el, line) : '-'; }).join(';') + '|' + line.offsetWidth + 'x' + line.offsetHeight;
     const dabSig = plan.notes.map(nt => { const b = stage.querySelector(`.abbox[data-abi="${nt.i}"]`), el = b && ((abIsSave(nt.g) && bDeckEl(nt.g.ab.s)) || abSrcEl(stage, nt.g.ab));
       if (!b || !el) return '-'; const r = el.getBoundingClientRect(), q = b.getBoundingClientRect(); return [r.left - sr.left, r.top - sr.top, r.width, q.left - sr.left, q.top - sr.top].map(v => Math.round(v)).join(','); }).join(';');
     const settled = t0 < 0 || T > settleAt;
@@ -260,7 +301,13 @@
     let defs = `<filter id="ink-edge" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="1.3" numOctaves="2" seed="5"/><feDisplacementMap in="SourceGraphic" scale="${INK.rough}"/></filter>`;
     let out = '', outU = '';
     if (reuse) outU = strokeCache;
-    else plan.fx.forEach((e, i) => {
+    else {
+    if (!plan.laid) layOut(plan, stage, line);
+    const order = plan.fx.map((e, i) => [e, i]).sort((a, b) => {   // later strokes on top; together: yours on top
+      const sa = a[0].keep ? -1e9 : startOf(a[0]), sb = b[0].keep ? -1e9 : startOf(b[0]);
+      return sa - sb || (VS(a[0].by) === 0) - (VS(b[0].by) === 0) || a[1] - b[1]; });
+    let outL = '';   // blots, numbers and token labels: over all the strokes
+    order.forEach(([e, i]) => {
       const e0 = e.keep ? -1e9 : startOf(e); if (T < e0) return;
       const pa = pathOf(e, stage, line); if (!pa) return;
       if (e.seen == null) e.seen = T;   // a card that wasn't there yet when the step began: its stroke starts as it appears
@@ -271,17 +318,17 @@
       const base = e.tok ? INK.tokW : INK.baseW + INK.perDmg * Math.max(1, e.amt);
       const W = t => { const u = Math.max(0, (t - pa.HID) / (1 - pa.HID)), tail = u < .66 ? 1 : Math.pow(1 - (u - .66) / .34, 1.3); return base * (.38 + INK.swell * G(u, .46, .27)) * tail + (u < .98 ? .3 : 0); };
       const ph1 = (hash(e.from + e.to) % 997) / 50, rough = (t, side) => 1 + INK.rough * .022 * (Math.sin(t * 311 + ph1 + side * 2.1) + .7 * Math.sin(t * 757 + ph1 * 1.7 + side));
-      const ribbon = () => { const A = [], B = [], N = 80; for (let n = 0; n <= N; n++){ const t = pa.HID + (tEnd - pa.HID) * n / N, q = pa.pt(t), m = pa.nrm(t), cap = p < 1 ? Math.sqrt(Math.max(0, Math.min(1, (tEnd - t) / front))) : 1, w = W(t) * cap; const wa = w * rough(t, 0), wb = w * rough(t, 1); A.push(`${(q.x + m.x * wa).toFixed(1)},${(q.y + m.y * wa).toFixed(1)}`); B.unshift(`${(q.x - m.x * wb).toFixed(1)},${(q.y - m.y * wb).toFixed(1)}`); } return A.concat(B).join(' '); };
+      const ribbon = (ta, tb, N) => { const A = [], B = [], N0 = N; for (let n = 0; n <= N0; n++){ const t = ta + (tb - ta) * n / N0, q = pa.pt(t), m = pa.nrm(t), cap = p < 1 ? Math.sqrt(Math.max(0, Math.min(1, (tEnd - t) / front))) : 1, w = W(t) * cap; const wa = w * rough(t, 0), wb = w * rough(t, 1); A.push(`${(q.x + m.x * wa).toFixed(1)},${(q.y + m.y * wa).toFixed(1)}`); B.unshift(`${(q.x - m.x * wb).toFixed(1)},${(q.y - m.y * wb).toFixed(1)}`); } return A.concat(B).join(' '); };
       const id = 'ik' + i, r = rng(hash(`${plan.k}:${e.from}:${e.to}:${e.tok}`));
-      let solid = `<polygon points="${ribbon()}" fill="${ink}"/>`, text = '';
-      const tm = pa.HID + (1 - pa.HID) * .5, mq = pa.pt(tm), mn = pa.nrm(tm);
+      let solid = `<polygon points="${ribbon(pa.HID, tEnd, 80)}" fill="${ink}"/>`, text = '';
+      const BU = e.bu != null ? e.bu : .5, tm = pa.HID + (1 - pa.HID) * BU, mq = pa.pt(tm), mn = pa.nrm(tm);
       if (!e.tok && !e.save){
         // the blot spreads as the stroke passes over the ground it covers; the number fades in once it has spread
-        const r0 = (7 + 2 * Math.max(.6, e.amt)) * INK.blot, du = r0 * 1.25 / Math.max(1, pa.len), u = (tEnd - pa.HID) / (1 - pa.HID), b = smooth(.5 - du, .5 + du, u);
+        const r0 = (7 + 2 * Math.max(.6, e.amt)) * INK.blot, du = BLOT_SPREAD * INK.blot * 1.25 / Math.max(1, pa.len), u = (tEnd - pa.HID) / (1 - pa.HID), b = smooth(BU - du, BU + du, u);
         if (b > 0){
           const ang = Math.atan2(mn.ty, mn.tx), bp = [], rr = r0 * (.35 + .65 * b), ph = r() * 6, ps = r() * 6;
           for (let n = 0; n < 36; n++){ const a = n / 36 * Math.PI * 2, rad = rr * (1 + .16 * Math.sin(3 * a + ph) + .09 * Math.sin(5 * a + ps)), qx = Math.cos(a) * rad * 1.22, qy = Math.sin(a) * rad; bp.push(`${(mq.x + qx * Math.cos(ang) - qy * Math.sin(ang)).toFixed(1)},${(mq.y + qx * Math.sin(ang) + qy * Math.cos(ang)).toFixed(1)}`); }
-          solid += `<polygon points="${bp.join(' ')}" fill="${ink}" opacity="${Math.min(1, b * 1.4)}"/>`;
+          text += `<polygon points="${bp.join(' ')}" fill="${ink}" opacity="${(.93 * Math.min(1, b * 1.4)).toFixed(3)}"/>`;
           const nb = smooth(.55, 1, b);
           if (nb > 0) text += `<text x="${mq.x}" y="${mq.y + 7}" text-anchor="middle" font-family="Marcellus, serif" font-size="${(18 + e.amt) * INK.num}" fill="#fff" stroke="${dark}" stroke-width="3" paint-order="stroke" stroke-linejoin="round" opacity="${nb}">${e.amt}</text>`;
         }
@@ -298,9 +345,13 @@
         text += (TOKART[e.tok] ? `<clipPath id="c${id}"><circle cx="${lx}" cy="${ly}" r="10"/></clipPath><circle cx="${lx}" cy="${ly}" r="11.5" fill="${shade(col, -.4)}"/><image href="${TOKART[e.tok]}" x="${lx - 10}" y="${ly - 10}" width="20" height="20" preserveAspectRatio="xMidYMid slice" clip-path="url(#c${id})"/>` : '') +
                 `<text x="${lx + 14}" y="${ly + 5}" font-family="Marcellus, serif" font-size="15" fill="#fff" stroke="${dark}" stroke-width="3" paint-order="stroke">+${e.amt}</text>`;
       }
-      outU += `<g opacity=".93">${solid}</g>${text}`;
+      const ko = ` stroke="${KNOCK}" stroke-width="${KNOCK_W}" stroke-linejoin="round" paint-order="stroke"`;
+      outU += `<g>${solid.replace(/<(polygon|path) /g, `<$1${ko} `)}</g>`; outL += text;
     });
+    outU += outL;
+    }
     strokeCache = outU;
+    if (outU) outU = `<defs><mask id="inkfaces" maskUnits="userSpaceOnUse" x="-200" y="-200" width="${line.offsetWidth + 400}" height="${line.offsetHeight + 400}"><rect x="-200" y="-200" width="${line.offsetWidth + 400}" height="${line.offsetHeight + 400}" fill="#fff"/>${faces.map(r => `<rect x="${r.l}" y="${r.t}" width="${r.w}" height="${r.h}" rx="8" fill="#000"/>`).join('')}</mask></defs><g mask="url(#inkfaces)">${outU}</g>`;
     // notes: dabs pressed one by one out to the note; the note slides in from its corner as they arrive
     for (const nt of plan.notes){
       const d = dabsOf(nt, stage, sr); if (!d) continue;
@@ -322,8 +373,8 @@
     const html = `<defs>${defs}</defs>${out}`;
     if (html !== lastHtml){ layer.innerHTML = html; lastHtml = html; }
     lastInk = out ? {html, w: layer.getAttribute('width'), h: layer.getAttribute('height')} : null;
-    if (outU !== lastHtmlU){ under.innerHTML = outU; lastHtmlU = outU; }
-    lastInkU = outU ? {html: outU, w: under.getAttribute('width'), h: under.getAttribute('height')} : null;
+    if (outU !== lastHtmlU){ over.innerHTML = outU; lastHtmlU = outU; }
+    lastInkU = outU ? {html: outU, w: over.getAttribute('width'), h: over.getAttribute('height')} : null;
   }
   requestAnimationFrame(tick);
 })();

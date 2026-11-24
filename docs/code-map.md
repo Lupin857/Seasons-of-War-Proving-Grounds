@@ -34,6 +34,17 @@ global scope and run in the order index.html loads them, exactly like the old in
   sound switch while a game is on screen, plus BATTLE CODES: copy / load / replay a battle; after `js/cards-tab.js`) · `19-battle-ink` (the battle's ink strokes and the
   ability notes' brush dabs, on its own animation loop; it reads the step being started from `ui.inkStart`, set by
   `stepForward`; designed in the "Oasis battle lab: ink helpers" artifact).
+  `20-mat-shop` (v89, the phone one-screen UI: when `matShopOn()` (phone ≤640 px, `localStorage.oasisRug` not '0') the
+  shop, Mobilize and battle sit on one fixed screen. Fixed flat bars (`matSeatHTML(i, mode)`, `.osbar osbar-<mode>`):
+  the rival's under the top bar, yours above the dock, each with the Caravan and, in shop/Mobilize, hand spot, deck
+  pile and purse; `matBarsAfterDraw` (renderPlay step) places them. The tilted mat between them holds the trays
+  (`matTraysHTML`: Units tray with its deck, discard pile, Support & gear tray). Tap to read lifts a card out of the
+  tilt (MATLIFT, `matLiftOpen/Close`); buys, sells, deals and the rival's moves fly along one arc in the tilt
+  (`matArc`, `matPose`/`matTiltMatrix`, `matCrop`, `matFlyBox` `.osfly`, `matLand`, `matSpotRect`, MATLANDS /
+  `matLandAfterDraw`, `matFlightFrame`, MATOPP / `matOppBuy` / `matOppSell` / `matOppStand`). Built in the
+  "Oasis one-screen (dev)" artifact, dev4–dev30; build notes in the Project docs "Oasis one-screen ..." ).
+  `js/rug.js` (`rugAfterDraw`: sets `body.os-mat` and, by default, `body.os-sand` (flat sand page); with
+  `oasisRug = '1'` draws Brian's WebGL rug `#rugworld` from `art/rug/`). CSS: `css/11-rug.css`, `css/12-mat-shop.css`.
 - `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
   glow) · `js/board-settings.js` (`LAB_DEF`, `OASIS_BUILD`, table view, depth, splay, clash, cube hooks) ·
   `js/cards-tab.js` (Cards tab).

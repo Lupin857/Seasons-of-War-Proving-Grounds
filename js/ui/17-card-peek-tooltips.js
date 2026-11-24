@@ -180,6 +180,7 @@ function openPeek0(card, byTap){
     const gl = kwGlossHTML(kwIds, self && self.trim());
     if (gl) pk.insertAdjacentHTML('beforeend', gl);   // under the card's own buttons, so Buy and Sell stay at the top
   }catch(e){}
+  if (matLiftWanted(card)) return matLiftOpen(card, pk, wrap);   // phones, on the mat: the card lifts off the mat
   if (compact()) return openSheet(card, pk, wrap);
   pk.style.width = w + 'px'; pk.style.left = '0px'; pk.style.top = '0px';
   wrap.appendChild(pk); document.body.appendChild(wrap);
@@ -332,6 +333,7 @@ function closePeek(now, after){
   const w = peekEl; peekEl = null;
   document.documentElement.classList.remove('sheet-open');
   document.querySelectorAll('.mcard.peeked').forEach(c => c.classList.remove('peeked'));
+  if (w.classList.contains('osliftwrap')) return matLiftClose(w, now, after);   // a card lifted off the mat goes back down (or on, for a buy)
   if (now){ w.remove(); if (after) after(); return; }
   const sh = w.querySelector('.sheet');
   popOut(sh ? [sh] : [...w.querySelectorAll('.mcard.peek, .peekmir')], w, () => { w.remove(); if (after) after(); });

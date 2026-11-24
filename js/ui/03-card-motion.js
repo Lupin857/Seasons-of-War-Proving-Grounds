@@ -6,7 +6,7 @@
    - snapNow / SPOTS: where each keyed card sat on screen just before a move (taken by every path that makes one).
    - flyer: the flying copy of a card, made one way: a clone of its element or a fresh face, stripped, real size.
    - motions: cardFlight (from one place to another), dealFly (out of a deck, flipping face up), and for an opponent's
-     move oppBuyStep / oppSellStep (the card held in the middle with a tag).
+     move oppBuyStep / oppSellStep (the card held in the middle with a tag; on the phone mat, matOppBuy / matOppSell).
    - the opponent queue (OPQ, oppBuyStep, oppSellStep) and sells (flySell) are at the end of this file.
    - motionFrom: after any shop move, turns its log events into flights (an opponent's go on the queue, one at a time).
    - syncShop: after every redraw, compares the cards in play with the last redraw (from the rules' state, not the
@@ -30,6 +30,7 @@ let SPOTS = new Map();
 function snapNow(){
   const m = new Map(), vp = $('view-play');
   if (vp) for (const el of vp.querySelectorAll('.mcard[data-ck]')){ const ck = el.dataset.ck; if (!m.has(ck) && el.getClientRects().length) m.set(ck, {el, r:el.getBoundingClientRect()}); }
+  matSnapFlat(m);   // on the mat: where each card sits with the tilt switched off, and the seats' cards
   return (SPOTS = m);
 }
 // where a bought card comes from: its spot (as it was before the move); else the discard pile or its deck, as a small start
@@ -75,6 +76,7 @@ function flyTo(from, to, o = {}){
 // your own buy: from its spot to the card it joins in the open deck sheet, else into your deck button. Covenant cards
 // come along from the same spot; Mason's Guild flies to the building it levels.
 function buyFlight(i, ev, src, j){
+  if (matBuyFlight(i, ev, src, j)) return;   // on the mat: lands on your side, in the tilt
   const vp = $('view-play'), side = i === seat() ? ':not(.ai)' : '.ai';
   const list = [{look:ev.n, dest:ev.on || ev.n, el:src && src.el}, ...(ev.pair || []).map(n => ({look:n, dest:n, el:null}))];
   list.forEach((x, m) => {
@@ -92,7 +94,8 @@ function motionFrom(i, n0){
   for (const ev of evs) if (ev.a === 'buy' && ev.id != null) MOT.bought.add('c' + ev.id);   // left the display by being bought
   if (!evs.length || reduceMotion()) return false;
   if (i !== seat() && !(PP() && !G.net)){
-    for (const ev of evs){ const src = ev.a === 'buy' ? evSource(ev) : null; OPQ.steps.push(() => ev.a === 'buy' ? oppBuyStep(i, ev, src) : oppSellStep(i, ev)); }
+    matOppQueued(i, evs);   // on the mat: their purse and new spots wait for their moves to play
+    for (const ev of evs){ const src = ev.a === 'buy' ? evSource(ev) : matSellSrc(i, ev); OPQ.steps.push(() => ev.a === 'buy' ? oppBuyStep(i, ev, src) : oppSellStep(i, ev, src)); }
     setTimeout(oppRun, 0);   // after this move's redraw, so cards and buttons are measured where they now sit
     MOT.afterOpp = true;     // and what else the move changed in the display waits its turn behind them
     return true;
@@ -141,13 +144,14 @@ const bumpEl = el => { if (el && el.isConnected) el.animate([{transform:'scale(1
    Discard pile) and unbought cards leaving at the start of a round (market to the discard pile).
    g sits at the start rect `from` (transform origin top left) and is w0×h0 at scale 1. It lifts off, travels at a
    readable size, then shrinks into `to` and fades (keep: lands at full opacity, stretched to fit, e.g. a deck slot).
-   Starting from something small, like a deck button, it fades in as it grows. */
+   Starting from something small, like a deck button, it fades in as it grows.
+   o.pre: a transform put in front of every step (the one-screen mat's tilt, matFlightFrame, for flights on the mat). */
 function cardFlight(g, from, to, o = {}){
   const w0 = o.w0 || from.width, h0 = o.h0 || from.height;
   const ca = [from.left + from.width / 2, from.top + from.height / 2], cb = [to.left + to.width / 2, to.top + to.height / 2];
   const sA = Math.min(from.width / w0, from.height / h0), sB = Math.min(to.width / w0, to.height / h0) * .92, grow = sA < .6;
   const sM = grow ? .62 : Math.max(.55, sA * .75);
-  const at = (t, s, lift, rot, sy) => `translate(${ca[0] + (cb[0] - ca[0]) * t - w0 * s / 2 - from.left}px,${ca[1] + (cb[1] - ca[1]) * t - h0 * (sy || s) / 2 - lift - from.top}px) scale(${s},${sy || s}) rotate(${rot}deg)`;
+  const at = (t, s, lift, rot, sy) => `${o.pre ? o.pre + ' ' : ''}translate(${ca[0] + (cb[0] - ca[0]) * t - w0 * s / 2 - from.left}px,${ca[1] + (cb[1] - ca[1]) * t - h0 * (sy || s) / 2 - lift - from.top}px) scale(${s},${sy || s}) rotate(${rot}deg)`;
   const end = o.keep ? at(1, to.width / w0, 0, 0, to.height / h0) : at(1, sB, 0, 0);
   const an = g.animate([
     {transform:at(0, sA, 0, 0), opacity:grow ? 0 : 1, filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'},
@@ -193,7 +197,7 @@ function oppStage(w0, h0, sc){
   return {left:(window.innerWidth - w) / 2, top:Math.max(top, (top + bot - h) / 2), width:w, height:h};
 }
 // a card copy held at rect `at` (scale at.width / w0), tagged, pulsing; resolves after the hold or a tap
-function oppHold(g, at, w0, h0, tag, side){
+function oppHold(g, at, w0, h0, tag, side, ms = OPP_HOLD){
   // the tag sits just under the card, outside it (its own element, so the card still clips its own text)
   const t = document.createElement('span'); t.className = `optag s${VS(side)}${/ sold /.test(tag) ? ' sell' : ''}`; t.textContent = tag; t.setAttribute('aria-hidden', 'true');
   Object.assign(t.style, {left:(at.left + at.width / 2) + 'px', top:(at.top + at.height + 6) + 'px', zIndex:g.style.zIndex || LAYER.flight});
@@ -204,7 +208,7 @@ function oppHold(g, at, w0, h0, tag, side){
   const pulse = g.animate([{transform:`scale(${sc})`, filter:'drop-shadow(0 0 0 rgba(0,0,0,0))'}, {transform:`scale(${sc * 1.04})`, filter:'drop-shadow(0 14px 17px rgba(0,0,0,.3))', offset:.3}, {transform:`scale(${sc})`, filter:'drop-shadow(0 10px 13px rgba(0,0,0,.25))'}], {duration:600, fill:'forwards', easing:'ease-out'});
   return new Promise(res => {
     let done = false; const end = () => { if (done) return; done = true; OPQ.skip = null; clearTimeout(tm); document.removeEventListener('pointerdown', end, true); pulse.cancel(); g.style.transform = `scale(${sc})`; t.remove(); res(); };
-    const tm = setTimeout(end, OPP_HOLD);
+    const tm = setTimeout(end, ms);
     OPQ.skip = end; document.addEventListener('pointerdown', end, true);   // a tap anywhere ends the hold (and does what it would anyway)
   });
 }
@@ -213,6 +217,7 @@ function oppPlace(g, r, w0){ g.getAnimations().forEach(a => a.cancel()); g.style
 // a buy: the card lifts where it sat in the market (or rises from its deck when it never showed, or appears in the
 // middle when its spot is off screen), holds, then flies into the buyer's deck button
 function oppBuyStep(i, ev, src){
+  const onMat = matOppBuy(i, ev, src); if (onMat) return onMat;   // on the mat: lifts off its spot, lands on their side
   const sz = src && src.el ? {w:src.r.width, h:src.r.height} : cardSize(), w0 = sz.w, h0 = sz.h;
   const {g, ctx} = flyer(src && src.el ? src.el : ev.n, ev.k);
   const at = oppStage(w0, h0, 1.25);
@@ -241,7 +246,8 @@ function oppBuyStep(i, ev, src){
   }));
 }
 // a sale: the card rises out of the seller's deck button to the middle, holds, then drops into the discard pile
-function oppSellStep(i, ev){
+function oppSellStep(i, ev, src){
+  const onMat = matOppSell(i, ev, src); if (onMat) return onMat;   // on the mat: lifts off their side, lands on the pile
   const from = deckBtnOf(i);
   const {w:w0, h:h0} = cardSize(), {g} = flyer(ev.n, ev.k, {own:1});
   const at = oppStage(w0, h0, 1.25);
@@ -265,6 +271,7 @@ function oppSellStep(i, ev){
 /* A sold card flies out of its owner's deck button into the discard pile (a sold Field back to the Field in the shop),
    growing to card size on the way and shrinking into the pile, which bumps as it lands. */
 function flySell(i, name, kind, srcCard, lifted){
+  if (!lifted && matSellFlight(i, name)) return;   // sold from a card lifted off the mat: it flies on from there
   if (reduceMotion() || !G){ if (lifted) lifted.g.remove(); return; }
   const from = deckBtnOf(i);
   const pile = name === 'Field' ? fieldCardEl() : $('muster-pile');

@@ -168,7 +168,9 @@ function shopTurnText(){
 let DOCKINFO = null;
 function dockHTML(){
   DOCKINFO = null;
-  if (!G || ui.start || ui.roll || ui.remind) return '';
+  // a reminder box hides the bars, except on the one-screen mat: the shop is fixed between them there, so without them
+  // the page behind shows through (the box's backdrop still covers them)
+  if (!G || ui.start || ui.roll || (ui.remind && !matShopOn() && !matMobOn())) return '';
   const S = seat();
   let phase = phaseLabel(), hint = '', body = '', acts = '', mine = false, infob = '', piles = '';
   if (ui.battle){
@@ -178,7 +180,7 @@ function dockHTML(){
     acts = atEnd
       ? (G.over ? `<button type="button" class="primary act" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button>`
                 : `<button type="button" class="primary act" data-act="continue">${battleDoneLabel()}</button>`)
-      : `<button type="button" class="act" data-act="b-prev" ${ui.frame === 0 ? 'disabled' : ''}>Back</button><button type="button" class="primary act" data-act="b-next">Next step</button>`;
+      : `${labMatZones() ? matBattleDockBtns() : ''}<button type="button" class="act" data-act="b-prev" ${ui.frame === 0 ? 'disabled' : ''}>Back</button><button type="button" class="primary act" data-act="b-next">Next step</button>`;
   } else if (G.phase === 'shop'){
     const me = G.players[S], myTurn = cur(G) === S;
     const lbl = G.passed[S] ? 'Passed' : myTurn ? 'Pass' : G.net || PP() ? `${esc(nm(1 - S))}'s turn` : 'AI turn';
@@ -191,10 +193,11 @@ function dockHTML(){
     if (G.net && NET && NET.acts.length > NET.applied[NET.seat]) return '';
     if (PP() && ui.handoff != null) return '';
     hint = mobHintText(); mine = !ui.planning;
-    const lbl = ui.planning ? 'AI is planning…' : PP() && !G.net && S === 0 ? `Lock in, pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle';
+    const lbl = ui.planning ? 'Waiting for other player…' : PP() && !G.net && S === 0 ? `Lock in, pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle';
     if (!hint) hint = ui.planning ? 'The AI is setting its deck…' : 'Drag to set your deck order, tap a card to read it, then lock in.';
     infob = `<button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button>`;
     acts = `<button type="button" class="primary act" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lbl}</button>`;
+    if (matMobOn()){ DOCKINFO = {phase, hint, mine, infob}; return matMobDockHTML(acts); }   // one-screen dev: Mobilize on the mat
   } else return '';
   DOCKINFO = {phase, hint, mine, infob};
   const shopping = G.phase === 'shop' && !ui.battle;
@@ -209,6 +212,7 @@ function dockHTML(){
   // shop on phones: each side's tile is its deck button and carries its gold, income, unit and City counts and its buys
   // left; Miracles (above) and Pass (below) stand in a narrow column between the two tiles, so the bar is symmetric and
   // the top bar only needs the score
+  if (shopping && matShopOn()) return matDockHTML(mine, mirBtn, acts);   // one-screen dev: the bar under the shop on the rug
   if (shopping){
     const B = boardSnap();
     const tile = i => {
@@ -220,7 +224,7 @@ function dockHTML(){
     return `<div class="dock${mine ? ' mine' : ''} ph-shop dshop" id="dock">${piles}<div class="dtiles mid">${tile(VS(0))}<div class="dbtns dact">${ui.visArm ? '' : mirBtn}${acts}</div>${tile(VS(1))}</div></div><div class="dockspace" aria-hidden="true"></div>`;
   }
   return `<div class="dock${mine ? ' mine' : ''} ph-${ui.battle ? 'battle' : G.phase}" id="dock">${piles}${body ? `<div class="dbar">${body}</div>` : ''}
-    <div class="dbtns${shopping ? '' : ' tight'}">${deckBtn(VS(0))}${deckBtn(VS(1))}${mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
+    <div class="dbtns${shopping ? '' : ' tight'}">${ui.battle && labMatZones() ? '' : deckBtn(VS(0)) + deckBtn(VS(1))}${mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
 // the game's top bar, the same on every screen (shop, Mobilize, battle; phone and desktop): the menu button, then
 // Round · score · First to. Under it, the phase and what to do now (Mobilize, battle), or the shop hint when asked for.
@@ -232,7 +236,7 @@ function pbarHTML(){
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const L = VS(0), Rt = VS(1);
   const bar = `<div class="pbsc">${GMENU_BTN}<span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
-  const hint = shopping
+  const hint = shopping || matMobOn()   // the mat's Mobilize says what to do on the mat itself (and keeps the top bar the shop's height)
     ? (ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : '')
     : `<div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div>`;
   return `<div class="gtop gs" id="gtop">${bar}${hint}</div>`;
@@ -325,11 +329,13 @@ function deckAct(k){
   return null;
 }
 // A deck as a square face-down stack with its count on it. named: the deck's name beside it (the phone bottom bar);
-// otherwise only what a tap does (the desktop row header already names the deck).
-function deckPileHTML(k, named){
+// otherwise only what a tap does (the desktop row header already names the deck). back: the cards wear the Oasis card
+// back (.oback), as on the one-screen mat.
+function deckPileHTML(k, named, back){
   const n = (k === 'b' ? G.bDeck : G.uDeck).length, lbl = k === 'b' ? 'Buildings' : 'Units', a = deckAct(k);
   const tip = a ? a.tip : `${lbl} deck: ${n} card${n === 1 ? '' : 's'} left, face down.`;
-  const stack = `<span class="dealdeck ${k}${n ? '' : ' empty'}" aria-hidden="true"><span class="cb"></span><span class="cb"></span><span class="cb"></span><b class="pcount">${n}</b></span>`;
+  const cb = `<span class="cb${back ? ' oback' : ''}"></span>`;
+  const stack = `<span class="dealdeck ${k}${n ? '' : ' empty'}" aria-hidden="true">${cb}${cb}${cb}<b class="pcount">${n}</b></span>`;
   const inner = named ? `${stack}<span class="pl" aria-hidden="true">${lbl}${a ? `<i>${a.label}</i>` : ''}</span>` : `${stack}${a ? `<span class="bmtag" aria-hidden="true">${a.label}</span>` : ''}`;
   return a ? `<button type="button" class="sdeck ${k} bmready" data-k="${k}" data-act="${a.act}" title="${esc(tip)}" aria-label="${esc(tip)}">${inner}</button>`
            : `<span class="sdeck ${k}" data-k="${k}" role="img" title="${esc(tip)}" aria-label="${esc(tip)}">${inner}</span>`;
@@ -425,6 +431,7 @@ function dockPilesHTML(){
   return `<div class="dpiles">${deckPileHTML('u', true)}${musterPileHTML()}${deckPileHTML('b', true)}</div>`;
 }
 function shopHTML(){
+  if (matShopOn()) return matShopHTML();   // one-screen dev: the shop laid out on the rug (js/ui/20-mat-shop.js)
   const S = seat(), O = 1 - S, me = G.players[S], b = G.buys[S], myTurn = cur(G) === S;
   const carp = bVal(me, "Carpenter's Guild");
   const bmOk = myTurn && bVal(me, 'Black Market') && !G.bmUsed[S];
