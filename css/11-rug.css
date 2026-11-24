@@ -55,7 +55,7 @@ html body .stage .line.table.matz .city .note{font-size:.6rem;color:#6e5a3e;padd
 html body.lab-crop .stage .line.table.matz .card.citycard.hasart:not(.mini){background-size:cover!important;background-position:50% 0!important;background-color:#3b2d23!important;border-radius:4px!important;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 /* tighter (Brian, Nov 24: the fitted cards came out too small): the board keeps less empty space so the cards stay
    big. One-size labels (two short lines), thin zone padding, no ⚔︎ row, small gaps; the Caravan strips sit close. */
-html body .stage .line.table.matz{padding:2px 4px 4px!important;row-gap:3px!important}
+html body .stage .line.table.matz{padding:2px 4px 4px!important;row-gap:3px!important;margin-top:var(--matdy,0px)!important}   /* moved to sit between the bars (matFitBattle) */
 html body .stage .line.table.matz>.clash{display:none!important}
 html body .stage .line.table.matz .trow>.tz{padding:1px 2px!important;gap:2px!important}
 html body .stage .line.table.matz .tz>.zl{height:24px!important;min-height:0!important;line-height:1.15!important;padding:0!important}

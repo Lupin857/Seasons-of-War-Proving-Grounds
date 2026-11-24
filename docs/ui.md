@@ -8,6 +8,10 @@
 - Phone: things you tap at the bottom, information at the top (top bar pinned clear of the notch). Keep bars as small
   as possible so the phone shows as many market cards as it can; readability fixes must not make bars taller. Battle
   runs edge to edge (no borders). Cards are cropped to the type tab (shop, Mobilize, battle); tap for the full card.
+- Phone one-screen (mat) fit: nothing may hang under the bars on any phone, down to 360x640. The shop's card width
+  `--mw` (css/12-mat-shop.css) is the smaller of three across and what the gap between the bars allows (four card rows
+  plus labels inside the tilted mat's inner page). The battle's cards shrink to fit (`matFitBattle`), and since the
+  page stays at its top, the table moves (`--matdy`) only when the page flow would put it past a bar.
 - Game top bar (`pbarHTML`): the same on every game screen, phone and desktop: ☰ menu · Round · score · First to.
   On phones, Mobilize and battle add their phase/step row under it. Each side's money and limits are not in the bar:
   they live in the shop's bottom bar (phone) and the deck tiles (desktop). During a game the Oasis title, sound button

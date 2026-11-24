@@ -9,7 +9,13 @@ html:has(#view-play .osshop),body:has(#view-play .osshop){overflow:hidden}   /* 
 #view-play > div:has(> .osshop) > :not(.osshop):not(.osmob):not(.osbar):not(.mirtray):not(.mirmodal){display:none!important}
 #view-play .osshop{position:fixed;left:0;right:0;top:calc(var(--gtb, var(--bh,46px)) + var(--osbt));bottom:calc(var(--dockh,64px) + var(--osbb));z-index:1;
   perspective:1000px;perspective-origin:50% 100%;--ostilt:14deg;--osres:2;
-  --mw:min(calc((100vw - 52px) / 3), calc((100dvh - var(--bh,46px) - var(--dockh,64px) - var(--osbt) - var(--osbb) - 74px) / 4 * 1.14))}
+  --osgap:calc(100dvh - var(--gtb, var(--bh,46px)) - var(--dockh,64px) - var(--osbt) - var(--osbb));
+  --mw:min(calc((100vw - 52px) / 3), calc((1.462 * var(--osgap) - 301px) / 3.9))}
+/* --mw's second term (Brian, Nov 24: nothing cut off on short phones): the mat's inner page is 146.2% - 147px of the
+   gap between the bars (.osplane), less 20px of its padding and gaps; the two trays take four card heights (a card is
+   about 0.97 of its width tall) plus about 122px of labels, tray padding and the discard pile, and 6px spare. So
+   4 x 0.97w + 122 + 6 <= 1.462 gap - 167, which is the line above. Wide enough phones (390x844 and up) are held by
+   the first term, three cards across, as before. */
 /* the bars' heights (the rival's, yours) */
 #view-play{--osbt:52px;--osbb:58px}
 /* the plane is taller than the screen gap so that, tipped back, its far edge still lands on the top bar: the extra

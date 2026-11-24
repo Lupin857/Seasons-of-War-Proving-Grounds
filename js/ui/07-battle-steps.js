@@ -233,6 +233,16 @@ function matFitBattle(line){
     // up to 90 px more than the 28 px they always keep (--matgap, css/11-rug.css)
     const gap = Math.max(0, Math.min(90, Math.floor(room - H())));
     b.fitGap = gap; document.documentElement.style.setProperty('--matgap', gap + 'px');
+    // and down: the page stays at its top on the mat, so where the page flow puts the table is where it is drawn; if
+    // that hangs under the bottom bar (or above the top one), the table moves just enough to sit between them
+    // (--matdy, css/11-rug.css; Brian, Nov 24: nothing cut off on short phones). Worked out from the table's own
+    // place in the flow each time, so a battle that fits where it lands doesn't move.
+    const de = document.documentElement, cur = parseFloat(de.style.getPropertyValue('--matdy')) || 0;
+    const r = line.getBoundingClientRect(), t0 = r.top - cur, b0 = r.bottom - cur;
+    let dy = 0;
+    if (b0 > bot - 3) dy = bot - 3 - b0;
+    if (t0 + dy < top + 3) dy = top + 3 - t0;
+    dy = Math.round(dy); if (dy !== cur) de.style.setProperty('--matdy', dy + 'px');
   } finally { b.fitting = false; }
 }
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
