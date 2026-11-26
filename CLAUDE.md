@@ -90,7 +90,7 @@ docs/code-map.md), and the repo clone is the working copy.
   screenshots, at the layout you changed (and the other one if shared code changed).
 - Headless screenshots: Playwright is global (`createRequire(\`${npm root -g}/\`)('playwright')`), Chromium at
   `/opt/pw-browsers/chromium`. Serve the page over http (see tools/screens.mjs): under file:// the AI's workers can't
-  load js/engine.js and fall back to thinking on the main page. Outside claude.ai the page drops to player view; for
+  load engine scripts and fall back to thinking on the main page. Outside claude.ai the page drops to player view; for
   the designer view run `canAdmin = true; playerPreview = false; applyRole()` after load.
 
 ## Refresh the snapshot (keeps the site in sync)
@@ -124,7 +124,7 @@ golden test ran (and passed or was re-recorded), and which docs were updated. Th
 
 ## Cheap habits
 - Search with `grep -rn ... js css | cut -c1-250`, then read only the lines you need. Open the one file for the area
-  you're changing; never read the big ones (engine.js, css/03-main.css) whole.
+  you're changing; never read the big ones (engine modules, css/03-main.css) whole.
 - The `#snapshot` JSON is one long line (about 13 KB in Nov 2026; it grows with stats): **never grep it without `| cut -c1-200`**.
 - Read database documents with `out_dir`, not inline.
 - If a rule seems unclear, ask Brian rather than inferring it from the code.

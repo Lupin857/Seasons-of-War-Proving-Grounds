@@ -10,7 +10,7 @@
 // --matches saves which CSS rules match which elements at each moment (for CSS refactor planning tools).
 // --phone emulates a touch phone (390x844, coarse pointer).
 //
-// The build is served over http from inside this process (the AI's workers load js/engine.js by URL, which
+// The build is served over http from inside this process (the AI's workers load the tagged engine modules by URL, which
 // file:// can't do). Math.random is seeded, animations use reduced motion. It also saves the game's match record
 // (match-record.json); screens-diff.mjs compares those too.
 import fs from 'node:fs';

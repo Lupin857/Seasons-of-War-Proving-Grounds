@@ -1,8 +1,8 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#CBD1DA"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Oasis"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
-<link rel="stylesheet" href="css/01-battle-card.css?v=v92">
-<link rel="stylesheet" href="css/02-board-settings.css?v=v92" id="lab-css">
+<link rel="stylesheet" href="css/01-battle-card.css?v=v92-engine-refactor">
+<link rel="stylesheet" href="css/02-board-settings.css?v=v92-engine-refactor" id="lab-css">
 
 </head><body>
 <title>Oasis one-screen (dev)</title>
@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&family=LXGW+WenKai+TC:wght@400;700&display=swap">
-<link rel="stylesheet" href="css/03-main.css?v=v92">
-<link rel="stylesheet" href="css/04-desktop-art.css?v=v92" id="oasis-desktop">
+<link rel="stylesheet" href="css/03-main.css?v=v92-engine-refactor">
+<link rel="stylesheet" href="css/04-desktop-art.css?v=v92-engine-refactor" id="oasis-desktop">
 
 <div class="wrap">
   <header>
@@ -63,48 +63,58 @@
   </section>
 </div>
 
-<link rel="stylesheet" href="css/05-fixes.css?v=v92">
-<link rel="stylesheet" href="css/06-mobile-crop.css?v=v92" id="oasis-mobile-crop">
-<script src="js/vendor/peerjs.min.js?v=v92"></script>
+<link rel="stylesheet" href="css/05-fixes.css?v=v92-engine-refactor">
+<link rel="stylesheet" href="css/06-mobile-crop.css?v=v92-engine-refactor" id="oasis-mobile-crop">
+<script src="js/vendor/peerjs.min.js?v=v92-engine-refactor"></script>
 <script type="application/json" id="snapshot">{"brain":{"champ":{"kp":0.1514572697381485,"shr":0.6377844874968133,"tie":0.12219203658077638,"rob":0.16820963008963818,"s":0.9900257592749777,"e":1.1490833493339403,"m":1.0666621027372822,"thresh":-0.4033210614323668,"slot":0.7145968197938524,"pair":0.522401476714837,"cath":0.5,"read":0.24771638070682825,"deny":0.3,"combo":1.082132658856831,"save":0.3,"hb":0.9946890224007403,"bmk":1.0054909771646432,"lu2":0.4194282540938285,"omk":1.3138641472673247,"mir":1.034575255842534,"mu":0.06938904601654296,"mpat":0.5,"bias":{}},"gens":40,"games":28484,"history":[{"g":20,"v":0.5,"n":24}],"deep":true,"algo":"es1","legacy":{"champ":{"bias":{"Hired Blade":1.585240112311252,"Pikeman":1.2414076935802516,"Royal Watchman":0.4161339192856832,"Desperate Infantry":5.809262105510822,"Slinger":-1.2313008594471242,"Strong Villager":-1.4023631578552191,"Dutiful Squire":1.9314099674092073,"Conscripted Farmhand":6,"Veteran Knight":4.050716686842517,"Cowardly Squire":1.0626683016643466,"Arsonist":-3.0913154043239746,"Assassin":-2.8242660030557327,"Marksman":0.020824396188735772,"Studious Squire":1.3061777426606023,"Aging Master":-6,"Barber-Surgeon":-2.060934546993325,"Pigeon Hunter":0.08948727650118604,"Fencer":-0.523650789092535,"Sleepy Guard":-5.375663551763123,"Musketeer":1.453197146936021,"Dark Knight":-1.5768398835896456,"Knight":-2.326925955770029,"Jester":5.691783718267837,"Cannon":-3.2839331997448937,"Grave-Robber":-5.298985129739548,"Mercenary":0.37720154752033064,"Lancer":1.7462381155052378,"White Knight":-1.4883982254717418,"Recruiter":5.836328079675921,"Scholar":-0.5761307999002722,"Man-at-arms":3.7533250239963496,"Halberd Knight":-4.787316461299661,"Armored Knight":-4.162798038709208,"Recruit":-2.696277686231542,"Field":-0.1722325498599389,"Cathedral":-2.5267607702620225,"Trebuchet":3.4709940294485437,"Black Market":-0.39854721367841783,"Mason's Guild":3.738982049487819,"Bazaar":4.493949205902075,"Carpenter's Guild":-4.205163307484391,"Smithy":5.866444065191557,"Barracks":5.55146757658012,"Reserve Encampment":0.34263946359007064,"Study":1.0054581990189357,"Armory":-0.9492326964539337,"Windmill":5.65888669276445,"Infirmary":1.989413059651886},"s":1.910622115090796,"e":2,"m":1.1872728090980837,"thresh":-2.0296507520509413,"slot":0.7493120310068363,"pair":0.3983026015431017,"cath":0,"read":0.5676836628759437,"deny":0.3346391631884231,"combo":1.6323215591886822,"save":0.2316222726269482,"hb":1.354226836894773,"hk":2.3216404127796655,"bmk":0.3213488346013335,"lu2":0.12288055293373827},"gens":632,"history":[{"g":5,"v":0.3},{"g":10,"v":0.3},{"g":15,"v":0.55},{"g":20,"v":0.4},{"g":25,"v":0.7},{"g":30,"v":0.55},{"g":35,"v":0.55},{"g":40,"v":0.65},{"g":45,"v":0.55},{"g":50,"v":0.55},{"g":55,"v":0.55},{"g":60,"v":0.45},{"g":65,"v":0.6},{"g":70,"v":0.45},{"g":75,"v":0.45},{"g":80,"v":0.45},{"g":85,"v":0.6},{"g":90,"v":0.4},{"g":95,"v":0.55},{"g":100,"v":0.45},{"g":105,"v":0.4},{"g":110,"v":0.65},{"g":115,"v":0.4},{"g":120,"v":0.65},{"g":128,"v":0.5},{"g":133,"v":0.7},{"g":138,"v":0.55},{"g":143,"v":0.65},{"g":148,"v":0.5},{"g":153,"v":0.6},{"g":158,"v":0.45},{"g":163,"v":0.65},{"g":168,"v":0.55},{"g":173,"v":0.45},{"g":178,"v":0.7},{"g":187,"v":0.6},{"g":192,"v":0.55},{"g":197,"v":0.5},{"g":202,"v":0.5},{"g":207,"v":0.75},{"g":212,"v":0.6},{"g":217,"v":0.25},{"g":222,"v":0.5},{"g":227,"v":0.6},{"g":232,"v":0.65},{"g":237,"v":0.7},{"g":242,"v":0.6},{"g":247,"v":0.55},{"g":252,"v":0.55},{"g":257,"v":0.75},{"g":262,"v":0.5},{"g":267,"v":0.45},{"g":272,"v":0.5},{"g":277,"v":0.6},{"g":282,"v":0.85},{"g":287,"v":0.7},{"g":292,"v":0.6},{"g":297,"v":0.75},{"g":302,"v":0.6},{"g":307,"v":0.7},{"g":312,"v":0.65},{"g":317,"v":0.75},{"g":322,"v":0.6},{"g":327,"v":0.5},{"g":332,"v":0.5},{"g":337,"v":0.75},{"g":342,"v":0.9},{"g":347,"v":0.6},{"g":352,"v":0.6},{"g":357,"v":0.65},{"g":362,"v":0.6},{"g":367,"v":0.75},{"g":372,"v":0.6},{"g":377,"v":0.6},{"g":382,"v":0.45},{"g":387,"v":0.6},{"g":392,"v":0.55},{"g":397,"v":0.65},{"g":402,"v":0.5},{"g":407,"v":0.8},{"g":412,"v":0.6},{"g":417,"v":0.5},{"g":422,"v":0.65},{"g":427,"v":0.65},{"g":432,"v":0.6},{"g":437,"v":0.7},{"g":442,"v":0.7},{"g":447,"v":0.45},{"g":452,"v":0.45},{"g":457,"v":0.5},{"g":462,"v":0.55},{"g":467,"v":0.45},{"g":472,"v":0.8},{"g":477,"v":0.8},{"g":482,"v":0.6},{"g":487,"v":0.6},{"g":492,"v":0.7},{"g":497,"v":0.55},{"g":502,"v":0.55},{"g":507,"v":0.45},{"g":512,"v":0.6},{"g":517,"v":0.45},{"g":522,"v":0.65},{"g":527,"v":0.4},{"g":532,"v":0.45},{"g":537,"v":0.45},{"g":542,"v":0.55},{"g":547,"v":0.6},{"g":552,"v":0.6},{"g":557,"v":0.75},{"g":562,"v":0.5},{"g":567,"v":0.5},{"g":572,"v":0.9},{"g":577,"v":0.6},{"g":582,"v":0.5},{"g":587,"v":0.7},{"g":592,"v":0.55},{"g":597,"v":0.7},{"g":602,"v":0.65},{"g":607,"v":0.7},{"g":612,"v":0.65},{"g":617,"v":0.5},{"g":622,"v":0.65},{"g":627,"v":0.7},{"g":632,"v":0.7}]},"at":1793094416477,"mom":[-0.03606511905794005,-0.11637064073068482,-0.08642196551666975],"ckpt":{"kp":0.1514572697381485,"shr":0.6377844874968133,"tie":0.12219203658077638,"rob":0.2092814765661673,"s":0.9900257592749777,"e":1.1490833493339403,"m":1.0666621027372822,"thresh":-0.4033210614323668,"slot":0.7145968197938524,"pair":0.522401476714837,"cath":0.45923854570608,"read":0.35596869121029195,"deny":0.3,"combo":1.082132658856831,"save":0.3,"hb":0.9946890224007403,"bmk":1.0054909771646432,"lu2":0.4194282540938285,"omk":1.467574565393341,"mir":1.034575255842534,"mu":0.06938904601654296,"mpat":0.5,"bias":{}},"hofStrikes":null,"hof":[{"g":10,"G":{"kp":0.1514572697381485,"shr":0.6377844874968133,"tie":0.12219203658077638,"rob":0.24364251548288318,"s":0.9900257592749777,"e":1.1490833493339403,"m":1.0666621027372822,"thresh":-0.4033210614323668,"slot":0.7145968197938524,"pair":0.522401476714837,"cath":0.45923854570608,"read":0.38575478746463926,"deny":0.3,"combo":1.082132658856831,"save":0.3,"hb":0.9946890224007403,"bmk":1.0054909771646432,"lu2":0.4194282540938285,"omk":1.595705832520508,"mir":1.034575255842534,"mu":0.06938904601654296,"mpat":0.5,"bias":{"Smithy":-0.0300075724954591,"Barracks":0.04126891794218182},"ctx":{}}}],"lastGate":{"g":30,"v":0.5416666666666666,"n":96,"hof":{"g":10,"v":0.48660714285714285,"n":336,"pass":true}},"hofNext":0,"sheet":"2026-11-11-gear"},"cal":{"rungs":[{"id":"random","label":"Random buyer","elo":400},{"id":"s1","label":"Short-sighted, hasty","elo":883},{"id":"s2","label":"Short-sighted","elo":986},{"id":"g1","label":"Glimpses ahead","elo":1027},{"id":"f100","label":"Quick","elo":1116},{"id":"t100","label":"Thinks","elo":1191},{"id":"t2","label":"Thinks harder","elo":1285},{"id":"p100","label":"Thinks deeply","elo":1349},{"id":"m100","label":"Thinks deepest","elo":1393}],"results":[{"a":0,"b":1,"wa":6,"wb":114,"d":0},{"a":0,"b":2,"wa":4,"wb":116,"d":0},{"a":1,"b":2,"wa":67,"wb":133,"d":0},{"a":1,"b":3,"wa":64,"wb":136,"d":0},{"a":2,"b":3,"wa":83,"wb":117,"d":0},{"a":2,"b":4,"wa":66,"wb":134,"d":0},{"a":3,"b":4,"wa":72,"wb":128,"d":0},{"a":3,"b":5,"wa":57,"wb":143,"d":0},{"a":4,"b":5,"wa":85,"wb":115,"d":0},{"a":4,"b":6,"wa":47,"wb":153,"d":0},{"a":5,"b":6,"wa":81,"wb":119,"d":0},{"a":5,"b":7,"wa":57,"wb":143,"d":0},{"a":6,"b":7,"wa":84,"wb":116,"d":0},{"a":6,"b":8,"wa":19,"wb":41,"d":0},{"a":7,"b":8,"wa":28,"wb":32,"d":0}],"genome":{"kp":0.1514572697381485,"shr":0.6377844874968133,"tie":0.12219203658077638,"rob":0.16820963008963818,"s":0.9900257592749777,"e":1.1490833493339403,"m":1.0666621027372822,"thresh":-0.4033210614323668,"slot":0.7145968197938524,"pair":0.522401476714837,"cath":0.45923854570608,"read":0.24771638070682825,"deny":0.3,"combo":1.082132658856831,"save":0.3,"hb":0.9946890224007403,"bmk":1.0054909771646432,"lu2":0.4194282540938285,"omk":1.3138641472673247,"mir":1.034575255842534,"mu":0.06938904601654296,"mpat":0.5,"bias":{"Pikeman":-0.12029451458658603,"Desperate Infantry":-0.030409756474358708,"Dutiful Squire":0.02956378290057737,"Veteran Knight":0.07800969006621605,"Cowardly Squire":0.033984276496328736,"Pigeon Hunter":0.04790916603977497,"Knight":0.3529519740908304,"Jester":0.183410993345726,"Trebuchet":-0.19651954333270202,"Carpenter's Guild":0.14486111435664353,"Smithy":-0.030436886480998668,"Barracks":0.15207065228861744,"Windmill":-0.1740664721536467,"Militia Vow":0.29174534942492736,"Discard Writ":-0.09666255151176277,"Sacred Lesson":0.3496297018982061},"ctx":{}},"balanceKey":"{\"bldgs\":{\"Armory\":{\"c\":2},\"Bazaar\":{\"c\":0},\"Black Market\":{\"c\":2,\"lv\":[3,4,5]},\"Carpenter's Guild\":{\"lv\":[2,3,4]},\"Cathedral\":{\"c\":1,\"n\":2},\"Infirmary\":{\"c\":3},\"Mason's Guild\":{\"c\":2,\"n\":2},\"Reserve Encampment\":{\"c\":1,\"lv\":[1,2,3],\"n\":3},\"Study\":{\"c\":2},\"Training Yard\":{\"c\":1,\"n\":3},\"Trebuchet\":{\"lv\":[5,8]},\"Windmill\":{\"n\":3}},\"mirs\":{\"Blessed Steel\":{\"b\":1},\"Call to Arms\":{\"b\":1},\"Divine Favor\":{\"s\":0,\"u\":1},\"Militia Vow\":{\"b\":1,\"u\":1},\"Sacred Lesson\":{\"b\":1,\"s\":0},\"Discard Writ\":{\"b\":1,\"s\":0},\"Tithe\":{\"b\":1,\"s\":1},\"Vision\":{\"u\":1},\"Windfall\":{\"cash\":3,\"s\":2}},\"units\":{\"Aging Master\":{\"p\":[1,2,4],\"v\":[1,2,2]},\"Armored Knight\":{\"p\":[4,5,6],\"v\":[1,1,2]},\"Arsonist\":{\"p\":[2,4,6]},\"Assassin\":{\"p\":[3,4,6]},\"Barber-Surgeon\":{\"c\":3,\"n\":2,\"p\":[1,3,5]},\"Brawler\":{\"c\":3,\"n\":2,\"p\":[3,4,5],\"v\":[1]},\"Conscripted Farmhand\":{\"c\":2,\"m\":[1,2,3]},\"Cowardly Squire\":{\"n\":4,\"p\":[1,2,4]},\"Dark Knight\":{\"p\":[5,7,9],\"v\":[2]},\"Desperate Infantry\":{\"n\":4,\"v\":[1,1,3]},\"Dutiful Squire\":{\"n\":4,\"p\":[1,1,3],\"v\":[1,2,3]},\"Fencer\":{\"p\":[3,5,7],\"v\":[1,1,2]},\"Grave-Robber\":{\"c\":2,\"n\":3,\"v\":[3,4,5]},\"Halberd Knight\":{\"p\":[4,5,6],\"v\":[1,2,3]},\"Hired Blade\":{\"c\":2,\"p\":[4,6,8]},\"Knight\":{\"p\":[2,3,5],\"v\":[2,3,3]},\"Lancer\":{\"c\":3,\"p\":[4,6,8]},\"Man-at-arms\":{\"v\":[1,1,2]},\"Mercenary\":{\"c\":2,\"p\":[4,6,8]},\"Musketeer\":{\"p\":[1,1,2]},\"Pigeon Hunter\":{\"p\":[2,4,6]},\"Pikeman\":{\"n\":4,\"v\":[2,4,6]},\"Recruiter\":{\"c\":2,\"n\":3,\"p\":[1,2,3]},\"Royal Watchman\":{\"n\":4,\"p\":[1,3,4],\"v\":[1,1,2]},\"Scholar\":{\"p\":[1,2,5],\"v\":[1,2,2]},\"Sleepy Guard\":{\"p\":[2,3,6],\"v\":[2,3,3]},\"Slinger\":{\"n\":4,\"p\":[1,1,3]},\"Strong Villager\":{\"n\":4,\"p\":[2,4,6]},\"Studious Squire\":{\"p\":[3,5,6],\"v\":[1,1,2]},\"Veteran Knight\":{\"n\":4},\"White Knight\":{\"c\":4,\"p\":[3,5,7]}}}","at":1792781720070,"games":2560,"quick":false},"stats":{"__sheet":"2026-11-11-gear"},"statsAt":0,"brains":{"4":{"champ":{"bias":{},"s":2.2846859400224915,"e":1.2135145654588992,"m":1.4434318725525455,"thresh":1.7636782378712539,"slot":1.542286114315165,"pair":-0.2478610538531364,"cath":2.9343718309398072,"read":0.2865712125676692,"deny":0,"combo":2.9015183436775187,"save":0.4450754229559021,"hb":1.6035466567896282,"hk":2.8749436697906523,"bmk":0.05092617156351182,"lu2":0.622841856710739,"omk":0.8577364441154318},"gens":40,"games":3632,"history":[{"g":10,"v":0.75,"n":100},{"g":20,"v":0.68,"n":100},{"g":30,"v":0.635,"n":100}],"algo":"es1","deep":true,"seededFrom":3,"at":1792538224189,"mom":[-0.2063432216097744,0.12212303103785443,-0.2969741598179888,-0.17209281805852877,-0.05065173186525518,-0.14937020492776687,-0.25636062476031934,-0.3155373217565274,-0.054330176967721626,0.00311086531900899,0.0944493704427293,-0.16561471368129585,-0.2092240661550681,0.14327159126594946,-0.035114823280352564,0.1575377477210136],"ckpt":{"bias":{},"s":2.352584083952594,"e":1.2698325526266527,"m":1.5480356298032083,"thresh":1.8128846268813188,"slot":1.5260903766510656,"pair":-0.11256987701144494,"cath":3,"read":0.32795440208359494,"deny":0.01427107455743197,"combo":2.850184524940786,"save":0.5058720613462547,"hb":1.617973242838073,"hk":3.044800555248964,"bmk":0.07047555667657787,"lu2":0.7069559946867419,"omk":0.7396110421420231},"lastGate":{"g":30,"v":0.49},"sheet":"2026-11-11-gear"},"5":{"champ":{"bias":{},"s":2.0290786358569535,"e":0.9834981839499605,"m":1.6352189312230083,"thresh":1.0117899641297887,"slot":1.7362528077376176,"pair":0.533421288799941,"cath":3,"read":0.045542752746214256,"deny":0.1893655159148917,"combo":2.319340671857835,"save":0.45605153524572845,"hb":1.6164377448781844,"hk":3.2246769710946235,"bmk":0,"lu2":0.8384014220229099,"omk":0.5171658999318709},"gens":12,"games":1032,"history":[{"g":10,"v":0.505,"n":100}],"algo":"es1","deep":true,"seededFrom":3,"at":1792538394996,"mom":[1.6332934304625333,-1.9544670422743342,-0.5198600842891332,-0.8610445475493615,-0.2634081508385625,0.1887880129805746,1.325953743744321,-0.22548486807105372,0.49098767674363203,-0.6973214723410205,0.47761718447227586,0.2060745393119085,-0.5743714398775088,-0.9332029739957917,0.19462837965952537,0.4378465564797978],"ckpt":{"bias":{},"s":1.9332392653344743,"e":1.0798249064585552,"m":1.6574715555891621,"thresh":1.1155548714548544,"slot":1.738518995089854,"pair":0.5016665703546876,"cath":3,"read":0.0489439780057636,"deny":0.1685926128874658,"combo":2.374329737137959,"save":0.435438954483936,"hb":1.609931366537524,"hk":3.2594071632276935,"bmk":0,"lu2":0.8256130733920648,"omk":0.4873635742114085},"lastGate":{"g":10,"v":0.605},"sheet":"2026-11-11-gear"}}}</script>
-<script src="js/engine.js?v=v92" id="engine"></script>
-<script src="js/names.js?v=v92" id="oasis-names"></script>
-<script src="js/art.js?v=v92" id="oasis-art"></script>
-<script src="js/ui/00-core.js?v=v92"></script>
-<script src="js/ui/01-battle-view.js?v=v92"></script>
-<script src="js/ui/02-match-recorder-ai-worker.js?v=v92"></script>
-<script src="js/ui/03-card-motion.js?v=v92"></script>
-<script src="js/ui/04-online.js?v=v92"></script>
-<script src="js/ui/05-shop-moves.js?v=v92"></script>
-<script src="js/ui/06-market-popups-tokens.js?v=v92"></script>
-<script src="js/ui/07-battle-steps.js?v=v92"></script>
-<script src="js/ui/08-flips-reminders-banners.js?v=v92"></script>
-<script src="js/ui/09-play-screen.js?v=v92"></script>
-<script src="js/ui/10-mobilize.js?v=v92"></script>
-<script src="js/ui/11-self-play.js?v=v92"></script>
-<script src="js/ui/12-train-view.js?v=v92"></script>
-<script src="js/ui/13-stats-view.js?v=v92"></script>
-<script src="js/ui/14-balance-lab.js?v=v92"></script>
-<script src="js/ui/15-sync-roles-ratings.js?v=v92"></script>
-<script src="js/ui/16-new-game.js?v=v92"></script>
-<script src="js/ui/17-card-peek-tooltips.js?v=v92"></script>
+<script src="js/engine/00-runtime-state.js?v=v92-engine-refactor" data-engine-module="runtime-state"></script>
+<script src="js/engine/01-card-data.js?v=v92-engine-refactor" data-engine-module="card-data"></script>
+<script src="js/engine/02-battle.js?v=v92-engine-refactor" data-engine-module="battle"></script>
+<script src="js/engine/03-miracles.js?v=v92-engine-refactor" data-engine-module="miracles"></script>
+<script src="js/engine/04-game.js?v=v92-engine-refactor" data-engine-module="game"></script>
+<script src="js/engine/05-balance.js?v=v92-engine-refactor" data-engine-module="balance"></script>
+<script src="js/engine/06-shop.js?v=v92-engine-refactor" data-engine-module="shop"></script>
+<script src="js/engine/07-ai.js?v=v92-engine-refactor" data-engine-module="ai"></script>
+<script src="js/engine/08-search.js?v=v92-engine-refactor" data-engine-module="search"></script>
+<script src="js/engine/09-learning.js?v=v92-engine-refactor" data-engine-module="learning"></script>
+<script src="js/engine.js?v=v92-engine-refactor" id="engine" data-engine-module="public-api"></script>
+<script src="js/names.js?v=v92-engine-refactor" id="oasis-names"></script>
+<script src="js/art.js?v=v92-engine-refactor" id="oasis-art"></script>
+<script src="js/ui/00-core.js?v=v92-engine-refactor"></script>
+<script src="js/ui/01-battle-view.js?v=v92-engine-refactor"></script>
+<script src="js/ui/02-match-recorder-ai-worker.js?v=v92-engine-refactor"></script>
+<script src="js/ui/03-card-motion.js?v=v92-engine-refactor"></script>
+<script src="js/ui/04-online.js?v=v92-engine-refactor"></script>
+<script src="js/ui/05-shop-moves.js?v=v92-engine-refactor"></script>
+<script src="js/ui/06-market-popups-tokens.js?v=v92-engine-refactor"></script>
+<script src="js/ui/07-battle-steps.js?v=v92-engine-refactor"></script>
+<script src="js/ui/08-flips-reminders-banners.js?v=v92-engine-refactor"></script>
+<script src="js/ui/09-play-screen.js?v=v92-engine-refactor"></script>
+<script src="js/ui/10-mobilize.js?v=v92-engine-refactor"></script>
+<script src="js/ui/11-self-play.js?v=v92-engine-refactor"></script>
+<script src="js/ui/12-train-view.js?v=v92-engine-refactor"></script>
+<script src="js/ui/13-stats-view.js?v=v92-engine-refactor"></script>
+<script src="js/ui/14-balance-lab.js?v=v92-engine-refactor"></script>
+<script src="js/ui/15-sync-roles-ratings.js?v=v92-engine-refactor"></script>
+<script src="js/ui/16-new-game.js?v=v92-engine-refactor"></script>
+<script src="js/ui/17-card-peek-tooltips.js?v=v92-engine-refactor"></script>
 
-<script src="js/desktop.js?v=v92" id="oasis-desktop-js"></script>
-<script src="js/mobile-crop.js?v=v92" id="oasis-mobile-crop-js"></script>
-<script src="js/board-settings.js?v=v92" id="lab-js"></script>
+<script src="js/desktop.js?v=v92-engine-refactor" id="oasis-desktop-js"></script>
+<script src="js/mobile-crop.js?v=v92-engine-refactor" id="oasis-mobile-crop-js"></script>
+<script src="js/board-settings.js?v=v92-engine-refactor" id="lab-js"></script>
 
-<link rel="stylesheet" href="css/07-no-anchor.css?v=v92" id="oasis-noanchor-css">
-<link rel="stylesheet" href="css/08-cards-tab.css?v=v92" id="oasis-cards-css">
-<link rel="stylesheet" href="css/09-mobilize.css?v=v92">
-<link rel="stylesheet" href="css/10-game-menu.css?v=v92">
-<link rel="stylesheet" href="css/11-rug.css?v=v92">
-<link rel="stylesheet" href="css/12-mat-shop.css?v=v92">
-<script src="js/cards-tab.js?v=v92" id="oasis-cards-js"></script>
-<script src="js/ui/18-game-menu.js?v=v92"></script>
-<script src="js/ui/19-battle-ink.js?v=v92"></script>
-<script src="js/rug.js?v=v92"></script>
-<script src="js/ui/20-mat-shop.js?v=v92"></script>
-<script src="cubes.js?v=v92" defer></script>
+<link rel="stylesheet" href="css/07-no-anchor.css?v=v92-engine-refactor" id="oasis-noanchor-css">
+<link rel="stylesheet" href="css/08-cards-tab.css?v=v92-engine-refactor" id="oasis-cards-css">
+<link rel="stylesheet" href="css/09-mobilize.css?v=v92-engine-refactor">
+<link rel="stylesheet" href="css/10-game-menu.css?v=v92-engine-refactor">
+<link rel="stylesheet" href="css/11-rug.css?v=v92-engine-refactor">
+<link rel="stylesheet" href="css/12-mat-shop.css?v=v92-engine-refactor">
+<script src="js/cards-tab.js?v=v92-engine-refactor" id="oasis-cards-js"></script>
+<script src="js/ui/18-game-menu.js?v=v92-engine-refactor"></script>
+<script src="js/ui/19-battle-ink.js?v=v92-engine-refactor"></script>
+<script src="js/rug.js?v=v92-engine-refactor"></script>
+<script src="js/ui/20-mat-shop.js?v=v92-engine-refactor"></script>
+<script src="cubes.js?v=v92-engine-refactor" defer></script>
 <script>/* Installable app + offline play (does nothing where service workers aren't allowed, e.g. inside Claude) */
 if ('serviceWorker' in navigator) window.addEventListener('load', () => {
   navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready)

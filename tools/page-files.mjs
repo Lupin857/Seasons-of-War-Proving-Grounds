@@ -19,14 +19,18 @@ export function pageScripts(htmlPath, { vendor = true } = {}){
     const line = html.slice(0, m.index).split('\n').length;
     const id = (/id="([^"]+)"/.exec(attrs) || [])[1] || srcAttr || `inline block at line ${line}`;
     const src = srcAttr ? fs.readFileSync(path.join(dir, srcAttr), 'utf8') : m[2];
-    out.push({ id, file: srcAttr || null, src, line });
+    const engineModule = (/\bdata-engine-module="([^"]+)"/.exec(attrs) || [])[1] || null;
+    out.push({ id, file: srcAttr || null, src, line, engineModule });
   }
   return out;
 }
 
 // The engine's source text (rules + AI, no DOM code).
 export function engineSource(htmlPath){
-  const s = pageScripts(htmlPath).find(b => b.id === 'engine');
+  const blocks = pageScripts(htmlPath);
+  const modules = blocks.filter(b => b.engineModule);
+  if (modules.length) return modules.map(b => b.src).join('\n;\n');
+  const s = blocks.find(b => b.id === 'engine');
   if (!s){ console.error(`No engine script found in ${htmlPath}`); process.exit(2); }
   return s.src;
 }

@@ -1,7 +1,7 @@
 # AI
 
-All AI code is in `js/engine.js` (banners from `AI` through `Situational opinions`), so it also runs in Web
-Workers and in `tools/golden.mjs`. Any AI change needs the golden test (`check` for refactors, `record` + a note in the
+AI code lives in `js/engine/07-ai.js` and `js/engine/08-search.js`, and runs in Web Workers and `tools/golden.mjs`.
+Training and ratings live in `js/engine/09-learning.js`. Any AI change needs the golden test (`check` for refactors, `record` + a note in the
 commit for intended behavior changes).
 
 ## Principles (Brian's, don't break without asking)
@@ -28,7 +28,7 @@ blended budget (`blendDepth`); between Novice and the next rung, each decision i
 `calibration/ladder`; your own rating stays in your browser. The Elo slider in setup picks the strength. Players
 without a rating start at the bottom of the ladder (Novice), the default opponent.
 
-### Novice (`NOVICE`, `noviceShop`, `noviceMobilize` in engine.js)
+### Novice (`NOVICE`, `noviceShop`, `noviceMobilize` in `08-search.js`)
 The lowest offered rung, meant for new players. Every number is in the `NOVICE` table.
 - **Shop**, rolled per decision: *shallow* 65% (the `s1` search, but never sells or freezes, economy cards lose
   `NOVICE.econ` win chance, and it buys its best card instead of passing if that's within `passSlack`); *lazy* 25%
