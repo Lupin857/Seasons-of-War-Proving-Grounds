@@ -11,11 +11,13 @@ window.addEventListener('error', ev => {
 });
 /* ===================== SHARED UI HELPERS ===================== */
 // Source for a Web Worker that runs the engine plus one main function (the AI or the self-play pool).
-// The engine lives in js/engine.js; the worker loads it by URL, so there is only ever one copy of it.
+// The page and worker load the same ordered engine modules, so there is only ever one copy of the engine.
 function engineWorkerURL(main){
-  // the same link the page loaded it from (with its ?v= build stamp, so a worker never runs an older cached engine)
-  const tag = document.getElementById('engine'), eng = tag && tag.src ? tag.src : new URL('js/engine.js', document.baseURI).href;
-  return URL.createObjectURL(new Blob([`importScripts(${JSON.stringify(eng)});\n(${main.toString()})();`], {type:'text/javascript'}));
+  // Reuse the exact page files and cache stamp in the worker, in their registered dependency order.
+  const tags = [...document.querySelectorAll('script[data-engine-module]')];
+  const tag = document.getElementById('engine');
+  const files = tags.length ? tags.map(t => t.src) : [tag && tag.src ? tag.src : new URL('js/engine.js', document.baseURI).href];
+  return URL.createObjectURL(new Blob([`importScripts(...${JSON.stringify(files)});\n(${main.toString()})();`], {type:'text/javascript'}));
 }
 const $ = id => document.getElementById(id);
 

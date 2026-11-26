@@ -1,8 +1,8 @@
 # Code map
 
-Search by name or banner; line numbers drift. Sections inside a file are marked with banners like
-`/* ===================== BATTLE ENGINE ===================== */`, so `grep -n '=====' js/engine.js | cut -c1-120`
-gives a table of contents. `grep -rn NAME js css` finds anything across files.
+Search by name or banner; line numbers drift. Engine areas are separate numbered files under `js/engine/`.
+Other sections inside a file may be marked with banners like `/* ===================== BATTLE ENGINE ===================== */`.
+`grep -rn NAME js css` finds anything across files.
 
 ## Files (split out of one 1.1 MB index.html in Nov 2026, v57)
 The artifact and this repo have the same file tree. Every script is a plain classic script: they all share one
@@ -16,8 +16,14 @@ global scope and run in the order index.html loads them, exactly like the old in
   during a game; the desktop version of the top bar).
   Image paths in CSS are relative to the CSS file: `url(../art/...)`.
 - `js/vendor/peerjs.min.js`: PeerJS (online play). Don't edit.
-- `js/engine.js`: rules + AI. Also runs in Web Workers (loaded by URL, see `engineWorkerURL`) and in the tests, so
-  **no DOM code here**.
+- `js/engine/00-runtime-state.js`: engine-owned mutable switches, hooks, and caches. Legacy accessors preserve the
+  existing UI and worker bindings while engine code uses the grouped state object.
+- `js/engine/01-card-data.js` through `js/engine/09-learning.js`: card data, battle, miracles, game, balance, shop,
+  AI, search, and training in dependency order. They are classic scripts with no DOM code; legacy function bindings
+  remain available while callers migrate to the public API.
+- `js/engine.js`: the final script and stable `OasisEngine` public API. Page and worker load the same ordered list
+  from `data-engine-module` script tags; `engineWorkerURL` includes every tagged file with its cache stamp. Add or
+  reorder a module in `index.html` and `sw.js` together. Tests load those same scripts through `engineSource`.
 - `js/names.js`: `OASIS_NAMES`, `dispName`, `oasisText`, and the live renamer. `js/art.js`: `OASIS_ART`, `TOK_ART`,
   `artURL`.
 - `js/ui/NN-*.js`: the main UI, one file per area, in load order:
@@ -43,7 +49,9 @@ global scope and run in the order index.html loads them, exactly like the old in
   tilt (MATLIFT, `matLiftOpen/Close`); buys, sells, deals and the rival's moves fly along one arc in the tilt
   (`matArc`, `matPose`/`matTiltMatrix`, `matCrop`, `matFlyBox` `.osfly`, `matLand`, `matSpotRect`, MATLANDS /
   `matLandAfterDraw`, `matFlightFrame`, MATOPP / `matOppBuy` / `matOppSell` / `matOppStand`). Built in the
-  "Oasis one-screen (dev)" artifact, dev4–dev30; build notes in the Project docs "Oasis one-screen ..." ).
+  "Oasis one-screen (dev)" artifact, dev4–dev30; build notes in the Project docs "Oasis one-screen ..." ). On the
+  desktop Mobilize mat, a hovered deck card lifts into its readable preview while cards above and below shift outward;
+  the numbered source stays visible and deck order does not change.
   Fitting any phone (v90): on the mat `#gtop` is pinned under the notch (it was sticky, but the mat holds the page
   at scroll 0); `matBarsAfterDraw` measures `--gtb` (top bar's bottom) and `--dockh` (from the dock's real top edge)
   and re-runs on resize, visualViewport resize and a ResizeObserver (border box) on #gtop and #dock; `matFitMat`
@@ -67,7 +75,8 @@ global scope and run in the order index.html loads them, exactly like the old in
   `CORE`/`ART` in sw.js and bump its `VERSION`**, or offline play misses the file (a missing `CORE` file makes the
   whole install fail). Service workers don't run inside claude.ai, so test it on the GitHub site or a local http
   server. On iPhone the home-screen app keeps its own storage, separate from Safari's.
-- `tools/`: `check-page.mjs` (syntax, repeated global names, load order), `golden.mjs` + `golden.json` (engine golden
+- `tools/`: `check-page.mjs` (syntax, repeated global names, load order), `engine-contract.mjs` (module order and
+  public API), `golden.mjs` + `golden.json` (engine golden
   test), `screens.mjs` + `screens-diff.mjs` (seeded-game screenshots, before/after), `refresh-snapshot.mjs`,
   `page-files.mjs` (shared: finds the page's scripts).
 
@@ -79,18 +88,24 @@ global scope and run in the order index.html loads them, exactly like the old in
 - New code goes in the file for its area. A new area gets a new numbered file and a `<script src>` line in
   index.html at the right place; list it here.
 
-## Engine (`js/engine.js`)
+## Engine (`js/engine/*.js`, then `js/engine.js`)
 Banners: CARD DATA → BATTLE ENGINE (incl. battle miracles) → FULL GAME → MIRACLES → BALANCE OVERRIDES → AI (rated
 strength ladder, gear for the AI, opponent model) → SEARCH → playouts → mixed mobilize → COMBO TABLE → LEARNING →
 TRAINING (evolution strategies, SPRT safety check, hall of fame, learned pairings, situational opinions).
-- Card data: `const DEFS` (units), `const BDEFS` (buildings/supports), `const MIRS` (miracles). These are the
+- Card data: `const DEFS` (units) and `const BDEFS` (buildings/supports), in `01-card-data`; `const MIRS` (miracles)
+  is in `03-miracles`. These are the
   "sheet" numbers and must match Brian's Google Sheets.
 - `const RULES`: buysPerShop, fieldsPerShop, citySlots, deckCap, baseIncome, display sizes, target score.
-- `SHEET` (never changes) / `ORIG` (sheet + pushed balance = the base) / `applyOverrides(ov)` puts overrides on top.
+- `SHEET` (never changes) / `ORIG` (sheet + pushed balance = the base) / `applyOverrides(ov)` in `05-balance` puts overrides on top.
   Overrides look like `{units:{Name:{c,n,p,v,...}}, bldgs:{...}, mirs:{...}, rules:{...}}`.
 - `describeOverrides`, `patchDiff(a, b)` (old → new lines), `seedPatches(doc)`.
 - Shop: `buyQuote` (price + slot: base / carp / fav / extra), `useSlot`, `baseLeft`, `income`, `newGame`.
-- Battle: `runBattle`. Full AI round: `autoRound`. AI card values: `aiValue`.
+- Battle: `runBattle` (`02-battle`). Game creation and full AI round: `newGame` / `autoRound` (`04-game`). AI card
+  values: `aiValue` (`07-ai`). Shop pricing and actions are in `06-shop`.
+- Public API: `OasisEngine` (`js/engine.js`) groups `cards`, `rules`, `battle`, `game`, `shop`, `ai`, `balance`,
+  `stats`, `settings`, and deterministic `random` helpers. Keep this surface stable; add implementation-only helpers
+  to the relevant module without widening it. Mutable settings and hooks are held in the runtime-state module;
+  compatibility accessors let existing UI code keep using its current names.
 - Stats: `recordStats(stats, g)` covers card win rates plus `__pairs` (same side), `__adj` (front → behind) and
   `__vs` (counters), all per battle. Buildings in a city count as part of that side (`g.battles[].c`).
 
@@ -117,8 +132,8 @@ CARD PEEK (keywords) → TOOLTIPS.
   `doMove` until v56, which clashed with the engine's `doMove(g, j, m)` (the AI's trial moves). Don't reuse engine names.
 - Server sync (artifact only): `pushBrain` (AI in chunks `aibrain/c0..`, meta `ai/brain`), `loadPlayerStats`
   (`sync/*`), ratings `calibration/ladder`.
-- Workers: `aiWorkerMain`, `workerMain`. `engineWorkerURL(main)` (00-core) builds the worker: `importScripts` of
-  js/engine.js plus that function, so there is only one copy of the engine.
+- Workers: `aiWorkerMain`, `workerMain`. `engineWorkerURL(main)` (00-core) builds the worker from every tagged engine
+  script, in the same order and with the same cache stamps as the page.
 
 ## No wrappers: functions call named steps
 Until v58 (v59 for the shop actions), later script blocks wrapped earlier functions (`const rp = renderPlay; renderPlay = function(){ ... }`),
@@ -140,7 +155,7 @@ to a feature live in that feature's file as plain named functions. **Never wrap 
 - `renderTrain` / `renderStats` / `renderLab` → `keepingScroll(view, drawTrain|drawStats|drawLab)` (scroll boxes stay
   put across redraws).
 - Shop actions: every one (`buy`, `sell`, `pass`, `useBM`, `useFavor`, `useVision`, `useDisc`, `useWrit`, `useFreeze`,
-  `useRedeal`) goes through the engine's `shopAct` ("SHOP ACTIONS: ONE DOOR" in js/engine.js); the rules themselves are
+  `useRedeal`) goes through the engine's `shopAct` ("SHOP ACTIONS: ONE DOOR" in `06-shop.js`); the rules themselves are
   `buyRule`, `sellRule`... Whatever needs to hear about actions sets `SHOP_WATCH = {before, after}`: the match recorder
   (js/ui/02, `REC_ACT` names them in records) and the AI worker (`aiWorkerMain`, reports the moves it made). A new
   shop action gets a `NAMERule` plus one line there, so it is recorded and reported automatically.

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Golden-master test for the SOW engine.
 //
-// Loads the engine (js/engine.js, found through index.html; older inline pages work too), then runs:
+// Loads the engine modules (from index.html; older single-file pages work too), then runs:
 //   - seeded random battles (runBattle with the replay log on), and
 //   - seeded full AI-vs-AI games (shop, mobilize, battle every round).
 // `record` saves every result to golden.json. `check` reruns them and reports any difference.
@@ -44,8 +44,15 @@ let mathRnd = mulberry(1);
 const SeededMath = Object.create(Math);
 SeededMath.random = () => mathRnd();
 const ctx = vm.createContext({ Math: SeededMath, console });
-const EXPORTS = ['runBattle', 'newGame', 'autoRound', 'baseGenome', 'DEPTH', 'DEFS', 'BDEFS', 'mulberry32'];
-vm.runInContext(ENGINE + `\n;globalThis.__E = {${EXPORTS.join(',')}};`, ctx, { filename: 'engine' });
+vm.runInContext(ENGINE + `\n;globalThis.__E = typeof OasisEngine !== 'undefined' ? {
+  DEFS: OasisEngine.cards.units,
+  runBattle: OasisEngine.battle.run,
+  newGame: OasisEngine.game.create,
+  autoRound: OasisEngine.game.autoRound,
+  baseGenome: OasisEngine.ai.baseGenome,
+  DEPTH: OasisEngine.ai.depth,
+  mulberry32: OasisEngine.random.mulberry32,
+} : {DEFS, runBattle, newGame, autoRound, baseGenome, DEPTH, mulberry32};`, ctx, { filename: 'engine' });
 const E = ctx.__E;
 const reseed = s => { mathRnd = mulberry(s ^ 0x5eed); };
 

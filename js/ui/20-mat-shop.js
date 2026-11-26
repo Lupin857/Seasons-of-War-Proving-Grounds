@@ -573,9 +573,9 @@ function matSellFlight(i, name){
   return true;
 }
 
-/* ---------- the desktop mat: hover to read, drag to buy and sell (Oasis desktop shop brief, stage 2) ----------
-   Hover: rest on any card on the desktop mat for MAT_HOVER_DELAY and a flat copy rises out of the tilt to
-   MAT_HOVER_SCALE times its size (matArc, MAT_HOVER_GROW), kept on screen; moving off shrinks it back. No buttons, no dim.
+/* ---------- the desktop mat: inspect shop cards and preview Mobilize cards ----------
+   The shop highlights on hover and opens an inspector on click. In Mobilize, a brief hover lifts a readable copy;
+   neighboring deck cards make room, then return when the mouse leaves.
    Drag: press a market card (or one of yours: Caravan, deck or bought pile) and move it MAT_DRAG_PX; a flat copy follows
    the cursor. A market card you can buy lights your row: let go in it and the card's own Buy button is pressed, so the
    usual buy path, its picks (Mason's Guild, Discard Writ) and the landing run (matBuyFlight takes the copy from
@@ -584,7 +584,7 @@ function matSellFlight(i, name){
    (matLiftUnheld). The phone keeps tap to lift. (The Mobilize drag, js/ui/10-mobilize.js, reorders a list in place;
    this one carries a card to a target and hands it to the buy and sell flights.) */
 const MAT_HOVER_DELAY = 100, MAT_HOVER_GROW = 150, MAT_HOVER_SCALE = 1.8, MAT_DRAG_PX = 6, MAT_DRAG_LIFT = 120;
-const MATHOV = {card:null, pend:null, t:0, g:null};
+const MATHOV = {card:null, pend:null, t:0, g:null, owner:0};
 const MATDRAG = {p:null, eat:false};
 // Shop cards are selected in place. The enlarged hover is only used for the Mobilize cascade and bench.
 const MAT_INSPECT_CARDS = '.osmkt .mcard, .osseat .mcard.oscar, .osseat .mcard.ostop';
@@ -608,9 +608,19 @@ function matShopInspectCards(shop){
 const matMzDragging = () => typeof mzP !== 'undefined' && !!mzP && !!mzP.drag;
 function matHoverEnd(now){
   clearTimeout(MATHOV.t); MATHOV.t = 0; MATHOV.pend = null;
-  const {g, card} = MATHOV; MATHOV.g = null; MATHOV.card = null;
+  const {g, card, owner} = MATHOV; MATHOV.g = null; MATHOV.card = null;
   if (!g) return;
-  const done = () => { g.remove(); if (card && card !== MATHOV.card) card.classList.remove('oshover'); };
+  const done = () => {
+    g.remove();
+    if (card && card.dataset.osmzHoverOwner === String(owner)){
+      card.classList.remove('oshover', 'osmzpeek');
+      delete card.dataset.osmzHoverOwner;
+    }
+    card?.parentElement?.querySelectorAll('.osmzpush-up,.osmzpush-down').forEach(r => {
+      if (r.dataset.osmzPushOwner !== String(owner)) return;
+      r.classList.remove('osmzpush-up', 'osmzpush-down'); r.style.removeProperty('--osmzshift'); delete r.dataset.osmzPushOwner;
+    });
+  };
   if (now || reduceMotion() || !g._kf){ done(); return; }
   const frames = [{transform:getComputedStyle(g).transform}, g._kf[0]];
   g.getAnimations().forEach(a => a.cancel());
@@ -623,8 +633,24 @@ function matHoverStart(card){
   const from = matPoseOf(card), sr = card.getBoundingClientRect(); if (!from) return;   // where it rests: on the mat, in the fan, or flat
   const fr = from.r, w = fr.width * MAT_HOVER_SCALE, h = (fr.height || fr.width * 1.3827) * MAT_HOVER_SCALE;
   const top = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gtb')) || 0) + 8;   // near an edge it grows inwards
+  const deckPeek = card.matches('#view-play .osdeskmob #mz-deck > .mzc[data-mz="deck"]');
+  const owner = String(++MATHOV.owner);
+  card.dataset.osmzHoverOwner = owner;
+  if (deckPeek){
+    const rows = [...card.parentElement.children].filter(r => r.matches('.mzc[data-mz="deck"]'));
+    const i = rows.indexOf(card);
+    const step = card.getBoundingClientRect().width * .3;   // 1.5 cascade steps (.2 card widths) per row
+    rows.forEach((r, j) => {
+      if (j === i) return;
+      const dir = j < i ? 'up' : 'down';
+      r.classList.add('osmzpush-' + dir); r.dataset.osmzPushOwner = owner;
+      r.style.setProperty('--osmzshift', `${step * Math.abs(j - i)}px`);
+    });
+    card.classList.add('osmzpeek');
+  }
   const x = Math.max(8, Math.min(innerWidth - 8 - w, sr.left + sr.width / 2 - w / 2));
-  const y = Math.max(top, Math.min(innerHeight - 8 - h, sr.top + sr.height / 2 - h / 2));
+  const cy = deckPeek ? sr.top - (h - sr.height) * .42 : sr.top + sr.height / 2 - h / 2;
+  const y = Math.max(top, Math.min(innerHeight - 8 - h, cy));
   const face = card.querySelector(':scope > .mzface') || card;   // Mobilize: the card itself, not its tokens and numbers
   const {g, ctx} = flyer(face, face.classList.contains('u') ? 'u' : 'b');
   // (a Mobilize card's copy is styled from the Mobilize box, not its own card: the copy's styling shells take their
