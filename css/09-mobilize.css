@@ -95,11 +95,12 @@
 .mzc.mz-over>.mzface{filter:drop-shadow(0 0 2px var(--or)) drop-shadow(0 0 3px var(--or))}
 .mz-bench.mz-over{outline:2px dashed var(--azure);outline-offset:-5px}
 .mzghostwrap{position:fixed;z-index:80;margin:0;pointer-events:none}
-.mzghostwrap>.mzghost{position:absolute!important;left:0!important;top:0!important;width:100%!important;height:100%!important;margin:0!important;transform:rotate(-2deg) scale(1.05);
+.mzghostwrap>.mzghost{position:absolute!important;left:0!important;top:0!important;width:100%!important;height:100%!important;margin:0!important;transform:rotate(-2deg) scale(1.045);
   filter:drop-shadow(0 12px 22px rgba(0,0,0,.35));transition:none}
+.mzghostwrap.mz-refused>.mzghost{outline:2px solid var(--gules);outline-offset:3px}
 .mzghostwrap>.mzghost .mzno,.mzghostwrap>.mzghost .mzn{display:none}
 body.mz-dragging,body.mz-dragging *{cursor:grabbing!important}
-@media (prefers-reduced-motion: reduce){ .mzc.mz-lift,.mzstack{transition:none} }
+@media (prefers-reduced-motion: reduce){ .mzc.mz-lift,.mzstack{transition:none} .mzghostwrap>.mzghost{transform:none} }
 
 /* phones: Lock in lives in the bottom bar */
 @media (max-width:640px){

@@ -31,12 +31,23 @@
 - Don't rebuild or restyle elements outside the task (see CLAUDE.md rule 6).
 
 ## Motion
+- Desktop mat Mobilize overlaps the market sweep with the bought piles merging. In the lift, the deck, bench fan,
+  fight order numbers, labels and controls settle together. Cards and controls take input once those animations
+  finish. Reduced motion skips the entrance. Lock In keeps the gathering of the deck and the landing of both decks.
+- Mobilize drag follows the mouse at its grab point. Neighboring cards slide to preview the insertion slot, and a
+  full deck refuses an extra unit before release. Cards settle from the lifted pose into the deck, bench fan or
+  attachment spot. Suggest runs through the AI worker when available and only applies to the draft it was requested for.
 - Flying cards travel **under** the bars, decks, discard pile and banners (use `LAYER` / `flyZ`).
 - Dealt cards come out of their own deck; cards going to the discard pile end at the pile.
 - Start of a round: cleanup (unbought cards to the discard pile), upkeep (hourglass stamps) and the deal overlap in
   fixed windows (`ROUND_FX` in 09-play-screen), so more cards means a tighter stagger, not a longer wait: about 2.5 s
   for a full turnover. Brian tuned these numbers in the "Oasis shop animation lab" artifact (Nov 2026); change them
   there and copy them back. Cards that join the shop mid-round keep their own pace.
+- On the desktop mat, flights use the fitted tray positions. New cards begin turning face up as they touch down,
+  and a slot takes input once its card lands. Returning cards turn sideways into their slots, then get the hourglass.
+  Hover outlines the selected card without moving it. Clicking opens the larger face with keyword definitions and
+  its Buy or Sell button beside it. Sideways cards turn upright as they open, then turn back into the same slot when
+  dismissed. Dragging still buys or sells at the drop target. Opponent buys keep their individual read pause.
 - Every unit defeated in a step flies to the graveyard (`deathFly`), found from the step's `mv` moves to `grave`. In the
   face-up pile only the top card has `data-uid`; the cards under it carry `data-guid`, so a second unit of the same side
   defeated in that step lands on its own card underneath (or on the pile, when it's buried too deep to be drawn).

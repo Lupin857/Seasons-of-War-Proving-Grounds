@@ -119,12 +119,16 @@ function mzBenchItems(me, d){
 
 /* ---------- moves: each changes ui.draft, or sets ui.err and returns false ---------- */
 function mzFail(msg){ ui.err = msg; sfx.err(); return false; }
+function mzAddBlock(name){
+  const [used, limit] = mzLimits(mzMe(), ui.draft).uniq;
+  return !isBat(name) && !exemptUnit(name) && used >= limit ? `Your deck holds ${limit} unique units. Bench one first.` : '';
+}
 const mzOps = {
   // a bench card into the deck at position `at` (0 = front); returns the new card's id
   add(name, at){
-    const me = mzMe(), d = ui.draft;
+    const d = ui.draft;
     if (!benchHas(name)) return false;
-    if (!isBat(name) && !exemptUnit(name) && mzLimits(me, d).uniq[0] >= deckCap(me)) return mzFail(`Your deck holds ${deckCap(me)} unique units. Bench one first.`);
+    const why = mzAddBlock(name); if (why) return mzFail(why);
     const u = mzIds([{name, arm:0, tr:0, sh:0}])[0];
     d.splice(Math.max(0, Math.min(at, d.length)), 0, u); ui.err = ''; return u.id;
   },
@@ -245,7 +249,7 @@ function mobilizeHTML(){
       <div class="mzstack" id="mz-deck">${rows || '<div class="mzempty">Drag units here from the bench</div>'}</div>
       ${d.length ? `<div class="mzend front">Front · fights first</div>` : ''}
       ${ui.err ? `<p class="err" role="alert">${esc(ui.err)}</p>` : ''}
-      <div class="row mzacts"><button type="button" data-act="suggest">Suggest a deck</button><span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lockLbl}</button></div>
+      <div class="row mzacts">${mzSuggestHTML('Suggest a deck')}<span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lockLbl}</button></div>
     </section>
     <div class="mobright">
       <section class="panel mz-bench"><h2>Bench</h2>
@@ -272,15 +276,23 @@ function mzFlip(before, landKey, landFrom){
     let [dx, dy] = dl;
     // a tucked token or gear rides inside its unit: move it only by the difference
     if (el.classList.contains('mztk')){ const pd = delta.get('d:' + el.dataset.from); if (pd){ dx -= pd[0]; dy -= pd[1]; } }
-    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
     const land = k === landKey;
-    el.animate([{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}], {duration:land ? 180 : MZ_MS, easing:SLIDE});
+    const pose = land && landFrom?.rot != null ? landFrom : null;
+    if (pose){
+      const sx = pose.width / el.offsetWidth, sy = pose.height / el.offsetHeight;
+      if (el.offsetWidth && el.offsetHeight) el.animate([
+        {transformOrigin:'0 0', transform:`translate(${dx}px,${dy}px) rotate(${pose.rot}deg) scale(${sx},${sy})`},
+        {transformOrigin:'0 0', transform:'none'}
+      ], {duration:190, easing:SLIDE});
+    } else if (Math.abs(dx) >= 1 || Math.abs(dy) >= 1)
+      el.animate([{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}], {duration:land ? 180 : MZ_MS, easing:SLIDE});
   }
 }
 // make a change, redraw, and slide everything into place (landKey lands from landFrom, e.g. where it was dropped)
 function mzApply(fn, landKey, landFrom, snap){
   const before = snap || mzSnap();
   const ok = fn();
+  if (ok) ui.mzEdit = (ui.mzEdit || 0) + 1;
   renderPlay();
   if (ok) mzFlip(before, typeof landKey === 'function' ? landKey(ok) : landKey, landFrom);
   return ok;
@@ -290,6 +302,44 @@ function mzReplace(nd){
   const old = (ui.draft || []).slice();
   for (const u of nd){ const j = old.findIndex(o => o.name === u.name); if (j >= 0){ u.id = old[j].id; old.splice(j, 1); } }
   mzApply(() => { ui.draft = mzIds(nd); ui.err = ''; return true; });
+}
+function mzSuggestHTML(label, cls = ''){
+  const pending = !!ui.mzSuggest;
+  return `<button type="button" class="${cls}" data-act="suggest" data-label="${label}"${pending ? ' disabled aria-busy="true"' : ''}>${pending ? 'Suggesting…' : label}</button>`;
+}
+function mzPaintSuggest(){
+  const pending = !!ui.mzSuggest;
+  for (const button of $('view-play').querySelectorAll('[data-act="suggest"]')){
+    button.disabled = pending;
+    button.setAttribute('aria-busy', String(pending));
+    button.textContent = pending ? 'Suggesting…' : button.dataset.label;
+  }
+}
+async function mzSuggestDeck(){
+  if (!mzActive() || ui.mzSuggest || mzP) return;
+  const game = G, view = ui, round = G.round, player = seat(), draft = ui.draft, edit = ui.mzEdit;
+  const current = () => G === game && ui === view && G.round === round && seat() === player && mzActive()
+    && !mzP && ui.draft === draft && ui.mzEdit === edit;
+  view.mzSuggest = true;
+  mzPaintSuggest();
+  sfx.rustle();
+  let deck;
+  try{
+    const result = await aiThink('mob', {i:player, K:60, depth:DEPTH_HINT});
+    if (!current()) return;
+    if (result?.deck) deck = result.deck;
+    else {
+      // Give the button time to paint before using the compatibility path without a worker.
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      if (current()) deck = netClone(() => aiMobilize(game, player, 60, DEPTH_HINT));
+    }
+  } catch (err){
+    if (current()) showToast('Could not suggest a deck. Try again.');
+  } finally {
+    view.mzSuggest = false;
+    if (ui === view) mzPaintSuggest();
+  }
+  if (deck && current()) mzReplace(draftFromDeck(deck));
 }
 const mzEl = key => document.querySelector(`.mz [data-key="${CSS.escape(key)}"]`);
 const tuckKeyOfNewest = id => { const u = mzUnit(id); return u ? `k:${id}:${(u.gear ? 1 : 0) + tokOrder(u).length - 1}` : null; };
@@ -321,7 +371,7 @@ function mzDown(e){
 }
 function mzClear(){
   if (!mzP) return;
-  clearTimeout(mzP.t); if (mzP.scrollT) cancelAnimationFrame(mzP.scrollT);
+  clearTimeout(mzP.t); if (mzP.frame) cancelAnimationFrame(mzP.frame);
   mzP.el.classList.remove('mz-press', 'mz-lift');
   mzP = null;
 }
@@ -336,28 +386,35 @@ function mzMove(e){
     mzStart();
   }
   e.preventDefault();
-  p.wrap.style.left = (p.cx - p.dx) + 'px'; p.wrap.style.top = (p.cy - p.dy) + 'px';
-  if (!p.scrollT) mzAutoScroll();
-  mzHover();
+  if (!p.frame) p.frame = requestAnimationFrame(() => mzDragFrame(p));
 }
 // a card's own box on the screen: a card turned in the desktop bench fan counts as its untilted box round the same centre
 function mzBoxOf(el){
-  const r = el.getBoundingClientRect(); if (!el.closest('.osfan')) return r;
+  const r = el.getBoundingClientRect(), slot = el.closest('.osfanslot');
+  if (!slot) return {left:r.left, top:r.top, width:r.width, height:r.height, rot:0};
   const w = el.offsetWidth, h = el.offsetHeight, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  return {left:cx - w / 2, top:cy - h / 2, width:w, height:h, right:cx + w / 2, bottom:cy + h / 2};
+  const tf = getComputedStyle(slot).transform, m = new DOMMatrix(tf === 'none' ? undefined : tf);
+  return {left:cx - w / 2, top:cy - h / 2, width:w, height:h, rot:Math.atan2(m.b, m.a) * 180 / Math.PI};
 }
 function mzStart(){
   const p = mzP, el = p.el;
   p.drag = true; el.classList.remove('mz-press', 'mz-lift');
+  if (el.closest('.osdeskmob')) matHoverEnd(true);
   const r = mzBoxOf(el);
-  p.r0 = r; p.dx = p.x0 - r.left; p.dy = p.y0 - r.top;
+  const at = new DOMPoint(p.x0 - r.left - r.width / 2, p.y0 - r.top - r.height / 2).matrixTransform(new DOMMatrix().rotate(-r.rot));
+  p.dx = at.x + r.width / 2; p.dy = at.y + r.height / 2;
+  p.left = p.x0 - p.dx; p.top = p.y0 - p.dy; p.width = r.width;
+  p.strip = mzStripR();
+  p.blocked = p.type === 'bunit' ? mzAddBlock(p.name) : '';
   // the card in your hand: a copy of the same card, art drawn from what's already loaded so it's never blank
   const g = solidArt(el.cloneNode(true), r.width);
   g.removeAttribute('data-key'); g.removeAttribute('tabindex'); g.classList.add('mzghost');
   g.querySelectorAll('[data-key]').forEach(n => n.removeAttribute('data-key'));
   const wrap = document.createElement('div'); wrap.className = 'mz mzghostwrap'; wrap.setAttribute('aria-hidden', 'true');
-  wrap.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;--mzw:${r.width}px`;
+  wrap.style.cssText = `left:${p.left}px;top:${p.top}px;width:${r.width}px;height:${r.height}px;--mzw:${r.width}px`;
+  g.style.transformOrigin = `${p.dx}px ${p.dy}px`;
   wrap.appendChild(g); document.body.appendChild(wrap); p.wrap = wrap;
+  if (!reduceMotion()) g.animate([{transform:`rotate(${r.rot}deg) scale(1)`}, {transform:'rotate(-2deg) scale(1.045)'}], {duration:110, easing:SLIDE});
   document.body.classList.add('mz-dragging');
   if (p.type === 'deck' || p.type === 'bunit'){
     // units: a dashed slot in the deck shows exactly where the card will land. A deck card's slot starts in its own
@@ -377,14 +434,21 @@ function mzStart(){
       row.classList.add(!why && left > 0 ? 'mz-ok' : self ? 'mz-self' : 'mz-no');
     }
   }
-  sfx.pick();
+  if (!p.lifted || !p.touch) sfx.pick();
 }
-function mzAutoScroll(){
-  const p = mzP; if (!p || !p.drag) return;
-  const edge = 70, y = p.cy, h = window.innerHeight;
-  const v = y < edge ? -(edge - y) / 3 : y > h - edge ? (y - (h - edge)) / 3 : 0;
-  if (v){ window.scrollBy(0, Math.max(-24, Math.min(24, v))); mzHover(); }
-  p.scrollT = requestAnimationFrame(mzAutoScroll);
+function mzDragFrame(p, scroll = true){
+  p.frame = 0;
+  if (mzP !== p) return;
+  let scrolled = false;
+  if (scroll && !p.el.closest('.osmob')){
+    const edge = 70, y = p.cy, h = window.innerHeight, before = window.scrollY;
+    const v = y < edge ? -(edge - y) / 3 : y > h - edge ? (y - (h - edge)) / 3 : 0;
+    if (v) window.scrollBy(0, Math.max(-24, Math.min(24, v)));
+    scrolled = before !== window.scrollY;
+  }
+  mzHover();
+  p.wrap.style.transform = `translate3d(${p.cx - p.x0}px,${p.cy - p.y0}px,0)`;
+  if (scrolled) p.frame = requestAnimationFrame(() => mzDragFrame(p));
 }
 // the deck's cards in layout order (back to front), the slot included
 // each card's name strip as a share of its width: the layout's --mzsr on #mz-deck if it sets one (the desktop cascade)
@@ -426,12 +490,12 @@ function mzPlaceSlot(y){
     const b = mzBand(others, y);
     if (b < 0) ref = null;
     else { const t = others[b], r = t.getBoundingClientRect(), last = b === others.length - 1;
-      const mid = last ? r.top + Math.min(r.height, t.offsetWidth * mzStripR() * 2) / 2 : r.top + t.offsetWidth * mzStripR() / 2;
+      const mid = last ? r.top + Math.min(r.height, t.offsetWidth * p.strip * 2) / 2 : r.top + t.offsetWidth * p.strip / 2;
       ref = y < mid ? t : others[b + 1] || null; }
   } else {
     // after a move the slot needs half a strip of travel before it moves again, so it can't bounce between two
     // cards of different heights
-    if (p.slotY != null && Math.abs(y - p.slotY) < slot.offsetWidth * mzStripR() / 2) return;
+    if (p.slotY != null && Math.abs(y - p.slotY) < slot.offsetWidth * p.strip / 2) return;
     const b = mzBand(rows, y), t = rows[b], si = rows.indexOf(slot);
     if (!t || t === slot) return;
     ref = b > si ? rows[b + 1] || null : t;
@@ -440,35 +504,43 @@ function mzPlaceSlot(y){
   const before = new Map(others.map(x => [x, x.getBoundingClientRect()]));
   if (ref) deck.insertBefore(slot, ref); else deck.appendChild(slot);
   p.slotY = y; mzRenumber();
-  if (reduceMotion()) return;
-  for (const x of others){ const r0 = before.get(x), r1 = x.getBoundingClientRect(), dy = r0.top - r1.top, dx = r0.left - r1.left;
-    if (Math.abs(dy) > .5 || Math.abs(dx) > .5) x.animate([{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}], {duration:180, easing:SLIDE}); }
+  mzSlideSlot(others, before);
 }
 function mzDropSlot(){
   const p = mzP, slot = p.slot; if (!slot || !slot.isConnected) return;
   p.slotY = null;
   const others = mzRows().filter(x => x !== slot), before = new Map(others.map(x => [x, x.getBoundingClientRect()]));
   slot.remove(); mzRenumber();
+  mzSlideSlot(others, before);
+}
+const mzSlotMotion = new WeakMap();
+function mzSlideSlot(rows, before){
+  for (const row of rows) mzSlotMotion.get(row)?.cancel();
   if (reduceMotion()) return;
-  for (const x of others){ const r0 = before.get(x), r1 = x.getBoundingClientRect(), dy = r0.top - r1.top;
-    if (Math.abs(dy) > .5) x.animate([{transform:`translateY(${dy}px)`}, {transform:'none'}], {duration:180, easing:SLIDE}); }
+  const shifts = rows.map(row => {
+    const from = before.get(row), to = row.getBoundingClientRect();
+    return [row, from.left - to.left, from.top - to.top];
+  });
+  for (const [row, dx, dy] of shifts) if (Math.abs(dx) > .5 || Math.abs(dy) > .5)
+    mzSlotMotion.set(row, row.animate([{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}], {duration:160, easing:SLIDE}));
 }
 function mzHover(){
   const p = mzP; if (!p || !p.drag) return;
   const side = mzSide(p.cx), bench = document.querySelector('.forces.mz .mz-bench');
   // the top of the card in your hand marks the spot
-  const y = p.cy - p.dy + (p.wrap.offsetWidth * mzStripR()) / 2;
-  if (bench) bench.classList.remove('mz-over');
+  const y = p.cy - p.dy + p.width * p.strip / 2;
   if (p.type === 'deck' || p.type === 'bunit'){
+    p.refused = side === 'deck' && !!p.blocked;
+    p.wrap.classList.toggle('mz-refused', p.refused);
     if (side === 'deck'){
-      mzPlaceSlot(y);
+      if (!p.refused) mzPlaceSlot(y);
       const rows = mzRows(), si = rows.indexOf(p.slot);
       p.target = si < 0 ? null : {at:rows.length - 1 - si};   // deck position counts from the front (bottom)
     } else {
       mzDropSlot();
       p.target = side === 'bench' && p.type === 'deck' ? {bench:true} : null;
-      if (p.target && bench) bench.classList.add('mz-over');
     }
+    if (bench) bench.classList.toggle('mz-over', !!p.target?.bench);
     return;
   }
   // tokens and gear: the unit whose band the card is over, if it can take it
@@ -476,7 +548,7 @@ function mzHover(){
   if (side === 'deck'){ const rows = mzRows(), b = mzBand(rows, y), row = rows[b]; if (row && row.classList.contains('mz-ok')) ok = row.dataset.id; }
   document.querySelectorAll('#mz-deck > .mzc').forEach(r => r.classList.toggle('mz-over', r.dataset.id === ok));
   p.target = ok ? {unit:ok} : side === 'bench' && p.from ? {bench:true} : null;
-  if (p.target && p.target.bench && bench) bench.classList.add('mz-over');
+  if (bench) bench.classList.toggle('mz-over', !!p.target?.bench);
 }
 // put the page back the way it was before the drag started
 function mzUnstage(){
@@ -485,28 +557,44 @@ function mzUnstage(){
   document.querySelectorAll('.mz .mz-gone').forEach(n => n.classList.remove('mz-gone'));
   mzRenumber();
   document.querySelectorAll('.mz .mz-gone, .mz .mz-src, .mz .mz-ok, .mz .mz-no, .mz .mz-self, .mz .mz-over').forEach(n => n.classList.remove('mz-gone', 'mz-src', 'mz-ok', 'mz-no', 'mz-self', 'mz-over'));
-  document.querySelectorAll('#mz-deck > .mzc').forEach(r => { r.style.transform = ''; });
+  document.querySelectorAll('#mz-deck > .mzc').forEach(r => mzSlotMotion.get(r)?.cancel());
 }
-// the card flies back to where it came from, then the copy goes away
+// The lifted face's pose, including the rotation round the player's grab point.
+function mzGrabPose(p){
+  const card = p.wrap.firstElementChild, tf = getComputedStyle(card).transform;
+  const m = new DOMMatrix(tf === 'none' ? undefined : tf);
+  const at = new DOMPoint(-p.dx, -p.dy).matrixTransform(m), scale = Math.hypot(m.a, m.b);
+  return {left:p.cx + at.x, top:p.cy + at.y, width:card.offsetWidth * scale, height:card.offsetHeight * scale, rot:Math.atan2(m.b, m.a) * 180 / Math.PI};
+}
+// The original card takes over once the lifted copy reaches its resting pose.
 function mzFlyBack(wrap, key){
   const el = key && mzEl(key);
   if (!el || reduceMotion()){ wrap.remove(); return; }
   el.style.visibility = 'hidden';
   // a card in the desktop bench fan goes back to its pose, turning as it lands
   const pose = el.closest('.osfan') && typeof matPoseOf === 'function' ? matPoseOf(el) : null, rot = pose ? pose.rot : 0;
-  const r = pose ? pose.r : el.getBoundingClientRect(), gr = wrap.getBoundingClientRect();
-  if (rot) wrap.style.transformOrigin = '50% 50%';
-  const a = wrap.animate([{transform:'none'}, {transform:`translate(${r.left - gr.left}px,${r.top - gr.top}px)${rot ? ` rotate(${rot}deg)` : ''}`}], {duration:200, easing:SLIDE, fill:'forwards'});
+  const r = pose ? pose.r : el.getBoundingClientRect(), card = wrap.firstElementChild;
+  const sx = r.width / wrap.offsetWidth, sy = r.height / wrap.offsetHeight;
+  const corner = new DOMPoint(-r.width / 2, -r.height / 2).matrixTransform(new DOMMatrix().rotate(rot));
+  const x = r.left + r.width / 2 + corner.x - wrap.offsetLeft, y = r.top + r.height / 2 + corner.y - wrap.offsetTop;
+  const o = {duration:200, easing:SLIDE, fill:'forwards'};
+  card.animate([{transform:getComputedStyle(card).transform}, {transform:'none'}], o);
+  wrap.style.transformOrigin = '0 0';
+  const a = wrap.animate([{transform:wrap.style.transform || 'none'}, {transform:`translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${sx},${sy})`}], o);
   const done = () => { wrap.remove(); el.style.visibility = ''; };
   a.onfinish = done; a.oncancel = done;
 }
 function mzDrop(cancel){
   const p = mzP; mzP = null;
-  clearTimeout(p.t); if (p.scrollT) cancelAnimationFrame(p.scrollT);
+  clearTimeout(p.t); if (p.frame) cancelAnimationFrame(p.frame);
   const t = cancel || !mzActive() ? null : p.target, wrap = p.wrap;
-  const ghostRect = wrap.getBoundingClientRect(), before = mzSnap();
+  const ghostRect = reduceMotion() ? null : mzGrabPose(p), before = mzSnap();
   mzUnstage();
-  if (!t){ sfx.soft(); mzFlyBack(wrap, p.key); return; }
+  if (!t){
+    if (!cancel && p.refused && mzActive()){ mzFail(p.blocked); renderPlay(); }
+    else sfx.soft();
+    mzFlyBack(wrap, p.key); return;
+  }
   let fn = null, land = null;
   switch (p.type){
     case 'deck':
@@ -532,7 +620,13 @@ function mzDrop(cancel){
 }
 function mzUp(e){
   const p = mzP; if (!p || e.pointerId !== p.pid) return;
-  if (p.drag){ mzDrop(false); return; }
+  if (p.drag){
+    if (p.frame || p.cx !== e.clientX || p.cy !== e.clientY){
+      if (p.frame) cancelAnimationFrame(p.frame);
+      p.cx = e.clientX; p.cy = e.clientY; mzDragFrame(p, false);
+    }
+    mzDrop(false); return;
+  }
   const el = p.el; mzClear();
   if (el.isConnected && mzActive()) mzOpen(el);
 }

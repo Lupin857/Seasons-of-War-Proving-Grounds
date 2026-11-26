@@ -139,7 +139,8 @@ function kwGlossHTML(ids, self){
    fresh from the card's identity, so it always looks the same: the shared cardFace(), then the source card's status
    stamps and its buttons. Nothing from where the card sat (Vanguard ring, faded "can't afford", stack shadows,
    tapped or selected states) comes along. Styled only by .cardpop / .peek. */
-const popBtns = card => [...card.querySelectorAll(':scope > button, :scope > .row button, :scope .dbtn button')];
+const PEEK_SELL = '.ostop > span[data-act^="sell-"]';   // the face inside the deck button cannot contain a button
+const popBtns = card => [...card.querySelectorAll(`:scope > button, :scope > .row button, :scope .dbtn button, :scope${PEEK_SELL}`)];
 // The large card. On phones (js/mobile-crop.js) its pictures load at once, drawn to a canvas when ready.
 function cardPop(card){
   const pk = cardPop0.apply(this, arguments);
@@ -161,7 +162,14 @@ function cardPop0(card){
     pk.querySelectorAll('.stamps, button, .dord, .pkhit, .dealback, .mirpop, .hgtok').forEach(n => n.remove());
   }
   const st = card.querySelector(':scope > .stamps'); if (st) pk.appendChild(st.cloneNode(true));
-  for (const b of popBtns(card)){ const c = b.cloneNode(true); c.removeAttribute('style'); pk.appendChild(c); }
+  for (const b of popBtns(card)){
+    const c = b.tagName === 'BUTTON' ? b.cloneNode(true) : document.createElement('button');
+    if (b.tagName !== 'BUTTON'){
+      for (const a of b.attributes) c.setAttribute(a.name, a.value);
+      c.textContent = b.textContent;
+    }
+    c.removeAttribute('style'); pk.appendChild(c);
+  }
   return pk;
 }
 // Open the large card. On phones (js/mobile-crop.js) it waits for the art to decode, 150 ms at most.
@@ -293,21 +301,25 @@ function wirePeek(card, wrap){
   // or (if the screen has redrawn since) by finding the live button whose data matches, compared directly
   const liveBtns = popBtns(card);
   const sameData = (a, b) => { const ka = Object.keys(a.dataset); return ka.length && ka.length === Object.keys(b.dataset).length && ka.every(k => a.dataset[k] === b.dataset[k]); };
+  const actionSelector = '.peek button, .osinspect-actions > button';
+  const findLive = b => [...$('view-play').querySelectorAll(`button[data-act], ${PEEK_SELL}`)].find(x => sameData(x, b));
   wrap.addEventListener('click', e => {
     if (!peekReady) return;                       // ignore the release of the press that opened it
-    const b = e.target.closest('.peek button');
+    const b = e.target.closest(actionSelector);
     if (b){
-      const pkBtns = [...wrap.querySelectorAll('.peek button')], k = pkBtns.indexOf(b);
+      if (b.disabled) return;
+      const pkBtns = [...wrap.querySelectorAll(actionSelector)], k = pkBtns.indexOf(b);
       let live = liveBtns[k];
-      if (!live || !live.isConnected || !sameData(live, b)) live = [...document.querySelectorAll('#view-play button[data-act]')].find(x => sameData(x, b)) || null;
+      if (!live || !live.isConnected || !sameData(live, b)) live = findLive(b);
       // the card sinks away first, then its button is pressed, so a buy's flight to the deck isn't hidden behind it
       closePeek(false, () => {
-        if (!live || !live.isConnected) live = [...document.querySelectorAll('#view-play button[data-act]')].find(x => sameData(x, b)) || null;
+        if (!live || !live.isConnected) live = findLive(b);
         if (live && !live.disabled) live.click();
       });
       return;
     }
-    if (e.target.closest('.sheetx') || !e.target.closest('.peek, .sheet')) closePeek();   // tap outside the card: back to the market
+    const inside = wrap.classList.contains('osshopinspect') ? '.oslift' : '.peek, .sheet';
+    if (e.target.closest('.sheetx, .osinspect-close') || !e.target.closest(inside)) closePeek();
   });
 }
 // Battle cards: click (or tap) one to read its full rules as a shop-style card, at its level in this battle.
@@ -375,7 +387,7 @@ function endPress(){
 $('view-play').addEventListener('pointerdown', e => {
   const card = e.target.closest('.mktp .mcard, .fcards .mcard, .dgrid .mcard'); if (!card || e.button > 0 || card.classList.contains('masonpick') || card.classList.contains('tcard') || card.classList.contains('writtgt') || card.classList.contains('writoff')) return;
   if (compact()) return;   // phones open a card with a tap instead
-  if (typeof matDesk === 'function' && matDesk() && card.closest('.osdesk')) return;   // the desktop mat: hover reads a card
+  if (typeof matDesk === 'function' && matDesk() && card.closest('.osdesk')) return;   // the desktop mat opens on click
   if (e.pointerType !== 'mouse' && card.closest('.dgrid')) return;   // touch: holding a Mobilize card picks it up to drag; double-tap reads it
   endPress();
   press = {x:e.clientX, y:e.clientY, t:setTimeout(() => openPeek(card), 380)};
@@ -385,7 +397,7 @@ window.addEventListener('pointerup', e => { if (peekEl && peekReady) return; end
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && peekEl) closePeek(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !peekEl && (ui.pkWin || ui.deckView != null)){ popShut(); renderPlay(); } }, true);   // capture: runs before a card pop-up's Escape, so one press closes one thing
 // a card with miracles behind it opens its panel from the keyboard too
-$('view-play').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mcard.hasmir, .mcard.writtgt, .stage .card.citycard')){ e.preventDefault(); e.target.click(); } });
+$('view-play').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mcard.hasmir, .mcard.writtgt, .stage .card.citycard, .osinspectable[tabindex]')){ e.preventDefault(); e.target.click(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.remind){ ui.remind = null; renderPlay(); } });
 $('view-play').addEventListener('click', e => { if (ui.remind && e.target.classList && e.target.classList.contains('remind')){ ui.remind = null; renderPlay(); } });
 window.addEventListener('pointercancel', () => { if (peekEl && peekReady) return; endPress(); });
@@ -393,10 +405,14 @@ window.addEventListener('scroll', () => { if (press && !peekEl) endPress(); }, {
 // phones: tapping a card in the market or in anyone's forces opens it as a sheet (Mobilize cards have their own taps)
 $('view-play').addEventListener('click', e => {
   if (!G || ui.start) return;
+  const shopCard = typeof matDeskShopCard === 'function' && matDeskShopCard(e.target);
+  if (shopCard && !e.target.closest('.ostag, .mirpop, button:not(.osdeck), [data-act^="sell-"]')){
+    e.stopPropagation(); e.preventDefault(); openPeek(shopCard, true); return;
+  }
   if (e.target.closest('button')) return;
   if (!compact() && (e.target.closest('.hgtok') || e.target.closest('.mcard.hasmir'))) return;   // desktop: a covered card's click shows its miracles   // the card's own buttons (pressed for you from the sheet) act as usual
   const card = e.target.closest('.mktp .mcard, .fcards .mcard, .pkwin .mcard'); if (!card || card.classList.contains('masonpick') || card.classList.contains('writtgt') || card.classList.contains('writoff') || e.target.closest('.mirpop')) return;
-  if (typeof matDesk === 'function' && matDesk() && card.closest('#view-play .osdesk')){ e.stopPropagation(); e.preventDefault(); return; }   // the desktop mat: hover reads, drag buys and sells; a click does nothing
+  if (typeof matDesk === 'function' && matDesk() && card.closest('#view-play .osdesk')) return;
   e.stopPropagation(); e.preventDefault(); openPeek(card, true);
 }, true);
 // the press that opened a peek must not also buy the card
