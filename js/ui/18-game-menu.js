@@ -31,7 +31,10 @@
     // the phone battle on the mat has no controls row: its speed switch lives here (the same setting as the row's 1× / 2×)
     const sp = ui.battle && typeof labMatZones === 'function' && labMatZones()
       ? `<button type="button" role="menuitemcheckbox" aria-checked="${autoFast()}" class="gmenu-item gmenu-snd" data-gspeed="1">Fast battles (2×)<span class="gmenu-sw${autoFast() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
-    pop.innerHTML = items + s + sp + (bs ? (s || sp ? '' : '<div class="gmenu-sep"></div>') + bs : '') + (bc ? '<div class="gmenu-sep"></div>' + bc : '');
+    // designers on a wide screen: the desktop one-screen mat while it is being built (localStorage.oasisMatDesk, js/rug.js)
+    const md = typeof canAdmin !== 'undefined' && canAdmin && !playerPreview && !compact() && typeof matDeskOn === 'function'
+      ? `<button type="button" role="menuitemcheckbox" aria-checked="${matDeskOn()}" class="gmenu-item gmenu-snd" data-gmdesk="1">Desktop table (in progress)<span class="gmenu-sw${matDeskOn() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
+    pop.innerHTML = items + s + sp + md + (bs ? (s || sp ? '' : '<div class="gmenu-sep"></div>') + bs : '') + (bc ? '<div class="gmenu-sep"></div>' + bc : '');
   }
   function mark(){ const b = btn(); if (b) b.setAttribute('aria-expanded', String(!pop.hidden)); }
   function place(){
@@ -51,6 +54,7 @@
   pop.addEventListener('click', e => {
     const t = e.target.closest('[data-gtab]'), s = e.target.closest('[data-gsnd]'), bd = e.target.closest('[data-gboard]'), gc = e.target.closest('[data-gcode]'), sp = e.target.closest('[data-gspeed]');
     if (sp){ try { sfx.soft(); } catch(_){} LS.set('sow-autofast', !autoFast()); if (autoOn() && autoT) startAuto(200); build(); return; }
+    if (e.target.closest('[data-gmdesk]')){ try { sfx.soft(); } catch(_){} try { localStorage.setItem('oasisMatDesk', matDeskOn() ? '0' : '1'); } catch(_){} build(); if (G && !$('view-play').hidden) renderPlay(); return; }
     if (gc){
       close(); try { sfx.soft(); } catch(_){}
       const k = gc.dataset.gcode;

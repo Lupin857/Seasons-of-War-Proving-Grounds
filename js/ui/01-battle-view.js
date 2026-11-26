@@ -73,7 +73,7 @@ function miniHTML(u, rside, k){
 let SHHIT = null;
 function shieldHits(f){
   const m = new Map();
-  for (const l of (f && f.lines) || []) if (l.to && !l.tok && l.amt === 0) m.set(l.to, (m.get(l.to) || 0) + 1);
+  for (const l of (f && f.lines) || []) if (l.to && !l.tok && !l.sil && !l.cut && l.amt === 0) m.set(l.to, (m.get(l.to) || 0) + 1);
   return m;
 }
 function lineHTML(f, names){

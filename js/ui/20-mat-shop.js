@@ -13,9 +13,10 @@
      pile (units: the top card face up, the copies as edges under it; tap: the deck view); the rival's bar also holds
      their water as medallion coins with a count pill. Whoever's turn it is, their bar glows (no turn chip).
    - Your purse, buys left, Miracles and Pass sit in the bottom bar (matDockHTML).
-   Off: the rug's switch (localStorage.oasisRug = '0') brings back the scrolling phone shop. Desktop never uses this. */
+   Off: the rug's switch (localStorage.oasisRug = '0') brings back the scrolling phone shop. Desktop uses this only behind localStorage.oasisMatDesk = '1' (matOn, js/rug.js;
+   the desktop layout is still to come: Oasis desktop one-screen plan). */
 function matShopOn(){
-  return !!G && G.phase === 'shop' && !ui.battle && !G.over && compact() && typeof rugWanted === 'function' && rugWanted();
+  return !!G && G.phase === 'shop' && !ui.battle && !G.over && typeof matOn === 'function' && matOn();
 }
 // the coins and the count pill: up to 6 medallions in a little heap, then the exact count and next shop's income
 function matPurseHTML(i){
@@ -36,6 +37,8 @@ function matSeatHTML(i, mode = 'shop'){
   // your Caravan and hand cards carry their Sell button (hidden in the bar; it shows when the card is lifted to read)
   const canSell = mine && mode === 'shop' && G.phase === 'shop' && !ui.battle && cur(G) === S && !G.passed[S], sell = (n, k) => canSell ? shopSellBtnHTML(n, k) : '';
   const who = PP() || G.net ? esc(nm(i)) : mine ? 'Your' : 'Enemy';
+  const desk = matDesk();   // desktop: one row on the mat (matDeskPilesHTML), not a fixed bar; in the battle, a strip of cropped cards
+  const strip = desk && mode === 'battle';
   // the Caravan: one card per support; each Moisture Harvester copy fills a spot of its own (as the limit counts them)
   const car = [];
   for (const n in p.city){ const c = p.city[n]; if (!(c > 0) || !BDEFS[n]) continue; if (n === 'Field') for (let k = 0; k < c; k++) car.push(['Field', 1]); else car.push([n, c]); }
@@ -59,19 +62,65 @@ function matSeatHTML(i, mode = 'shop'){
     const handHTML = gear.map(n => `<div class="mcard b oshand"${matWaitN(i, n) ? ' style="visibility:hidden"' : ''}>${cardFace(n, 'b', p.gear[n], true)}${sell(n, 'b')}</div>`).join('');
     const handRow = gear.length || mine ? `<div class="fcards oshandrow" aria-label="${who} hand">${handHTML || '<span class="osslot oshandslot" aria-hidden="true">Hand</span>'}</div>` : '';
     rest = `<i class="osbardiv" aria-hidden="true"></i>${handRow}${pile}${mine ? '' : matPurseHTML(i)}`;
+    if (desk) rest = `<i class="osbardiv" aria-hidden="true"></i>${matDeskPilesHTML(i, hand, mode)}${matPurseHTML(i)}`;
   }
   const act = mode === 'shop' && G.phase === 'shop' && !G.passed[i] && cur(G) === i;   // whose turn it is: their bar glows
-  return `<section class="osseat osbar ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" aria-label="${who} side${act ? ', shopping now' : ''}">
-    <div class="fcards oscarrow" style="--n:${spots}" aria-label="${who} Caravan, ${slotsUsed(p)} of ${cap}">${carHTML}</div>${rest}
+  const side = desk ? `<span class="osside" aria-hidden="true">${PP() || G.net ? esc(nm(i)) : mine ? 'You' : 'Enemy'}</span>` : '';
+  if (strip) rest = `<i class="osbardiv" aria-hidden="true"></i>${matDeskPilesHTML(i, hand, 'battle')}${matPurseHTML(i)}`;
+  return `<section class="osseat ${strip ? 'osrow osstrip' : desk ? 'osrow' : 'osbar'} ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" aria-label="${who} side${act ? ', shopping now' : ''}">
+    ${side}<div class="fcards oscarrow" style="--n:${spots}" aria-label="${who} Caravan, ${slotsUsed(p)} of ${cap}">${carHTML}</div>${rest}
   </section>`;
+}
+/* Desktop row (Oasis desktop shop brief): after the Caravan, the deck pile (units and gear from before this shop), the
+   "Bought this shop" pile (units and gear bought this shop, with the buys left; supports go straight into the
+   Caravan), the Miracles pile, then the water. Each pile: the top card face up, the copies as edges under it, a tag. */
+function matDeskPilesHTML(i, hand, mode = 'shop'){
+  const S = seat(), mine = i === S, p = G.players[i], gear = p.gear || {}, got = (G.shopBought && G.shopBought[i]) || [];
+  const isGear = n => !!(BDEFS[n] && BDEFS[n].gear), kindOf = n => DEFS[n] ? 'u' : 'b';
+  const bought = {}; for (const n of got) if (DEFS[n] || isGear(n)) bought[n] = (bought[n] || 0) + 1;
+  const deck = {}, nb = {};
+  for (const n in hand) if (hand[n] > 0) deck[n] = hand[n];
+  for (const n in gear) if (gear[n] > 0) deck[n] = (deck[n] || 0) + gear[n];
+  for (const n in bought){ const k = Math.min(bought[n], deck[n] || 0); if (k > 0){ nb[n] = k; deck[n] -= k; if (!deck[n]) delete deck[n]; } }
+  const count = o => Object.values(o).reduce((t, c) => t + c, 0);
+  const edges = n => Array.from({length:Math.min(3, Math.max(0, n - 1))}, (_, k) => `<i class="osedge" style="--k:${k + 1}"></i>`).join('');
+  const canSell = mine && G.phase === 'shop' && !ui.battle && cur(G) === S && !G.passed[S];   // (its Sell button is pressed by a drag to the discard)
+  // (the deck pile is itself a button, and a button can't hold another: there the Sell control is a span with the same data-act)
+  const sellCtl = (n, inBtn) => { const h = canSell ? shopSellBtnHTML(n, kindOf(n)) : ''; return inBtn ? h.replace(/<button\b/g, '<span').replace(/<\/button>/g, '</span>') : h; };
+  const top = (n, hide, inBtn) => `<span class="mcard ${kindOf(n)} ostop"${hide ? ' style="visibility:hidden"' : ''}>${cardFace(n, kindOf(n), kindOf(n) === 'u' ? (hand[n] || 1) : gear[n] || 1, true)}${sellCtl(n, inBtn)}</span>`;
+  // the deck pile: the most recently bought card on top, as on the phone
+  const dn = count(deck), du = Object.keys(deck).filter(n => DEFS[n]).reduce((t, n) => t + deck[n], 0), dtop = matPileTop(p, deck);
+  const dtag = dn ? `Deck · ${du} unit${du === 1 ? '' : 's'}${dn - du ? ` + ${dn - du} gear` : ''}` : 'Deck';
+  const deckPile = `<button type="button" class="ospile osdeck deckbtn s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: ${esc(dtag)}, units ${uniqueUnits(hand === p.hand ? p : {...p, hand})} of ${deckCap(p)}, click to view">
+    ${edges(dn)}${dtop ? top(dtop, false, true) : '<span class="osslot" aria-hidden="true"></span>'}<span class="ostag">${esc(dtag)}</span></button>`;
+  // bought this shop: the latest buy on top (it hides while a rival's buy is still on its way to it)
+  const bn = count(nb), btop = got.filter(n => nb[n]).pop() || null, b = G.buys && G.buys[i], left = b ? Math.max(0, baseLeft(b)) : 0, of = b ? buysOf(b) : 3;
+  const bhide = btop && (matWaitN(i, 'pile') || matWaitN(i, btop));
+  const boughtPile = `<div class="ospile osbought s${VS(i)}" aria-label="Bought this shop: ${bn} card${bn === 1 ? '' : 's'}, ${left} of ${of} buys left">
+    ${edges(bn)}${btop ? top(btop, bhide) : '<span class="osslot" aria-hidden="true"></span>'}<span class="ostag osgold">Bought this shop<br>${left}/${of} buys left</span></div>`;
+  // Miracles: face down with the count (yours opens the miracles tray, as the phone's Miracles button does)
+  let mir = '';
+  // Mobilize: both decks are lifted off the mat (the bought pile joined the deck at the end of the shop)
+  const gone = tag => `<div class="ospile osgone s${VS(i)}"><span class="osslot" aria-hidden="true"></span><span class="ostag">${tag}</span></div>`;
+  if (G.miracles){
+    const mn = (p.mir || []).length, live = mine && shopMirLive();
+    const inner = `${edges(mn)}<span class="osmirback${mn ? '' : ' osempty'}" aria-hidden="true">✶</span><span class="ostag osmirtag">Miracles · ${mn}</span>`;
+    mir = mine ? `<button type="button" class="ospile osmirp${live ? ' glow' : ''}${ui.mirTray ? ' on' : ''}" data-act="mir-tray" aria-expanded="${!!ui.mirTray}" aria-label="Miracles (${mn})">${inner}</button>`
+      : `<div class="ospile osmirp" aria-label="${esc(nm(i))}'s miracles: ${mn}">${inner}</div>`;
+  }
+  if (mode === 'mob') return gone('Deck · lifted').replace('ospile osgone', 'ospile osdeck osgone') + gone('Bought · joined deck') + mir;
+  if (mode === 'battle') return mir;   // the battle's strip: the Caravan, Miracles and the water
+  return deckPile + boughtPile + mir;
 }
 // renderPlay's step: the bars (and the mat between them) start right where the top bar ends on screen (--gtb), so the
 // rival's bar is at the same place in every phase whatever the page's scroll (the battle can scroll a little)
 function matBarsAfterDraw(){
-  if (!document.querySelector('#view-play .osbar')) return;
+  const desk = document.querySelector('#view-play .osshop.osdesk');
+  if (!document.querySelector('#view-play .osbar') && !desk) return;
   if (window.scrollY && !matBarsAfterDraw.busy){ matBarsAfterDraw.busy = true; window.scrollTo(0, 0); matBarsAfterDraw.busy = false; }   // the page sits at its top in every phase on the mat, so nothing shifts between them
   const g = $('gtop'), b = g && g.offsetHeight ? Math.round(g.getBoundingClientRect().bottom) : null;
   if (b != null && document.documentElement.style.getPropertyValue('--gtb') !== b + 'px') document.documentElement.style.setProperty('--gtb', b + 'px');
+  if (desk){ if (g && !MATBARS_SEEN.has(g)){ MATBARS_SEEN.add(g); MATBARS_RO.observe(g, {box:'border-box'}); } if (MATHOV.card && !MATHOV.card.isConnected) matHoverEnd(true); matFitDesk(desk); matDeskMobLayout(); return; }
   // your bar sits on the dock's real top edge: measured, so the home-bar padding or a dock that grows after the
   // first draw (fonts, a second row) can never cover it (Brian's iPhone, v89)
   const dk = $('dock'), dh = dk && dk.offsetHeight ? Math.max(0, Math.round(window.innerHeight - dk.getBoundingClientRect().top)) : null;
@@ -100,21 +149,43 @@ function matFitMat(){
   }
   shop.style.setProperty('--mw', Math.floor(lo * 10) / 10 + 'px');
 }
+// desktop: the card width (--mw) that fits the whole mat (both rows and the trays) in the window, in its tilt, rows
+// anchored to the bottom; about 173 px at 1920x1080 (the mock-up). Searched on screen, so the tilt is included.
+function matFitDesk(shop){
+  const inner = shop.querySelector('.osinner'); if (!inner) return;
+  const box = shop.getBoundingClientRect();
+  const fits = () => { for (const c of inner.children){ const r = c.getBoundingClientRect(); if (r.height && (r.top < box.top || r.left < box.left || r.right > box.right)) return false; } return true; };
+  let lo = 60, hi = 320;
+  for (let i = 0; i < 10 && hi - lo > 0.5; i++){ const m = (lo + hi) / 2; shop.style.setProperty('--mw', m + 'px'); if (fits()) lo = m; else hi = m; }
+  const mw = Math.floor(lo * 10) / 10 + 'px';
+  shop.style.setProperty('--mw', mw); document.documentElement.style.setProperty('--deskmw', mw);   // (the battle's Caravan strips keep this size)
+  const mob = document.querySelector('#view-play .osdeskmob'); if (mob) mob.style.setProperty('--mw', mw);   // Mobilize's cards are the board's size
+}
 const MATBARS_SEEN = new WeakSet();
-const MATBARS_RO = new ResizeObserver(() => { if (document.querySelector('#view-play .osbar')) matBarsAfterDraw(); });
-window.addEventListener('scroll', () => { if (document.querySelector('#view-play .osbar')) matBarsAfterDraw(); }, {passive:true});
-for (const t of [window, window.visualViewport]) if (t) t.addEventListener('resize', () => { if (document.querySelector('#view-play .osbar')) matBarsAfterDraw(); });
+const matBarsHere = () => !!document.querySelector('#view-play :is(.osbar, .osshop.osdesk)');
+const MATBARS_RO = new ResizeObserver(() => { if (matBarsHere()) matBarsAfterDraw(); });
+window.addEventListener('scroll', () => { if (matBarsHere()) matBarsAfterDraw(); }, {passive:true});
+for (const t of [window, window.visualViewport]) if (t) t.addEventListener('resize', () => { if (matBarsHere()) matBarsAfterDraw(); });
 // the two trays and the discard pile between them (deck: the tray's shop deck, row: its market row)
-function matTraysHTML(deck, row, extra){
+// side (desktop): the discard pile and Pass go in a column right of the trays instead
+function matTraysHTML(deck, row, extra, side){
+  const disc = `<div class="osdisc">${musterPileHTML()}</div>`;
   return `<div class="osmid"><div class="mktp osmkt">${extra[0] || ''}
       <div class="ostray" data-k="u">${deck('u')}<div class="msec" data-k="u"><span class="oslbl">Units</span><div class="market">${row('u', 'du')}</div></div></div>
-      <div class="osdisc">${musterPileHTML()}</div>
+      ${side ? '' : disc}
       <div class="ostray" data-k="b">${deck('b')}<div class="msec" data-k="b"><span class="oslbl">Support &amp; gear</span><div class="market">${row('b', 'db')}</div></div></div>
       ${extra[1] || ''}
-    </div></div>`;
+    </div>${side ? `<div class="osright">${disc}${side}</div>` : ''}</div>`;
 }
 function matShopHTML(){
   const S = seat();
+  // desktop: both rows and the trays on one tilted mat, the discard and Pass on the right, no bottom bar
+  if (matDesk()) return `<div class="osshop osdesk"><div class="osplane"><div class="osinner">
+    ${matSeatHTML(1 - S)}
+    ${matTraysHTML(k => deckPileHTML(k, false, true), marketRow, [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${shopActsHTML()}</div>`)}
+    ${matSeatHTML(S)}
+  </div></div></div>
+  ${mirTrayHTML()}${mirModalHTML()}`;
   return `${matSeatHTML(1 - S)}${matSeatHTML(S)}<div class="osshop"><div class="osplane"><div class="osinner">
     ${matTraysHTML(k => deckPileHTML(k, false, true), marketRow, [writBarHTML(), frozenHTML(S)])}
   </div></div></div>
@@ -122,6 +193,7 @@ function matShopHTML(){
 }
 // the bottom bar on the mat: your purse, buys left, then Miracles and Pass (the same buttons the phone shop bar uses)
 function matDockHTML(mine, mirBtn, acts){
+  if (matDesk()) return '';   // desktop: no bottom bar (the water, buys left and Miracles are on your row, Pass by the discard)
   const S = seat();
   return `<div class="dock osdock${mine ? ' mine' : ''} ph-shop" id="dock">${matPurseHTML(S)}${tileSlotsHTML(S)}<span class="grow"></span><div class="dbtns dact">${ui.visArm ? '' : mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
@@ -141,8 +213,8 @@ function matLiftWanted(card){ return (matShopOn() && !!card.closest('#view-play 
 // crop: it sits cropped there (mat cards, the bench), so the crop opens as it lifts
 function matLiftFrom(el){
   if (!el || !el.isConnected) return null;
-  if (el.closest('.osplane')){ const r = matFlatRect(el); return r && {r, tilt:1, crop:true}; }
-  return {r:el.getBoundingClientRect(), tilt:0, crop:!el.closest('#mz-deck')};
+  if (el.closest('.osplane')){ const r = matFlatRect(el); return r && {r, tilt:1, crop:compact()}; }
+  return {r:el.getBoundingClientRect(), tilt:0, crop:compact() && !el.closest('#mz-deck')};
 }
 // the card that was lifted, as it is on the page now (a redraw may have replaced its element)
 function matLiftSrc(){
@@ -169,7 +241,9 @@ function matTiltMatrix(a = 1, q = matTiltOf()){
    the rect the box sits on (left, top, width), tilt 1 means r is a flat mat spot and the box lies in the mat's tilt
    there (matPose), 0 flat on the screen. The tilt comes off (or on) over the half of the flight nearest the mat.
    o.bump: the card grows by that much of its size at the top of the arc. The last step is exactly the end.
-   Both ends on the mat (tilt 1 and 1): the card slides across the mat in its tilt all the way (the sweep, a card dealt back). */
+   Both ends on the mat (tilt 1 and 1): the card slides across the mat in its tilt all the way (the sweep, a card dealt back).
+   An end may also be turned: rot, in degrees about the card's centre (a card in a fan, matFanPoses); the turn eases
+   from one end's to the other's. The box b must then have its height. */
 const MAT_STEPS = 24;
 function matArc(b, A, B, o = {}){
   const q = matTiltOf(); if (!q) return null;
@@ -182,7 +256,9 @@ function matArc(b, A, B, o = {}){
     const x = v * v * ax + 2 * v * u * cx + u * u * bx, y = v * v * ay + 2 * v * u * cy + u * u * by;
     const w = aw + (bw - aw) * u + (o.bump || 0) * Math.sin(Math.PI * u) * Math.max(aw, bw);
     const a = A.tilt && B.tilt ? 1 : A.tilt ? 1 - sm(u / .5) : B.tilt ? sm((u - .5) / .5) : 0;   // both on the mat: the whole flight stays in the tilt
-    out.push({transform:new DOMMatrix().translate(-b.left, -b.top).multiply(matTiltMatrix(a, q)).translate(x, y).scale(w / b.width).toString()});
+    let m = new DOMMatrix().translate(-b.left, -b.top).multiply(matTiltMatrix(a, q)).translate(x, y).scale(w / b.width);
+    if (A.rot || B.rot){ const r = (A.rot || 0) + ((B.rot || 0) - (A.rot || 0)) * sm(u); m = m.translate(b.width / 2, b.height / 2).rotate(r).translate(-b.width / 2, -b.height / 2); }
+    out.push({transform:m.toString()});
   }
   return out;
 }
@@ -215,6 +291,7 @@ const MAT_CROP = 728 / 750;   // the crop's height for its width (the phone card
    keys: [[offset, 'crop' | 'open'], ...]. Returns {anims, done}: done() drops the clip (call it as the move ends). */
 const MAT_TABTOP = .89354;   // where the crop's bottom corners start, of its height (from the #tabclip path)
 function matCrop(pk, keys, opt){
+  if (!compact()) return {anims:[], done:() => {}};   // desktop mat: full cards, nothing to crop (a card just unflattens)
   const face = pk.querySelector(':scope > .cface'), d = (document.querySelector('#tabclip path') || {getAttribute:() => null}).getAttribute('d');
   if (!face || !d) return {anims:[], done:() => {}};
   const w = face.offsetWidth, cH = w * MAT_CROP, y0 = face.offsetTop, H = pk.offsetHeight, open = H - y0 - MAT_TABTOP * cH + 2, top = -(H + open + 40);
@@ -349,9 +426,10 @@ function matFlightFrame(el, dest){
 // gear in the hand spot, supports in the Caravan (the card it levels, or its new spot)
 function matSpotOf(n, k, i = seat()){
   const me = document.querySelector(`#view-play .osseat.${i === seat() ? 'me' : 'opp'}`); if (!me) return null;
-  if (k === 'u') return me.querySelector('.ospile .ostop');
+  const bought = me.querySelector('.osbought .ostop');   // desktop: units and gear land on the "Bought this shop" pile
+  if (k === 'u') return bought || me.querySelector('.ospile .ostop');
   const named = sel => [...me.querySelectorAll(sel)].filter(e => { const f = e.querySelector('.cfm'); return f && f.dataset.n === n; }).pop();
-  return named('.oshand') || named('.oscar') || null;
+  return named('.oshand') || named('.oscar') || (BDEFS[n] && BDEFS[n].gear ? bought : null) || null;
 }
 // buyFlight's step for your buys on the mat: the card flies from where you lifted it (else from its market spot) and
 // lands on your side; Covenant cards come along from the market spot. Returns true when it handled the flight.
@@ -382,6 +460,140 @@ function matSellFlight(i, name){
   return true;
 }
 
+/* ---------- the desktop mat: hover to read, drag to buy and sell (Oasis desktop shop brief, stage 2) ----------
+   Hover: rest on any card on the desktop mat for MAT_HOVER_DELAY and a flat copy rises out of the tilt to
+   MAT_HOVER_SCALE times its size (matArc, MAT_HOVER_GROW), kept on screen; moving off shrinks it back. No buttons, no dim.
+   Drag: press a market card (or one of yours: Caravan, deck or bought pile) and move it MAT_DRAG_PX; a flat copy follows
+   the cursor. A market card you can buy lights your row: let go in it and the card's own Buy button is pressed, so the
+   usual buy path, its picks (Mason's Guild, Discard Writ) and the landing run (matBuyFlight takes the copy from
+   MATLIFT.held). Your own card lights the discard: let go there and its Sell button is pressed (matSellFlight). When it
+   can't go, the reason shows under the cursor and nothing lights. Let go anywhere else, or press Esc: it flies back
+   (matLiftUnheld). The phone keeps tap to lift. (The Mobilize drag, js/ui/10-mobilize.js, reorders a list in place;
+   this one carries a card to a target and hands it to the buy and sell flights.) */
+const MAT_HOVER_DELAY = 100, MAT_HOVER_GROW = 150, MAT_HOVER_SCALE = 1.8, MAT_DRAG_PX = 6, MAT_DRAG_LIFT = 120;
+const MATHOV = {card:null, pend:null, t:0, g:null};
+const MATDRAG = {p:null, eat:false};
+// a card the desktop mat reads on hover: a card on the mat, or one of Mobilize's (the cascade and the bench fan)
+function matDeskCard(el){ return el && el.closest && typeof matDesk === 'function' && matDesk() ? el.closest('#view-play .osdesk .mcard, #view-play .osdeskmob .mzc:not(.mzslot)') : null; }
+const matMzDragging = () => typeof mzP !== 'undefined' && !!mzP && !!mzP.drag;
+function matHoverEnd(now){
+  clearTimeout(MATHOV.t); MATHOV.t = 0; MATHOV.pend = null;
+  const {g, card} = MATHOV; MATHOV.g = null; MATHOV.card = null;
+  if (!g) return;
+  const done = () => { g.remove(); if (card) card.classList.remove('oshover'); };
+  if (now || reduceMotion() || !g._kf){ done(); return; }
+  g.getAnimations().forEach(a => a.cancel());
+  g.animate(g._kf.slice().reverse(), {duration:MAT_HOVER_GROW * .8, easing:MAT_EASE, fill:'forwards'}).onfinish = done;
+}
+function matHoverStart(card){
+  if (MATDRAG.p || matMzDragging() || !card.isConnected || !matDesk()) return;
+  const from = matPoseOf(card), sr = card.getBoundingClientRect(); if (!from) return;   // where it rests: on the mat, in the fan, or flat
+  const fr = from.r, w = fr.width * MAT_HOVER_SCALE, h = (fr.height || fr.width * 1.3827) * MAT_HOVER_SCALE;
+  const top = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gtb')) || 0) + 8;   // near an edge it grows inwards
+  const x = Math.max(8, Math.min(innerWidth - 8 - w, sr.left + sr.width / 2 - w / 2)), y = Math.max(top, Math.min(innerHeight - 8 - h, sr.top + sr.height / 2 - h / 2));
+  const face = card.querySelector(':scope > .mzface') || card;   // Mobilize: the card itself, not its tokens and numbers
+  const {g, ctx} = flyer(face, face.classList.contains('u') ? 'u' : 'b');
+  // (a Mobilize card's copy is styled from the Mobilize box, not its own card: the copy's styling shells take their
+  // ancestors' attributes, and a second element with the card's data-key would confuse Mobilize's slides)
+  flyEl(g, {left:x, top:y}, w, h, LAYER.cardPop, face === card ? ctx : card.closest('.osmz') || ctx); g.style.overflow = ''; g.classList.add('oshov');
+  card.classList.add('oshover'); MATHOV.g = g; MATHOV.card = card;
+  if (reduceMotion()) return;
+  const b = g.getBoundingClientRect(), kf = matArc(b, from, {r:b, tilt:0}, {arc:0});
+  if (kf){ g._kf = kf; g.animate(kf, {duration:MAT_HOVER_GROW, easing:MAT_EASE, fill:'both'}); }
+}
+document.addEventListener('mouseover', e => {
+  if (matMzDragging()){ if (MATHOV.card || MATHOV.t) matHoverEnd(true); return; }   // hover stays off while a card is dragged
+  if (MATDRAG.p && MATDRAG.p.drag) return;
+  const c = matDeskCard(e.target);
+  if (c && (c === MATHOV.card || c === MATHOV.pend)) return;
+  if (MATHOV.card || MATHOV.t) matHoverEnd();
+  if (!c) return;
+  MATHOV.pend = c;
+  MATHOV.t = setTimeout(() => { MATHOV.t = 0; MATHOV.pend = null; if (c.matches(':hover')) matHoverStart(c); }, MAT_HOVER_DELAY);   // a sweep across the board sets nothing off
+});
+document.addEventListener('mouseout', e => { if (!e.relatedTarget && (MATHOV.card || MATHOV.t)) matHoverEnd(); });
+// what dragging this card can do: a market card is bought with its Buy button, your own card sold with its Sell button
+function matDragWhat(card){
+  const S = seat(), turn = G.passed[S] ? 'You passed' : cur(G) !== S ? 'Not your turn' : '';
+  if (card.closest('.osmkt')){
+    const buy = card.querySelector(':scope > button[data-act="buy"]'); if (!buy) return null;
+    return {buy, ok:!buy.disabled, why:buy.disabled ? turn || buy.textContent.trim() : ''};
+  }
+  if (!card.closest('.osseat.me') || !card.matches('.oscar, .ostop')) return null;
+  const sell = card.querySelector(':scope > [data-act^="sell-"]'), why = turn || (sell ? '' : "Can't be sold");
+  return {sell, ok:!why, why};
+}
+function matDragStart(p, e){
+  p.drag = true; MATDRAG.eat = true; matHoverEnd(true);
+  const card = p.card, sr = card.getBoundingClientRect(), fr = matFlatRect(card) || sr;
+  p.fx = (p.x0 - sr.left) / sr.width; p.fy = (p.y0 - sr.top) / sr.height; p.w0 = fr.width; p.h0 = fr.height;   // the grab point stays under the cursor
+  const {g, ctx} = flyer(card, card.classList.contains('u') ? 'u' : 'b');
+  flyEl(g, {left:e.clientX - p.fx * p.w0, top:e.clientY - p.fy * p.h0}, p.w0, p.h0, LAYER.cardPop, ctx); g.style.overflow = ''; g.classList.add('osdrag');
+  p.g = g; MATLIFT.src = card; MATLIFT.ck = card.dataset.ck || null; MATLIFT.held = null; card.classList.add('oslifted');
+  document.body.classList.add('osdragging');
+  p.target = p.w.ok ? document.querySelector(p.w.buy ? '#view-play .osdesk .osseat.me' : '#view-play .osdesk .osdisc') : null;
+  if (p.target) p.target.classList.add('osdrop');
+  if (!p.w.ok && p.w.why){ p.tag = document.createElement('div'); p.tag.className = 'osdragwhy'; p.tag.textContent = p.w.why; p.tag.style.zIndex = LAYER.cardPop + 1; document.body.appendChild(p.tag); }
+  sfx.pick();
+  if (!reduceMotion()){ const b = g.getBoundingClientRect(), kf = matArc(b, {r:fr, tilt:1}, {r:b, tilt:0}, {arc:0}); if (kf) g.animate(kf, {duration:MAT_DRAG_LIFT, easing:MAT_EASE}); }
+}
+function matDragOver(p, e){
+  if (!p.target || !p.target.isConnected) return false;
+  const r = p.target.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+}
+function matDragMove(p, e){
+  if (!p.card.isConnected){ const c = matDragFind(p); if (c){ p.card = c; MATLIFT.src = c; c.classList.add('oslifted'); } }   // redrawn: keep its spot empty
+  p.g.style.setProperty('left', (e.clientX - p.fx * p.w0) + 'px', 'important'); p.g.style.setProperty('top', (e.clientY - p.fy * p.h0) + 'px', 'important');
+  if (p.tag){ p.tag.style.left = (e.clientX + 14) + 'px'; p.tag.style.top = (e.clientY + 20) + 'px'; }
+  if (p.target) p.target.classList.toggle('osover', matDragOver(p, e));
+}
+// the dragged card as it is on the page now: a redraw (a toast, a timer) may have replaced its element since the press
+function matDragFind(p){
+  if (p.card.isConnected) return p.card;
+  if (p.ck) return ckEl(p.ck);
+  const me = document.querySelector('#view-play .osdesk .osseat.me'); if (!me || !p.name) return null;
+  return [...me.querySelectorAll(p.sel)].find(e => { const f = e.querySelector('.cfm'); return f && f.dataset.n === p.name; }) || null;
+}
+// let go: on its target the card's own button makes the move (its flight takes the copy); else the copy flies home
+function matDragDrop(p, ok){
+  MATDRAG.p = null; document.body.classList.remove('osdragging');
+  if (p.tag) p.tag.remove();
+  if (p.target) p.target.classList.remove('osdrop', 'osover');
+  if (!p.g) return;
+  MATLIFT.held = {g:p.g};
+  const c = matDragFind(p), w = c && matDragWhat(c);
+  if (c && c !== p.card){ MATLIFT.src = c; c.classList.add('oslifted'); }
+  if (ok && w && w.ok && G && G.phase === 'shop'){ const b = w.buy || w.sell; MATDRAG.eat = false; b.click(); MATDRAG.eat = true; }
+  matLiftUnheld();   // nothing took it (refused, or a pick to make first): back to its spot
+}
+$('view-play').addEventListener('pointerdown', e => {
+  if (e.button > 0 || MATDRAG.p) return;
+  const card = matDeskCard(e.target); if (!card || e.target.closest('.osright button')) return;
+  const w = matDragWhat(card); if (!w) return;
+  const f = card.querySelector('.cfm');
+  MATDRAG.p = {card, w, pid:e.pointerId, x0:e.clientX, y0:e.clientY, drag:false, ck:card.dataset.ck || null, name:f ? f.dataset.n : null,
+    sel:card.classList.contains('oscar') ? '.oscar' : card.closest('.osbought') ? '.osbought .ostop' : '.osdeck .ostop'};
+});
+window.addEventListener('pointermove', e => {
+  const p = MATDRAG.p; if (!p || e.pointerId !== p.pid) return;
+  if (!p.drag){
+    if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < MAT_DRAG_PX) return;   // under it: a plain click (it does nothing)
+    const c = matDesk() && matDragFind(p), w = c && matDragWhat(c);
+    if (!w){ MATDRAG.p = null; return; }
+    p.card = c; p.w = w; matDragStart(p, e);
+  }
+  e.preventDefault(); matDragMove(p, e);
+}, {passive:false});
+window.addEventListener('pointerup', e => {
+  const p = MATDRAG.p; if (!p || e.pointerId !== p.pid) return;
+  if (!p.drag){ MATDRAG.p = null; return; }
+  matDragDrop(p, matDragOver(p, e)); setTimeout(() => { MATDRAG.eat = false; }, 0);
+});
+window.addEventListener('pointercancel', () => { const p = MATDRAG.p; if (p && p.drag) matDragDrop(p, false); else MATDRAG.p = null; MATDRAG.eat = false; });
+document.addEventListener('keydown', e => { const p = MATDRAG.p; if (e.key === 'Escape' && p && p.drag){ e.stopImmediatePropagation(); matDragDrop(p, false); MATDRAG.eat = false; } }, true);
+window.addEventListener('click', e => { if (MATDRAG.eat){ MATDRAG.eat = false; e.stopPropagation(); e.preventDefault(); } }, true);   // the click that ends a drag
+$('view-play').addEventListener('dragstart', e => { if (matDeskCard(e.target)) e.preventDefault(); });
+
 /* ---------- the rival's buys and sells on the mat ----------
    oppBuyStep / oppSellStep hand their card to matOppBuy / matOppSell (the opponent queue, OPQ, still plays one move
    at a time and holds the turn banner). A bought card lifts off its market spot (from its pose in the tilt, matPose),
@@ -403,15 +615,16 @@ function matSnapFlat(m){
   MATOPP.money = G.players.map(p => p.money);
   const t = plane.style.transform; plane.style.transform = 'scale(calc(1 / var(--osres)))';
   for (const [ck, s] of m) if (s.el && plane.contains(s.el)) s.fr = s.el.getBoundingClientRect();
-  plane.style.transform = t;
-  // the bars are flat on the screen (flat:true: a flight from there starts out of the tilt)
+  // the seats: the phone's bars are flat on the screen (flat:true: a flight from there starts out of the tilt); the
+  // desktop rows lie on the mat, measured here with the tilt off like the market
   const S = seat();
-  for (const st of document.querySelectorAll('#view-play .osbar')){
-    const i = st.classList.contains('me') ? S : 1 - S;
-    for (const el of st.querySelectorAll('.oscar, .oshand')){ const f = el.querySelector('.cfm'); if (f && f.dataset.n) m.set(`os:${i}:${f.dataset.n}`, {el:null, r:null, fr:el.getBoundingClientRect(), n:f.dataset.n, flat:true}); }
-    const top = st.querySelector('.ospile .ostop') || st.querySelector('.ospile');
-    if (top) m.set(`os:${i}:pile`, {el:null, r:null, fr:top.getBoundingClientRect(), flat:true});
+  for (const st of document.querySelectorAll('#view-play .osseat')){
+    const i = st.classList.contains('me') ? S : 1 - S, flat = !plane.contains(st);
+    for (const el of st.querySelectorAll('.oscar, .oshand')){ const f = el.querySelector('.cfm'); if (f && f.dataset.n) m.set(`os:${i}:${f.dataset.n}`, {el:null, r:null, fr:el.getBoundingClientRect(), n:f.dataset.n, flat}); }
+    const top = st.querySelector('.osbought .ostop') || st.querySelector('.ospile .ostop') || st.querySelector('.ospile');
+    if (top) m.set(`os:${i}:pile`, {el:null, r:null, fr:top.getBoundingClientRect(), flat});
   }
+  plane.style.transform = t;
 }
 // motionFrom's step when the rival's moves go on the queue: their purse keeps showing what they had, and the new
 // spots their buys take stay hidden until each card lands
@@ -446,7 +659,7 @@ function matOppIdle(){
   MATOPP.idle = false; MATOPP.shown = [null, null]; MATOPP.wait.clear();
   document.querySelectorAll('.osstand').forEach(e => e.remove());
   const v = document.querySelector('#view-play .osshop'); if (!v) return;
-  document.querySelectorAll('#view-play .osbar .mcard[style*="visibility"]').forEach(e => { if (!e.getAnimations().length) e.style.visibility = ''; });
+  document.querySelectorAll('#view-play .osseat .mcard[style*="visibility"]').forEach(e => { if (!e.getAnimations().length) e.style.visibility = ''; });
   for (const i of [0, 1]) matPurseSet(i, 0);
 }
 // where the sold card sat (taken when the sale goes on the queue, as the seat is redrawn without it right after)
@@ -577,11 +790,12 @@ function matOppSell(i, ev, src){
    redraw catches up. On every phone this is the Mobilize screen (the old one is only on desktop now); pass and play's
    hand-over screen and an online deck already locked in keep their panels. */
 const MATMOB = {busy:false, lift:false, queued:false, cells:null, flyers:[]};
-const MAT_SWEEP = 700, MAT_SWEEP_GAP = 95, MAT_MOB_LIFT = 1250;
-// every phone Mobilize is this one (Brian, Nov 24: the old Mobilize screen is gone on phones, rug switch or not);
+const MAT_SWEEP = 700, MAT_SWEEP_GAP = 95, MAT_MOB_LIFT = 1250, MAT_MERGE = 300;
+// every phone Mobilize is this one (Brian, Nov 24: the old Mobilize screen is gone on phones, rug switch or not; desktop
+// too behind localStorage.oasisMatDesk, matWidthOn in js/rug.js);
 // the pass-and-play hand-over and the online "Deck locked in" panels come before it, as before. Desktop keeps its own.
 function matMobOn(){
-  return !!G && G.phase === 'mobilize' && !ui.battle && !G.over && !ui.start && !ui.roll && compact()
+  return !!G && G.phase === 'mobilize' && !ui.battle && !G.over && !ui.start && !ui.roll && matWidthOn()
     && !(PP() && ui.handoff != null) && !(G.net && NET && NET.acts.length > NET.applied[NET.seat]);
 }
 function matMobBusy(){ return MATMOB.busy; }
@@ -606,6 +820,7 @@ function matMobHTML(){
   const rows = d.map((u, i) => mzDeckCard(u, nos[i])).reverse().join('');   // drawn back (top) to front: card 1, in full, at the bottom
   const items = mzBenchItems(me, d), bench = items.map(mzBenchCard).join('');
   const who = PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck';
+  if (matDesk()) return matMobDeskHTML(S, me, d, rows, items, who);
   return `${matSeatHTML(1 - S, 'mob')}${matSeatHTML(S, 'mob')}<div class="osshop osmobmat${MATMOB.lift ? ' oslifting' : ''}" aria-hidden="true"><div class="osplane"><div class="osinner">
     ${matTraysHTML(matSweptDeck, matMobRow, ['', frozenHTML(S)])}
   </div></div></div>
@@ -624,8 +839,99 @@ function matMobHTML(){
     </div>
   </div>${mirModalHTML()}`;
 }
+/* ===================== DESKTOP MOBILIZE ON THE MAT (stage 3; mock-up "Mobilize B", #artboard-MobUpright) =====================
+   The mat stays as the shop left it, under a dim over the whole screen below the top bar. Over it: your deck as the
+   upright cascade (the phone's shape: card 1 in full at the bottom, the cards behind showing their name strips), and
+   beside it the bench, fanned out like a hand (Brian, Nov 25) so more items fit. The AI's deck waits face down near the
+   top edge; Suggest and Lock in stand where Pass was. Mobilize's own controller (js/ui/10-mobilize.js) does the dragging.
+
+   SHAPES, kept in one place each so they can change without breaking any motion:
+   - the bench fan: MAT_FAN and matFanPoses. Every bench card's resting place (matDeskMobLayout), its flight in from the
+     mat (matMobLiftDesk), its slide when the bench changes (matFanFlip), its flight back after a refused drop and the
+     hover read (matPoseOf) all ask matFanPoses; nothing else knows the shape. A pose is a card's untilted box (x, y from
+     the fan's top left) and its turn about its centre (rot, degrees); matArc flies to and from turned cards.
+   - the cascade: --mzsr (each card's name strip, as a share of its width) on #mz-deck in css/12-mat-shop.css; the
+     drag reads the same value (mzStripR in js/ui/10-mobilize.js), and every flight measures where the cards lie. */
+const MAT_FAN = {gap:.46, span:4.2, step:6, drop:.03};   // gap: card widths between cards; span: widest fan, in card widths; step: degrees per card; drop: the arc
+const MAT_AIDECK_ROT = -5;
+const MATFAN = {cur:new Map(), prev:new Map()};   // each bench card's turn (by data-key) now and at the last layout, for matFanFlip
+function matFanPoses(n, w, h){
+  const F = MAT_FAN, mid = (n - 1) / 2, gap = n > 1 ? Math.min(F.gap, (F.span - 1) / (n - 1)) * w : 0;
+  const P = Array.from({length:n}, (_, i) => { const d = i - mid; return {x:d * gap, y:F.drop * d * d * w, rot:d * F.step}; });
+  // the box round them all, turns included; poses are measured from its top left
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of P){
+    const a = p.rot * Math.PI / 180, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a)), hw = (w * c + h * s) / 2, hh = (w * s + h * c) / 2, cx = p.x + w / 2, cy = p.y + h / 2;
+    x0 = Math.min(x0, cx - hw); x1 = Math.max(x1, cx + hw); y0 = Math.min(y0, cy - hh); y1 = Math.max(y1, cy + hh);
+  }
+  for (const p of P){ p.x -= x0; p.y -= y0; }
+  return {poses:P, w:n ? x1 - x0 : 0, h:n ? y1 - y0 : 0};
+}
+// the transforms (origin top left) that turn a w x h box about its centre, and put a fan card in its pose
+const matRotTf = (rot, w, h) => `translate(${w / 2}px, ${h / 2}px) rotate(${rot}deg) translate(${-w / 2}px, ${-h / 2}px)`;
+const matFanTf = (p, w, h) => `translate(${p.x}px, ${p.y}px) ${matRotTf(p.rot, w, h)}`;
+// where a card rests, for a flight or the hover read: on the mat its flat rect in the tilt; in the fan its pose; else its box
+function matPoseOf(el){
+  if (!el || !el.isConnected) return null;
+  if (el.closest('.osplane')){ const r = matFlatRect(el); return r && r.width ? {r, tilt:1, rot:0} : null; }
+  const slot = el.closest('.osfanslot'), p = slot && slot._pose;
+  if (p){ const f = slot.parentElement.getBoundingClientRect(), c = slot.firstElementChild || el;
+    return {r:{left:f.left + p.x, top:f.top + p.y, width:c.offsetWidth, height:c.offsetHeight}, tilt:0, rot:p.rot}; }
+  const r = el.getBoundingClientRect(); return r.width ? {r, tilt:0, rot:0} : null;
+}
+// a bench card slides from where it was (r0, a screen box, e.g. where it was dropped) to its pose, turning as it goes
+function matFanFlip(el, r0, land){
+  const slot = el.closest('.osfanslot'), p = slot && slot._pose; if (!p || !r0 || reduceMotion()) return;
+  const w = el.offsetWidth, h = el.offsetHeight, f = slot.parentElement.getBoundingClientRect();
+  const dx = r0.left + r0.width / 2 - (f.left + p.x + w / 2), dy = r0.top + r0.height / 2 - (f.top + p.y + h / 2);
+  const rot0 = land ? 0 : MATFAN.prev.has(el.dataset.key) ? MATFAN.prev.get(el.dataset.key) : p.rot;
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && rot0 === p.rot) return;
+  slot.animate([{transform:`translate(${dx}px, ${dy}px) ${matFanTf({...p, rot:rot0}, w, h)}`}, {transform:`translate(0px, 0px) ${matFanTf(p, w, h)}`}], {duration:land ? 180 : MZ_MS, easing:SLIDE});
+}
+function matMobDeskHTML(S, me, d, rows, items, who){
+  const bench = items.map((it, i) => `<div class="osfanslot" style="z-index:${i + 1}">${mzBenchCard(it)}</div>`).join('');
+  const ai = !PP() && !G.net ? 'AI planning its deck…' : `${esc(nm(1 - S))}'s deck`;
+  return `<div class="osshop osdesk osmobmat${MATMOB.lift ? ' oslifting' : ''}" aria-hidden="true"><div class="osplane"><div class="osinner">
+    ${matSeatHTML(1 - S, 'mob')}
+    ${matTraysHTML(matSweptDeck, matMobRow, ['', frozenHTML(S)], '<div class="dbtns ospass" aria-hidden="true"></div>')}
+    ${matSeatHTML(S, 'mob')}
+  </div></div></div>
+  <div class="osmob osdeskmob"><div class="osmobdim" aria-hidden="true"></div>
+    <div class="forces mz osmz" style="--n:${Math.max(1, d.length)};--tt:${d.reduce((t, u) => t + (u.gear ? 1 : 0) + (u.arm || 0) + (u.tr || 0) + (u.sh || 0), 0)}">
+      <section class="mz-deck" aria-label="${who}"><div class="osmzhd">${who} · 1 at the bottom fights first</div>${mzLimitsHTML(me, d)}
+        <div class="mzstack" id="mz-deck">${rows || '<div class="mzempty">Drag units here from the bench</div>'}</div>
+        ${ui.err ? `<p class="err" role="alert">${esc(ui.err)}</p>` : ''}
+      </section>
+      <div class="mobright">
+        <section class="mz-bench" aria-label="Bench"><div class="osmzhd">Bench</div>
+          <div class="mzstack osfan" id="mz-bench">${bench || '<div class="mzempty">Everything is in your deck</div>'}</div>
+        </section>
+        ${mobMirHTML(me)}
+      </div>
+    </div>
+    <div class="osaideck" aria-hidden="true"><span class="oback osaicard"></span><span class="osaitxt">${ai}</span></div>
+    <div class="osmobacts"><button type="button" class="act" data-act="suggest">Suggest</button>${mobLockHTML()}</div>
+  </div>${mirModalHTML()}`;
+}
+// renderPlay's step on the desktop: the fan, Lock in and the AI's deck take their places (after the mat is fitted)
+function matDeskMobLayout(){
+  const mob = document.querySelector('#view-play .osdeskmob'); if (!mob) return;
+  const fan = mob.querySelector('#mz-bench.osfan'), slots = fan ? [...fan.querySelectorAll(':scope > .osfanslot')] : [];
+  const c = slots[0] && slots[0].firstElementChild;
+  MATFAN.prev = MATFAN.cur; MATFAN.cur = new Map();
+  if (c){
+    const w = c.offsetWidth, h = c.offsetHeight, L = matFanPoses(slots.length, w, h);
+    fan.style.width = L.w + 'px'; fan.style.height = L.h + 'px';
+    slots.forEach((s, i) => { s._pose = L.poses[i]; s.style.transform = matFanTf(L.poses[i], w, h); MATFAN.cur.set(s.firstElementChild.dataset.key, L.poses[i].rot); });
+  } else if (fan){ fan.style.width = ''; fan.style.height = ''; }
+  // Suggest and Lock in where Pass was (right of the trays, under the discard)
+  const pass = document.querySelector('#view-play .osdesk.osmobmat .ospass'), acts = mob.querySelector('.osmobacts');
+  if (pass && acts){ const r = pass.getBoundingClientRect(), m = mob.getBoundingClientRect(); acts.style.left = (r.left - m.left) + 'px'; acts.style.top = (r.top - m.top) + 'px'; acts.style.width = r.width + 'px'; }
+  const ai = mob.querySelector('.osaicard'); if (ai) ai.style.transform = matRotTf(MAT_AIDECK_ROT, ai.offsetWidth, ai.offsetHeight);
+}
 // the bottom bar in Mobilize on the mat: Suggest a deck, then Lock in (same height as the shop's bar, so the mat stays put)
 function matMobDockHTML(acts){
+  if (matDesk()) return '';   // desktop: Suggest and Lock in stand on the mat where Pass was (matMobDeskHTML)
   return `<div class="dock osdock osmobdock${ui.planning ? '' : ' mine'} ph-mobilize" id="dock"><button type="button" class="act" data-act="suggest">Suggest</button><div class="dbtns dact">${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
 // renderPlay's first step: the shop is still on the mat and the game has moved on to Mobilize. Wait for the rival's
@@ -668,8 +974,8 @@ function matSweep(shop){
     }
     list.reverse();   // the last card first, so each row's first card lands last, on top of its deck
     // what goes away with the shop: the bottom bar's buttons and purse, the turn glow
-    document.querySelectorAll('#view-play .osbar.osact').forEach(b => b.classList.remove('osact'));
-    for (const e of document.querySelectorAll('#dock .dbtns, #dock .ospurse, #dock .tslots'))
+    document.querySelectorAll('#view-play .osseat.osact').forEach(b => b.classList.remove('osact'));
+    for (const e of document.querySelectorAll('#dock .dbtns, #dock .ospurse, #dock .tslots, #view-play .osdesk .ospass'))
       if (e) e.animate([{opacity:1}, {opacity:0}], {duration:250, fill:'forwards'});
     const n = {u:0, b:0, p:0}, tot = {u:0, b:0, p:0}; let end = 0;
     for (const x of list) if (!x.dest) tot[x.to === 'deck' ? x.k : 'p']++;
@@ -690,6 +996,19 @@ function matSweep(shop){
       try{ sfx.flick(delay / 1000 + .02); }catch(e){}
       end = Math.max(end, delay + MAT_SWEEP);
     });
+    // desktop: then each player's "Bought this shop" pile slides onto their deck pile, so one stack lifts (Brian, Nov 25)
+    const t1 = end;
+    if (shop.classList.contains('osdesk')) for (const st of document.querySelectorAll('#view-play .osdesk .osseat')){
+      const top = st.querySelector('.osbought .ostop'), to = st.querySelector('.osdeck .ostop, .osdeck .osslot');
+      const fr = top && matFlatRect(top), tr = to && matFlatRect(to); if (!fr || !fr.width || !tr || !tr.width) continue;
+      const {g, ctx} = flyer(top, top.classList.contains('u') ? 'u' : 'b', {exact:true});
+      flyEl(g, fr, fr.width, fr.height, LAYER.flight, ctx); g.style.overflow = '';
+      const kf = matArc(fr, {r:fr, tilt:1}, {r:tr, tilt:1}, {arc:14, bump:.04}); if (!kf){ g.remove(); continue; }
+      g.animate(kf, {duration:MAT_MERGE, delay:t1, easing:MAT_EASE, fill:'both'});
+      setTimeout(() => { for (const e of st.querySelectorAll('.osbought > :not(.ostag)')) e.style.visibility = 'hidden'; }, t1);
+      MATMOB.flyers.push(g);
+      end = Math.max(end, t1 + MAT_MERGE);
+    }
     setTimeout(res, end ? end + 120 : 0);
   });
 }
@@ -707,10 +1026,11 @@ const MAT_TOK_FROM = {arm:'Smithy', sh:'Armory', tr:'Study'};
 function matBenchFrom(el, me){
   const named = (sel, n) => [...me.querySelectorAll(sel)].find(e => { const f = e.querySelector('.cfm'); return f && f.dataset.n === n; });
   const t = el.dataset.mz, src = t === 'bgear' ? named('.oshand', el.dataset.name) : t === 'btok' ? named('.oscar', MAT_TOK_FROM[el.dataset.tok]) : null;
-  return src || me.querySelector('.ospile .ostop') || me.querySelector('.ospile');
+  return src || me.querySelector('.osdeck .ostop, .osdeck .osslot') || me.querySelector('.ospile .ostop') || me.querySelector('.ospile');
 }
 // 2. the lift. Resolves when Mobilize is ready to use.
 function matMobLift(){
+  if (document.querySelector('#view-play .osdeskmob')) return matMobLiftDesk();
   const mat = document.querySelector('#view-play .osmobmat'), mob = document.querySelector('#view-play .osmob');
   if (!mat || !mob || reduceMotion()) return Promise.resolve();
   const me = document.querySelector('#view-play .osbar.me'), opp = document.querySelector('#view-play .osbar.opp');
@@ -752,6 +1072,48 @@ function matMobLift(){
   try{ sfx.rustle(); }catch(e){}
   return new Promise(res => setTimeout(res, Math.max(end, 1750)));
 }
+// 2 on the desktop (Brian, Nov 25): the dim comes down; your deck lifts off its spot, flat out of the tilt, to the middle
+// and fans up into the cascade, card 1 settling last at the bottom; gear and tokens fly to their places in the bench fan;
+// the AI's deck lifts face down towards the top edge; then the numbers, headings and Lock in come up. Every end is
+// measured from the page (the cascade's boxes, the fan's poses), so a new shape needs no change here.
+const MAT_MOB_DIM = 450;
+function matMobLiftDesk(){
+  const mob = document.querySelector('#view-play .osdeskmob');
+  if (!mob || reduceMotion()) return Promise.resolve();
+  const me = document.querySelector('#view-play .osdesk .osseat.me'), opp = document.querySelector('#view-play .osdesk .osseat.opp');
+  const ps = matSpotRect(me && me.querySelector('.osdeck .osslot, .osdeck .ostop'));
+  let end = 0;
+  const run = (el, kf, o) => { if (!kf) return; el.style.transformOrigin = '0 0'; el.animate(kf, o); end = Math.max(end, (o.delay || 0) + o.duration); };
+  const dim = mob.querySelector('.osmobdim');
+  if (dim) dim.animate([{opacity:0}, {opacity:1}], {duration:MAT_MOB_DIM, easing:'ease-out', fill:'backwards'});
+  const t0 = MAT_MOB_DIM * .6;
+  const rows = [...mob.querySelectorAll('#mz-deck > .mzc')];   // back to front: card 1 (at the bottom) is the last
+  rows.forEach((el, i) => {
+    if (!ps) return;
+    const b = el.getBoundingClientRect(), o = {duration:MAT_MOB_LIFT, delay:t0 + i * 60, easing:MAT_EASE, fill:'backwards'};
+    run(el, matArc(b, ps, {r:b, tilt:0}, {arc:50, bump:.06}), o);
+    for (const x of el.querySelectorAll(':scope > .mzpow, :scope > .mztags, :scope > .mztk'))
+      x.animate([{opacity:0}, {opacity:0, offset:.6}, {opacity:1}], {duration:o.duration, delay:o.delay, fill:'backwards'});
+  });
+  const fan = mob.querySelector('#mz-bench.osfan'), fb = fan && fan.getBoundingClientRect();
+  [...mob.querySelectorAll('#mz-bench > .osfanslot')].forEach((slot, i) => {
+    const c = slot.firstElementChild, p = slot._pose, ss = matSpotRect(me && c && matBenchFrom(c, me)); if (!ss || !p || !fb) return;
+    const w = c.offsetWidth, h = c.offsetHeight;
+    run(slot, matArc({left:fb.left, top:fb.top, width:w, height:h}, ss, {r:{left:fb.left + p.x, top:fb.top + p.y, width:w}, tilt:0, rot:p.rot}, {arc:40, bump:.05}),
+      {duration:MAT_MOB_LIFT * .8, delay:t0 + 250 + i * 80, easing:MAT_EASE, fill:'backwards'});
+  });
+  // the AI's deck: face down off its spot up towards the top edge
+  const ai = mob.querySelector('.osaicard'), os = matSpotRect(opp && opp.querySelector('.osdeck .osslot, .osdeck .ostop'));
+  if (ai && os){ const pr = ai.offsetParent.getBoundingClientRect(), b = {left:pr.left + ai.offsetLeft, top:pr.top + ai.offsetTop, width:ai.offsetWidth, height:ai.offsetHeight};
+    run(ai, matArc(b, os, {r:b, tilt:0, rot:MAT_AIDECK_ROT}, {arc:30}), {duration:1000, delay:t0 + 150, easing:MAT_EASE, fill:'backwards'}); }
+  // fight-order numbers pop on, then the headings and limits, the AI's words, and Lock in fades in where Pass was
+  const late = t0 + MAT_MOB_LIFT + rows.length * 60 - 250;
+  [...mob.querySelectorAll('#mz-deck > .mzc > .mzno')].reverse().forEach((b, i) => b.animate([{opacity:0, transform:'scale(0)'}, {opacity:1, transform:'scale(1.15)', offset:.7}, {opacity:1, transform:'none'}], {duration:280, delay:late + i * 50, easing:'ease-out', fill:'backwards'}));
+  [...mob.querySelectorAll('.osmzhd, .mzlim, .mzempty, .err, .osaitxt, .osmobacts')].forEach((e, j) =>
+    e.animate([{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'none'}], {duration:350, delay:late + j * 40, fill:'backwards'}));
+  try{ sfx.rustle(); }catch(e){}
+  return new Promise(res => setTimeout(res, Math.max(end, late + 400)));
+}
 // The next round's deal on the mat: last shop's leftovers come back out of the top of their deck (where the sweep left
 // them), face up, sliding across the mat to their spot; the real card shows when its copy lands. Returns when it lands.
 function matReturnFly(el, deck, delay, dur){
@@ -786,9 +1148,16 @@ function matReturnFly(el, deck, delay, dur){
    the nodes it finds, morphInto); the same redraw draws the battle; matBatAfterDraw puts them back on top inside a
    screen-sized frame and plays matBatFold then matBatLand. The decks that slam are the board's own deck spots, so the
    battle starts with no swap. Redraws and autoplay wait while it plays. Pass and play, online, desktop, the rug switch
-   off and reduced motion keep the hard cut. */
+   off and reduced motion keep the hard cut.
+   Desktop (stage 4, Brian Nov 25; mock-up "Battle on the mat"): the same flow on the big mat, with one more beat. Unused
+   bench cards leave the fan for your deck pile; the trays, decks, discard and purses fade under the dim but the two
+   Caravan rows stay; when the dim lifts, each Caravan card folds to its crop and slides out to its strip at the top or
+   bottom edge (matBatStrips); then the words, then both decks slam: yours from the gathered stack, the AI's from where
+   its card back waited near the top. Every place is measured from the page when its beat starts, a beat with a missing
+   piece is skipped, and all the timings are the constants below. */
 const MATBAT = {busy:false, land:null, redraw:false};
 const MAT_GATHER = 320, MAT_GATHER_GAP = 30, MAT_CROP_T = 300, MAT_CLEAR = 420, MAT_DIM = 380, MAT_WORDS = 360, MAT_TIP = 460, MAT_SLAM = 520;
+const MAT_FOLD = 240, MAT_SLIDE = 520, MAT_SLIDE_GAP = 45, MAT_STRIP_IN = 300;   // desktop: the Caravans fold to their crops, slide to the strips; the strips' other parts come in
 function matBatBusy(){ return MATBAT.busy; }
 function matBatWanted(){
   return !!G && !!ui.battle && ui.frame === 0 && !ui.battle.matIn && !PP() && !G.net && !reduceMotion()
@@ -801,8 +1170,10 @@ function matBatGate(){
   if (!matBatWanted()) return false;
   ui.battle.matIn = true;
   try{ if (peekEl) closePeek(); }catch(e){}
+  try{ matHoverEnd(true); }catch(e){}   // (desktop: a card held up by the hover goes now)
   const mat = document.querySelector('#view-play .osmobmat'), mob = document.querySelector('#view-play .osmob');
-  const home = document.querySelector('#view-play .osbar.me .oshandrow') || document.querySelector('#view-play .osbar.me .ospile');
+  const home = matDesk() ? document.querySelector('#view-play .osmobmat .osseat.me .osdeck') || document.querySelector('#view-play .osmobmat .osseat.me .ospile')
+    : document.querySelector('#view-play .osbar.me .oshandrow') || document.querySelector('#view-play .osbar.me .ospile');
   MATBAT.land = {mat:matPin(mat), mob:matPin(mob), home:home ? matRect(home) : null};
   for (const n of [MATBAT.land.mat, MATBAT.land.mob]) if (n) n.remove();   // the view's redraw must not take these
   return false;
@@ -828,12 +1199,16 @@ function matBatAfterDraw(){
   for (const n of [L.mat, L.mob]) if (n) cam.appendChild(n);   // (a screen-sized frame that clips: nothing makes the page grow)
   view.appendChild(cam);
   line.classList.add('matbat', 'matbatpre');   // the board's cards wait hidden; its words, Caravans and decks wait for their beat
+  L.strips = matDesk() ? [...view.querySelectorAll('.osbars .osstrip')] : [];
+  L.stripBg = L.strips.map(st => getComputedStyle(st).backgroundColor);   // (their shade, to fade back in to)
+  L.strips.forEach(st => st.classList.add('matbatpre'));   // desktop: the strips wait empty until their Caravans slide in
   const late = [...document.querySelectorAll('#gtop .pbhint, #dock .act, #dock .dbtns')];
   late.forEach(e => { e.style.opacity = '0'; });
   MATBAT.busy = true; MATBAT.redraw = false;
   matBatFold(L).then(() => matBatLand(line, L)).then(() => {
     late.forEach(e => { e.style.opacity = ''; if (e.isConnected) e.animate([{opacity:0}, {opacity:1}], {duration:260, easing:'ease-out'}); });
     line.classList.remove('matbat');
+    (L.strips || []).forEach(st => { st.classList.remove('matbatpre'); st.getAnimations({subtree:true}).forEach(a => a.cancel()); });
     cam.remove();
     MATBAT.busy = false;
     if (MATBAT.redraw){ MATBAT.redraw = false; renderPlay(); }
@@ -855,7 +1230,7 @@ function matBatFold(L){
       go(el, [{transform:'none'}, {transform:`translate(${at.left - r.left}px,${at.top - r.top}px) scale(${at.width / r.width})`}], {duration:MAT_GATHER, delay:i * MAT_GATHER_GAP});
     });
     const gathered = MAT_GATHER + Math.max(0, rows.length - 2) * MAT_GATHER_GAP;
-    for (const e of mob.querySelectorAll('.mzno, .mzpow, .mztags, .mztk, .osmzhd, .mzlim, .mzempty, .err, .mobmir')) go(e, [{opacity:1}, {opacity:0}], {duration:220});
+    for (const e of mob.querySelectorAll('.mzno, .mzpow, .mztags, .mztk, .osmzhd, .mzlim, .mzempty, .err, .mobmir, .osmobacts')) go(e, [{opacity:1}, {opacity:0}], {duration:220});
     // bench items you didn't use go back to your hand spot (or your deck pile) in your bar, where it was, and fade there
     const hr = L.home;
     [...mob.querySelectorAll('#mz-bench > .mzc')].forEach((el, i) => {
@@ -863,12 +1238,28 @@ function matBatFold(L){
       if (hr && hr.width && b.width){ el.style.transformOrigin = '0 0'; go(el, matArc(b, {r:b, tilt:0}, {r:{left:hr.left, top:hr.top, width:Math.min(hr.width, hr.height * b.width / b.height)}, tilt:0}, {arc:30}), o); }
       go(el, [{opacity:1}, {opacity:1, offset:.7}, {opacity:0}], {...o, easing:'linear'});
     });
+    // desktop: the fan's cards keep their own pose (matFanTf) and move from it to the deck pile, shrinking as they go
+    [...mob.querySelectorAll('#mz-bench > .osfanslot')].forEach((el, i) => {
+      const b = el.getBoundingClientRect(), o = {duration:MAT_GATHER + 160, delay:i * 50};
+      const base = el.style.transform || getComputedStyle(el).transform; const tf = base && base !== 'none' ? base : '';
+      if (hr && hr.width && b.width){
+        const dx = hr.left + hr.width / 2 - (b.left + b.width / 2), dy = hr.top + hr.height / 2 - (b.top + b.height / 2), k = Math.min(1, hr.width / b.width);
+        go(el, [{transform:`translate(0,0) ${tf}`}, {transform:`translate(${dx / 2}px,${dy / 2 - 40}px) ${tf} scale(${(1 + k) / 2})`, offset:.5}, {transform:`translate(${dx}px,${dy}px) ${tf} scale(${k})`}], o);
+      }
+      go(el, [{opacity:1}, {opacity:1, offset:.7}, {opacity:0}], {...o, easing:'linear'});
+    });
     // 2. once gathered, the stack turns into its cropped version, in place (the cards under card 1 go with it)
     rows.slice(0, -1).forEach(el => go(el, [{opacity:1}, {opacity:0}], {duration:1, delay:gathered}));
     const face = one && one.querySelector(':scope > .mzface');
     if (face && face.querySelector(':scope > .cface')) matCrop(face, [[0, 'open'], [1, 'crop']], {duration:MAT_CROP_T, delay:gathered, easing:'ease-in-out', fill:'forwards'});
     // under the dim, the whole mat leaves (shop decks, discard, market words): the battle has its own table
-    if (mat) go(mat, [{opacity:1}, {opacity:0}], {duration:MAT_CLEAR, delay:80, easing:'ease-in'});
+    // (desktop: all of it but the two Caravan rows, which fold into the strips once the dim lifts)
+    if (mat && L.strips && L.strips.length){
+      const out = [...mat.querySelectorAll('.osinner > :not(.osseat), .osinner > .osseat > :not(.oscarrow), .osinner > .osseat > .oscarrow > .osslot')];
+      out.forEach(e => go(e, [{opacity:1}, {opacity:0}], {duration:MAT_CLEAR, delay:80, easing:'ease-in'}));
+      for (const e of [mat, ...mat.querySelectorAll('.osplane, .osinner, .osinner > .osseat')])
+        go(e, [{}, {backgroundColor:'transparent', backgroundImage:'none', boxShadow:'none', borderColor:'transparent'}], {duration:MAT_CLEAR, delay:80, easing:'ease-in'});
+    } else if (mat) go(mat, [{opacity:1}, {opacity:0}], {duration:MAT_CLEAR, delay:80, easing:'ease-in'});
     try{ sfx.rustle(); }catch(e){}
     setTimeout(res, Math.max(gathered + MAT_CROP_T, 80 + MAT_CLEAR) + 40);
   });
@@ -884,6 +1275,8 @@ function matBatLand(line, L){
     // 3. the dim lifts (the stack stays, held above the table)
     const dim = mob.querySelector('.osmobdim'); if (dim) dim.animate([{opacity:1}, {opacity:0}], {duration:MAT_DIM, easing:'ease-out', fill:'forwards'});
     t += MAT_DIM - 80;
+    // (desktop) the Caravans fold to their crops and slide out to the strips; the strips' other parts come in
+    if (L.strips && L.strips.length) t += matBatStrips(L, t);
     // 4. the zone words fade in (the Caravans stay where they were, in the bars)
     for (const w of line.querySelectorAll('.zl, .labslot')) go(w, [{opacity:0}, {opacity:1}], {duration:MAT_WORDS, delay:t, easing:'ease-out'});
     // (your deck starts tipping as the words come, and lands once they're in: MAT_TIP > MAT_WORDS)
@@ -915,7 +1308,20 @@ function matBatLand(line, L){
       for (const hp of mine.querySelectorAll('.hprow, .tk')) go(hp, [{opacity:0}, {opacity:1}], {duration:200, delay:t + MAT_TIP + MAT_SLAM});
     } else if (mine){ go(mine, [{opacity:0}, {opacity:1}], {duration:60, delay:t + MAT_TIP, easing:'linear'}); slam(mine, null); if (oneF) oneF.animate([{opacity:1}, {opacity:0}], {duration:60, delay:t + MAT_TIP, fill:'forwards'}); }
     if (theirs) go(theirs, [{opacity:0}, {opacity:1}], {duration:1, delay:t + MAT_TIP, easing:'linear'});
-    slam(theirs, null);
+    // the rival's deck: on the desktop its card back waited near the top (.osaicard) and tips in the same way as yours;
+    // otherwise (or if that card is gone) it slams from off the top edge
+    const aiB = L.strips && L.strips.length ? mob.querySelector('.osaideck .osaicard') : null;
+    const fa = theirs && aiB && aiB.getBoundingClientRect().width ? matBatTip(line, theirs, face(theirs), matRect(aiB), squash) : null;
+    if (fa){
+      aiB.style.transformOrigin = '0 0';
+      aiB.animate(fa.tip, {duration:MAT_TIP, delay:t, easing:'linear', fill:'forwards'});
+      aiB.animate([{opacity:1}, {opacity:0}], {duration:1, delay:t + MAT_TIP + 16, fill:'forwards'});
+      const tx = mob.querySelector('.osaideck .osaitxt'); if (tx) go(tx, [{opacity:1}, {opacity:0}], {duration:200, delay:t, fill:'forwards'});
+      theirs.style.transformOrigin = '0 0';
+      go(theirs, fa.drop, {duration:MAT_SLAM, delay:t + MAT_TIP, easing:'linear'});
+      dust(theirs, t + MAT_TIP + MAT_SLAM * .82);
+      for (const hp of theirs.querySelectorAll('.hprow, .tk')) go(hp, [{opacity:0}, {opacity:1}], {duration:200, delay:t + MAT_TIP + MAT_SLAM});
+    } else slam(theirs, null);
     t += MAT_TIP;
     setTimeout(() => { try{ sfx.lock(); }catch(e){} }, t + MAT_SLAM * .82);
     setTimeout(() => {
@@ -923,6 +1329,49 @@ function matBatLand(line, L){
       res();
     }, t + MAT_SLAM + 60);
   });
+}
+
+/* Desktop: the Caravan rows on the mat become the strips. Each card on the mat folds to its crop (the bottom of its face
+   rolls up to the crop line), then the strip's own card for that spot takes over from that same place and slides out to
+   the strip; empty spots, the side word, Miracles, the purse and the strip's shade fade in after. The strip cards are
+   matched by spot (the n-th card of a row goes to the n-th card of its strip); a card with no partner just fades, and a
+   strip card with no partner fades in. Returns how long the beat takes from t. */
+function matBatStrips(L, t){
+  const cos = Math.cos(14 * Math.PI / 180), go = (el, kf, o) => el && kf ? el.animate(kf, {fill:'backwards', easing:'cubic-bezier(.3,.6,.25,1)', ...o}) : null;
+  let n = 0, end = 0;
+  for (const st of L.strips){
+    const side = st.classList.contains('me') ? 'me' : 'opp';
+    const from = L.mat ? [...L.mat.querySelectorAll(`.osinner > .osseat.${side} > .oscarrow > .oscar`)] : [];
+    const to = [...st.querySelectorAll(':scope > .oscarrow > .oscar')];
+    to.forEach((c, j) => {
+      const m = from[j], mf = m && (m.querySelector(':scope > .cface') || m), d = t + MAT_FOLD + n * MAT_SLIDE_GAP;
+      if (m && mf.getBoundingClientRect().width){
+        const fh = mf.offsetHeight, fw = mf.offsetWidth, cut = fh && fw ? Math.max(0, Math.min(60, (1 - fw * MAT_CROP / fh) * 100)) : 29.8;
+        mf.animate([{clipPath:'inset(0 0 0 0)'}, {clipPath:`inset(0 0 ${cut.toFixed(2)}% 0)`}], {duration:MAT_FOLD, delay:t + n * MAT_SLIDE_GAP, easing:'ease-in-out', fill:'forwards'});
+        m.animate([{opacity:1}, {opacity:0}], {duration:1, delay:d, fill:'forwards'});
+        const a = mf.getBoundingClientRect(), b = c.getBoundingClientRect(), k = b.width ? a.width / b.width : 1;
+        const dx = a.left + a.width / 2 - (b.left + b.width / 2), dy = (a.top - b.top) / cos;
+        c.style.transformOrigin = '50% 0';
+        go(c, [{transform:`translate(${dx}px,${dy}px) scale(${k})`}, {transform:`translate(${dx * .45}px,${dy * .45 - 24}px) scale(${(k + 1) / 2})`, offset:.5}, {transform:'none'}], {duration:MAT_SLIDE, delay:d});
+        c.animate([{opacity:1}, {opacity:1}], {duration:1, delay:d, fill:'forwards'});   // (hidden until it takes over)
+        end = Math.max(end, MAT_FOLD + n * MAT_SLIDE_GAP + MAT_SLIDE);
+      } else {
+        go(c, [{opacity:0}, {opacity:1}], {duration:MAT_STRIP_IN, delay:t + MAT_FOLD, easing:'ease-out', fill:'both'});
+        end = Math.max(end, MAT_FOLD + MAT_STRIP_IN);
+      }
+      n++;
+    });
+    from.slice(to.length).forEach(m => m.animate([{opacity:1}, {opacity:0}], {duration:MAT_FOLD, delay:t, fill:'forwards'}));
+  }
+  // the rest of each strip comes in as the cards arrive
+  const at = t + MAT_FOLD + Math.max(0, n - 1) * MAT_SLIDE_GAP + MAT_SLIDE * .5;
+  L.strips.forEach((st, i) => {
+    for (const e of st.querySelectorAll(':scope > :not(.oscarrow), :scope > .oscarrow > :not(.oscar)')) go(e, [{opacity:0}, {opacity:1}], {duration:MAT_STRIP_IN, delay:at, easing:'ease-out', fill:'both'});
+    const bg = L.stripBg && L.stripBg[i]; if (bg) go(st, [{backgroundColor:'transparent'}, {backgroundColor:bg}], {duration:MAT_STRIP_IN, delay:at, easing:'ease-out', fill:'both'});
+  });
+  end = Math.max(end, at - t + MAT_STRIP_IN);
+  try{ setTimeout(() => sfx.rustle(), t + MAT_FOLD); }catch(e){}
+  return end - 120;   // the words start as the last cards settle
 }
 
 /* Your deck's flight in two parts (transform origin top left on both).
@@ -937,7 +1386,7 @@ function matBatTip(line, el, cardEl, R, squash){
   const Lr = line.getBoundingClientRect(), D = el.getBoundingClientRect(), F = cardEl.getBoundingClientRect();
   line.style.removeProperty('transform');
   if (!F.width) return null;
-  const ox = Lr.left + Lr.width / 2, oy = Lr.bottom, deg = 14, P = 1000;
+  const ox = Lr.left + Lr.width / 2, oy = Lr.bottom, deg = 14, P = parseFloat(getComputedStyle(line).getPropertyValue('--matP')) || 1000;   // the board's camera (css/11-rug.css)
   const cam = a => new DOMMatrix().translate(ox, oy).multiply(new DOMMatrix(`perspective(${P}px) rotateX(${a}deg)`)).translate(-ox, -oy);
   const fx = F.left - D.left, fy = F.top - D.top, fw = F.width, fh = F.height;
   // the deck's own transform (in the board's flat plane): k0/t0 puts its card over R, k1/t1 is the drop pose

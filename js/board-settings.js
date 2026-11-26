@@ -2,8 +2,8 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v91';
-const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, zoom:115, morph:true, open:false};
+const OASIS_BUILD = 'v92';
+const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, stopMs:85, power:1, thump:true, thumpPx:4, thumpMin:4, recoil:true, recoilPx:8, abWind:true, abStamp:true, abStop:true, tokPop:true, kwOverrun:true, kwLethal:true, shBlock:true, shStyle:'glint', shRim:true, inkMin:10, inkMax:25, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
 LAB.open = false;   // the panel opens only from the game menu (☰ → Board settings), never by itself on load
@@ -71,7 +71,7 @@ const labArt = u => { const nm = u.name.replace(/^Jester → .*/, 'Jester'); ret
 // each spot is named by one word ("Deck", "Charge", "Defeated") with no owner in front (blue/red and the spot's place
 // say whose it is). Empty spots are a plain dashed card outline with no words. lineHTML0 marks the table .matz;
 // the look is in css/11-rug.css. Desktop and the rug switch off ('0') keep the boxes and full labels.
-function labMatZones(){ return typeof rugWanted === 'function' && rugWanted() && compact() && document.body.classList.contains('lab-v-table'); }
+function labMatZones(){ return typeof matOn === 'function' && matOn() && document.body.classList.contains('lab-v-table'); }
 // the deck: the revealed unit is the top card; the cards under it stay hidden, their edges drawn under its face
 function labDeck(sd, side, names){
   const mz = labMatZones();
@@ -151,7 +151,7 @@ addEventListener('click', e => {
 // the cube layer draws inside the tipped table, so cubes lie on the slanted cards
 window.__cubeFrame = () => LAB.view === 'table' ? document.querySelector('#view-play .stage .line.table') : null;
 // the table's camera, matching its CSS (perspective, tilt, transform origin), so the cube scene tips the same way
-window.__cubeTilt = () => labMatZones() ? {P:1000, a:14 * Math.PI / 180, fx:.5, fy:1} : ({P:compact() ? 900 : 1500, a:(compact() ? LAB.tilt * .92 : LAB.tilt) * Math.PI / 180, fx:.5, fy:compact() ? .55 : .6});   // (the phone battle on the mat: the mat's own camera, css/11-rug.css)
+window.__cubeTilt = () => labMatZones() ? {P:matDesk() ? 2100 : 1000, a:14 * Math.PI / 180, fx:.5, fy:1} : ({P:compact() ? 900 : 1500, a:(compact() ? LAB.tilt * .92 : LAB.tilt) * Math.PI / 180, fx:.5, fy:compact() ? .55 : .6});   // (the phone battle on the mat: the mat's own camera, css/11-rug.css)
 
 // switches
 const LAB_OPTS = [
@@ -160,7 +160,7 @@ const LAB_OPTS = [
   ['splay', 'Splay', [['up', 'Up'], ['now', 'Up-left (now)'], ['diag', 'Stepped right'], ['fanL', 'Fan left'], ['fanR', 'Fan right']]],
 ];
 // (a step of renderPlay)
-function labAfterDraw(){ const inb = !!(ui && ui.battle); document.body.classList.toggle('lab-inbattle', inb); if (!inb && LAB.open) labShow(false); }
+function labAfterDraw(){ const inb = !!(ui && ui.battle); document.body.classList.toggle('lab-inbattle', inb); if (!inb && LAB.open) labShow(false); juiceSilence(); juiceShieldRim(); }
 // open or close the Board settings panel (the game menu's "Board settings" item opens it; its Done button closes it)
 function labShow(open){ LAB.open = !!open; labPanel(); if (open){ const b = document.querySelector('.labbar .labtog'); if (b) b.focus(); } }
 function labApply(redraw = true){
@@ -311,12 +311,12 @@ function labClash(root){
   // up toward the far one), not its face
   const edge = (el, r, up) => [...el.querySelectorAll(':scope > .tk')].reduce((m, t) => { const q = t.getBoundingClientRect(); return up ? Math.min(m, q.top) : Math.max(m, q.bottom); }, up ? r.top : r.bottom);
   const gap = Math.max(0, edge(b, rb, true) - edge(a, ra, false)), meet = gap / 2 + 2;   // each travels half the gap, overlapping a touch
-  const wind = 130, rush = 110, hold = LAB.freeze ? 85 : 0, back = 300, T = wind + rush + hold + back, hitT = wind + rush;
+  const pw = LAB.power ?? 1, wind = 130, rush = 110, hold = LAB.freeze ? (LAB.stopMs ?? 85) : 0, back = 300, T = wind + rush + hold + back, hitT = wind + rush;
   const o = x => +(x / T).toFixed(4);
   for (const [el, r, dir] of [[a, ra, 1], [b, rb, -1]]){
     const k = el.offsetHeight / Math.max(1, r.height);   // screen px to the card's own (tilted) px
-    const d = meet * k * dir, pull = -7 * k * dir, jolt = LAB.jolt ? -10 * k * dir : 0;
-    const sq = LAB.squash ? ' scale(1.05,.9)' : ' scale(1.03)';
+    const d = meet * k * dir, pull = -7 * pw * k * dir, jolt = LAB.jolt ? -10 * pw * k * dir : 0;
+    const sq = LAB.squash ? ` scale(${1 + .05 * pw},${1 - .1 * pw})` : ' scale(1.03)';
     el.style.transformOrigin = dir > 0 ? '50% 100%' : '50% 0%';
     const prevZ = el.style.zIndex; el.style.zIndex = 6;
     const tz = el.closest('.tz'); if (tz){ tz.style.position = 'relative'; tz.style.zIndex = 15; }
@@ -352,6 +352,226 @@ function labDust(x, y, w){
   }
   document.body.appendChild(g);
   setTimeout(() => g.remove(), 800);
+}
+
+/* ---- impact juice (from the juice lab, Nov 25; on by default, Brian's pick: everything but the knock-back jolt). They move cards and the table with the CSS
+   translate / scale properties, which add on top of the clash's transform instead of replacing it. */
+// the cube layer redraws to follow cards and the table while they move
+function juiceFollow(ms){
+  if (!window.OasisCubes) return;
+  const t0 = performance.now(), f = now => { try{ OasisCubes.afterRender(); }catch(e){} if (now - t0 < ms) requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}
+// an ability firing outside a fight: the card lifts (wind-up), presses down like a stamp with a gold ripple and a
+// puff of sand, holds for a beat (hit-stop), and only then do its hits land. Returns when the hits land (ms).
+function juiceAbilityWind(root, f, hits){
+  if (!(LAB.abWind || LAB.abStamp) || reduceMotion()) return 0;
+  const ids = [...new Set(f.lines.filter(l => l.ab && l.ab.u && !l.ab.g).map(l => `${l.ab.u}`))];
+  const els = ids.map(juiceCard).filter(Boolean); if (!els.length) return 0;
+  const pw = LAB.power ?? 1, wind = LAB.abWind ? 190 : 0, press = LAB.abStamp ? 85 : 0;
+  const stop = LAB.abStop ? Math.round((LAB.stopMs ?? 85) * .8) : 0, settle = 260, T = wind + press + stop + settle;
+  const o = x => +(x / T).toFixed(4);
+  const lift = LAB.abWind ? {translate:`0 ${-7 * pw}px`, scale:`${1 + .07 * pw}`} : {translate:'0 0', scale:'1'};
+  for (const el of els){
+    el.style.zIndex = 6;
+    const kf = [{translate:'0 0', scale:'1', offset:0}];
+    if (wind) kf.push({...lift, offset:o(wind), easing:'cubic-bezier(.7,0,1,.6)'});
+    if (press){ kf.push({translate:'0 1px', scale:`${1 - .035 * pw}`, offset:o(wind + press)}); if (stop) kf.push({translate:'0 1px', scale:`${1 - .035 * pw}`, offset:o(wind + press + stop), easing:'cubic-bezier(.2,.8,.3,1)'}); kf.push({translate:'0 0', scale:`${1 + .012 * pw}`, offset:o(wind + press + stop + settle * .45)}); }
+    else if (stop) kf.push({...lift, offset:o(wind + stop), easing:'cubic-bezier(.2,.8,.3,1)'});
+    kf.push({translate:'0 0', scale:'1', offset:1});
+    const a = el.animate(kf, {duration:T, easing:'ease-out'}); a.onfinish = a.oncancel = () => { el.style.zIndex = ''; };
+    if (press) setTimeout(() => { const r = el.getBoundingClientRect(); juiceRipple(r); if (LAB.dust) labDust((r.left + r.right) / 2, r.bottom - 4, r.width * .9); }, wind + press - 10);
+  }
+  juiceFollow(T + 50);
+  return hits.length ? wind + press + stop : wind + press;
+}
+// a gold ring spreading out over the table from a card that just stamped down
+function juiceRipple(r){
+  const g = document.createElement('span'); g.setAttribute('aria-hidden', 'true');
+  const w = r.width * .7;
+  g.style.cssText = `position:fixed;left:${(r.left + r.right) / 2 - w / 2}px;top:${(r.top + r.bottom) / 2 - w * .35}px;width:${w}px;height:${w * .7}px;border-radius:50%;border:3px solid rgba(232,184,80,.95);box-shadow:0 0 12px rgba(232,184,80,.6);z-index:11;pointer-events:none`;
+  document.body.appendChild(g);
+  g.animate([{transform:'scale(.5)', opacity:.95}, {transform:`scale(${2.6 * (LAB.power ?? 1)})`, opacity:0}], {duration:560, easing:'cubic-bezier(.1,.6,.3,1)', fill:'forwards'}).onfinish = () => g.remove();
+}
+// the moment hits land: the table thumps on a big hit, hit cards are knocked back toward their own side
+function juiceImpact(root, hits, fought){
+  if (reduceMotion() || !hits.length) return;
+  const pw = LAB.power ?? 1, real = hits.filter(h => !h.save && h.d > 0), maxD = Math.max(0, ...real.map(h => h.d));
+  const big = maxD >= (LAB.thumpMin ?? 4);
+  if (LAB.thump && big){
+    const t = root.querySelector('.line.table'), px = (LAB.thumpPx ?? 4) * pw;
+    if (t) t.animate([{translate:'0 0'}, {translate:`0 ${px}px`, offset:.22}, {translate:`0 ${-px * .28}px`, offset:.6}, {translate:'0 0'}], {duration:230, easing:'ease-out'});
+  }
+  for (const h of real){
+    const el = juiceCard(h.id); if (!el) continue;
+    if (LAB.recoil){
+      const dir = h.id.startsWith('0-') ? 1 : -1, px = (LAB.recoilPx ?? 8) * pw * (h.d >= (LAB.thumpMin ?? 4) ? 1.3 : .8) * dir;
+      el.animate([{translate:'0 0'}, {translate:`0 ${px}px`, offset:.18}, {translate:`0 ${-px * .18}px`, offset:.55}, {translate:'0 0'}], {duration:330, easing:'ease-out', composite:'add'});
+    }
+  }
+  juiceFollow(420);
+}
+
+/* ---- keyword juice (from the juice lab, Nov 25, on by default; Brian's decisions are in the "Oasis design notes" doc). One signature
+   per keyword, the same for both sides (in each side's ink), at double speed with Fast battles. */
+const juiceInk = side => side === 0 ? '#0e2236' : '#3a100a';   // a side's color pushed almost to black
+// a token sliding in from behind a card: Might makes the card flex (it puffs up and settles); a Shield gets a
+// protective touch (Board setting shStyle: a steel glint round the edge, a brace, or a ward ring); others a small press
+function juiceTokenLand(el, k, n = 1, at = 380){   // at: ms after the token starts sliding
+  if (!LAB.tokPop || reduceMotion() || !el) return;
+  const pw = (LAB.power ?? 1) * Math.min(1.6, 1 + .12 * (n - 1));   // several tokens of a kind at once: a bigger touch
+  setTimeout(() => {
+    if (!el.isConnected) return;
+    if (k === 'arm') el.animate([{scale:'1'}, {scale:`${1 + .05 * pw} ${1 + .07 * pw}`, offset:.35}, {scale:`${1 - .012 * pw}`, offset:.7}, {scale:'1'}], {duration:juiceSp(360), easing:'cubic-bezier(.3,.7,.4,1)', composite:'add'});
+    else if (k === 'sh') juiceShield(el, LAB.shStyle);
+    else el.animate([{scale:'1'}, {scale:`${1 + .03 * pw} ${1 - .05 * pw}`, offset:.25}, {scale:`${1 - .01 * pw} ${1 + .02 * pw}`, offset:.6}, {scale:'1'}], {duration:juiceSp(260), easing:'ease-out', composite:'add'});
+    juiceFollow(400);
+  }, juiceSp(at));
+}
+// the Shield's protective touch (also used when a Shield blocks a hit). Drawn inside the card, so it sits exactly on
+// it and tilts with the table (Brian, Nov 25: drawn on the page, they landed beside the tilted cards)
+function juiceShield(el, style){
+  const pw = LAB.power ?? 1;
+  if (style === 'brace'){
+    el.animate([{scale:'1', filter:'none'}, {scale:`${1 + .01 * pw} ${1 - .04 * pw}`, filter:'drop-shadow(0 6px 4px rgba(20,10,0,.55))', offset:.3}, {scale:'1', filter:'none'}], {duration:juiceSp(320), easing:'cubic-bezier(.2,.8,.3,1)', composite:'add'});
+    if (LAB.dust){ const r = el.getBoundingClientRect(); labDust((r.left + r.right) / 2, r.bottom - 4, r.width); }
+    return;
+  }
+  const g = document.createElement('span'); g.setAttribute('aria-hidden', 'true'); g.setAttribute('data-keep', '');
+  if (style === 'ring'){
+    g.style.cssText = 'position:absolute;inset:-7px;border-radius:12px;border:3px solid rgba(150,190,220,.95);box-shadow:0 0 10px rgba(150,190,220,.6);z-index:10;pointer-events:none';
+    el.appendChild(g);
+    g.animate([{transform:'scale(1.3)', opacity:0}, {transform:'scale(1)', opacity:1, offset:.45}, {transform:'scale(1)', opacity:0}], {duration:juiceSp(620), easing:'cubic-bezier(.2,.8,.3,1)', fill:'forwards'}).onfinish = () => g.remove();
+    return;
+  }
+  // glint: a bright arc of light runs once round the card's rim, like sun on a metal edge
+  g.style.cssText = 'position:absolute;inset:-2px;border-radius:9px;padding:3px;z-index:10;pointer-events:none;'
+    + 'background:conic-gradient(from var(--ga,0deg),transparent 0deg,rgba(255,255,255,0) 300deg,rgba(235,242,250,.95) 340deg,rgba(255,255,255,0) 360deg);'
+    + '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)';
+  el.appendChild(g);
+  const t0 = performance.now(), T = juiceSp(520);
+  const f = now => { const k = Math.min(1, (now - t0) / T); g.style.setProperty('--ga', (k * 360) + 'deg'); g.style.opacity = k < .85 ? 1 : (1 - k) / .15; if (k < 1 && g.isConnected) requestAnimationFrame(f); else g.remove(); };
+  requestAnimationFrame(f);
+}
+// a unit holding Shields keeps a steel rim round its card for as long as it has them (Brian, Nov 25: the Shield needs a
+// lasting look); it comes on with a glint and fades off when the last Shield is gone. Checked after every redraw.
+function juiceShieldRim(){
+  const f = LAB.shRim && typeof ui === 'object' && ui && ui.battle && ui.battle.frames[ui.frame];
+  const want = new Set();
+  if (f) f.snap.forEach((sd, s) => { for (const u of [sd.charge, ...sd.deck.slice(0, 1)]) if (u && u.sh > 0) want.add(`${s}-${u.uid}`); });
+  for (const w of document.querySelectorAll('#view-play .juicerim')){
+    const card = w.parentElement;
+    if (card && want.has(card.dataset.uid) && !w.dataset.out){ want.delete(card.dataset.uid); continue; }
+    if (!w.dataset.out){ w.dataset.out = '1'; w.animate([{opacity:1}, {opacity:0}], {duration:reduceMotion() ? 0 : juiceSp(400), fill:'forwards'}).onfinish = () => w.remove(); }
+  }
+  for (const id of want){
+    const card = juiceCard(id); if (!card) continue;
+    const w = document.createElement('span'); w.className = 'juicerim'; w.setAttribute('aria-hidden', 'true'); w.setAttribute('data-keep', '');
+    // brushed steel: a light-to-dark metal gradient in a 3 px band round the card, with a faint cool glow outside
+    w.style.cssText = 'position:absolute;inset:-3px;border-radius:10px;padding:3px;z-index:9;pointer-events:none;'
+      + 'background:linear-gradient(135deg,#f4f7fa 0%,#9aa6b2 22%,#e6ebf0 45%,#7d8995 70%,#dfe5eb 100%);'
+      + 'box-shadow:0 0 6px rgba(170,200,225,.55);'
+      + '-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)';
+    card.appendChild(w);
+    if (!reduceMotion()) w.animate([{opacity:0}, {opacity:1}], {duration:juiceSp(300), delay:juiceSp(380), fill:'backwards'});
+  }
+}
+
+// Lethal: no number. A seal in the attacker's ink is stamped on each card it kills, the sound drops out for a silent
+// beat (about half a second), then one low thud as the ink soaks through; the card then flips as usual.
+const juiceLethalT = () => juiceSp(780);
+function juiceLethal(hits){
+  const pw = LAB.power ?? 1;
+  for (const h of hits.filter(x => !x.save && (x.ko || x.d > 0))){   // (the Lethal step fills the card with damage; it dies in the next step)
+    const el = juiceCard(h.id); if (!el) continue;
+    const side = h.id.startsWith('0-') ? 1 : 0, ink = juiceInk(side);   // the killer is on the other side
+    for (const b of el.querySelectorAll('.float, .hpn')) b.style.visibility = 'hidden';   // no number
+    const s = document.createElement('span'); s.className = 'juiceseal'; s.setAttribute('aria-hidden', 'true'); s.setAttribute('data-keep', '');
+    const w = Math.min(el.offsetWidth, el.offsetHeight) * .62;
+    s.style.cssText = `position:absolute;left:50%;top:46%;width:${w}px;height:${w}px;margin:${-w / 2}px 0 0 ${-w / 2}px;z-index:9;pointer-events:none;mix-blend-mode:multiply`;
+    s.innerHTML = `<svg viewBox="0 0 100 100" width="100%" height="100%"><defs><filter id="jsr${h.id}"><feTurbulence type="fractalNoise" baseFrequency=".08" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="7"/></filter></defs><g filter="url(#jsr${h.id})" fill="none" stroke="${ink}"><circle cx="50" cy="50" r="40" stroke-width="7"/><circle cx="50" cy="50" r="31" stroke-width="2.5"/><path d="M33 33 L67 67 M67 33 L33 67" stroke-width="9" stroke-linecap="round"/></g></svg>`;
+    el.appendChild(s);
+    s.animate([{transform:`scale(${1.6 * pw}) rotate(-12deg)`, opacity:0}, {transform:'scale(.94) rotate(-4deg)', opacity:1, offset:.6}, {transform:'scale(1) rotate(-4deg)', opacity:.95}], {duration:juiceSp(200), easing:'cubic-bezier(.7,0,1,.6)', fill:'forwards'});
+    el.animate([{scale:'1'}, {scale:`${1 - .04 * pw}`, offset:.5}, {scale:'1'}], {duration:juiceSp(180), delay:juiceSp(110), composite:'add'});
+    // the ink soaks through: the card darkens
+    el.animate([{filter:'brightness(1)'}, {filter:'brightness(1)', offset:.45}, {filter:'brightness(.55) saturate(.7)'}], {duration:juiceSp(760), fill:'forwards'});
+  }
+  setTimeout(() => { try{ sfx.ko(); }catch(e){} }, juiceSp(620));   // the one low thud after the silence
+}
+// Overrun: the card the hit punched through is nudged aside and springs back into its spot; the card it carries on
+// into thumps. A blocking Shield: the card stays still, the Shield token jolts and glints (a clang, no cubes).
+function juiceKeywords(root, next, prev, hits){
+  if (reduceMotion()) return;
+  const pw = LAB.power ?? 1;
+  if (LAB.kwOverrun && next.lines.some(l => /\(overrun\)/.test(l.t))){
+    for (const h of hits){
+      const side = +h.id.split('-')[0];
+      // the card in front of the one hit by the spill: the defender's charging unit (alive or just defeated)
+      const front = root.querySelector(`.charge .card[data-side="${side}"]`) || document.querySelector(`.deathfly[data-fly^="${side}-"]`);
+      if (front && front.dataset.uid !== h.id) front.animate([{translate:'0 0'}, {translate:`${(side === 0 ? -1 : 1) * 9 * pw}px 0`, offset:.25}, {translate:`${(side === 0 ? 1 : -1) * 2 * pw}px 0`, offset:.65}, {translate:'0 0'}], {duration:juiceSp(300), easing:'cubic-bezier(.2,.8,.3,1)', composite:'add'});
+      const t = root.querySelector('.line.table'), px = (LAB.thumpPx ?? 4) * pw;
+      if (t && !(LAB.thump && h.d >= (LAB.thumpMin ?? 4))) t.animate([{translate:'0 0'}, {translate:`0 ${px}px`, offset:.22}, {translate:`0 ${-px * .28}px`, offset:.6}, {translate:'0 0'}], {duration:juiceSp(230), easing:'ease-out'});
+    }
+    juiceFollow(400);
+  }
+  if (LAB.shBlock) for (const l of next.lines){
+    if (!(l.to && l.from && !l.tok && !l.sil && !l.cut && l.amt === 0)) continue;   // a Shield stops this hit
+    const card = juiceCard(`${l.to}`) || root.querySelector(`.card[data-uid$="-${l.to}"]:not(.mini)`); if (!card) continue;
+    const tok = card.querySelector(':scope > .pk[data-k="sh"]');
+    if (tok) tok.animate([{translate:'0 0'}, {translate:`0 ${-5 * pw}px`, offset:.2}, {translate:`0 ${1.5 * pw}px`, offset:.55}, {translate:'0 0'}], {duration:juiceSp(260), easing:'ease-out', composite:'add'});
+    juiceShield(card, 'glint');
+    try{ sfx.tick(); }catch(e){}
+  }
+}
+/* ---- Interceptor's Silence (reworked Nov 25: "Reveal: Silence enemy Reveal and Charge abilities that happen at the
+   same time"; built in the juice lab). The engine logs one line per enemy unit the Silence reaches (sil) and one per
+   ability it stopped (cut); the battle ink draws both. Here: a liquid black ink wash floods each card the Silence's
+   stroke reaches, whether or not it has a Reveal or Charge ability, and rinses out as the next step starts. */
+const juiceSp = ms => ms / (typeof autoFast === 'function' && autoFast() ? 2 : 1);
+const juiceCard = id => document.querySelector(`#view-play .card[data-uid="${id}"]:not(.mini)`);
+let juiceWashAt = -1;   // the step whose wash is on the board
+// a step with nothing to animate but the Silence still plays out (an Interceptor revealed with nothing to hit)
+const juiceWants = f => !!(!reduceMotion() && f.lines.some(l => /silences .*Reveal and Charge abilities/.test(l.t)));
+function juiceSilenceStep(root, next, prev){
+  if (reduceMotion()) return;
+  const reach = next.lines.filter(l => l.sil && l.to);
+  if (!reach.length) return;
+  reach.forEach(l => {
+    const dst = juiceCard(`${l.to}`), src = juiceCard(`${l.from}`); if (!dst) return;
+    const from = src && src.getBoundingClientRect().top < dst.getBoundingClientRect().top ? 'top' : 'bottom';
+    setTimeout(() => { if (dst.isConnected) juiceWashCard(dst, from); }, juiceSp(430));   // as the ink's stroke arrives
+  });
+  juiceWashAt = ui.frame + 1;
+}
+// the wash on a card: wet black ink floods in from one edge with a ragged, darker wet edge, then settles
+function juiceWashCard(card, from){
+  for (const w of card.querySelectorAll(':scope > .juicewash')) w.remove();
+  const id = 'jc' + Math.random().toString(36).slice(2, 7), cy = from === 'top' ? -10 : 150;
+  const w = document.createElement('span'); w.className = 'juicewash'; w.setAttribute('aria-hidden', 'true'); w.setAttribute('data-keep', '');
+  w.style.cssText = 'position:absolute;inset:-2px;z-index:8;pointer-events:none;mix-blend-mode:multiply;border-radius:8px;overflow:hidden';
+  w.innerHTML = `<svg viewBox="0 0 100 140" preserveAspectRatio="none" width="100%" height="100%"><defs><filter id="${id}" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="3" seed="${Math.floor(Math.random() * 90)}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="18"/></filter></defs>`
+    + `<g filter="url(#${id})"><circle class="we" cx="50" cy="${cy}" r="0" fill="rgba(14,16,22,.72)"/><circle class="wi" cx="50" cy="${cy}" r="0" fill="rgba(34,38,46,.5)"/></g></svg>`;
+  card.appendChild(w);
+  const we = w.querySelector('.we'), wi = w.querySelector('.wi'), T = juiceSp(620), t0 = performance.now();
+  const f = now => { const k = Math.max(0, Math.min(1, (now - t0) / T)), e = 1 - Math.pow(1 - k, 2.4);   // (a frame's time can come just before t0)
+    we.setAttribute('r', (e * 175).toFixed(1)); wi.setAttribute('r', Math.max(0, e * 175 - 7).toFixed(1));
+    if (k < 1 && w.isConnected) requestAnimationFrame(f); };
+  requestAnimationFrame(f);
+}
+// the next step starts: the ink rinses out (it thins, runs down a little, breaks up and fades); Back or a jump clears it
+function juiceRinse(instant){
+  for (const w of document.querySelectorAll('#view-play .juicewash:not([data-out])')){
+    w.dataset.out = '1';
+    if (instant || reduceMotion()){ w.remove(); continue; }
+    const disp = w.querySelector('feDisplacementMap'), T = juiceSp(650), t0 = performance.now();
+    w.animate([{opacity:1, transform:'translateY(0)'}, {opacity:.7, transform:'translateY(2%)', offset:.4}, {opacity:0, transform:'translateY(7%)'}], {duration:T, easing:'ease-in', fill:'forwards'}).onfinish = () => w.remove();
+    const f = now => { const k = Math.min(1, (now - t0) / T); if (disp) disp.setAttribute('scale', (18 + k * 40).toFixed(1)); if (k < 1 && w.isConnected) requestAnimationFrame(f); };
+    requestAnimationFrame(f);
+  }
+  juiceWashAt = -1;
+}
+function juiceSilence(){   // after a redraw: a wash left over from a step that is no longer on the board goes at once
+  if (juiceWashAt >= 0 && (!ui || !ui.battle || ui.frame !== juiceWashAt)) juiceRinse(true);
 }
 
 // work out the next step's cube drops while this step is on screen (when the browser is idle), so the hit doesn't stall

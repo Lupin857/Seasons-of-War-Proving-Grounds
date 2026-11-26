@@ -17,7 +17,7 @@ const DEFS = {
   'Studious Squire':{c:2,n:3,p:[2,3,6],v:[1,2,2],t:'While I\'m Revealed: when the ally ahead of me attacks, I gain 1/2/2 Might tokens.'},
   'Aging Master':{c:2,n:3,p:[2,3,6],x:[1,2,2],t:'When I Attack: your revealed unit gains 1/2/2 Might tokens.'},
   'Barber-Surgeon':{c:3,n:2,p:[2,3,5],v:[1],tt:'While Revealed: {v|once|# times} per battle, if your charging unit would die, instead remove all damage from it and move it with its attachments to the back of your deck.'},
-  'Pigeon Hunter':{c:3,n:2,p:[2,4,6],t:'Your opponent’s units’ abilities are Silenced.'},
+  'Pigeon Hunter':{c:3,n:2,p:[2,4,6],t:'Reveal: Silence enemy Reveal and Charge abilities that happen at the same time.'},
   'Brawler':{c:3,n:2,p:[3,5,7],t:'When I survive an attack, remove all damage from me.'},
   'Fencer':{c:2,n:2,p:[3,5,7],t:'Before I Attack: discard all Might tokens from the enemy charging unit.'},
   'Sleepy Guard':{c:2,n:3,p:[2,3,5],v:[2,3,3],t:'While I\'m Revealed: when the ally ahead of me is defeated, gain 2/3/3 Might tokens.'},
@@ -189,10 +189,11 @@ function runBattle(cfgs, record){
   const recruit = p => ({uid:++uidc, name:'Recruit', copies:1, train:P[p].drill, arm:0, sh:0, dmg:0, copyOf:null, jFail:false, owner:p, sp:[], sw:0, gear:null});
   // the back one of a side's two units in play: its revealed unit, or its charging unit when nothing is revealed
   const rearmost = p => top(p) || P[p].charge;
-  // Pigeon Hunter: while it is charging or revealed, the other side's units are Silenced (no ability text)
-  const phActive = p => { const pl = P[p]; for (const x of [pl.charge, pl.deck[0]]) if (x && key(x) === 'Pigeon Hunter' && !x.jFail) return x; return null; };
-  const silencedBy = u => phActive(1 - u.owner);
-  const ab = u => !!u && !u.jFail && !silencedBy(u);
+  // Pigeon Hunter (Interceptor, Brian Nov 25): "Reveal: Silence enemy Reveal and Charge abilities that happen at the
+  // same time." Not a lasting effect any more: HUSH[p] is the Pigeon Hunter silencing side p's Reveal and Charge
+  // abilities in the step it is revealed (set by hushStart, cleared when that step's abilities are done). It goes first.
+  let HUSH = [null, null];
+  const ab = u => !!u && !u.jFail;
   // tokens: Zweihander can't hold Armaments or Shields
   const addArm = (u, v, src, side, from) => { if (!u || v <= 0) return 0; if (u.gear === 'Zweihander'){ if (record) withAb(abG(u, u.owner), () => log(`${nameOf(u)} wields a Zweihander and can't hold Armaments.`, side)); return 0; } u.arm += v; return v; };
   const addSh = (u, v, side) => { if (!u || v <= 0) return 0; if (u.gear === 'Zweihander'){ if (record) withAb(abG(u, u.owner), () => log(`${nameOf(u)} wields a Zweihander and can't hold Shields.`, side)); return 0; } u.sh += v; return v; };
@@ -283,9 +284,43 @@ function runBattle(cfgs, record){
     const dealt = hit0(target, amt, src, side, brk);
     if (dealt > rem && rem >= 0 && spill && spill !== target) OVQ.push({u:spill, amt:dealt - rem, src:`${src} (overrun)`, side, brk, ab:spillAb || AB, from:SRC, atk:ATK, over:target});   // resolves in the casualty step
   }
-  // Pigeon Hunter (while charging or revealed): the opponent's units are Silenced, so their abilities do nothing
-  const hush = p => phActive(1 - p);
-  function hushed(u, p, what){ const h = hush(p); if (!h) return false; withAb(abU(h, 1-p), () => log(`${nameOf(u)}'s ${what} doesn't trigger: ${nameOf(h)} silences it.`, 1-p)); return true; }
+  // side p's Reveal and Charge abilities are Silenced this step by a just-revealed enemy Pigeon Hunter
+  const hush = p => HUSH[p];
+  // the units about to be revealed (pe: given, or the new top cards); an enemy Pigeon Hunter among them silences the
+  // other side for this step. Its Reveal shows as its own ability, before anything else happens.
+  function hushStart(pe){
+    pe = pe || [0,1].map(p => { const t = top(p); return t && t.uid !== P[p].revealed ? t : null; });
+    const ph = pe.map(u => u && key(u) === 'Pigeon Hunter' && !u.jFail ? u : null);
+    HUSH = [ph[1], ph[0]];
+    // one line per enemy unit it reaches (their charging unit and the one being revealed), whether or not it has a Reveal
+    // or Charge ability: the screen draws an ink stroke to each (sil)
+    for (const p of [0,1]) if (ph[p]){
+      const o = 1 - p, hit = [...new Set([P[o].charge, pe[o] || top(o)].filter(Boolean))];
+      withAb(abU(ph[p], p), () => { if (!hit.length) log(`${nameOf(ph[p])} silences ${P[o].nm === 'You' ? 'your' : `${P[o].nm}'s`} Reveal and Charge abilities this step.`, p);
+        for (const t of hit) log(`${nameOf(ph[p])} silences ${nameOf(t)}'s Reveal and Charge abilities this step.`, p, record ? {...tokMeta(ph[p], t, p, undefined, 0), sil:true} : undefined); });
+    }
+  }
+  // aimOf: the unit a Reveal or Charge ability would have reached had it not been silenced (the same choice its own
+  // code makes, nothing applied); a unit buffing itself aims at itself
+  function aimOf(u, p, what){
+    const own = P[p], ch = own.charge, k = key(u);
+    if (what === 'Charge') switch (k){
+      case 'Knight': case 'Man-at-arms': case 'Royal Watchman': return u;
+      case 'Dark Knight': case 'Scholar': case 'Monk': case 'Recruiter': { const t = top(p); return t && t !== u ? t : null; }
+      default: return null;
+    }
+    switch (k){
+      case 'Slinger': return rearmost(1-p);
+      case 'Musketeer': return P[1-p].charge || top(1-p);
+      case 'Cannon': case 'Halberd Knight': return enemyAhead(p);
+      case 'White Knight': { const i = own.deck.indexOf(u); return (i > 0 ? own.deck[i-1] : ch) || null; }
+      case 'Dutiful Squire': case 'Dark Knight': case 'Dowser Oracle': case 'Scholar': return ch && ch !== u ? ch : null;
+      default: return null;
+    }
+  }
+  // (cut: the screen starts the silenced ability's stroke toward the unit it would have reached and inks it out partway)
+  const cutMeta = (u, h, p, what) => { if (!record) return undefined; const t = aimOf(u, p, what); return t ? {...tokMeta(u, t, p, undefined, 0), cut:true} : undefined; };
+  function hushed(u, p, what){ const h = hush(p); if (!h) return false; withAb(abU(h, 1-p), () => log(`${nameOf(u)}'s ${what} doesn't trigger: ${nameOf(h)} silences it.`, 1-p, cutMeta(u, h, p, what))); return true; }
   const REVEALS = new Set(['Halberd Knight','Dowser Oracle','Slinger','Dutiful Squire','Musketeer','Dark Knight','Cannon','White Knight','Scholar','Jester']);
   function doReveal(u, p){ if (hush(p)){ if (!u.jFail && REVEALS.has(key(u))) hushed(u, p, 'Reveal'); return; } return withAb(abU(u, p), () => asSrc(u, () => doReveal0(u, p))); }
   function doReveal0(u, p){
@@ -419,7 +454,7 @@ function runBattle(cfgs, record){
         const u = pe[p], pl = P[p], dr = pl.drums; pl.drums = 0;
         if (!pl.deck.includes(u)) continue;
         if (pl.silence > 0){ pl.silence--; log(`${nameOf(u)}'s Reveal is silenced and doesn't trigger${dr ? ' (War Drums is wasted)' : ''}.`, 1-p); continue; }
-        if (hs[p]){ if (!u.jFail && REVEALS.has(key(u))) withAb(abU(hs[p], 1-p), () => log(`${nameOf(u)}'s Reveal doesn't trigger: ${nameOf(hs[p])} silences it.`, 1-p)); continue; }
+        if (hs[p]){ if (!u.jFail && REVEALS.has(key(u))) withAb(abU(hs[p], 1-p), () => log(`${nameOf(u)}'s Reveal doesn't trigger: ${nameOf(hs[p])} silences it.`, 1-p, cutMeta(u, hs[p], p, 'Reveal'))); continue; }
         const has = REVEALS.has(key(u)) || u.name === 'Jester';
         for (let k = 0; k < (has ? 1 + dr : 1); k++){ if (k) log(`War Drums: ${nameOf(u)}'s Reveal triggers again.`, p); withAb(abU(u, p), () => asSrc(u, () => doReveal0(u, p))); }
         // War Drums (gear): the wearer gains "Reveal: trigger your charging unit's Charge ability"
@@ -433,7 +468,7 @@ function runBattle(cfgs, record){
     const sp = surface(null);
     if (sp) frameIf('Battle miracles');
     const pe = [0,1].map(p => { const t = top(p); if (t && t.uid !== P[p].revealed){ P[p].revealed = t.uid; log(`${nameOf(t)} is revealed.`, p); return t; } return null; });
-    if (pe[0] || pe[1]){ revealRound(pe); return true; }
+    if (pe[0] || pe[1]){ round(() => hushStart(pe)); revealRound(pe); HUSH = [null, null]; return true; }
     return sp;
   }
   // display only: cubes a unit's pile shouldn't show even though its damage counts them (Overrun cubes that moved on,
@@ -647,11 +682,13 @@ function runBattle(cfgs, record){
     const charges = () => { for (const p of [0,1]) if (ch[p] && P[p].charge === ch[p]) doCharge(ch[p], p); };
     // battle miracles surfacing this step resolve with the Charge abilities; every reveal waits for them
     const sp = anyWaiting();
+    const nextUp = [0,1].map(p => { const t = top(p); return t && t.uid !== P[p].revealed ? t : null; });   // who this step reveals
     if (!sp) mark();
     frameIf('Charge');
-    if (sp){ surface(charges); frameIf('Charge abilities & battle miracles'); mark(); }
-    else round(charges);
+    if (sp){ surface(() => { hushStart(nextUp); charges(); }); frameIf('Charge abilities & battle miracles'); mark(); }
+    else round(() => { hushStart(nextUp); charges(); });
     revealRound(pe);
+    HUSH = [null, null];
     frameIf(sp ? 'Reveal abilities' : 'Charge & Reveal abilities');
     return ch[0] || ch[1] || pe[0] || pe[1] || sp;
   }

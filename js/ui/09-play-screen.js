@@ -94,8 +94,9 @@ function battleRoom(){
   const v = $('view-play');
   const fixedH = el => { if (!el || !el.offsetHeight) return 0; const ps = getComputedStyle(el).position; return ps === 'sticky' || ps === 'fixed' ? el.getBoundingClientRect().height : 0; };
   const safeTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
-  const top = safeTop + fixedH($('gtop')) + fixedH(v && v.querySelector('.battlectl')) + fixedH(v && v.querySelector('.osbar.opp')) + fixedH(v && v.querySelector('.osbars') && document.querySelector('#gtop .pbhint'));   // where the pinned bars end once stuck (on the mat: and the rival's Caravan bar, with the step line under it)
-  const dk = $('dock'), bot = window.innerHeight - (dk && fixedH(dk) ? dk.getBoundingClientRect().height : 0) - fixedH(v && v.querySelector('.osbar.me'));
+  const desk = typeof matDesk === 'function' && matDesk();   // desktop mat: between the Caravan strips (the step line and buttons are in the right column)
+  const top = safeTop + fixedH($('gtop')) + fixedH(v && v.querySelector('.battlectl')) + fixedH(v && v.querySelector('.osbars .osseat.opp')) + (desk ? 0 : fixedH(v && v.querySelector('.osbars') && document.querySelector('#gtop .pbhint')));   // where the pinned bars end once stuck (on the mat: and the rival's Caravan bar, with the step line under it)
+  const dk = $('dock'), bot = window.innerHeight - (!desk && dk && fixedH(dk) ? dk.getBoundingClientRect().height : 0) - fixedH(v && v.querySelector('.osbars .osseat.me'));
   return {top, bot};
 }
 function centerBattle(){

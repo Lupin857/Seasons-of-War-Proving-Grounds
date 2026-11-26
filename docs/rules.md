@@ -66,8 +66,9 @@ abilities trigger as they fall and resolve in their own step after (Corpse Loote
 [Cowardly Squire], Heirloom Blade).
 
 **Keywords and terms**
-- Silenced: no ability text (gear still works). Interceptor [Pigeon Hunter] silences the opponent's units while it
-  is charging or revealed, and stops their battle miracles while revealed.
+- Silenced: no ability text (gear still works). Interceptor [Pigeon Hunter] (Nov 25): "Reveal: Silence enemy
+  Reveal and Charge abilities that happen at the same time." Only in the step it is revealed (engine `HUSH`,
+  `hushStart`); not a lasting effect.
 - Shieldbreak: the hit ignores Shields and discards them all (Fencer, Battle Axe).
 - Lethal: any damage it deals defeats (unless a Shield blocks it or it's reduced to 0) (Executioner, Poison Oil).
 - Overrun: excess damage carries to the unit behind if it's in play (Mounted Lancer [Lancer], Lance).

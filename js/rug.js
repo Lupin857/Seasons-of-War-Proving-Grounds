@@ -15,7 +15,13 @@ let rugCv = null, rugGL = null, rugRaf = 0, rugReady = 0, rugT0 = 0;
 let rugCam = {d:11.5, y:0}, rugFrom = null, rugTo = null, rugMove = null, rugPhase = '';
 function rugOn(){ try{ return localStorage.getItem('oasisRug') !== '0'; }catch(e){ return true; } }
 function rugSand(){ try{ return localStorage.getItem('oasisRug') !== '1'; }catch(e){ return true; } }
-function rugWanted(){ return rugOn() && typeof G !== 'undefined' && !!G && !ui.start && !ui.roll && innerWidth <= 640; }
+// the mat (the one-screen table) and its switches. Phones (640 px wide or less) always get it; wider screens only with
+// localStorage.oasisMatDesk = '1' until the desktop mat is merged (Oasis desktop one-screen plan, stage 0).
+// compact() (js/ui/07-battle-steps.js) still means "phone layout"; these mean "the mat", at any width.
+function matDeskOn(){ try{ return localStorage.getItem('oasisMatDesk') === '1'; }catch(e){ return false; } }
+function matWidthOn(){ return innerWidth <= 640 || matDeskOn(); }   // this width shows the mat (rug switch or not)
+function matOn(){ return rugOn() && typeof G !== 'undefined' && !!G && !ui.start && !ui.roll && matWidthOn(); }   // the mat is on
+function matDesk(){ return matOn() && !compact(); }   // the mat in its desktop layout (stage 1 on: the shop)
 function rugInit(){
   rugCv = document.createElement('canvas'); rugCv.id = 'rugworld'; rugCv.setAttribute('aria-hidden', 'true');
   const gl = rugCv.getContext('webgl', {antialias:false});
@@ -97,7 +103,7 @@ function rugKick(){ if (!rugRaf){ rugRaf = requestAnimationFrame(rugLoop); } }
 function rugPhaseKey(){ return ui.battle ? 'battle' : G.phase === 'mobilize' ? 'mobilize' : 'shop'; }
 // renderPlay step: the rug world under every game screen; a phase change moves the camera (2.2 s)
 function rugAfterDraw(){
-  const want = rugWanted(), html = document.documentElement;
+  const want = matOn(), html = document.documentElement;
   if (want !== document.body.classList.contains('os-mat')){
     document.body.classList.toggle('os-mat', want);
     if (want){ html.dataset.rugTheme = html.getAttribute('data-theme') || ''; html.setAttribute('data-theme', 'dark'); }
@@ -106,6 +112,7 @@ function rugAfterDraw(){
   const sand = want && rugSand();
   document.body.classList.toggle('os-sand', sand);
   document.body.classList.toggle('os-rug', want && !sand && !!ui.battle && document.body.classList.contains('lab-v-table'));
+  document.body.classList.toggle('os-deskbat', want && !!ui.battle && matDesk() && document.body.classList.contains('lab-v-table'));   // the desktop battle on the mat (css/12-mat-shop.css)
   if (!want || sand) return;   // sand: a plain page colour, no canvas
   if (!rugCv && !rugInit()){ document.body.classList.remove('os-mat', 'os-rug'); return; }
   if (!rugT0) rugT0 = performance.now();

@@ -263,6 +263,7 @@ function mzFlip(before, landKey, landFrom){
   const els = [...document.querySelectorAll('.mz [data-key]')], delta = new Map();
   for (const el of els){
     const k = el.dataset.key, r0 = k === landKey && landFrom ? landFrom : before.get(k); if (!r0) continue;
+    if (el.closest('.osfan') && typeof matFanFlip === 'function'){ matFanFlip(el, r0, k === landKey); continue; }   // the desktop bench fan: it slides and turns into its pose
     const r1 = el.getBoundingClientRect();
     delta.set(k, [r0.left - r1.left, r0.top - r1.top]);
   }
@@ -339,10 +340,16 @@ function mzMove(e){
   if (!p.scrollT) mzAutoScroll();
   mzHover();
 }
+// a card's own box on the screen: a card turned in the desktop bench fan counts as its untilted box round the same centre
+function mzBoxOf(el){
+  const r = el.getBoundingClientRect(); if (!el.closest('.osfan')) return r;
+  const w = el.offsetWidth, h = el.offsetHeight, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  return {left:cx - w / 2, top:cy - h / 2, width:w, height:h, right:cx + w / 2, bottom:cy + h / 2};
+}
 function mzStart(){
   const p = mzP, el = p.el;
   p.drag = true; el.classList.remove('mz-press', 'mz-lift');
-  const r = el.getBoundingClientRect();
+  const r = mzBoxOf(el);
   p.r0 = r; p.dx = p.x0 - r.left; p.dy = p.y0 - r.top;
   // the card in your hand: a copy of the same card, art drawn from what's already loaded so it's never blank
   const g = solidArt(el.cloneNode(true), r.width);
@@ -380,6 +387,8 @@ function mzAutoScroll(){
   p.scrollT = requestAnimationFrame(mzAutoScroll);
 }
 // the deck's cards in layout order (back to front), the slot included
+// each card's name strip as a share of its width: the layout's --mzsr on #mz-deck if it sets one (the desktop cascade)
+const mzStripR = () => { const d = $('mz-deck'), v = d ? parseFloat(getComputedStyle(d).getPropertyValue('--mzsr')) : NaN; return v > 0 ? v : MZ_STRIP; };
 const mzRows = () => { const d = $('mz-deck'); return d ? [...d.children].filter(x => x.classList.contains('mzc') && !x.classList.contains('mz-gone')) : []; };
 // which card's band a height on screen falls in: each card owns its strip (and the room for its tokens above it);
 // above the top card counts as the top card, and everything below the front card's strip counts as the front card.
@@ -417,12 +426,12 @@ function mzPlaceSlot(y){
     const b = mzBand(others, y);
     if (b < 0) ref = null;
     else { const t = others[b], r = t.getBoundingClientRect(), last = b === others.length - 1;
-      const mid = last ? r.top + Math.min(r.height, t.offsetWidth * MZ_STRIP * 2) / 2 : r.top + t.offsetWidth * MZ_STRIP / 2;
+      const mid = last ? r.top + Math.min(r.height, t.offsetWidth * mzStripR() * 2) / 2 : r.top + t.offsetWidth * mzStripR() / 2;
       ref = y < mid ? t : others[b + 1] || null; }
   } else {
     // after a move the slot needs half a strip of travel before it moves again, so it can't bounce between two
     // cards of different heights
-    if (p.slotY != null && Math.abs(y - p.slotY) < slot.offsetWidth * MZ_STRIP / 2) return;
+    if (p.slotY != null && Math.abs(y - p.slotY) < slot.offsetWidth * mzStripR() / 2) return;
     const b = mzBand(rows, y), t = rows[b], si = rows.indexOf(slot);
     if (!t || t === slot) return;
     ref = b > si ? rows[b + 1] || null : t;
@@ -448,7 +457,7 @@ function mzHover(){
   const p = mzP; if (!p || !p.drag) return;
   const side = mzSide(p.cx), bench = document.querySelector('.forces.mz .mz-bench');
   // the top of the card in your hand marks the spot
-  const y = p.cy - p.dy + (p.wrap.offsetWidth * MZ_STRIP) / 2;
+  const y = p.cy - p.dy + (p.wrap.offsetWidth * mzStripR()) / 2;
   if (bench) bench.classList.remove('mz-over');
   if (p.type === 'deck' || p.type === 'bunit'){
     if (side === 'deck'){
@@ -483,8 +492,11 @@ function mzFlyBack(wrap, key){
   const el = key && mzEl(key);
   if (!el || reduceMotion()){ wrap.remove(); return; }
   el.style.visibility = 'hidden';
-  const r = el.getBoundingClientRect(), gr = wrap.getBoundingClientRect();
-  const a = wrap.animate([{transform:'none'}, {transform:`translate(${r.left - gr.left}px,${r.top - gr.top}px)`}], {duration:200, easing:SLIDE, fill:'forwards'});
+  // a card in the desktop bench fan goes back to its pose, turning as it lands
+  const pose = el.closest('.osfan') && typeof matPoseOf === 'function' ? matPoseOf(el) : null, rot = pose ? pose.rot : 0;
+  const r = pose ? pose.r : el.getBoundingClientRect(), gr = wrap.getBoundingClientRect();
+  if (rot) wrap.style.transformOrigin = '50% 50%';
+  const a = wrap.animate([{transform:'none'}, {transform:`translate(${r.left - gr.left}px,${r.top - gr.top}px)${rot ? ` rotate(${rot}deg)` : ''}`}], {duration:200, easing:SLIDE, fill:'forwards'});
   const done = () => { wrap.remove(); el.style.visibility = ''; };
   a.onfinish = done; a.oncancel = done;
 }

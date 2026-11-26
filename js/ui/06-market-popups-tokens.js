@@ -155,6 +155,19 @@ function tileSlotsHTML(i){
 }
 // The phone bar along the bottom of the screen, in every phase: which phase it is, what to do right now, and the
 // button that moves the game on (Pass, Lock in, Next step, Continue). It stands out when it's waiting on you.
+// the shop's buttons: Pass (and Cancel while Vision is armed); in the bottom bar, or by the discard on the desktop mat
+function shopActsHTML(){
+  const S = seat(), myTurn = cur(G) === S;
+  const lbl = G.passed[S] ? 'Passed' : myTurn ? 'Pass' : G.net || PP() ? `${esc(nm(1 - S))}'s turn` : 'AI turn';
+  return `${ui.visArm ? '<button type="button" class="act" data-act="vis-cancel">Cancel</button>' : ''}<button type="button" class="primary act" data-act="pass" ${myTurn ? '' : 'disabled'}>${lbl}</button>`;
+}
+// Mobilize's Lock in button (in the bottom bar, or where Pass was on the desktop mat)
+function mobLockHTML(){
+  const S = seat(), lbl = ui.planning ? 'Waiting for other player…' : PP() && !G.net && S === 0 ? `Lock in, pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle';
+  return `<button type="button" class="primary act" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lbl}</button>`;
+}
+// one of your miracles can be played in this shop (its button glows)
+function shopMirLive(){ return (G.players[seat()].mir || []).some((_, j) => { const p = mirPlayable(j, 'shop'); return p.ok && !p.on; }); }
 const VIS_ARM_TXT = '✶ Vision: tap the Units or Buildings deck to look at its top 3.';
 function shopTurnText(){
   const S = seat(), O = 1 - S, myTurn = cur(G) === S;
@@ -183,20 +196,18 @@ function dockHTML(){
       : `${labMatZones() ? matBattleDockBtns() : ''}<button type="button" class="act" data-act="b-prev" ${ui.frame === 0 ? 'disabled' : ''}>Back</button><button type="button" class="primary act" data-act="b-next">Next step</button>`;
   } else if (G.phase === 'shop'){
     const me = G.players[S], myTurn = cur(G) === S;
-    const lbl = G.passed[S] ? 'Passed' : myTurn ? 'Pass' : G.net || PP() ? `${esc(nm(1 - S))}'s turn` : 'AI turn';
     hint = ui.visArm ? VIS_ARM_TXT : shopTurnText(); mine = myTurn && !G.passed[S];
     if (compact()) piles = dockPilesHTML();
     body = `<div class="purse"><span class="amt">$${me.money}</span><span class="nx">+$${Math.max(0, income(me))}<br>next shop</span></div>
       ${slotsHTML(true)}`;
-    acts = `${ui.visArm ? '<button type="button" class="act" data-act="vis-cancel">Cancel</button>' : ''}<button type="button" class="primary act" data-act="pass" ${myTurn ? '' : 'disabled'}>${lbl}</button>`;
+    acts = shopActsHTML();
   } else if (G.phase === 'mobilize'){
     if (G.net && NET && NET.acts.length > NET.applied[NET.seat]) return '';
     if (PP() && ui.handoff != null) return '';
     hint = mobHintText(); mine = !ui.planning;
-    const lbl = ui.planning ? 'Waiting for other player…' : PP() && !G.net && S === 0 ? `Lock in, pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle';
     if (!hint) hint = ui.planning ? 'The AI is setting its deck…' : 'Drag to set your deck order, tap a card to read it, then lock in.';
     infob = `<button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button>`;
-    acts = `<button type="button" class="primary act" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lbl}</button>`;
+    acts = mobLockHTML();
     if (matMobOn()){ DOCKINFO = {phase, hint, mine, infob}; return matMobDockHTML(acts); }   // one-screen dev: Mobilize on the mat
   } else return '';
   DOCKINFO = {phase, hint, mine, infob};
@@ -205,8 +216,7 @@ function dockHTML(){
     return `<button type="button" class="dk s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: view cards"><span class="dkic" aria-hidden="true"><i></i><i></i></span><span class="dl">${lab}</span></button>`; };
   let mirBtn = '';
   if (shopping && G.miracles){
-    const mir = G.players[S].mir || [];
-    const live = mir.some((_, j) => { const p = mirPlayable(j, 'shop'); return p.ok && !p.on; });
+    const mir = G.players[S].mir || [], live = shopMirLive();
     mirBtn = `<button type="button" class="mirb${live ? ' glow' : ''}${ui.mirTray ? ' on' : ''}" data-act="mir-tray" aria-expanded="${!!ui.mirTray}" aria-label="Miracles${mir.length ? ` (${mir.length})` : ''}"><span class="ms" aria-hidden="true">✶</span><span class="dl">Miracles</span>${mir.length ? `<span class="mc">${mir.length}</span>` : ''}</button>`;
   }
   // shop on phones: each side's tile is its deck button and carries its gold, income, unit and City counts and its buys

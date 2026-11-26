@@ -208,7 +208,8 @@ function arriveGhost(stage, a){
 // Ability notes for a save (Infirmary Tent, Field Medic, Second Wind) point into the deck the unit went back into
 const abIsSave = g => g.lines.some(l => (l.mv || []).some(m => m.k === 'save'));
 // New tokens slide out from behind their card one at a time (yours and the AI's in the order they were given),
-// right after the step lands; no extra clicks
+// right after the step lands; no extra clicks. Each token's own touch (Might's flex, a Shield's effect: juiceTokenLand)
+// plays together with its slide, every time, the second Might token as much as the first (Brian, Nov 25)
 function animateTokens(prevF, curF){
   clearTimeout(ui.tokT); if (!prevF || !curF || reduceMotion()) return;
   const counts = u => ({arm:u.arm || 0, tr:u.tr || 0, sh:u.sh || 0});
@@ -232,6 +233,7 @@ function animateTokens(prevF, curF){
         el.style.boxShadow = pp.shadow;
         if (art) applyRoom(el, pp.room); else Object.assign(el.style, {marginLeft:'', marginRight:'', marginTop:'', marginBottom:''}, n ? pp.room : {});
         const k = order[n - 1], had = pop && art ? el.querySelector(`:scope > .pk.tk[data-k="${k}"]:not(.pkfly)`) : null;
+        if (pop) juiceTokenLand(el, k, 1, 0);   // this token's touch, as it slides in
         if (had){
           const cp = had.cloneNode(true); cp.classList.add('pkfly'); cp.classList.remove('shhit'); const c = cp.querySelector('.tkn'); if (c) c.remove();
           had.after(cp);
@@ -255,6 +257,7 @@ function animateTokens(prevF, curF){
   let i = 0;
   const next = () => { if (i >= queue.length) return; queue[i++](); try{ sfx.tick(); }catch(e){} ui.tokT = setTimeout(next, 240); };
   if (queue.length) ui.tokT = setTimeout(next, 140);
+  ui.tokUntil = performance.now() + (queue.length ? 140 + 240 * queue.length + 520 : 0);   // when the last token has slid in (auto-play waits for it)
 }
 // Moving on from a step where a Shield blocked a hit: the shield (its token card peeking out behind the unit, and its
 // icon) cracks, splits and falls away. Measured from the board before it is redrawn without that shield.
@@ -361,6 +364,7 @@ function stepForward(){
   // so every click moves exactly one step however fast you click
   if (ui.animT) goFrame(ui.pendingFrame);
   if (ui.frame >= last) return;
+  juiceRinse();   // an Interceptor's ink wash from the last step rinses out as this one starts
   breakShieldsNow();   // a shield that blocked a hit in the step on screen breaks as soon as you move on
   const prev = ui.battle.frames[ui.frame], next = ui.battle.frames[ui.frame + 1], to = ui.frame + 1;
   ui.inkStart = to;   // the battle ink starts drawing this step now, as it begins (js/ui/19-battle-ink.js)
@@ -370,24 +374,28 @@ function stepForward(){
   const hits = [], saved = new Set(frameMoves(next).filter(m => m.to === 'deck-bottom').map(m => m.u));   // saves and Sand Sailor: back under the deck
   for (const [id, u] of before){
     const hpOf = v => Math.max(0, Math.min(100, (v.pow - v.dmg) / Math.max(1, v.pow) * 100));
-    if (saved.has(id)) hits.push({id, t:'Saved', ko:true, save:true, hp:100});   // its cubes lift off as it goes back into the deck
+    if (saved.has(id)) hits.push({id, t:'Saved', ko:true, save:true, hp:100, d:0});   // its cubes lift off as it goes back into the deck
     else if (after.has(id)){ const v = after.get(id), ev = (next.hits || []).filter(x => `${id}`.endsWith('-' + x.uid)), heal = ev.reduce((a, x) => a + x.heal, 0), d = v.dmg + heal - u.dmg;
-      if (d > 0){ const pre = {...v, dmg:v.dmg + heal}; hits.push({id, t:`−${d}`, hp:hpOf(pre), cur:Math.max(0, pre.pow - pre.dmg), max:v.pow, heal, after:hpOf(v)}); } }
-    else if (grave.has(id)) hits.push({id, t:'Defeated', ko:true, hp:0});
+      if (d > 0){ const pre = {...v, dmg:v.dmg + heal}; hits.push({id, t:`−${d}`, hp:hpOf(pre), cur:Math.max(0, pre.pow - pre.dmg), max:v.pow, heal, after:hpOf(v), d}); } }
+    else if (grave.has(id)) hits.push({id, t:'Defeated', ko:true, hp:0, d:Math.max(1, u.pow - u.dmg)});
   }
   const fought = next.lines.some(l => / fight\.$/.test(l.t));
+  const lethal = LAB.kwLethal && !reduceMotion() && next.lines.some(l => /\bLethal\b/.test(l.t));   // keyword juice (juice lab)
   const arrows = next.lines.filter(l => l.to);
   const heals = (next.hits || []).some(x => x.heal > 0);
-  if (!fought && !hits.length && !arrows.length && !heals){ goFrame(to, true); return; }
+  if (!fought && !hits.length && !arrows.length && !heals && !juiceWants(next)){ goFrame(to, true); return; }   // (juiceWants: an Interceptor's Silence with nothing else to show)
   const root = $('view-play');
-  const hitT = fought ? labClash(root) : 0;   // the charging units rush in and collide; hits land at the impact
+  const hitT = fought ? labClash(root) : juiceAbilityWind(root, next, hits);   // the charging units rush in and collide (or an ability winds up and stamps); hits land at the impact
   if (!fought && !hits.length) sfx.tick();
   if (fought) setTimeout(() => sfx.clash(), Math.max(0, hitT - 30));
   ui.pendingFrame = to;
   ui.animT = setTimeout(() => {
-    for (const l of arrows) if (l.to && l.from && !l.tok && l.amt === 0) cubeGlow('sh:' + l.to);   // a Shield stops this hit
+    for (const l of arrows) if (l.to && l.from && !l.tok && !l.sil && !l.cut && l.amt === 0) cubeGlow('sh:' + l.to);   // a Shield stops this hit
+    juiceSilenceStep(root, next, prev);   // Interceptor: the ink wash floods the cards its strokes reach
     const koOnly = hits.length && hits.every(h => h.ko) && !fought && !heals;   // a casualty step: nothing lands, cards just leave
-    if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.some(h => !h.save) && !koOnly) sfx.ko();
+    if (lethal) juiceLethal(hits);   // Lethal: a seal, the sound drops out for a silent beat, then one low thud
+    else if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.some(h => !h.save) && !koOnly) sfx.ko();
+    juiceKeywords(root, next, prev, hits);   // Overrun nudge, a Shield's clang
     for (const h of hits){
       const el = root.querySelector(`.card[data-uid="${h.id}"]`); if (!el) continue;
       // health bar drains to its new level
@@ -399,13 +407,14 @@ function stepForward(){
           hn.animate([{opacity:0, transform:'scale(1.3)'}, {opacity:1, transform:'none'}], {duration:450, delay:150, easing:'ease-out', fill:'backwards'}); }
       }
     }
+    juiceImpact(root, hits, fought);   // impact juice: table thump, recoil (Board settings switches)
     const tokOnly = arrows.length && arrows.every(a => a.tok) && !hits.length && !fought;
     const cubeT = cubeStep(next, hits, prev);   // drops, heals and the defeat sweep; a defeated card waits until its cubes are off
     // defeats with nothing else to watch go almost at once (the KO sound plays as the card starts to fly), instead of
     // sitting through the hit timer with an empty board; token arrows from a defeat still get time to read
-    const wait = koOnly ? (arrows.length ? 1000 : 150) : (tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260);
-    ui.animT = setTimeout(() => { ui.animT = null; if (koOnly && !hits.every(h => h.save)) sfx.ko(); goFrame(to, true); }, Math.max(wait, cubeT));
-  }, fought ? hitT : 0);
+    const wait = lethal ? juiceLethalT() : koOnly ? (arrows.length ? 1000 : 150) : (tokOnly ? 520 : arrows.length ? 1000 : hits.length ? 720 : 260);
+    ui.animT = setTimeout(() => { ui.animT = null; if (koOnly && !lethal && !hits.every(h => h.save)) sfx.ko(); goFrame(to, true); }, Math.max(wait, cubeT));
+  }, hitT);
 }
 /* Reminders: before you pass with money you could still spend, or lock in a deck with things left on the bench */
 function shopLeftovers(){

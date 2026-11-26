@@ -18,7 +18,7 @@ function abGroups(f){
   const groups = new Map();
   for (const l of f.lines){ if (!l.ab) continue; const k = l.ab.g ? `g:${l.ab.n}:${l.ab.u}` : l.ab.u || `b:${l.ab.s}:${l.ab.n}`; if (!groups.has(k)) groups.set(k, {ab:l.ab, lines:[]}); groups.get(k).lines.push(l); }
   // a Shield that blocks a hit gets its own note, joined to the shield on that card
-  for (const l of f.lines) if (l.to && !l.tok && l.amt === 0){
+  for (const l of f.lines) if (l.to && !l.tok && !l.sil && !l.cut && l.amt === 0){
     const k = 'sh:' + l.to; if (groups.has(k)) continue;
     groups.set(k, {ab:{n:'Shield', u:l.to, s:+String(l.to).split('-')[0], sh:true}, lines:[]});
   }
@@ -128,9 +128,29 @@ function autoTick(){
   if (!autoOn() || !ui.battle || !G) return;
   if ($('view-play').hidden){ autoT = setTimeout(autoTick, 500); return; }   // paused while another tab is open
   if (ui.animT || peekEl || (typeof matBatBusy === 'function' && matBatBusy())){ autoT = setTimeout(autoTick, 200); return; }   // let the current step (or the mat's flow into the battle) finish first
+  // everything the step set going must have finished too (tokens sliding in one by one, cards flying to the graveyard,
+  // the impact juice), and then the board rests a moment so it can be read (Brian, Nov 25: at 1× the next step came too
+  // soon). The rest starts over whenever something is still moving.
+  const now = performance.now();
+  if (autoMoving(now) && now - autoStepAt < 6000){ autoRestFrom = now;   // (never stuck: after 6 s it goes on anyway)
+    autoT = setTimeout(autoTick, 150); return; }
+  const rest = reduceMotion() ? 0 : autoFast() ? AUTO_REST_FAST : AUTO_REST;
+  if (now - autoRestFrom < rest){ autoT = setTimeout(autoTick, rest - (now - autoRestFrom) + 10); return; }
   if (ui.frame >= ui.battle.frames.length - 1) return;
-  stepForward(); syncAutoBtn();
+  stepForward(); syncAutoBtn(); autoRestFrom = autoStepAt = performance.now();
   autoT = setTimeout(autoTick, (reduceMotion() ? 700 : 1150) / (autoFast() ? 2 : 1));
+}
+// how long the board rests after a step has fully played out, before auto-play takes the next one (ms)
+const AUTO_REST = 700, AUTO_REST_FAST = 150;
+let autoRestFrom = 0, autoStepAt = 0;
+// something from the last step still moving: tokens still to slide in, or a short (not looping) animation running on the
+// battle board or on a card flying to the graveyard
+function autoMoving(now){
+  if (ui.tokUntil && now < ui.tokUntil) return true;
+  const vp = $('view-play');
+  return document.getAnimations().some(a => { if (a.playState !== 'running' || !a.effect) return false;
+    const t = a.effect.target, end = a.effect.getComputedTiming().endTime;
+    return end !== Infinity && end < 5000 && t && t.nodeType === 1 && (vp.contains(t) || t.closest('.deathfly, .shbreak')); });
 }
 function stopAnim(){ if (ui.animT){ clearTimeout(ui.animT); ui.animT = null; } }
 // Reserve each side's row at the tallest it gets during this battle (decks shrink, graveyards grow): every frame is
@@ -146,7 +166,7 @@ function reserveRows(){
   if (!st || !line || !ui.battle) return;
   const mz = typeof labMatZones === 'function' && labMatZones();
   // phone battle on the mat: the cards start at the board's own size each battle; matFitBattle shrinks them to fit
-  if (mz && ui.battle.fitW == null){ ui.battle.fitW = Math.round(98 * LAB.zoom / 100); document.documentElement.style.setProperty('--matbcw', ui.battle.fitW + 'px'); }
+  if (mz && ui.battle.fitW == null){ ui.battle.fitW = matBatBase(); document.documentElement.style.setProperty('--matbcw', ui.battle.fitW + 'px'); }
   const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length + ':' + (typeof LAB === 'object' ? LAB.splay : '') + ':' + (mz ? ui.battle.fitW : '');
   if (ui.battle.rowKey !== key){
     const probe = document.createElement('div');
@@ -200,12 +220,31 @@ function reserveRows(){
    width is --matbcw, which css/11-rug.css gives the board as --bcw (tucks, gaps and room follow); labels and bars
    don't scale, so the height is a straight line in the width: a few secant steps find the width, re-measuring the
    rows each time (no redraw). Rows are reserved for the tallest frame, so the size holds for the whole battle. */
+// the battle cards' own size on the mat: the phone board's, or on the desktop the table's card size from the shop
+function matBatBase(){
+  const d = typeof matDesk === 'function' && matDesk() && parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--deskmw'));
+  return d > 0 ? Math.round(d) : Math.round(98 * LAB.zoom / 100);
+}
+/* Desktop (Brian, Nov 25): the Caravan strips hold normal-width cards with the crop applied, tilted with the table.
+   "Normal width" is the battle cards' width, so the strips' cards follow --matbcw (as --stripw), and the strip zones are
+   only as tall as the crop; matFitBattle settles the shared width (the strips get shorter as the cards shrink). */
+function matDeskStrips(w){ document.documentElement.style.setProperty('--stripw', Math.round(w) + 'px'); }
 function matFitBattle(line){
   const b = ui.battle; if (!b || !line || b.fitting) return;
-  const base = Math.round(98 * LAB.zoom / 100), {top, bot} = battleRoom(), room = bot - top - 6;
+  const desk = typeof matDesk === 'function' && matDesk();
+  if (desk) matDeskStrips(b.fitW || matBatBase());   // desktop: the strips' cards share the battle cards' width
+  if (desk){   // desktop: the board's panel sits between the Caravan strips (css/12-mat-shop.css, --dsh-o / --dsh-m)
+    const so = document.querySelector('#view-play .osbars .osstrip.opp'), sm = document.querySelector('#view-play .osbars .osstrip.me'), g = $('gtop'), de = document.documentElement;
+    const gb = g ? g.getBoundingClientRect().bottom : 0;
+    de.style.setProperty('--dsh-o', Math.round(so ? so.getBoundingClientRect().bottom + 16 - gb : 0) + 'px');
+    de.style.setProperty('--dsh-m', Math.round(sm ? innerHeight - sm.getBoundingClientRect().top + 16 : 0) + 'px');   // clear of the near row's zone names
+  }
+  const pr = desk && line.closest('.panel') ? line.closest('.panel').getBoundingClientRect() : null;   // desktop: the room is the board's panel, between the strips
+  const base = matBatBase(), {top, bot} = pr ? {top:pr.top, bot:pr.bottom + 6} : battleRoom(), room = bot - top - 6;
   if (room < 120) return;
   const H = () => line.getBoundingClientRect().height;
   document.documentElement.style.setProperty('--matgap', '0px');   // measured without the extra gap (added back below)
+  if (desk) document.documentElement.style.setProperty('--matgapk', '.5');   // desktop: the sides keep half a card's length between them (up to .75 with room to spare)
   let w = b.fitW, h = H(), pw = null, ph = null;
   b.fitting = true;
   try{
@@ -221,7 +260,7 @@ function matFitBattle(line){
     if (h > room && w > 56){ b.fitW = w = Math.max(56, w - 2); document.documentElement.style.setProperty('--matbcw', w + 'px'); reserveRows(); }
     // and across: on a narrow phone the three spots of a row (the near row is drawn wider, in the tilt) must stay on
     // screen, so the cards shrink a little more if a spot hangs past either edge
-    const vw = document.documentElement.clientWidth;
+    const vw = desk ? (line.closest('.panel') || line).getBoundingClientRect().right : document.documentElement.clientWidth;   // (desktop: left of the buttons' column)
     const over = () => Math.max(0, ...[...line.querySelectorAll('.trow > .tz > .tzc')].map(z => { const r = z.getBoundingClientRect(); return Math.max(-r.left, r.right - vw); }));
     for (let i = 0; i < 6 && w > 56; i++){
       const o = over(); if (o <= 1) break;
@@ -231,8 +270,13 @@ function matFitBattle(line){
     }
     // room left over once the cards are full size goes between the two battle rows (Brian, Nov 24: more space there),
     // up to 90 px more than the 28 px they always keep (--matgap, css/11-rug.css)
-    const gap = Math.max(0, Math.min(90, Math.floor(room - H())));
-    b.fitGap = gap; document.documentElement.style.setProperty('--matgap', gap + 'px');
+    if (desk){   // desktop (Brian, Nov 25): .5 to .75 of a card's length between the sides, for the arrows and charges
+      const k = Math.min(.75, .5 + Math.max(0, room - H()) / (w * 1.3827));
+      b.fitGap = k; document.documentElement.style.setProperty('--matgapk', k.toFixed(3));
+    } else {
+      const gap = Math.max(0, Math.min(90, Math.floor(room - H())));
+      b.fitGap = gap; document.documentElement.style.setProperty('--matgap', gap + 'px');
+    }
     // and down: the page stays at its top on the mat, so where the page flow puts the table is where it is drawn; if
     // that hangs under the bottom bar (or above the top one), the table moves just enough to sit between them
     // (--matdy, css/11-rug.css; Brian, Nov 24: nothing cut off on short phones). Worked out from the table's own
@@ -244,6 +288,12 @@ function matFitBattle(line){
     if (t0 + dy < top + 3) dy = top + 3 - t0;
     dy = Math.round(dy); if (dy !== cur) de.style.setProperty('--matdy', dy + 'px');
   } finally { b.fitting = false; }
+  // desktop: the strips used the old width; if the cards changed size, fit once more with the strips at the new one
+  // (a smaller card makes shorter strips, so this settles in a round or two)
+  if (desk){
+    const sw = parseFloat(document.documentElement.style.getPropertyValue('--stripw')) || 0;
+    if (Math.abs(sw - b.fitW) >= 2 && (b.stripRounds = (b.stripRounds || 0) + 1) <= 3) matFitBattle(line); else b.stripRounds = 0;
+  }
 }
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
 /* Show battle step k (glide: animate from the step on screen). Steps around the redraw come from the cubes
