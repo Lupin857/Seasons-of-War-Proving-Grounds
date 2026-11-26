@@ -172,8 +172,7 @@ function drawPlay(){
   turnWatch();
   shopNotes();
   markGame(true);   // first, so the page has already scrolled when the deal measures each card's spot
-  syncShop(dealNow);   // deals the market at the start of the shop, and plays every change to it after that
-  dealPeeks(dealNow);
+  return dealNow;
 }
 /* Save and resume: a game in progress (against the AI or pass and play) is kept in this browser after every change,
    so a phone that reloads the tab (switching apps, locking the screen) comes back to the same spot. Online games
@@ -331,8 +330,13 @@ function flyZ(dest){
 // Brian's values from the lab (Nov 22): no hop, a slower turn with a bigger pop toward you, sounds 200 ms later
 const DEAL_FX = {lift:.52, rise:0, tilt:10, leaveAt:.138, land:.447, plainLand:.7, flipAt:.622, flipMid:.804, flipEnd:.94,
   flipRise:32, flipGrow:1.38, sndEarly:-200};
+// The full-size desktop cards make a shorter arc and start the turn as they touch down.
+const DESK_DEAL_FX = {...DEAL_FX, land:.43, flipAt:.455, flipMid:.66, flipEnd:.91,
+  tilt:6, flipRise:17, flipGrow:1.12, sndEarly:0};
+const DESK_DEAL_WAVE = {spread:420, gap:96, dur:790, backDur:440, backLead:140};
+const DESK_DEAL_REFILL = {spread:155, gap:80, dur:630, backDur:400, backLead:120};
 // a landing sound's time, in seconds from now: the landing time (ms) less the early nudge
-const dealLandAt = ms => Math.max(0, ms - DEAL_FX.sndEarly) / 1000;
+const dealLandAt = (ms, fx = DEAL_FX) => Math.max(0, ms - fx.sndEarly) / 1000;
 function dealFly(el, deck, delay, dur, o = {}){
   if (!el || !deck || !el.isConnected) return 0;
   let r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
@@ -350,8 +354,7 @@ function dealFly(el, deck, delay, dur, o = {}){
   // until its turn the copy is hidden (the deck and its count show through); then it appears exactly on the deck, the
   // size of its top card, lifts off, tilts, travels to its spot and flips over
   const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2);
-  const F = DEAL_FX, sx = dr.width / r.width, sy = dr.height / r.height, lift = Math.min(F.lift, Math.max(sx, sy) * 1.6);
-  el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});   // the real card waits, invisible, until the copy lands
+  const F = o.fx || DEAL_FX, sx = dr.width / r.width, sy = dr.height / r.height, lift = Math.min(F.lift, Math.max(sx, sy) * 1.6);
   let kf, an, SWAP = 1;
   if (o.plain){
     kf = [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.18}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}];
@@ -392,7 +395,10 @@ function dealFly(el, deck, delay, dur, o = {}){
     // face down, nothing of the face shows (not even text or a stamp past the card's edge); it all turns up with the flip
     for (const c of g.children) if (c !== back) c.animate([{visibility:'hidden'}, {visibility:'hidden', offset:SWAP}, {visibility:'visible', offset:SWAP + .001}, {visibility:'visible'}], {duration:dur, delay, fill:'both'});
   }
-  an.onfinish = an.oncancel = () => g.remove();
+  if (!matTrackDeal(el, g, an)){
+    const wait = el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});
+    an.onfinish = an.oncancel = () => { g.remove(); wait.cancel(); };
+  }
   return delay + dur;
 }
 // a deck's number counts down as its cards are dealt: it starts that many higher and drops as each one lifts off
@@ -413,15 +419,17 @@ function dealMarket(){
   const cards = rows.filter(Boolean).flatMap(row => [...row.querySelectorAll('.mcard')]).filter(el => !el.classList.contains('ghost') && el.offsetParent);
   // 1) cards left over from last shop never moved: they sit in their spots from the start (no animation)
   const returning = cards.filter(el => el.classList.contains('leaving') && !el.classList.contains('always'));
+  const desk = matDesk();
   // 2) ...while each one's hourglass token drops onto its corner like a stamp (upkeep), once the cleanup is under way
-  const tokBase = leaveEnd ? ROUND_FX.tokAt : ROUND_FX.leaveAt, tokGap = spreadGap(returning.length, ROUND_FX.tokSpread, ROUND_FX.tokGap), tokDur = ROUND_FX.tokDur;
+  const tokBase = leaveEnd ? ROUND_FX.tokAt : ROUND_FX.leaveAt, tokGap = spreadGap(returning.length, ROUND_FX.tokSpread, ROUND_FX.tokGap), tokDur = desk ? 285 : ROUND_FX.tokDur;
+  const returnGap = desk ? spreadGap(returning.length, 280, 78) : ROUND_FX.leaveGap;
   let tokEnd = 0, ti = 0, ri = 0;
   returning.forEach(el => {
     // one-screen mat: it comes back out of the top of its deck first (matReturnFly), and is stamped as it lands
     const k = (el.closest('.msec') || {}).dataset?.k === 'b' ? 'b' : 'u';
-    const back = matReturnFly(el, deckEl(k), ROUND_FX.leaveAt + ri * ROUND_FX.leaveGap, 620); if (back) ri++;
+    const back = matReturnFly(el, deckEl(k), ROUND_FX.leaveAt + ri * returnGap, desk ? 525 : 620); if (back) ri++;
     const tok = el.querySelector('.hgtok'); if (!tok){ tokEnd = Math.max(tokEnd, back); return; }
-    const delay = back ? back - 80 : tokBase + ti++ * tokGap;
+    const delay = back ? back - (desk ? 0 : 80) : tokBase + ti++ * tokGap;
     setTimeout(() => { try{ sfx.tick(); }catch(e){} }, delay + tokDur * 0.64);
     tok.animate([
       {transform:'translate(14px,-46px) scale(2.1) rotate(-25deg)', opacity:0, offset:0},
@@ -433,12 +441,12 @@ function dealMarket(){
   });
   // one-screen mat: the always-for-sale piles slide back in from off the left edge, where they went for Mobilize
   if (matShopOn()) vp.querySelectorAll('.osmkt .msec[data-k] .alwaysw .astack > .mcard').forEach(el => {
-    const t = matReturnFly(el, matSupplyOff(matFlatRect(el)), ROUND_FX.leaveAt, 620);
+    const t = matReturnFly(el, matSupplyOff(matFlatRect(el)), ROUND_FX.leaveAt, desk ? 490 : 620);
     if (t) el.closest('.alwaysw').animate([{opacity:0}, {opacity:0}], {duration:t});   // its ALWAYS tag waits for it too
     tokEnd = Math.max(tokEnd, t); });
   // 3) ...and the new cards are dealt alongside (Recruit and Field never leave the table)
   const fresh = cards.filter(el => !el.classList.contains('always') && !el.classList.contains('leaving'));
-  const end = dealIn(fresh, leaveEnd || tokEnd ? ROUND_FX.dealAt : ROUND_FX.leaveAt, ROUND_FX.deal);
+  const end = dealIn(fresh, desk ? 145 : leaveEnd || tokEnd ? ROUND_FX.dealAt : ROUND_FX.leaveAt, ROUND_FX.deal);
   ui.dealUntil = performance.now() + Math.max(leaveEnd, tokEnd, end);
 }
 /* Deal cards into their spots: each flies face down out of its own row's deck and flips over (miracles under a card
@@ -448,6 +456,9 @@ function dealMarket(){
    (spread); without it, the usual pace for a card or two joining mid-shop. */
 function dealIn(els, base, o){
   const live = els.filter(el => el && el.isConnected);
+  const desk = live.some(el => el.closest('#view-play .osdesk .osmkt'));
+  const F = desk ? DESK_DEAL_FX : DEAL_FX;
+  if (desk) o = o ? DESK_DEAL_WAVE : DESK_DEAL_REFILL;
   const flights = live.reduce((a, el) => a + 1 + backsOf(el).length, 0);
   const gap = o ? spreadGap(flights, o.spread, o.gap) : 160, dur = o ? o.dur : 1100, backDur = o ? o.backDur : 800, lead = o ? o.backLead : 400;
   const starts = {u:[], b:[]}; let n = 0, end = 0;
@@ -458,15 +469,19 @@ function dealIn(els, base, o){
     for (const b of backs){
       b.style.opacity = '';
       const bd = base + n++ * gap;
-      if (dealFly(b, deck, bd, backDur, {plain:true})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); sfx.drop(dealLandAt(bd + backDur * DEAL_FX.plainLand), .4); }catch(e){} }
+      if (dealFly(b, deck, bd, backDur, {plain:true, fx:F})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); sfx.drop(dealLandAt(bd + backDur * F.plainLand, F), .4); }catch(e){} }
       end = Math.max(end, bd + backDur * .65);
     }
     el.style.opacity = '';
     const delay = base + n++ * gap + (backs.length ? lead : 0);
-    if (dealFly(el, deck, delay, dur)){
-      starts[k].push(delay + 60); try{ sfx.flick(delay / 1000 + 0.05); sfx.drop(dealLandAt(delay + dur * DEAL_FX.land), .55); sfx.flick(dealLandAt(delay + dur * DEAL_FX.flipMid), 1.3); }catch(e){}
+    if (dealFly(el, deck, delay, dur, {fx:F})){
+      starts[k].push(delay + (desk ? dur * F.leaveAt : 60)); try{ sfx.flick(delay / 1000 + 0.05); sfx.drop(dealLandAt(delay + dur * F.land, F), .55); sfx.flick(dealLandAt(delay + dur * F.flipMid, F), 1.3); }catch(e){}
       end = Math.max(end, delay + dur);
-      el.dataset.dealt = '1'; if (el.dataset.ck) MOT.busy.set(el.dataset.ck, performance.now() + delay + dur);
+      el.dataset.dealt = '1';
+      if (el.dataset.ck && !el.classList.contains('osarriving')) MOT.busy.set(el.dataset.ck, performance.now() + delay + dur);
+    } else if (desk) {
+      el.inert = false;
+      el.classList.remove('osarriving');
     }
   }
   ui.dealUntil = Math.max(ui.dealUntil || 0, performance.now() + end);
@@ -511,14 +526,20 @@ function shopChanges(fresh, moved, gone, from, base){
   let end = 0;
   const pile = pileEl();
   gone.forEach((ck, j) => { const f = from.get(ck); if (f && pile) end = Math.max(end, flyTo(f, pile, {delay:j * 200, dur:1000, intoBtn:true})); });
-  moved.forEach((ck, j) => { const f = from.get(ck), el = ckEl(ck); if (f && el){ for (const e of [el, ...backsOf(el)]) e.style.opacity = ''; end = Math.max(end, flyTo(f, el, {delay:j * 200, dur:900})); } });
+  moved.forEach((ck, j) => { const f = from.get(ck), el = ckEl(ck); if (el?.classList.contains('osarriving')){ el.inert = false; el.classList.remove('osarriving'); }
+    if (f && el){ for (const e of [el, ...backsOf(el)]) e.style.opacity = ''; end = Math.max(end, flyTo(f, el, {delay:j * 200, dur:900})); } });
   end = Math.max(end, dealIn(fresh.map(ckEl).filter(Boolean), base + (gone.length ? 200 : 0)));
   return new Promise(res => setTimeout(res, end));
 }
 // a redraw makes new elements: ones still waiting for their deal stay hidden, and ones mid-deal stay hidden until it lands
 function rehide(){
   const t = performance.now();
-  for (const ck of MOT.wait){ const el = ckEl(ck); if (el) for (const e of [el, ...backsOf(el)]) e.style.opacity = '0'; }
+  for (const ck of MOT.wait){
+    const el = ckEl(ck); if (!el) continue;
+    if (el.closest('#view-play .osdesk .osmkt')) matMarkDeal(el);
+    else el.style.opacity = '0';
+    for (const e of backsOf(el)) e.style.opacity = '0';
+  }
   for (const [ck, until] of MOT.busy){
     const left = until - t; if (left <= 0){ MOT.busy.delete(ck); continue; }
     const el = ckEl(ck); if (!el || el.dataset.dealt || (el.getAnimations && el.getAnimations().some(a => a.playState === 'running'))) continue;
@@ -700,8 +721,8 @@ $('view-play').addEventListener('click', e => {
     case 'd-up': [d[i-1], d[i]] = [d[i], d[i-1]]; sfx.tick(); break;
     case 'd-down': [d[i+1], d[i]] = [d[i], d[i+1]]; sfx.tick(); break;
     case 'b-speed': { sfx.soft(); LS.set('sow-autofast', !autoFast()); const b = t; b.textContent = speedLabel(); b.setAttribute('aria-pressed', autoFast() ? 'true' : 'false'); if (autoOn() && autoT){ startAuto(200); } return; }
-    case 'suggest': sfx.rustle(); mzReplace(draftFromDeck(netClone(() => aiMobilize(G, seat(), 60, DEPTH_HINT)) || [])); return;
-    case 'lock': lockDeck(); return;
+    case 'suggest': mzSuggestDeck(); return;
+    case 'lock': if (mzActive()) lockDeck(); return;
     case 'b-auto': { sfx.soft(); const on = !autoOn(); LS.set('sow-autoplay', on); if (on) startAuto(300); else stopAuto(); syncAutoBtn(); mountAbWin(); return; }
     case 'b-abwin': { sfx.soft(); LS.set('sow-abwin', !abOn()); t.setAttribute('aria-pressed', abOn() ? 'true' : 'false'); mountAbWin(); return; }
     case 'b-first': sfx.soft(); stopAuto(true); goFrame(0); return;
@@ -738,6 +759,7 @@ function renderPlay(){
   if (typeof labAfterDraw === 'function') labAfterDraw();            // Board settings: body.lab-inbattle
   if (typeof rugAfterDraw === 'function') rugAfterDraw();            // one-screen dev: the lit rug under the battle
   if (typeof matBarsAfterDraw === 'function') matBarsAfterDraw();    // one-screen dev: the Caravan bars sit right under the top bar
+  if (typeof r === 'boolean'){ syncShop(r); dealPeeks(r); }           // measure flights after fitting the board to the window
   if (ui.battle) reserveRows();                     // every redraw of the battle keeps the reserved row heights
   if (art) playArtAfter(art);                       // put the decoded pictures back (no blink)
   if (typeof playNotesAfter === 'function') playNotesAfter(notes);   // damage cubes follow the board; old notes fade out

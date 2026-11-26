@@ -159,6 +159,32 @@ body.os-sand #view-play .osbar.s0 .oscarrow .osslot{border-color:rgba(36,86,124,
 .osliftwrap .mcard.peek .ctag,.osliftwrap .mcard.peek>.pkdrag{display:none!important}
 .osliftwrap .mcard.peek>.kwgloss{margin-top:12px!important}
 .osliftwrap .osliftmir{font-size:1rem}
+.osliftwrap.osshopinspect{align-items:safe center;padding:20px 16px}
+.osshopinspect .oslift{
+  --os-read-width:min(306px,calc((100dvh - 64px) * 750 / 1037),calc((100vw - 72px) * .52));
+  display:grid;grid-template-columns:var(--os-read-width) minmax(0,min(280px,39vw));align-items:center;
+  gap:clamp(14px,2.1vw,30px);width:max-content;max-width:100%;margin:0 auto
+}
+.osshopinspect .oslift>.osfly{min-width:0}
+.osshopheld>.mcard.peek{position:relative!important;inset:auto!important;width:100%!important;max-height:none!important;margin:0!important}
+.osinspect-side{display:flex;flex-direction:column;gap:12px;box-sizing:border-box;padding:16px;max-height:calc(100dvh - 40px);
+  overflow:auto;color:#f4ead2;background:#221a13;border:1px solid #705637;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.42)}
+.osinspect-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.osinspect-head h2{margin:0;font:400 1.2rem/1.2 Marcellus,serif;color:#f4ead2}
+.osinspect-side button.osinspect-close{flex:none;width:32px;height:32px;min-height:32px;padding:0;border-radius:6px;
+  color:#f4ead2;background:#33261a;border:1px solid #705637;font-size:1.25rem}
+.osinspect-actions>button{width:100%;min-height:44px;padding:8px 10px}
+.osinspect-actions>button:not(:disabled){background:#d1a94f!important;color:#26190c!important;border-color:#d1a94f;
+  font-weight:700}
+.osinspect-actions>button:not(:disabled):hover{background:#e2bd68!important}
+.osinspect-actions>button:disabled{background:#3a2d20!important;color:#d2c4a9!important;border-color:#705637;opacity:1}
+.osinspect-side .kwgloss{border-top-color:#705637;margin:0;padding-top:10px}
+.osinspect-side .kwgloss :is(.eyebrow,dt,b.kw){color:#ebc675}
+.osinspect-side .kwgloss dl>div{color:#e2d6bf}
+.osinspect-side .stamps{position:static;inset:auto;transform:none}
+.osinspect-side .sheetmir{display:flex;flex-wrap:wrap}
+.osinspect-side .sheetmir .mirseal{width:100%;box-sizing:border-box}
+.osinspect-side button:focus-visible{outline:2px solid #ebc675;outline-offset:2px}
 /* the card stays hidden on the mat while it is up, and the Sell buttons of your seat cards show only on the lifted card */
 #view-play .mcard.oslifted,#view-play .osmob .oslifted{visibility:hidden!important}
 #view-play .osbar .mcard>button{display:none!important}
@@ -293,6 +319,8 @@ body.os-sand #view-play .osdesk .ostray{background:rgba(70,45,22,.2)}
 #view-play .osdesk .osmkt .market>.mcard::before{content:"";position:absolute;left:calc(var(--mw) * -.2);right:calc(var(--mw) * -.2);top:calc(50% - var(--mw) * .7);height:calc(var(--mw) * 1.4);
   border:1.5px dashed rgba(60,40,20,.28);border-radius:10px;box-sizing:border-box;pointer-events:none;z-index:-1}
 #view-play .osdesk .osmkt .market>.mcard.leaving{transform:rotate(90deg)}
+#view-play .osdesk .osmkt .market>.mcard.osarriving{visibility:hidden}
+#view-play .osdesk .osmkt .market>.mcard.osarriving::before{visibility:visible}
 #view-play .osdesk .osmkt .mdiv{display:none!important}
 /* right of the trays: the discard pile (sideways) and Pass under it */
 #view-play .osdesk .osright{flex:none;width:calc(var(--mw) * 1.4);display:flex;flex-direction:column;align-items:center;gap:calc(var(--mw) * .25)}
@@ -308,11 +336,17 @@ body:has(#view-play .osdesk) .dealback.oback{clip-path:none}
 #view-play .osdesk .ospass button.primary{background:#c9a24a!important;color:#1a1208!important;border:0!important;box-shadow:0 3px 8px rgba(40,25,10,.35)}
 #view-play .osdesk .ospass button.primary:disabled{background:rgba(70,45,22,.25)!important;color:#5e4429!important;box-shadow:none}
 #view-play .osdesk .mcard :is(.ctag,.stamps){display:none!important}   /* tags ("Need $1 more", copies owned) show on the opened card */
-/* hover to read and drag to buy or sell (stage 2, js/ui/20-mat-shop.js MATHOV / MATDRAG) */
+/* Shop cards highlight in place. Click to inspect, or drag to buy or sell. */
 #view-play .osdesk{-webkit-user-select:none;user-select:none}
-#view-play .osdesk .mcard.oshover{opacity:0}   /* its enlarged copy (.oshov) stands over it (opacity, so the card still takes the press that starts a drag) */
+#view-play .osdesk .osinspectable{cursor:pointer}
+#view-play .osdesk .osinspectable:is(:hover,:focus-visible):not(.oslifted)> .cface,
+#view-play .osdesk .osinspectable:is(:hover,:focus-visible):not(.oslifted):not(:has(>.cface)){
+  outline:2px solid #f4d58a;outline-offset:3px
+}
+#view-play .osdesk .mirwrap:hover .mirhover{display:none}
 .mcard.oshov,.mcard.osdrag{padding:0!important;background:none!important;border:0!important;overflow:visible!important}
 .mcard.oshov>.cface,.mcard.osdrag>.cface{box-shadow:0 14px 28px rgba(30,18,8,.55)}
+body:has(#view-play .osdesk:not(.osmobmat)) .optag{font-size:.82rem;padding:3px 12px}
 .mcard.osdrag{cursor:grabbing}
 body.osdragging,body.osdragging *{cursor:grabbing!important}
 #view-play .osdesk .osseat.me.osdrop{box-shadow:0 0 0 3px rgba(230,192,106,.95),0 0 30px rgba(230,192,106,.6)!important;background:rgba(230,192,106,.22)!important}
