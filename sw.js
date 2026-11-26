@@ -3,7 +3,7 @@
    version; the cached copy is only used when the network is missing or slow.
    Card art and fonts: cache first (they rarely change).
    Bump VERSION whenever files are added, removed or renamed. */
-const VERSION = 'oasis-v2';
+const VERSION = 'oasis-v3';
 const CORE = [
  "./",
  "index.html",
@@ -33,6 +33,16 @@ const CORE = [
  "js/cards-tab.js",
  "js/desktop.js",
  "js/engine.js",
+ "js/engine/00-runtime-state.js",
+ "js/engine/01-card-data.js",
+ "js/engine/02-battle.js",
+ "js/engine/03-miracles.js",
+ "js/engine/04-game.js",
+ "js/engine/05-balance.js",
+ "js/engine/06-shop.js",
+ "js/engine/07-ai.js",
+ "js/engine/08-search.js",
+ "js/engine/09-learning.js",
  "js/mobile-crop.js",
  "js/names.js",
  "js/rug.js",

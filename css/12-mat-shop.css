@@ -343,7 +343,9 @@ body.osdragging,body.osdragging *{cursor:grabbing!important}
 #view-play .osdeskmob .osfanslot{position:absolute;left:0;top:0;transform-origin:0 0}
 #view-play .osdeskmob .osfan .mzc{--mzr:1.3827;--mzw:var(--mw);--mzh:calc(var(--mw) * 1.3827);margin:0!important}
 #view-play .osdeskmob .osfan>.mzempty{position:static;width:calc(var(--mw) * 2);padding:20px;text-align:center}
-#view-play .osdeskmob .mzc.oshover{opacity:0}
+#view-play .osdeskmob .mzc.oshover:not(.osmzpeek){opacity:0}
+#view-play .osdeskmob #mz-deck>.mzc.osmzpush-up{transform:translateY(calc(0px - var(--osmzshift)));transition:transform .15s ease-out}
+#view-play .osdeskmob #mz-deck>.mzc.osmzpush-down{transform:translateY(var(--osmzshift));transition:transform .15s ease-out}
 /* the AI's deck, face down near the top edge, and its words */
 #view-play .osdeskmob .osaideck{position:absolute;z-index:3;left:calc(50% + var(--mw) * 1.2);top:calc(var(--mw) * .1);display:flex;align-items:center;gap:14px;pointer-events:none}
 #view-play .osdeskmob .osaicard{display:flex;--bcw:calc(var(--mw) * .7);width:calc(var(--mw) * .7);aspect-ratio:750/1037;border-radius:8px;transform-origin:0 0;box-shadow:0 6px 14px rgba(0,0,0,.45)}

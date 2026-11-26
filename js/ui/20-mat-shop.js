@@ -471,16 +471,27 @@ function matSellFlight(i, name){
    (matLiftUnheld). The phone keeps tap to lift. (The Mobilize drag, js/ui/10-mobilize.js, reorders a list in place;
    this one carries a card to a target and hands it to the buy and sell flights.) */
 const MAT_HOVER_DELAY = 100, MAT_HOVER_GROW = 150, MAT_HOVER_SCALE = 1.8, MAT_DRAG_PX = 6, MAT_DRAG_LIFT = 120;
-const MATHOV = {card:null, pend:null, t:0, g:null};
+const MATHOV = {card:null, pend:null, t:0, g:null, owner:0};
 const MATDRAG = {p:null, eat:false};
-// a card the desktop mat reads on hover: a card on the mat, or one of Mobilize's (the cascade and the bench fan)
+// a card the desktop mat reads on hover: a card on the mat, or one of Mobilize's
+// ordered deck cards and bench cards
 function matDeskCard(el){ return el && el.closest && typeof matDesk === 'function' && matDesk() ? el.closest('#view-play .osdesk .mcard, #view-play .osdeskmob .mzc:not(.mzslot)') : null; }
 const matMzDragging = () => typeof mzP !== 'undefined' && !!mzP && !!mzP.drag;
 function matHoverEnd(now){
   clearTimeout(MATHOV.t); MATHOV.t = 0; MATHOV.pend = null;
-  const {g, card} = MATHOV; MATHOV.g = null; MATHOV.card = null;
+  const {g, card, owner} = MATHOV; MATHOV.g = null; MATHOV.card = null;
   if (!g) return;
-  const done = () => { g.remove(); if (card) card.classList.remove('oshover'); };
+  const done = () => {
+    g.remove();
+    if (card && card.dataset.osmzHoverOwner === String(owner)){
+      card.classList.remove('oshover', 'osmzpeek');
+      delete card.dataset.osmzHoverOwner;
+    }
+    card?.parentElement?.querySelectorAll('.osmzpush-up,.osmzpush-down').forEach(r => {
+      if (r.dataset.osmzPushOwner !== String(owner)) return;
+      r.classList.remove('osmzpush-up', 'osmzpush-down'); r.style.removeProperty('--osmzshift'); delete r.dataset.osmzPushOwner;
+    });
+  };
   if (now || reduceMotion() || !g._kf){ done(); return; }
   g.getAnimations().forEach(a => a.cancel());
   g.animate(g._kf.slice().reverse(), {duration:MAT_HOVER_GROW * .8, easing:MAT_EASE, fill:'forwards'}).onfinish = done;
@@ -490,7 +501,24 @@ function matHoverStart(card){
   const from = matPoseOf(card), sr = card.getBoundingClientRect(); if (!from) return;   // where it rests: on the mat, in the fan, or flat
   const fr = from.r, w = fr.width * MAT_HOVER_SCALE, h = (fr.height || fr.width * 1.3827) * MAT_HOVER_SCALE;
   const top = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gtb')) || 0) + 8;   // near an edge it grows inwards
-  const x = Math.max(8, Math.min(innerWidth - 8 - w, sr.left + sr.width / 2 - w / 2)), y = Math.max(top, Math.min(innerHeight - 8 - h, sr.top + sr.height / 2 - h / 2));
+  const deckPeek = card.matches('#view-play .osdeskmob #mz-deck > .mzc[data-mz="deck"]');
+  const owner = String(++MATHOV.owner);
+  card.dataset.osmzHoverOwner = owner;
+  if (deckPeek){
+    const rows = [...card.parentElement.children].filter(r => r.matches('.mzc[data-mz="deck"]'));
+    const i = rows.indexOf(card);
+    const step = card.getBoundingClientRect().width * .3;   // 1.5 cascade steps (.2 card widths) per row
+    rows.forEach((r, j) => {
+      if (j === i) return;
+      const dir = j < i ? 'up' : 'down';
+      r.classList.add('osmzpush-' + dir); r.dataset.osmzPushOwner = owner;
+      r.style.setProperty('--osmzshift', `${step * Math.abs(j - i)}px`);
+    });
+    card.classList.add('osmzpeek');
+  }
+  const x = Math.max(8, Math.min(innerWidth - 8 - w, sr.left + sr.width / 2 - w / 2));
+  const cy = deckPeek ? sr.top - (h - sr.height) * .42 : sr.top + sr.height / 2 - h / 2;
+  const y = Math.max(top, Math.min(innerHeight - 8 - h, cy));
   const face = card.querySelector(':scope > .mzface') || card;   // Mobilize: the card itself, not its tokens and numbers
   const {g, ctx} = flyer(face, face.classList.contains('u') ? 'u' : 'b');
   // (a Mobilize card's copy is styled from the Mobilize box, not its own card: the copy's styling shells take their
