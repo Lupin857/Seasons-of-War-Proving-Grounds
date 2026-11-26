@@ -12,6 +12,9 @@
   `--mw` (css/12-mat-shop.css) is the smaller of three across and what the gap between the bars allows (four card rows
   plus labels inside the tilted mat's inner page). The battle's cards shrink to fit (`matFitBattle`), and since the
   page stays at its top, the table moves (`--matdy`) only when the page flow would put it past a bar.
+- The one-screen table is the default at every width. Phones use the compact layout; wider screens use the desktop
+  table. The designer can turn the desktop table off in the game menu; `localStorage.oasisMatDesk = '0'` stores that
+  choice. The phone layout remains on at widths up to 640px. `localStorage.oasisRug = '0'` still disables the mat.
 - Game top bar (`pbarHTML`): the same on every game screen, phone and desktop: ☰ menu · Round · score · First to.
   On phones, Mobilize and battle add their phase/step row under it. Each side's money and limits are not in the bar:
   they live in the shop's bottom bar (phone) and the deck tiles (desktop). During a game the Oasis title, sound button

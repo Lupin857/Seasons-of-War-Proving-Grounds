@@ -90,6 +90,14 @@ const act = (p, a) => p.evaluate(a => { const e = document.querySelector(`[data-
 
 // 1. a seeded game: buy up to 3 cards a shop, let "suggest" order the deck, step through every battle
 const p = await open(12345);
+const layoutDefault = await p.evaluate(() => {
+  const fresh = matDeskOn();
+  localStorage.setItem('oasisMatDesk', '0');
+  const savedOff = matDeskOn();
+  localStorage.removeItem('oasisMatDesk');
+  return {fresh, savedOff, player:isPlayer()};
+});
+if (!layoutDefault.fresh || layoutDefault.savedOff || !layoutDefault.player) errs.push(`default player layout preference: ${JSON.stringify(layoutDefault)}`);
 await shot(p, '0-start');
 await act(p, 'st-mode'); await p.waitForTimeout(500); await shot(p, '0-setup'); await act(p, 'st-go'); await p.waitForTimeout(800);
 await shot(p, '0-roll');
@@ -109,6 +117,11 @@ for (let step = 0; step < 600; step++){
     await p.waitForTimeout(1200); continue;
   }
   if (st.phase === 'shop'){
+    if (!done.has('default-player-shop-layout')){
+      const layout = await p.evaluate(() => ({player:isPlayer(), mat:matShopOn(), desktop:compact() || !!document.querySelector('#view-play .osshop.osdesk')}));
+      if (!layout.player || !layout.mat || !layout.desktop) errs.push(`default player shop layout: ${JSON.stringify(layout)}`);
+      done.add('default-player-shop-layout');
+    }
     if (st.cur === st.me){
       if (!done.has(`r${st.round}-shop`)){
         await once(`r${st.round}-shop`);

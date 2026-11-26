@@ -13,8 +13,8 @@
      pile (units: the top card face up, the copies as edges under it; tap: the deck view); the rival's bar also holds
      their water as medallion coins with a count pill. Whoever's turn it is, their bar glows (no turn chip).
    - Your purse, buys left, Miracles and Pass sit in the bottom bar (matDockHTML).
-   Off: the rug's switch (localStorage.oasisRug = '0') brings back the scrolling phone shop. Desktop uses this only behind localStorage.oasisMatDesk = '1' (matOn, js/rug.js;
-   the desktop layout is still to come: Oasis desktop one-screen plan). */
+   Off: the rug's switch (localStorage.oasisRug = '0') brings back the scrolling phone shop. The desktop table is the
+   default too; designers can turn it off in the game menu (localStorage.oasisMatDesk = '0', matOn, js/rug.js). */
 function matShopOn(){
   return !!G && G.phase === 'shop' && !ui.battle && !G.over && typeof matOn === 'function' && matOn();
 }
