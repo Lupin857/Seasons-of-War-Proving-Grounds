@@ -31,9 +31,9 @@
     // the phone battle on the mat has no controls row: its speed switch lives here (the same setting as the row's 1× / 2×)
     const sp = ui.battle && typeof labMatZones === 'function' && labMatZones()
       ? `<button type="button" role="menuitemcheckbox" aria-checked="${autoFast()}" class="gmenu-item gmenu-snd" data-gspeed="1">Fast battles (2×)<span class="gmenu-sw${autoFast() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
-    // designers on a wide screen: the desktop one-screen mat while it is being built (localStorage.oasisMatDesk, js/rug.js)
+    // designers on a wide screen can opt out of the default one-screen table (localStorage.oasisMatDesk, js/rug.js)
     const md = typeof canAdmin !== 'undefined' && canAdmin && !playerPreview && !compact() && typeof matDeskOn === 'function'
-      ? `<button type="button" role="menuitemcheckbox" aria-checked="${matDeskOn()}" class="gmenu-item gmenu-snd" data-gmdesk="1">Desktop table (in progress)<span class="gmenu-sw${matDeskOn() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
+      ? `<button type="button" role="menuitemcheckbox" aria-checked="${matDeskOn()}" class="gmenu-item gmenu-snd" data-gmdesk="1">Desktop table<span class="gmenu-sw${matDeskOn() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
     pop.innerHTML = items + s + sp + md + (bs ? (s || sp ? '' : '<div class="gmenu-sep"></div>') + bs : '') + (bc ? '<div class="gmenu-sep"></div>' + bc : '');
   }
   function mark(){ const b = btn(); if (b) b.setAttribute('aria-expanded', String(!pop.hidden)); }

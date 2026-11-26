@@ -15,10 +15,10 @@ let rugCv = null, rugGL = null, rugRaf = 0, rugReady = 0, rugT0 = 0;
 let rugCam = {d:11.5, y:0}, rugFrom = null, rugTo = null, rugMove = null, rugPhase = '';
 function rugOn(){ try{ return localStorage.getItem('oasisRug') !== '0'; }catch(e){ return true; } }
 function rugSand(){ try{ return localStorage.getItem('oasisRug') !== '1'; }catch(e){ return true; } }
-// the mat (the one-screen table) and its switches. Phones (640 px wide or less) always get it; wider screens only with
-// localStorage.oasisMatDesk = '1' until the desktop mat is merged (Oasis desktop one-screen plan, stage 0).
+// the mat (the one-screen table) and its switches. Phones (640 px wide or less) always get it; wider screens get it
+// by default, with localStorage.oasisMatDesk = '0' as the designer's opt-out.
 // compact() (js/ui/07-battle-steps.js) still means "phone layout"; these mean "the mat", at any width.
-function matDeskOn(){ try{ return localStorage.getItem('oasisMatDesk') === '1'; }catch(e){ return false; } }
+function matDeskOn(){ try{ return localStorage.getItem('oasisMatDesk') !== '0'; }catch(e){ return true; } }
 function matWidthOn(){ return innerWidth <= 640 || matDeskOn(); }   // this width shows the mat (rug switch or not)
 function matOn(){ return rugOn() && typeof G !== 'undefined' && !!G && !ui.start && !ui.roll && matWidthOn(); }   // the mat is on
 function matDesk(){ return matOn() && !compact(); }   // the mat in its desktop layout (stage 1 on: the shop)
