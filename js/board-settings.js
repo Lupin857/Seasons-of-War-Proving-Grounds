@@ -590,5 +590,15 @@ function labPrep(){
   labPrepH = window.requestIdleCallback ? requestIdleCallback(run, {timeout:1200}) : setTimeout(run, 300);
 }
 addEventListener('load', () => setTimeout(() => labApply(false), 50));
-// get the cube graphics and physics ready while the page settles, so the first drop doesn't stall
-addEventListener('load', () => setTimeout(() => { try{ window.OasisCubes && OasisCubes.warm && OasisCubes.warm(); }catch(e){} }, 1200));
+// Compile the battle renderer during match loading. It can block the main thread, so never run it on a page-load timer.
+let battleCubeWarmup;
+function prepareBattleCubes(){
+  const cubes = window.OasisCubes;
+  if (!cubes?.ok || !cubes.warm) return;
+  return battleCubeWarmup ??= new Promise(resolve => {
+    setTimeout(() => {
+      try { cubes.warm(); } catch(e) {}
+      resolve();
+    }, 0);
+  });
+}

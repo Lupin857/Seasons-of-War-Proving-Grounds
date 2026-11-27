@@ -57,8 +57,13 @@ global scope and run in the order index.html loads them, exactly like the old in
   and re-runs on resize, visualViewport resize and a ResizeObserver (border box) on #gtop and #dock; `matFitMat`
   shrinks the shop's `--mw` (searching for the widest that fits) when the trays would reach under a bar. In the battle
   `#view-play` gets `padding-top: var(--bh)` for the room the pinned bar no longer takes.
-  `js/rug.js` (`rugAfterDraw`: sets `body.os-mat` and, by default, `body.os-sand` (flat sand page); with
-  `oasisRug = '1'` draws Brian's WebGL rug `#rugworld` from `art/rug/`). CSS: `css/11-rug.css`, `css/12-mat-shop.css`.
+  `js/rug.js` (`rugAfterDraw`: sets `body.os-mat` and `body.os-sand` for the sand page; on phones
+  `oasisRug = '1'` draws the optional WebGL rug `#rugworld` from `art/rug/`). CSS: `css/11-rug.css`, `css/12-mat-shop.css`.
+  `21-bazaar` coordinates the desktop Shop rug, scenery, and existing card flights. The textured rug surface
+  (`bazaarRoll`) redraws during opening and closing. The settled rug and fixed painted sand use `css/13-bazaar.css`.
+  The stand-alone `bazaar-lab.html` tunes those same transitions through an isolated in-page game fixture.
+  `22-shop-coins` draws the desktop Shop's income, sales and payments from the recorded amounts in one transient
+  WebGL canvas, with a Canvas fallback.
 - `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
   glow) · `js/board-settings.js` (`LAB_DEF`, `OASIS_BUILD`, table view, depth, splay, clash, cube hooks) ·
   `js/cards-tab.js` (Cards tab).

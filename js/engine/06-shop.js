@@ -345,7 +345,7 @@ function sellRule(g, i, kind, name){
   p.money += SELL_PRICE + bz;
   g.sold = g.sold || [[], []]; g.sold[i].push(name);
   const you = g.labels[i] === 'You';
-  g.log.push({t:`${g.labels[i]} ${you ? 'sell' : 'sells'} ${name} for $${SELL_PRICE + bz}${bz ? ' (The Bazaar)' : ''}${back !== 'Field' ? ` (${back !== name ? back + ' ' : ''}to the discard pile)` : ''}.`, side:i, ev:{a:'sell', n:name, k:kind}});
+  g.log.push({t:`${g.labels[i]} ${you ? 'sell' : 'sells'} ${name} for $${SELL_PRICE + bz}${bz ? ' (The Bazaar)' : ''}${back !== 'Field' ? ` (${back !== name ? back + ' ' : ''}to the discard pile)` : ''}.`, side:i, ev:{a:'sell', n:name, k:kind, gain:SELL_PRICE + bz}});
   return true;
 }
 // The hand an opponent believes a player has: real units plus the ones sold in secret (capped at max level)

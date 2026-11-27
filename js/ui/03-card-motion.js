@@ -100,7 +100,10 @@ function motionFrom(i, n0){
     MOT.afterOpp = true;     // and what else the move changed in the display waits its turn behind them
     return true;
   }
-  for (const ev of evs) if (ev.a === 'buy') MOT.fly.push({i, ev, src:evSource(ev)});
+  for (const ev of evs){
+    if (ev.a === 'buy') MOT.fly.push({i, ev, src:evSource(ev)});
+    else shopCoinSale(i, ev, MATLIFT.held?.g, matSellSrc(i, ev));
+  }
   return false;
 }
 /* Flying copies of cards look exactly like the card they copy: each one is put inside a stand-in of the card's own
@@ -110,7 +113,10 @@ function motionFrom(i, n0){
 const FLYHOSTS = new Map();
 // a flying copy's box, set firmly: the copied context's own placement rules (some !important) must not move or stretch it
 function pinFly(g, x, y, w, h){
-  if (!g.dataset.solid){ g.dataset.solid = '1'; solidArt(g, w); }
+  if (!g.dataset.solid){
+    g.dataset.solid = '1';
+    solidArt(g, g.classList.contains('osbazaar-flight') ? undefined : w);
+  }
   for (const [k, v] of [['position','fixed'], ['left', x + 'px'], ['top', y + 'px'], ['right','auto'], ['bottom','auto'], ['width', w + 'px'], ['height', h + 'px'], ['margin','0'], ['min-height','0'], ['max-width','none']]) g.style.setProperty(k, v, 'important');
 }
 function flyHost(ctx){
@@ -140,6 +146,16 @@ function flyEl(g, at, w0, h0, z, ctx){
   return g;
 }
 const bumpEl = el => { if (el && el.isConnected) el.animate([{transform:'scale(1)'}, {transform:'scale(1.12)'}, {transform:'none'}], {duration:320, easing:'ease-out'}); };
+// Use the layout's fixed centers, so cards moving between slots do not move the drag boundaries.
+function closestCardSlot(centers, x, y, current){
+  const distance = point => Math.hypot(point.x - x, point.y - y);
+  let target = current, nearest = distance(centers[current]) - 6;
+  centers.forEach((point, index) => {
+    const d = distance(point);
+    if (d < nearest){ target = index; nearest = d; }
+  });
+  return target;
+}
 /* The one card flight used whenever a card moves between places: buying (market to deck), selling (deck to the
    Discard pile) and unbought cards leaving at the start of a round (market to the discard pile).
    g sits at the start rect `from` (transform origin top left) and is w0×h0 at scale 1. It lifts off, travels at a

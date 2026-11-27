@@ -164,7 +164,12 @@ function netPeers(ch){
   } else if (wasHere && NET.started){ renderPlay(); }
   else if (!NET.started) renderPlay();
 }
-function netStart(){
+async function netStart(){
+  const room = NET;
+  if (!room || room.started || room.loadingArt) return;
+  room.loadingArt = true;
+  try{ await prepareMatchPresentation(); } finally { room.loadingArt = false; }
+  if (NET !== room || room.started || !room.peer || !room.here) return;
   let names = NET.seat === 0 ? [NET.name, NET.peer.name] : [NET.peer.name, NET.name];
   if (names[0] === names[1]) names = [names[0] + ' 1', names[1] + ' 2'];
   stopTimers();
@@ -173,7 +178,7 @@ function netStart(){
   { const L = netRulesLines(names); G.suLines = L.length ? L : null; }
   ui = freshUI({roll:null, mktTab:'u'});
   NET.started = true; NET.applied = [0, 0]; NET.needShop = false;
-  startShop(G);
+  shopCoinStart(G);
   NET.live = false; netPump(); NET.live = true;   // replay moves made before a reload, quietly
   if (G.phase === 'shop' && NET.acts.length + NET.peerActs.length === 0) showToast(`${nm(cur(G))} shops first.`);
   netAfter();

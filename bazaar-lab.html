@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oasis Shop Animation Lab</title>
+  <link rel="stylesheet" href="css/bazaar-lab.css">
+  <script src="js/bazaar-lab.js" defer></script>
+</head>
+<body>
+  <header class="lab-header">
+    <h1>Oasis <span>Shop Animation Lab</span></h1>
+    <a href="index.html">Back to game</a>
+  </header>
+  <main class="lab">
+    <section class="preview" aria-label="Desktop Shop preview">
+      <div class="preview-controls">
+        <div class="playback" role="group" aria-label="Preview modes">
+          <button type="button" data-play="both" class="primary" disabled>Play full cycle</button>
+          <button type="button" data-play="open" disabled>Replay opening</button>
+          <button type="button" data-play="close" disabled>Replay closing</button>
+          <button type="button" data-play="drag" disabled>Try card drag</button>
+          <button type="button" data-play="inspect" disabled>Try card enlarge</button>
+          <button type="button" data-play="mobilize" disabled>Try Mobilize</button>
+        </div>
+        <span class="status" id="play-status" role="status">Loading preview…</span>
+      </div>
+      <div class="stage">
+        <iframe id="preview-frame" title="Oasis desktop Shop animation" src="index.html?bazaarLab=1" tabindex="-1"></iframe>
+      </div>
+      <p class="drag-guide" id="drag-guide" hidden>Grab an offer anywhere and move it around. Drop it on your row to buy, drag an owned card to the discard pile to sell, or release elsewhere to put it back.</p>
+    </section>
+    <section class="controls" aria-labelledby="timing-title">
+      <div class="controls-title">
+        <h2 id="timing-title">Animation and layout</h2>
+        <div class="controls-actions">
+          <button type="button" id="reset" disabled>Reset</button>
+          <button type="button" id="copy-settings" disabled>Copy settings</button>
+        </div>
+      </div>
+      <p id="copy-status" role="status">Pile layout updates live. Replay to preview timing changes. Times are in milliseconds.</p>
+      <div class="timings" id="timings"></div>
+      <div class="settings">
+        <label for="settings-output">Settings to share</label>
+        <textarea id="settings-output" rows="5" readonly spellcheck="false"></textarea>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

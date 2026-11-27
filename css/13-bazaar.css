@@ -1,0 +1,83 @@
+@media (min-width:641px){
+  html:has(body.os-mat.os-sand){
+    background-image:linear-gradient(#35251716,#35251716),url("../art/rug/bazaar-sand.webp") !important;
+    background-color:#d8a86d !important;
+    background-position:center !important;
+    background-size:cover !important;
+    background-attachment:fixed !important;
+  }
+}
+
+#view-play .osdesk .osmkt:has(>.osbazaar){position:relative;isolation:isolate;overflow:visible}
+#view-play .osdesk .osbazaar{
+  --bazaar-rug-art:url("../art/rug/bazaar-rug.webp") center / 100% 100% no-repeat;
+  --bazaar-rug-shadow:drop-shadow(0 4px 3px #30201572);
+  position:absolute;inset:-1.5% 0;z-index:-1;pointer-events:none;
+  left:calc(-1 * var(--rug-overhang, max(112px,6vw)));
+  background:var(--bazaar-rug-art);
+  filter:var(--bazaar-rug-shadow)
+}
+#view-play .osdesk .osbazaar.osbazaar-roll{background:none;filter:none}
+.osbazaar-flat-clip{position:absolute;inset:-6px 0 -12px;overflow:hidden;will-change:transform}
+.osbazaar-flat-art{
+  position:absolute;inset:6px 0 12px;will-change:transform;
+  background:var(--bazaar-rug-art);filter:var(--bazaar-rug-shadow)
+}
+.osbazaar canvas{position:absolute;left:0;will-change:transform}
+
+body.os-sand #view-play .osdesk :is(.osmkt:has(>.osbazaar),.osmobmat .osmkt)>.ostray{
+  background:transparent;box-shadow:none
+}
+#view-play .osdesk .osmkt:has(>.osbazaar) .market>.mcard::before{
+  border-color:#f2dcb62e;background:#15101a1a
+}
+#view-play .osdesk .osmkt:has(>.osbazaar) .market>.ghost::before{border-color:#f2dcb662}
+#view-play .osdesk .osmkt:has(>.osbazaar) .mirwrap>.osarriving{visibility:hidden}
+#view-play .osdesk.osmobmat .osmid .osmkt,
+#view-play .osdesk.osmobmat .osmid .osdisc{visibility:hidden}
+#view-play .osdesk .osbazaar-closed{visibility:hidden}
+#view-play .osdesk .osdiscardface{
+  position:absolute;inset:0;display:block;width:100%;height:100%;
+  box-sizing:border-box;padding:0;border:0;border-radius:8px;overflow:hidden
+}
+.osinspect-last-chance{
+  margin:0 0 .65rem;color:#edc674;font:400 1rem Marcellus,serif
+}
+
+/* A warm edge catches light while the card artwork retains its contrast. */
+#view-play .osdesk:has(.osbazaar) .mcard>.cface.art,
+#view-play .osdeckfan .mcard>.cface.art,
+.osbazaar-flight>.cface.art{
+  box-shadow:var(--bazaar-contact-shadow),var(--bazaar-contact-edge)
+}
+#view-play .osdesk:has(.osbazaar) .mcard:not(.ghost):not(:has(>.cface.art)){
+  box-shadow:inset 0 1px 1px #fff0c96b,var(--bazaar-contact-shadow)
+}
+#view-play .osdesk:has(.osbazaar) .mcard>.cface.art::after,
+:is(.osbazaar-flight,.osdrag)>.cface.art::after{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  box-shadow:inset 0 1px 1px #fff0c96b,inset -1px -1px 1px #26150b66
+}
+.osbazaar-flight>.cface.art{width:100%;height:100%;clip-path:none}
+.osbazaar-flipping>.cface.art{box-shadow:none}
+.osbazaar-deal-shadow{position:fixed;pointer-events:none;border-radius:var(--oasis-card-radius);background:#211207}
+/* Stack layers override the art cards' outer shadow reset. */
+#view-play .osdesk:has(.osbazaar) :is(
+  .ospile>.osedge:nth-last-child(1 of .osedge),
+  .ospile:not(:has(>.osedge))>:is(.ostop,.osmirback:not(.osempty)),
+  .dealdeck:not(.empty)>.cb:first-child,
+  .mpcards:has(.osdiscardface)>.mpc:first-child
+){
+  box-shadow:var(--bazaar-contact-shadow),var(--bazaar-contact-edge)!important
+}
+#view-play .osdesk:has(.osbazaar) .astack>.mcard:not(.ghost){
+  filter:drop-shadow(1px var(--bazaar-stack-shadow-y) var(--bazaar-stack-shadow-blur) var(--bazaar-stack-shadow-color))
+}
+.osbazaar-grip-shadow,.osbazaar-contact-fade{position:fixed;pointer-events:none}
+.osbazaar-contact-fade{
+  transform-origin:0 0;border-radius:5% / 3.6%;
+  box-shadow:var(--bazaar-contact-shadow),var(--bazaar-contact-edge)
+}
+.osbazaar-grip-shadow>div{
+  position:absolute;inset:0;border-radius:5% / 3.6%;background:#211207;transform-origin:0 0
+}

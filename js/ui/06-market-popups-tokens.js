@@ -260,22 +260,38 @@ function mergedPos(kind, j){
 // Discard pile: face-up units that went unbought or were sold. You can buy a copy of a unit you own from it (a normal unit buy).
 // The pile glows when it holds a copy of one of your units that could still level up.
 function musterMatch(n){ const me = G.players[seat()]; return ownsCard(me, n) > 0 && !(cardKind(n) === 'u' && exemptUnit(n)) && !cantAcquire(me, n, cardKind(n)); }
-function musterPileHTML(){
+function musterPileHTML(bazaar = false){
   const pile = G.muster || [], sm = (G.salvMir || []).length, open = ui.pkWin === 'salvage' && (pile.length > 0 || sm > 0), hits = pile.filter(musterMatch).length, n = Math.min(3, pile.length);
   const tip = pile.length ? `Discard pile: ${pile.length} card${pile.length > 1 ? 's' : ''} face-up${hits ? `, ${hits} cop${hits > 1 ? 'ies' : 'y'} of your cards` : ''}. Tap to ${open ? 'close' : 'look through it'}.` : 'Discard pile: empty. Unbought and sold cards land here face-up.';
   return `<button type="button" class="mpile${hits ? ' glow' : ''}${pile.length ? '' : ' empty'}" id="muster-pile" data-act="muster" aria-expanded="${open}" ${pile.length || sm ? '' : 'disabled'} title="${esc(tip)}" aria-label="${esc(tip)}">
-    <span class="mplbl" aria-hidden="true">Discard</span><span class="mpcards" aria-hidden="true">${Array.from({length:Math.max(1, n)}, (_, k) => `<span class="mpc${pile.length ? '' : ' mpe'}" style="--k:${Math.max(1, n) - 1 - k}"></span>`).join('')}<span class="mpface">${pile.length ? zhChip(pile[pile.length - 1]) : ''}<b class="mpcount pcount">${pile.length}</b></span></span>${hits ? `<span class="mphit" aria-hidden="true">${hits}</span>` : ''}</button>`;
+    <span class="mplbl" aria-hidden="true">Discard</span><span class="mpcards" aria-hidden="true">${Array.from({length:Math.max(1, n)}, (_, k) => `<span class="mpc${pile.length ? '' : ' mpe'}" style="--k:${Math.max(1, n) - 1 - k}"></span>`).join('')}<span class="mpface">${pile.length ? bazaar ? bazaarDiscardFace(pile[pile.length - 1]) : zhChip(pile[pile.length - 1]) : ''}${bazaar ? '' : `<b class="mpcount pcount">${pile.length}</b>`}</span></span>${hits && !bazaar ? `<span class="mphit" aria-hidden="true">${hits}</span>` : ''}</button>`;
 }
-function marketRow(kind, src){
+// Keep each logical slot in one place for the whole Shop, including refills and placeholders.
+// On desktop, reserve the spots nearest discard for the cards that returned sideways.
+function bazaarSlotRanks(kind){
+  if (ui.bazaarSlots?.round !== G.round) ui.bazaarSlots = {round:G.round};
+  if (!ui.bazaarSlots[kind]){
+    const carry = new Set(G.disp[kind].flatMap((card, i) => card.side ? [card.at ?? i] : []));
+    const slots = Array.from({length:dispSize(G, kind)}, (_, at) => at);
+    slots.sort((a, b) => Number(carry.has(a)) - Number(carry.has(b)) || a - b);
+    const ranks = [];
+    slots.forEach((at, i) => { ranks[at] = i; });
+    ui.bazaarSlots[kind] = ranks;
+  }
+  return ui.bazaarSlots[kind];
+}
+function marketRow(kind, src, bazaar = false){
   // each card stays in its own slot from shop to shop (a returning card keeps its place); a bought card's ghost holds its slot
-  const slotted = G.disp[kind].some(c => c.at != null);
+  const slotted = bazaar || G.disp[kind].some(c => c.at != null);
   let cards;
   if (slotted){
     const items = G.disp[kind].map((c, i) => ({at:c.at != null ? c.at : i, html:marketCard(c.name, kind, src, i, c.side, false, c.mir)}));
-    const occ = new Set(G.disp[kind].map(c => c.at));
+    const occ = new Set(items.map(it => it.at));
     for (const g of ghostList(kind)) if (!occ.has(g.idx)) items.push({at:g.idx, html:ghostCard(g, kind), ghost:true});
-    items.sort((a, b) => a.at - b.at || (a.ghost ? 1 : 0) - (b.ghost ? 1 : 0));
-    cards = items.map(it => it.html.replace('<div ', `<div data-at="${it.at}" `));
+    const ranks = bazaar ? bazaarSlotRanks(kind) : [];
+    const pos = it => ranks[it.at] ?? it.at;
+    items.sort((a, b) => pos(a) - pos(b) || (a.ghost ? 1 : 0) - (b.ghost ? 1 : 0));
+    cards = items.map(it => it.html.replace('<div ', `<div data-at="${it.at}"${bazaar ? ` data-bazaar-slot="${pos(it)}"` : ''} `));
   } else {
     cards = G.disp[kind].map((c, i) => marketCard(c.name, kind, src, i, c.side, false, c.mir));
     for (const g of ghostList(kind).slice().sort((a, b) => a.idx - b.idx))

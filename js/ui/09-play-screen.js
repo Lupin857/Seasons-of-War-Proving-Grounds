@@ -84,6 +84,7 @@ var inGameView = false, phaseKey = null;
 function toGame(){
   const v = $('view-play'); if (!v || v.hidden || !G || ui.start || (NET && !NET.started)) return;
   if (ui.battle && centerBattle()) return;
+  if (v.querySelector('.osshop.osdesk')) { if (window.scrollY) window.scrollTo(0, 0); return; }
   window.scrollTo({top: Math.max(0, v.getBoundingClientRect().top + window.scrollY - 8)});
 }
 /* Battle: center the battle line (both sides' units, charges meeting in the middle) in the space left between the
@@ -178,7 +179,7 @@ function drawPlay(){
    so a phone that reloads the tab (switching apps, locking the screen) comes back to the same spot. Online games
    reconnect through their room instead. A finished game is cleared once its result has been shown. */
 var SAVE_KEY = 'sow-save-v2', saveT = null;
-var SAVE_UI = ['battle','frame','draft','lastDraft','lastDrafts','drafts','mobSeat','handoff','mktTab','dealt','ghosts','roll','revealed','pre','lastTurn','musterOpen','bannerOff'];
+var SAVE_UI = ['battle','frame','draft','lastDraft','lastDrafts','drafts','mobSeat','handoff','mktTab','dealt','ghosts','bazaarSlots','roll','revealed','pre','lastTurn','musterOpen','bannerOff'];
 /* Sets and Maps (such as the cards each player has seen this shop) don't survive plain JSON: they come back as empty
    objects and the next Buy or Pass throws. Save them tagged and rebuild them on load, so a reload or a page update
    picks the game up where it was. */
@@ -198,7 +199,11 @@ function upgradeSave(g){
   for (const c of [...(g.disp.u || []), ...(g.disp.b || []), ...(g.frozen || []).flat()]) if (c && typeof c === 'object' && c.id == null) c.id = g.cid = (g.cid || 0) + 1;
   return g;
 }
-function saveGame(){ clearTimeout(saveT); saveT = setTimeout(saveNow, 300); }
+function saveGame(){
+  if (typeof bazaarLabRequested === 'function' && bazaarLabRequested()) return;
+  clearTimeout(saveT);
+  saveT = setTimeout(saveNow, 300);
+}
 function saveNow(){
   clearTimeout(saveT); saveT = null;
   try{
@@ -337,27 +342,75 @@ const DESK_DEAL_WAVE = {spread:420, gap:96, dur:790, backDur:440, backLead:140};
 const DESK_DEAL_REFILL = {spread:155, gap:80, dur:630, backDur:400, backLead:120};
 // a landing sound's time, in seconds from now: the landing time (ms) less the early nudge
 const dealLandAt = (ms, fx = DEAL_FX) => Math.max(0, ms - fx.sndEarly) / 1000;
+// Height is measured along the mat's normal. Leave a little clearance between sampled poses.
+function bazaarDealTurn(width, transform, start, middle, end){
+  const frames = [];
+  for (const side of [0, 1]){
+    const from = side ? middle + .001 : start, to = side ? end : middle;
+    for (let i = 0; i <= 8; i++){
+      const t = i / 8, angle = side ? -90 * (1 - t) ** 1.25 : 90 * t ** 1.25;
+      const z = width * .51 * Math.abs(Math.sin(angle * Math.PI / 180));
+      frames.push({offset:from + (to - from) * t, angle, z,
+        transform:transform(0, 0, 0, angle, 1, 1, z)});
+    }
+  }
+  // Keep the first edge-on pose until the face takes over at the matching pose.
+  const keys = frames.map(({offset, transform}) => ({offset, transform}));
+  keys[8].easing = 'steps(1,end)';
+  return {frames, keys};
+}
+function bazaarDealGroundShadow(origin, rect, pre, turn, near, land, delay, duration){
+  const shadow = document.createElement('div');
+  shadow.className = 'osbazaar-deal-shadow';
+  shadow.setAttribute('aria-hidden', 'true');
+  Object.assign(shadow.style, {left:rect.left+'px', top:rect.top+'px', width:rect.width+'px',
+    height:rect.height+'px', zIndex:LAYER.flight - 1, transformOrigin:origin});
+  document.body.append(shadow);
+  const {opacity, blur, offset} = bazaarShadow(0);
+  const frame = (at, angle = 0, z = 0, alpha = opacity * .38) => ({
+    offset:at, opacity:alpha,
+    transform:`${pre}translate(${z * .15}px, ${offset + z * .18}px) scaleX(${Math.max(.045, Math.abs(Math.cos(angle * Math.PI / 180)))})`,
+    filter:`blur(${blur / 2 + z * .028}px)`
+  });
+  const animation = shadow.animate([frame(0, 0, 0, 0), frame(near, 0, 0, 0), frame(land),
+    ...turn.map(({offset, angle, z}) => frame(offset, angle, z)),
+    frame(1, 0, 0, 0)], {duration, delay, fill:'both'});
+  return animation;
+}
 function dealFly(el, deck, delay, dur, o = {}){
   if (!el || !deck || !el.isConnected) return 0;
-  let r = el.getBoundingClientRect(), dr = deck.getBoundingClientRect();
+  const geometry = o.geometry;
+  let r = geometry?.screen || el.getBoundingClientRect(), dr = geometry?.source || deck.getBoundingClientRect();
   if (!r.width || !dr.width) return 0;
-  const v = dealView(el), cy = r.top + r.height / 2;
+  const v = geometry?.view || dealView(el), cy = r.top + r.height / 2;
   if (cy < v.top || cy > v.bottom) return 0;
-  const mat = matFlightFrame(el, deck);   // on the one-screen mat: the whole flight happens in the mat's tilt
+  const mat = geometry?.mat || matFlightFrame(el, deck);
   if (mat){ r = mat.r; dr = mat.d; }
+  const bazaar = !!mat && !!el.closest('.osdesk .osmkt:has(>.osbazaar)');
   const {g} = flyer(el, null, {exact:true});
   g.classList.add('flying'); g.classList.remove('cant', 'peeked'); g.setAttribute('aria-hidden', 'true');
+  if (bazaar) bazaarFlightCard(g);
   Object.assign(g.style, {zIndex:flyZ(el), pointerEvents:'none'});
   pinFly(g, r.left, r.top, r.width, r.height);
   flyHost(el.parentElement).appendChild(g);   // styled exactly as the card in its spot
-  const pre = mat ? mat.pre(g) + ' ' : '';
+  const origin = geometry?.origin;
+  if (origin) g.style.transformOrigin = origin.css;
+  const pre = mat ? mat.pre(g, origin?.point) + ' ' : '';
   // until its turn the copy is hidden (the deck and its count show through); then it appears exactly on the deck, the
   // size of its top card, lifts off, tilts, travels to its spot and flips over
   const dx = dr.left + dr.width / 2 - (r.left + r.width / 2), dy = dr.top + dr.height / 2 - (r.top + r.height / 2);
   const F = o.fx || DEAL_FX, sx = dr.width / r.width, sy = dr.height / r.height, lift = Math.min(F.lift, Math.max(sx, sy) * 1.6);
-  let kf, an, SWAP = 1;
+  const dealScale = (x, y = x) => `scale(${bazaar ? 1 : x},${bazaar ? 1 : y})`;
+  let kf, an, floor, SWAP = 1;
   if (o.plain){
-    kf = [{transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:0, offset:0}, {transform:`translate(${dx}px,${dy}px) scale(${sx},${sy})`, opacity:1, offset:.01}, {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) scale(${lift})`, offset:.18}, {transform:'translate(0,0) rotate(3deg) scale(1.04)', offset:.7}, {transform:'none', offset:1}];
+    const start = `translate(${dx}px,${dy}px) ${dealScale(sx, sy)}`;
+    kf = [
+      {transform:start, opacity:0, offset:0},
+      {transform:start, opacity:1, offset:.01},
+      {transform:`translate(${dx * .85}px,${dy * .85 - 24}px) rotate(-10deg) ${dealScale(lift)}`, offset:.18},
+      {transform:`translate(0,0) rotate(3deg) ${dealScale(1.04)}`, offset:.7},
+      {transform:'none', offset:1}
+    ];
     // on the mat: the tilt in front of every step, each step written as the same list so each part moves on its own
     if (pre) kf = kf.map(f => ({...f, transform:pre + (f.transform === 'none' ? 'translate(0,0)' : f.transform).replace(/^(translate\([^)]*\)) scale/, '$1 rotate(0deg) scale') + (f.transform === 'none' ? ' rotate(0deg) scale(1)' : '')}));
     an = g.animate(kf, {duration:dur, delay, easing:'cubic-bezier(.3,.7,.3,1)', fill:'both'});
@@ -368,25 +421,42 @@ function dealFly(el, deck, delay, dur, o = {}){
        interpolates each part on its own. The turn is split at the edge: 0→90° shows the back, then the face comes in from
        −90°→0°, so the face is never mirrored. Perspective scales with the card so phone and desktop flips look alike. */
     const P = Math.max(360, r.width * 3.4);
-    const T = (x, y, rot, ry, s1, s2 = s1) => `${pre}perspective(${P}px) translate(${x}px,${y}px) rotate(${rot}deg) rotateY(${ry}deg) scale(${s1},${s2})`;
+    const T = (x, y, rot, ry, s1, s2 = s1, z = 0) =>
+      `${pre}${bazaar ? '' : `perspective(${P}px) `}translate3d(${x}px,${y}px,${z}px) rotate(${rot}deg) rotateY(${ry}deg) ${dealScale(s1, s2)}`;
     // the moments in order (each a little after the one before, whatever the table says)
     const up = (x, after, room) => Math.min(Math.max(x, after + .01), 1 - room);
     const oLeave = up(F.leaveAt, .01, .08), oLand = up(F.land, oLeave + .05, .06), oNear = Math.max(oLeave + .01, oLand - .06);
     const oFlip = up(F.flipAt, oLand, .04), oMid = up(F.flipMid, oFlip, .03), oEnd = up(F.flipEnd, oMid + .001, .01);
     SWAP = oMid;
+    const turn = bazaar ? bazaarDealTurn(r.width, T, oFlip, oMid, oEnd) : null;
     kf = [
       {transform:T(dx, dy, 0, 0, sx, sy), opacity:0, filter:'brightness(1)', offset:0},
       {transform:T(dx, dy, 0, 0, sx, sy), opacity:1, offset:.01},
-      {transform:T(dx * .85, dy * .85 - F.rise, -F.tilt, 0, lift), offset:oLeave, easing:'cubic-bezier(.3,.6,.35,1)'},
-      {transform:T(0, -4, 2, 0, 1.02), offset:oNear, easing:'ease-out'},
+      {transform:T(dx * .85, dy * .85 - F.rise, bazaar ? 0 : -F.tilt, 0, lift), offset:oLeave, easing:'cubic-bezier(.3,.6,.35,1)'},
+      {transform:bazaar ? T(dx * .12, dy * .12, 0, 0, 1) : T(0, -4, 2, 0, 1.02), offset:oNear, easing:'ease-out'},
       {transform:T(0, 0, 0, 0, 1), offset:oLand},                                       // landed, face down
-      {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', offset:oFlip, easing:'cubic-bezier(.45,0,.75,.6)'},   // a beat, then the turn
-      {transform:T(0, -F.flipRise, 0, 90, F.flipGrow), filter:'brightness(.78)', offset:SWAP, easing:'steps(1,end)'},       // edge on, lifted
-      {transform:T(0, -F.flipRise, 0, -90, F.flipGrow), filter:'brightness(.78)', offset:SWAP + .001, easing:'cubic-bezier(.25,.5,.4,1)'},
-      {transform:T(0, -2, 0, 0, 1.05), filter:'brightness(1)', offset:oEnd, easing:'ease-in-out'},              // face up, a touch big
+      ...(turn ? turn.keys : [
+        {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', offset:oFlip, easing:'cubic-bezier(.45,0,.75,.6)'},
+        {transform:T(0, -F.flipRise, 0, 90, F.flipGrow), filter:'brightness(.78)', offset:SWAP, easing:'steps(1,end)'},
+        {transform:T(0, -F.flipRise, 0, -90, F.flipGrow), filter:'brightness(.78)', offset:SWAP + .001, easing:'cubic-bezier(.25,.5,.4,1)'},
+        {transform:T(0, -2, 0, 0, 1.05), filter:'brightness(1)', offset:oEnd, easing:'ease-in-out'}
+      ]),
       {transform:T(0, 0, 0, 0, 1), filter:'brightness(1)', opacity:1, offset:1}         // settles to its true size
     ];
+    if (turn){
+      kf.forEach(frame => { delete frame.filter; });
+      g.classList.add('osbazaar-flipping');
+      floor = bazaarDealGroundShadow(origin?.css || getComputedStyle(g).transformOrigin, r, pre, turn.frames, oNear, oLand, delay, dur);
+      const face = el.querySelector('.cface.art');
+      if (face) g.querySelector('.cface.art').animate([
+        {boxShadow:'none'}, {boxShadow:'none', offset:oEnd}, {boxShadow:geometry?.shadow ?? getComputedStyle(face).boxShadow}
+      ], {duration:dur, delay, fill:'both'});
+    }
     an = g.animate(kf, {duration:dur, delay, easing:'linear', fill:'both'});
+    if (floor){
+      const removeShadow = () => floor.effect.target.remove();
+      an.finished.then(removeShadow, removeShadow);
+    }
   }
   if (!o.plain){
     const back = document.createElement('span'); back.className = 'dealback ' + (el.classList.contains('b') ? 'b' : 'u'); g.appendChild(back);
@@ -412,6 +482,8 @@ function deckCountdown(deck, starts){
    when the shop opens and only get their hourglass token stamped on. Recruit and Field stay put too. */
 function dealMarket(){
   if (reduceMotion()) return;
+  const bazaar = $('view-play').querySelector('.osdesk:not(.osmobmat):has(.osbazaar)');
+  if (bazaar){ bazaarOpen(bazaar); return; }
   const vp = $('view-play'), rows = ['u','b'].map(k => vp.querySelector(`.mktp .msec[data-k="${k}"] .market`));
   if (!(deckEl('u') || deckEl('b')) || !rows.some(Boolean)) return;
   // first, the cards that left the shop fly from their old slots into the discard pile (cleanup)...
@@ -457,10 +529,10 @@ function dealMarket(){
 function dealIn(els, base, o){
   const live = els.filter(el => el && el.isConnected);
   const desk = live.some(el => el.closest('#view-play .osdesk .osmkt'));
-  const F = desk ? DESK_DEAL_FX : DEAL_FX;
-  if (desk) o = o ? DESK_DEAL_WAVE : DESK_DEAL_REFILL;
+  const F = o?.fx || (desk ? DESK_DEAL_FX : DEAL_FX);
+  if (desk && !o?.desktop) o = o ? DESK_DEAL_WAVE : DESK_DEAL_REFILL;
   const flights = live.reduce((a, el) => a + 1 + backsOf(el).length, 0);
-  const gap = o ? spreadGap(flights, o.spread, o.gap) : 160, dur = o ? o.dur : 1100, backDur = o ? o.backDur : 800, lead = o ? o.backLead : 400;
+  const gap = o?.launchGap ?? (o ? spreadGap(flights, o.spread, o.gap) : 160), dur = o ? o.dur : 1100, backDur = o ? o.backDur : 800, lead = o ? o.backLead : 400;
   const starts = {u:[], b:[]}; let n = 0, end = 0;
   for (const el of els){
     if (!el || !el.isConnected) continue;
@@ -469,12 +541,12 @@ function dealIn(els, base, o){
     for (const b of backs){
       b.style.opacity = '';
       const bd = base + n++ * gap;
-      if (dealFly(b, deck, bd, backDur, {plain:true, fx:F})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); sfx.drop(dealLandAt(bd + backDur * F.plainLand, F), .4); }catch(e){} }
+      if (dealFly(b, deck, bd, backDur, {plain:true, fx:F, geometry:o?.geometry?.get(b)})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); sfx.drop(dealLandAt(bd + backDur * F.plainLand, F), .4); }catch(e){} }
       end = Math.max(end, bd + backDur * .65);
     }
     el.style.opacity = '';
     const delay = base + n++ * gap + (backs.length ? lead : 0);
-    if (dealFly(el, deck, delay, dur, {fx:F})){
+    if (dealFly(el, deck, delay, dur, {fx:F, geometry:o?.geometry?.get(el)})){
       starts[k].push(delay + (desk ? dur * F.leaveAt : 60)); try{ sfx.flick(delay / 1000 + 0.05); sfx.drop(dealLandAt(delay + dur * F.land, F), .55); sfx.flick(dealLandAt(delay + dur * F.flipMid, F), 1.3); }catch(e){}
       end = Math.max(end, delay + dur);
       el.dataset.dealt = '1';
@@ -637,10 +709,10 @@ $('view-play').addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const act = t.dataset.act, i = +t.dataset.i, d = ui.draft;
   switch (act){
-    case 'deck-open': { const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.mason = null; ui.deckView = ui.deckView === k && !t.closest('.dstabs') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
+    case 'deck-open': { if (matOpenOwnPile(t)) return; const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.mason = null; ui.deckView = ui.deckView === k && !t.closest('.dstabs') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
     case 'deck-close': popShut(); sfx.soft(); renderPlay(); return;
     case 'roll': doRoll(); return;
-    case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
+    case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
     case 'mason-cancel': sfx.soft(); popShut(); renderPlay(); return;
     case 'mason-tog': { const mm = masonMode(); if (!mm) return; const n = t.dataset.name;
@@ -734,7 +806,7 @@ $('view-play').addEventListener('click', e => {
     case 'banner-off': sfx.soft(); ui.bannerOff = true; renderPlay(); return;
     case 'continue': if (G.replay){ sfx.soft(); replayEnd(); return; }
       if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
-      sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; startShop(G); renderPlay(); scheduleAI(); return;
+      sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
     case 'rec-copy': { sfx.soft(); const id = t.dataset.id; copyMatch(id ? (LS.get(MATCH_KEY) || []).find(r => String(r.id) === id) : G && G.rec); return; }
     case 'newgame': sfx.soft(); startMode = G && G.over ? (G.net ? 'net' : PP() ? 'pp' : 'ai') : null; ui.start = true; ui.resignArm = false; renderPlay(); window.scrollTo({top:0}); return;
     case 'su-chip': ui.suOpen = !ui.suOpen; renderPlay(); return;
@@ -748,6 +820,7 @@ $('view-play').addEventListener('click', e => {
    has loaded, as the wrappers were: a redraw can happen while the page is still starting. Add a step here, in
    order, instead of wrapping renderPlay. */
 function renderPlay(){
+  if (typeof bazaarShopGate === 'function' && bazaarShopGate()) return;
   if (typeof matMobGate === 'function' && matMobGate()) return;      // one-screen dev: the sweep into Mobilize plays first
   if (typeof matBatGate === 'function' && matBatGate()) return;      // one-screen dev: Mobilize gathers into the battle first
   const notes = typeof playNotesBefore === 'function' ? playNotesBefore() : null;   // ability notes, measured before the stage is replaced

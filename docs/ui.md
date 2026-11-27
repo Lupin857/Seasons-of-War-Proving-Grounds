@@ -15,6 +15,17 @@
 - The one-screen table is the default at every width. Phones use the compact layout; wider screens use the desktop
   table. The designer can turn the desktop table off in the game menu; `localStorage.oasisMatDesk = '0'` stores that
   choice. The phone layout remains on at widths up to 640px. `localStorage.oasisRug = '0'` still disables the mat.
+- Desktop Shop captions sit below their cards. The local player's Deck shows its most recent card from a previous
+  Shop. Clicking the stack fans the prior holdings out for inspection. Clicking the backdrop returns the cards.
+  Current purchases stay in Bought This Shop, which opens and closes with the same fan.
+  A click outside an enlarged pile card returns to its fan. Both piles show the card faces beneath the top
+  card. Drag a card out of either fan onto the highlighted discard to sell it.
+  The table pile is hidden while its cards are spread. The selected card leaves its spot while it is in the
+  inspector, including in the discard view. Dragging the enlarged face continues from the point you grabbed.
+  Dragging through either of your fans slides neighbors into the open slots. Dropping inside the fan saves that
+  pile's display order for the match. Escape or dropping outside returns the old order.
+  Returning offers stay sideways on the table and turn more slowly while picked up. Their “Last chance to buy”
+  notice appears in the inspector. The desktop discard pile shows its top card and keeps the count in its accessible label.
 - Game top bar (`pbarHTML`): the same on every game screen, phone and desktop: ☰ menu · Round · score · First to.
   On phones, Mobilize and battle add their phase/step row under it. Each side's money and limits are not in the bar:
   they live in the shop's bottom bar (phone) and the deck tiles (desktop). During a game the Oasis title, sound button
@@ -31,6 +42,33 @@
 - Don't rebuild or restyle elements outside the task (see CLAUDE.md rule 6).
 
 ## Motion
+
+- Desktop Shop opens on one woven rug over painted sand. The rug ripples as it unrolls, the two Shop decks and
+  their Always cards enter together from the left, and discard arrives on the sand at the right. Fresh cards deal
+  from under the carryover stacks and fill each row from left to right. Carryovers then slide face-up and sideways
+  into the slots nearest discard.
+- The desktop deal and cleanup use the same full printed face as the market. Flight artwork fills its card box.
+- At desktop Shop close, eligible unsold cards turn sideways onto their decks. Expiring cards glide in an arc
+  onto the face-up discard at their existing sideways angle. The decks and Always cards leave left, discard leaves
+  right, and the rug rolls up.
+  Mobilize and Battle share the same sand. Reduced motion shows the settled board directly.
+- `bazaar-lab.html` previews the desktop opening and closing with a repeatable market. The timing controls
+  replay the game animation, and **Copy settings** exports the values in milliseconds.
+  The rug extends past the left edge far enough for the roll itself to disappear. **Wait from Shop close to rug
+  roll-up** starts when cards begin packing, so the roll can overlap card flights or the deck and discard exits.
+  In the desktop Shop, a held card grows slightly and swings around the exact point grabbed, with a soft shadow that
+  follows its silhouette. **Try card drag** previews changes to pickup time, growth, lean, and settling.
+  Released cards that return to their original slot settle without a bounce.
+  **Card shadows** controls the strength, softness, and distance of resting and lifted shadows. The stationary shadow
+  and the projected shadow crossfade on pickup and landing. A stack keeps its shadow when its top card lifts.
+  **Try card enlarge** previews the larger reading view with adjustable glide, return, dimming, and details timing.
+  The same preview has a populated Deck and Bought This Shop. **Inspecting a pile** controls the fan-out, fold-in,
+  and time between cards.
+- Match setup fetches and decodes game art before starting. The layout-specific Shop textures load with the
+  card art. A missing image is reported and the game can continue.
+- Desktop Shop income drops into the banks during the opening. Sale proceeds arc from the departing card
+  into its bank. A purchase sends water to the bottom edge of the bought card, where it clinks before the
+  card continues to its destination. The flying coins match the scale of the cards' printed water icons.
 - Desktop mat Mobilize overlaps the market sweep with the bought piles merging. In the lift, the deck, bench fan,
   fight order numbers, labels and controls settle together. Cards and controls take input once those animations
   finish. Reduced motion skips the entrance. Lock In keeps the gathering of the deck and the landing of both decks.
@@ -39,14 +77,14 @@
   attachment spot. Suggest runs through the AI worker when available and only applies to the draft it was requested for.
 - Flying cards travel **under** the bars, decks, discard pile and banners (use `LAYER` / `flyZ`).
 - Dealt cards come out of their own deck; cards going to the discard pile end at the pile.
-- Start of a round: cleanup (unbought cards to the discard pile), upkeep (hourglass stamps) and the deal overlap in
+- On the earlier Shop layout, cleanup (unbought cards to the discard pile), upkeep (hourglass stamps) and the deal overlap in
   fixed windows (`ROUND_FX` in 09-play-screen), so more cards means a tighter stagger, not a longer wait: about 2.5 s
   for a full turnover. Brian tuned these numbers in the "Oasis shop animation lab" artifact (Nov 2026); change them
   there and copy them back. Cards that join the shop mid-round keep their own pace.
 - On the desktop mat, flights use the fitted tray positions. New cards begin turning face up as they touch down,
-  and a slot takes input once its card lands. Returning cards turn sideways into their slots, then get the hourglass.
-  Hover outlines the selected card without moving it. Clicking opens the larger face with keyword definitions and
-  its Buy or Sell button beside it. Sideways cards turn upright as they open, then turn back into the same slot when
+  and slots take input once the opening settles. Returning cards have an hourglass when they land.
+  Hover outlines the selected card without moving it. Clicking glides the larger face to center and fades in the
+  keyword definitions and Buy or Sell button beside it. Sideways cards turn upright as they open, then turn back into the same slot when
   dismissed. Dragging still buys or sells at the drop target. Opponent buys keep their individual read pause.
 - Every unit defeated in a step flies to the graveyard (`deathFly`), found from the step's `mv` moves to `grave`. In the
   face-up pile only the top card has `data-uid`; the cards under it carry `data-guid`, so a second unit of the same side

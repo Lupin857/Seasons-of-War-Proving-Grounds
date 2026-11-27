@@ -3,7 +3,7 @@
    version; the cached copy is only used when the network is missing or slow.
    Card art and fonts: cache first (they rarely change).
    Bump VERSION whenever files are added, removed or renamed. */
-const VERSION = 'oasis-v3';
+const VERSION = 'oasis-v4-bazaar';
 const CORE = [
  "./",
  "index.html",
@@ -28,6 +28,7 @@ const CORE = [
  "css/10-game-menu.css",
  "css/11-rug.css",
  "css/12-mat-shop.css",
+ "css/13-bazaar.css",
  "js/art.js",
  "js/board-settings.js",
  "js/cards-tab.js",
@@ -67,6 +68,11 @@ const CORE = [
  "js/ui/18-game-menu.js",
  "js/ui/19-battle-ink.js",
  "js/ui/20-mat-shop.js",
+ "js/ui/21-bazaar.js",
+ "js/ui/22-shop-coins.js",
+ "bazaar-lab.html",
+ "css/bazaar-lab.css",
+ "js/bazaar-lab.js",
  "art/medallion.png",
  "art/wood0.jpg",
  "art/wood0_b.jpg",
@@ -88,6 +94,8 @@ const CORE = [
  "art/wood5_r.jpg"
 ];
 const ART = [
+ "art/rug/bazaar-rug.webp",
+ "art/rug/bazaar-sand.webp",
  "art/Altar of Sublimation.webp",
  "art/Ambusher.webp",
  "art/Arsonist.webp",
