@@ -127,7 +127,7 @@ function autoTick(){
   autoT = null;
   if (!autoOn() || !ui.battle || !G) return;
   if ($('view-play').hidden){ autoT = setTimeout(autoTick, 500); return; }   // paused while another tab is open
-  if (ui.animT || peekEl || (typeof matBatBusy === 'function' && matBatBusy())){ autoT = setTimeout(autoTick, 200); return; }   // let the current step (or the mat's flow into the battle) finish first
+  if (ui.animT || ui.chargeSlide || peekEl || (typeof matBatBusy === 'function' && matBatBusy())){ autoT = setTimeout(autoTick, 200); return; }   // let the current step (or the mat's flow into the battle) finish first
   // everything the step set going must have finished too (tokens sliding in one by one, cards flying to the graveyard,
   // the impact juice), and then the board rests a moment so it can be read (Brian, Nov 25: at 1× the next step came too
   // soon). The rest starts over whenever something is still moving.
@@ -152,7 +152,10 @@ function autoMoving(now){
     const t = a.effect.target, end = a.effect.getComputedTiming().endTime;
     return end !== Infinity && end < 5000 && t && t.nodeType === 1 && (vp.contains(t) || t.closest('.deathfly, .shbreak')); });
 }
-function stopAnim(){ if (ui.animT){ clearTimeout(ui.animT); ui.animT = null; } }
+function stopAnim(){
+  ui.chargeSlide = null;
+  if (ui.animT){ clearTimeout(ui.animT); ui.animT = null; }
+}
 // Reserve each side's row at the tallest it gets during this battle (decks shrink, graveyards grow): every frame is
 // laid out once in a hidden copy of the table and measured. Redone when the battle or the table's width changes.
 function applyRsv(root, rsv){
@@ -346,11 +349,41 @@ function goFrame(k, glide){
   labAfterStep(lab, glide);                // Board settings: a newly revealed unit glides into its splay
   return r;
 }
+// Read the flat card positions in viewport coordinates. Keeping the viewport origin
+// lets us account for any shift of the whole table during the redraw.
+function chargeFlatRects(line, selector){
+  const rects = new Map();
+  if (!line) return rects;
+  const transform = line.style.getPropertyValue('transform');
+  const priority = line.style.getPropertyPriority('transform');
+  line.style.setProperty('transform', 'none', 'important');
+  try {
+    for (const card of line.querySelectorAll(selector)) rects.set(card.dataset.uid, card.getBoundingClientRect());
+  } finally {
+    line.style.setProperty('transform', transform, priority);
+  }
+  return rects;
+}
+function waitForChargeSlide(animations){
+  if (!animations.length) return;
+  const slide = ui.chargeSlide = {queued:false};
+  Promise.all(animations.map(a => a.finished)).then(() => {
+    if (ui.chargeSlide !== slide) return;
+    ui.chargeSlide = null;
+    if (slide.queued) stepForward();
+  }, () => {
+    if (ui.chargeSlide === slide) ui.chargeSlide = null;
+  });
+}
 // The step itself; call goFrame, not this.
 function showFrame(k, glide){
   stopAnim();
   const from = new Map();
-  if (glide && !reduceMotion()) for (const el of $('view-play').querySelectorAll('.line [data-uid]')){ const r = el.getBoundingClientRect(); r.wasB = el.tagName === 'B'; r.loc = tableXY(el, el.closest('.line')); if (!r.wasB) r.clone = el.cloneNode(true); from.set(el.dataset.uid, r); }
+  const view = $('view-play');
+  const deckCards = '.deckz .card[data-uid]:not(.mini)', chargeCards = '.chz .charge > .card[data-uid]';
+  const flatFrom = glide && !reduceMotion() && document.body.classList.contains('os-deskbat')
+    ? chargeFlatRects(view.querySelector('.line.table.matz'), deckCards) : new Map();
+  if (glide && !reduceMotion()) for (const el of view.querySelectorAll('.line [data-uid]')){ const r = el.getBoundingClientRect(); r.wasB = el.tagName === 'B'; r.loc = tableXY(el, el.closest('.line')); r.fromDeck = el.matches(deckCards); if (!r.wasB) r.clone = el.cloneNode(true); from.set(el.dataset.uid, r); }
   const prevF = glide && ui.battle ? ui.battle.frames[ui.frame] : null;
   const broken = ui.battle && k === ui.frame + 1 ? shieldsToBreak() : [];   // shields that blocked a hit this step
   // tokens this step discards (a Fencer's Might, as the engine records it in drop) break the same way as it lands
@@ -370,17 +403,23 @@ function showFrame(k, glide){
     setTimeout(() => { if (w === 0) sfx.win(big); else if (w === 1) sfx.lose(big); else sfx.draw(); }, 120);
   }
   if (!from.size) return;
+  const flatTo = flatFrom.size ? chargeFlatRects(view.querySelector('.line.table.matz'), chargeCards) : new Map();
+  const chargeSlides = [];
   const flies = [];   // [uid, r0, landing spot] of each card flying to the graveyard; started together below
-  for (const el of $('view-play').querySelectorAll('.line [data-uid]')){
+  for (const el of view.querySelectorAll('.line [data-uid]')){
     const r0 = from.get(el.dataset.uid); if (!r0 || !el.animate) continue;
-    const r1 = el.getBoundingClientRect(), dx = r0.left - r1.left, dy = r0.top - r1.top;
+    const charging = r0.fromDeck && el.matches(chargeCards);
+    const flatStart = charging && flatFrom.get(el.dataset.uid);
+    const flatEnd = flatStart && flatTo.get(el.dataset.uid);
+    const start = flatEnd ? flatStart : r0;
+    const r1 = flatEnd || el.getBoundingClientRect(), dx = start.left - r1.left, dy = start.top - r1.top;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
     const toGrave = el.tagName === 'B' && !r0.wasB;   // just died (a name already in the list only slides)
     if (toGrave && r0.clone){ flies.push([el.dataset.uid, r0, el]); continue; }
     el.style.position = 'relative'; el.style.zIndex = 5;
     const tzUp = el.closest('.tz'); if (tzUp){ tzUp.style.position = 'relative'; tzUp.style.zIndex = 20; }
     // a card that grew or shrank (a stack strip becoming the revealed card, say) also eases between sizes
-    const sx = r1.width ? r0.width / r1.width : 1, sy = r1.height ? r0.height / r1.height : 1;
+    const sx = r1.width ? start.width / r1.width : 1, sy = r1.height ? start.height / r1.height : 1;
     const grow = Math.abs(sx - 1) > 0.05 || Math.abs(sy - 1) > 0.05;
     if (grow) el.style.transformOrigin = 'top left';
     const a = el.animate(toGrave
@@ -390,9 +429,11 @@ function showFrame(k, glide){
       : grow ? [{transform:`translate(${dx}px,${dy}px) scale(${sx})`, opacity:.35}, {opacity:1, offset:.55}, {transform:'none', opacity:1}]
              : [{transform:`translate(${dx}px,${dy}px)`}, {transform:'none'}],
       {duration: toGrave ? 500 : 680, easing: toGrave ? 'cubic-bezier(.22,.9,.3,1.04)' : 'cubic-bezier(.5,0,.2,1)'});
+    if (charging) chargeSlides.push(a);
     if (grow) a.addEventListener('finish', () => { el.style.transformOrigin = ''; });
     a.onfinish = a.oncancel = () => { el.style.zIndex = ''; el.style.position = ''; if (tzUp){ tzUp.style.zIndex = ''; tzUp.style.position = ''; } };
   }
+  waitForChargeSlide(chargeSlides);
   // several units of one side defeated in one step: only the top of the graveyard pile carries data-uid, so the ones
   // that landed underneath fly to their own card in the pile (or to the pile, if it's buried too deep to be drawn)
   for (const m of died){
