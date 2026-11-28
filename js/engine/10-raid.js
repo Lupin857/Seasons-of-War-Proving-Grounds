@@ -199,18 +199,31 @@ function raidAiShop(g, i){
   return pass(g, i);
 }
 
+// Lower levels sample fewer orders and consider fewer ways to split supplies.
+const RAID_AI_SEARCH = [
+  {orders:1, guesses:1, budgets:[.5]},
+  {orders:6, guesses:1, budgets:[.5, 1]},
+  {orders:18, guesses:2, budgets:[0, .5, 1]},
+  {orders:48, guesses:2, budgets:[0, .5, 1]},
+  {orders:120, guesses:3, budgets:[0, .5, 1]},
+];
 function raidAiMobilize(g, i){
   const attacker = raidAttacker(g), me = raidBattlePlayer(g, i);
+  const search = RAID_AI_SEARCH[me.raidDifficulty] || RAID_AI_SEARCH.at(-1);
   const myArmy = buildArmy(me), rival = raidBattlePlayer(g, 1 - i), theirArmy = buildArmy(rival);
   const full = a => assemble(a.core, a.recs, a.arm, false, false, a.sh, a.gear);
   // These guesses use the public roster and remaining supply only.
   const guesses = [full(theirArmy)];
-  if (theirArmy.core.length > 1) guesses.push(assemble(theirArmy.core.slice().reverse(),
+  if (search.guesses > 1 && theirArmy.core.length > 1) guesses.push(assemble(theirArmy.core.slice().reverse(),
     theirArmy.recs, theirArmy.arm, false, true, theirArmy.sh, theirArmy.gear));
+  if (search.guesses > 2 && theirArmy.core.length > 2){
+    const [lead, ...rest] = theirArmy.core;
+    guesses.push(assemble([...rest, lead], theirArmy.recs, theirArmy.arm, true, false, theirArmy.sh, theirArmy.gear));
+  }
   const cfgs = [0, 1].map(j => raidBattleCfg(g, j));
   const first = g.raid.bout === 0;
   const scarce = myArmy.gear.length + myArmy.arm + myArmy.sh + myArmy.recs + myArmy.core.reduce((n, u) => n + u.tr, 0);
-  const budgets = first && scarce > 0 ? [0, .5, 1] : [1];
+  const budgets = first && scarce > 0 ? search.budgets : [1];
   const health = g.players.map((p, j) => p.health - g.raid.damage[j]);
   let best = [], bestScore = -Infinity;
   for (const budget of budgets){
@@ -219,7 +232,9 @@ function raidAiMobilize(g, i){
     let train = take(myArmy.core.reduce((n, u) => n + u.tr, 0));
     // Respect the aggregate budget when Training is spread across several units.
     for (const u of core){ u.tr = Math.min(u.tr, train); train -= u.tr; }
-    for (const order of permutations(core)){
+    const orders = permutations(core), sample = Math.min(orders.length, search.orders);
+    for (let k = 0; k < sample; k++){
+      const order = orders[Math.floor(k * orders.length / sample)];
       const deck = assemble(order, take(myArmy.recs), take(myArmy.arm), false, budget === .5,
         take(myArmy.sh), myArmy.gear.slice(0, take(myArmy.gear.length)));
       const spent = deck.reduce((n, u) => n + (u.name === 'Recruit') + !!u.gear + u.arm + u.sh + u.tr, 0);

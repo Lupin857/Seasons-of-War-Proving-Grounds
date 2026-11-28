@@ -14,7 +14,7 @@ function recSnap(g){
 function recStart(g, opp){
   const sk = g.players[1].skill;
   g.rec = {format:'SOW match record v1', id:Date.now(), started:new Date().toISOString(), firstTo:g.target,
-    opponent:opp ? `${opp.rated ? 'rated' : 'unrated'} opponent ${opp.rating}` : 'full-strength AI (unrated)', rules:g.suLines || 'Default',
+    opponent:opp?.difficulty != null ? `${BRACKETS[opp.difficulty]} AI (unrated)` : opp ? `${opp.rated ? 'rated' : 'unrated'} opponent ${opp.rating}` : 'full-strength AI (unrated)', rules:g.suLines || 'Default',
     aiLevel:sk ? (sk.hi ? `budget ${Math.round((sk.t || 0) * 100)}% of the way from ${sk.lo.label} to ${sk.hi.label}` : sk.lo.label) : 'Thinks deepest (full strength, unrated)',
     cards:{units:clone(DEFS), buildings:clone(BDEFS)}, events:[], battles:[]};
 }
@@ -81,11 +81,16 @@ function newPlay(opp, raid = false){
   stopTimers();
   const custom = raid || !suIsDefault(), su = setupForGame();
   if (opp && custom) opp = {...opp, rated:false, placement:false};   // custom rules are never rated
-  const genome = opp && CAL ? clone(CAL.genome) : clone(brain.champ);
+  const genome = opp?.rating != null && CAL ? clone(CAL.genome) : clone(brain.champ);
   G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, raid ? null : loadOm()], target:gameTarget(), su, raid});
   G.suLines = raid ? ['Raid · 8 Caravan health · 7 unique units total, up to 5 per deck'] : custom ? suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, ['You', 'AI']) : null;
   G.opp = opp || null;
-  if (opp && CAL){ G.players[1].skill = skillFor(opp.rating); novicePersona(G, 1); }   // Novice: its personality is rolled once per game, here
+  if (opp?.difficulty != null){
+    const rung = RUNGS.find(r => r.id === AI_DIFFICULTY_RUNGS[opp.difficulty]);
+    if (rung) G.players[1].skill = {lo:rung};
+    if (raid) G.players[1].raidDifficulty = opp.difficulty;
+  } else if (opp && CAL) G.players[1].skill = skillFor(opp.rating);
+  if (G.players[1].skill && !raid) novicePersona(G, 1);   // Novice: its personality is rolled once per game, here
   if (!raid) recStart(G, opp);
   ui = freshUI({roll:newRoll()});
   renderPlay();

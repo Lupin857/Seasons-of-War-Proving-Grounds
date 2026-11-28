@@ -137,9 +137,21 @@ function rulesHTML(names, opts){
     </div>`;
 }
 const goLabel = R => { const br = bracketOf(R); return suIsDefault() ? `Start ${ME.rating == null ? 'placement' : 'rated'} game vs ${br.name} AI (${R})` : `Start unrated game vs ${br.name} AI (${R})`; };
+function aiDifficultyKey(raid){ return raid ? 'oasis-raid-ai-level' : 'oasis-unrated-ai-level'; }
+function aiDifficultyPick(raid){
+  const saved = LS.get(aiDifficultyKey(raid));
+  return Number.isInteger(saved) && AI_DIFFICULTY_RUNGS[saved] ? saved : raid ? AI_DIFFICULTY_RUNGS.length - 1 : 0;
+}
+function aiDifficultyHTML(raid){
+  const level = aiDifficultyPick(raid), name = BRACKETS[level];
+  return `<div class="pick"><label for="st-difficulty" class="eyebrow">AI difficulty</label>
+    <select id="st-difficulty" data-ai-difficulty aria-describedby="st-difficulty-note">${BRACKETS.map((label, i) =>
+      `<option value="${i}" ${i === level ? 'selected' : ''}>${label}</option>`).join('')}</select>
+    <span class="note" id="st-difficulty-note">${name} · Unrated</span></div>`;
+}
 function aiSetupHTML(resign){
   if (SU.raid) return `${raidSetupHTML()}${rulesHTML(['You', 'AI'], {raid:true})}
-    <p class="note">Raid uses its own unrated AI.</p>
+    ${aiDifficultyHTML(true)}
     ${resign ? '<p class="err">Starting a new game ends your current rated game as a loss.</p>' : ''}
     <div class="row sugo"><button type="button" class="primary" data-act="st-free">${resign && ui.resignArm === 'free' ? 'Click again to resign and start' : 'Start Raid vs AI'}</button></div>`;
 
@@ -150,7 +162,7 @@ function aiSetupHTML(resign){
   const R = oppPick, br = bracketOf(R), myBr = mine != null ? bracketOf(mine) : null, dflt = suIsDefault();
   const calBox = calState.busy
     ? `<div class="finalbox"><p><b>Calibrating the ladder…</b> Each AI level plays the next two up, and the ratings come from the results.</p><div id="calprog">${calProgHTML()}</div></div>`
-    : !CAL ? `<div class="finalbox"><p><b>The rating ladder isn't calibrated yet.</b> Until it is, you can play today's full-strength AI, unrated.</p>${calBtn('Calibrate now')}</div>`
+    : !L.length ? `<div class="finalbox"><p><b>The rating ladder isn't calibrated for this length.</b> Choose an unrated difficulty to play now.</p>${calBtn('Calibrate now')}</div>`
     : calStale() ? `<div class="finalbox"><p><b>Your card numbers changed since the ladder was calibrated</b> (${esc(fmtWhen(CAL.at))}), so the AI ratings may be a little off.</p>${calBtn('Recalibrate')}</div>` : '';
   const strip = L.length ? `<div class="brackets">${BRACKETS.map((name, k) => {
       const w = (hi - lo) / 5, a = Math.round(lo + k * w), b = Math.round(lo + (k + 1) * w), mid = (a + b) / 2;
@@ -165,6 +177,8 @@ function aiSetupHTML(resign){
       </details>` : '';
   const recent = !placing && ME.history.length ? `<details><summary class="note">Your recent games</summary><div class="list" style="margin-top:6px">${ME.history.slice(0, 12).map(h => `<div class="li"><span class="nm" style="font-weight:400">${h.s === 1 ? 'Win' : h.s === 0 ? (h.forfeit ? 'Resigned' : 'Loss') : 'Draw'} vs ${h.opp}</span><span class="mono">${h.placement ? 'placement' : `${h.before} → ${h.after}`}</span></div>`).join('')}</div></details>` : '';
   const flag = calBox && calState.busy ? calBox : '';
+  const primaryLabel = resign && ui.resignArm === true ? 'Click again to resign and start'
+    : L.length ? goLabel(R) : `Start unrated game vs ${BRACKETS[aiDifficultyPick(false)]} AI (first to ${gameTarget()})`;
   return `
       <div class="suopp">
         <div class="me compact">${placing
@@ -176,15 +190,15 @@ function aiSetupHTML(resign){
           <div class="row"><span class="pickr">${R}</span><span class="pickn">${br.name}</span>${!placing ? `<span class="note" id="st-exp">${pct(expected(mine, R))} expected win chance for you</span>` : ''}</div>
           <input type="range" id="st-r" min="${lo}" max="${lo + Math.ceil((hi - lo) / 10) * 10}" step="10" value="${R}" ${calState.busy ? 'disabled' : ''} aria-describedby="st-lvl">
           <span class="note" id="st-lvl">${esc(levelText(R))}</span>
-        </div>` : ''}
+        </div>` : aiDifficultyHTML(false)}
         ${flag}
       </div>
       ${raidSetupHTML()}
       ${rulesHTML(['You', 'AI'], {rated:true})}
       ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
-      ${!dflt ? `<p class="note">Custom rules: the game isn't rated. The AI thinks through the new rules on its own; its rating was measured on Default.</p>` : ''}
+      ${!dflt && L.length ? '<p class="note">Custom rules use unrated play. The ladder ratings were measured with default rules.</p>' : ''}
       <div class="row sugo">
-        ${L.length ? `<button type="button" class="primary" data-act="st-go" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm === true ? 'Click again to resign and start' : goLabel(R)}</button>` : ''}
+        <button type="button" class="primary" data-act="st-go" ${calState.busy ? 'disabled' : ''}>${primaryLabel}</button>
         <button type="button" data-act="st-free" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm === 'free' ? 'Click again to resign and start' : `Unrated game vs full-strength AI (first to ${gameTarget()})`}</button>
       </div>
       <details class="ladder"><summary class="note">Ladder details</summary>
@@ -251,6 +265,12 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.matches?.('[data-ai-difficulty]')){
+    LS.set(aiDifficultyKey(SU.raid), +t.value);
+    ui.resignArm = false; renderPlay();
+    $('st-difficulty')?.focus({preventScroll:true});
+    return;
+  }
   if (t.matches?.('[data-raid-setup]')){ SU.raid = t.checked; suSave(); renderPlay(); return; }
   if (t.matches?.('[data-raid-refill]')){ REFILL_ON = t.checked; LS.set('sow-refill', REFILL_ON); renderPlay(); return; }
   if (t.matches && t.matches('[data-su]')){ suSet(t.dataset.su, t.value); renderPlay(); return; }
@@ -320,7 +340,9 @@ $('view-play').addEventListener('click', async e => {
     if (resign) recordResult(true);
     const placing = ME.rating == null;
     ui.pick = null; netLeave();
-    newPlay(a === 'st-free' ? null : {rating: bracketPick(), rated:true, placement:placing}, SU.raid);
+    const raid = SU.raid, pick = {difficulty:aiDifficultyPick(raid), rated:false};
+    if (raid || (a === 'st-go' && !ladder().length)) newPlay(pick, raid);
+    else newPlay(a === 'st-free' ? null : {rating: bracketPick(), rated:true, placement:placing});
   }
 }, true);
 let oppPick = null;   // the AI rating you chose on the slider (saved per game length)

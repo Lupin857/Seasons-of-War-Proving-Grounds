@@ -106,6 +106,8 @@ vm.runInContext(`
 
   for (const seed of [2, 7, 19, 41, 71, 99]){
     const game = newGame({raid:true, rnd:mulberry32(seed), genomes:[baseGenome(), baseGenome()]});
+    game.players[0].raidDifficulty = seed % RAID_AI_SEARCH.length;
+    game.players[1].raidDifficulty = (seed + 1) % RAID_AI_SEARCH.length;
     let bought = 0;
     while (!game.over){
       startShop(game);

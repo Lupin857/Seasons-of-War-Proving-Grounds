@@ -293,7 +293,7 @@ function boardHTML(where){
   const deckBtn = i => `<button type="button" class="side ${VS(i) ? 'ai' : 'you'} deckbtn${ui.deckView === i ? ' on' : ''}${shopping && cur(G) === i && !G.passed[i] ? ' active' : ''}${shopping && G.passed[i] ? ' isout' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: view cards">
       <span class="who"><span class="dkic" aria-hidden="true"><i></i><i></i></span>${deckLabel(i)}<span class="dkgo" aria-hidden="true">›</span></span>
       <span class="meta money">$${B.money[i]} · income $${B.inc[i]}</span>
-      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ' · unrated'}` : 'Full strength · unrated'}</span>${capsHTML(i, turnChip(i))}</button>`;
+      <span class="meta m3">${B.cath[i] ? 'Cathedral +1 point' : VS(i) === 0 ? 'Tap to view cards' : G.net ? `Online · room ${esc(NET ? NET.code : '')}` : PP() ? 'Pass and play' : G.opp?.difficulty != null ? `${BRACKETS[G.opp.difficulty]} · unrated` : G.opp ? `${esc(bracketOf(G.opp.rating).name)} · ${G.opp.rating}${G.opp.placement ? ' · placement' : G.opp.rated ? ' · rated' : ' · unrated'}` : 'Full strength · unrated'}</span>${capsHTML(i, turnChip(i))}</button>`;
   const L = VS(0), Rt = VS(1);   // you on the left
   return `<div class="board${where === 'dock' ? ' inDock' : ' topboard'}">
     ${deckBtn(L)}

@@ -43,6 +43,7 @@ const RUNGS = [
   {id:'p100', label:'Thinks deeply',        depth:'play'},
   {id:'m100', label:'Thinks deepest',       depth:'master'},
 ];
+const AI_DIFFICULTY_RUNGS = ['novice', 'f100', 't100', 'p100', 'm100'];
 // a budget part-way between two levels: counts are interpolated and rounded, blur and time limits are interpolated
 function blendDepth(A, B, t){
   if (!A || !B) return A || B;
