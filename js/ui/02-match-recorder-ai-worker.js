@@ -173,7 +173,11 @@ function aiWorkerMain(){
       const g = m.g; g.rnd = mulberry32(m.seed); g.log = []; if (m.rec) g.rec = true;
       ROOT = g; LOG = [];
       if (m.cmd === 'shop'){ aiShopTurn(g, m.i, m.depth); postMessage({id:m.id, acts:LOG}); }
-      else { const deck = aiMobilize(g, m.i, m.K, m.depth) || []; postMessage({id:m.id, deck, omPending:g.omPending, mobWhy:g._mobWhy || null, mobLevel:g._mobLevel || null}); }
+      else {
+        const decisions = g.mirDecide?.length || 0, deck = aiMobilize(g, m.i, m.K, m.depth) || [];
+        postMessage({id:m.id, deck, omPending:g.omPending, mobWhy:g._mobWhy || null, mobLevel:g._mobLevel || null,
+          mirDecide:m.cmd === 'draft' ? g.mirDecide?.slice(decisions) : undefined});
+      }
     }catch(err){ postMessage({id:m.id, error:String((err && err.message) || err)}); }
     finally { ROOT = null; LOG = null; }
   };

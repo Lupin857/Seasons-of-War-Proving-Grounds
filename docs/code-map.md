@@ -62,8 +62,8 @@ global scope and run in the order index.html loads them, exactly like the old in
   `21-bazaar` coordinates the desktop Shop rug, scenery, and existing card flights. The textured rug surface
   (`bazaarRoll`) redraws during opening and closing. The settled rug and fixed painted sand use `css/13-bazaar.css`.
   The stand-alone `bazaar-lab.html` tunes those same transitions through an isolated in-page game fixture.
-  `22-shop-coins` draws the desktop Shop's income, sales and payments from the recorded amounts in one transient
-  WebGL canvas, with a Canvas fallback.
+  `22-shop-coins` draws desktop Shop income, sales and payments in one canvas. It prepares the WebGL renderer
+  offscreen during idle time and uses the 2D renderer if accelerated WebGL is unavailable or still preparing.
 - `js/desktop.js` (desktop card panel ≥1200 px) · `js/mobile-crop.js` (phone crop, image reuse, cube sync, ability
   glow) · `js/board-settings.js` (`LAB_DEF`, `OASIS_BUILD`, table view, depth, splay, clash, cube hooks) ·
   `js/cards-tab.js` (Cards tab).
@@ -149,9 +149,15 @@ to a feature live in that feature's file as plain named functions. **Never wrap 
   inside the error box) → `reserveRows` (battle) → `playArtAfter` → `playNotesAfter` (cube sync, note fade) →
   `labAfterDraw` (`body.lab-inbattle`). The play*/lab* steps are in js/mobile-crop.js and js/board-settings.js and
   are skipped (`typeof` check) until their file has loaded, because a redraw can happen while the page starts.
+  On a standard desktop purchase against the AI, `matRefreshPurchase` updates the market, stock and turn controls
+  while keeping the fitted tabletop. The same post-draw steps launch the payment, purchase flight and refill.
+  During the opening Shop exit of an AI match, `mzPrepareDraft` requests the player's Mobilize deck from the AI worker.
+  The draft applies only to the game and round that started the request.
 - `goFrame(k, glide)` (js/ui/07-battle-steps.js): `labBeforeStep` → `cubesBeforeStep` → `showFrame` (the step
   itself; the save slide-under `deckFly` is in it) → `healRefillAfterStep` → `labAfterStep` (splay glide, `labPrep`).
   Only runs after load, so no checks.
+  When desktop Battle needs new row reserves, `reserveRows` measures four hidden frames at a time under the
+  Battle panel. The reserve still uses the tallest row found across the replay.
 - `cardHTML` → `cardHTML0` + `labCardLayers` (card stock and light layers). `pokeArt` (js/board-settings.js) draws the
   stack behind an art card: copies in one band with a count, room always `STACK_MAX` bands (see `labFixedRoom`). The
   older one-step-per-token layout was deleted in v59.

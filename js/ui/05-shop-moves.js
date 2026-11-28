@@ -58,7 +58,7 @@ function playerMove(a){
   snapNow();
   const ok = shopMove(S, a, 1, true);
   if (ok) motionFrom(S, n0);   // its flights start with the redraw below
-  if (a[0] === 'b' || a[0] === 'p' || a[0] === 'i') afterAction(); else renderPlay();
+  if (a[0] === 'b' || a[0] === 'p' || a[0] === 'i') afterAction({purchase:ok && a[0] === 'b'}); else renderPlay();
 }
 // apply every move both players have made that this page hasn't applied yet
 function netPump(){
@@ -201,15 +201,14 @@ async function netStartClick(a, resign){
   if (a === 'st-net-host'){ netLeave(); await netOpen({code:netCode(), seat:0, name, seed:(Math.random() * 2147483647) | 0, target:gameTarget(), mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON, su:setupForGame(), acts:[]}); return; }
   if (joinCode){ netLeave(); await netOpen({code:joinCode, seat:null, name, acts:[]}); }
 }
-function afterAction(){
+function afterAction(options){
   if (G && G.net){ netAfter(); return; }
   if (PP()){
     if (G.phase === 'mobilize' && ui.handoff == null && !ui.draft && !ui.drafts[0] && !ui.drafts[1]){ ui.mobSeat = 0; ui.handoff = 0; const tt = $('toast'); if (tt) tt.hidden = true; }
     ui.lastTurn = G.phase === 'shop' ? cur(G) : null;
     renderPlay(); return;
   }
-  if (G.phase === 'mobilize' && !ui.draft) ui.draft = defaultDraft();
-  renderPlay(); scheduleAI();
+  renderPlay(options); scheduleAI();
 }
 function draftFromDeck(deck){ return deck.map(u => u.gear ? {name:u.name, arm:u.arm||0, tr:u.tr||0, sh:u.sh||0, gear:u.gear} : {name:u.name, arm:u.arm||0, tr:u.tr||0, sh:u.sh||0}); }
 // gear still in hand for this draft (one entry per piece left)
@@ -225,7 +224,7 @@ function reEquip(me, d){
   for (const u of d){ const n = me.equip && me.equip[u.name]; if (!u.gear && n && left[n] > 0 && !(n === 'Zweihander' && (u.arm || u.sh))){ u.gear = n; left[n]--; } }
   return d;
 }
-function defaultDraft(){
+function defaultDraft(deck){
   const S = seat(), me = G.players[S], last = PP() ? ui.lastDrafts[S] : ui.lastDraft;
   if (last){
     const keep = last.filter(u => u.name !== 'Recruit' && me.hand[u.name]).map(u => ({name:u.name, arm:0, tr:0}));
@@ -236,7 +235,7 @@ function defaultDraft(){
     }
     return reEquip(me, keep);
   }
-  return draftFromDeck((aiMobilize(G, S, 24, DEPTH_HINT) || []).filter(u => !isBat(u.name)));   // your battle miracles stay on the bench
+  return draftFromDeck((deck || aiMobilize(G, S, 24, DEPTH_HINT) || []).filter(u => !isBat(u.name)));   // your battle miracles stay on the bench
 }
 // While a battle is still playing out, the scoreboard shows the board as it was before the battle, so the score
 // doesn't give the result away. It catches up once the last step is shown (or the battle is skipped to its end).
