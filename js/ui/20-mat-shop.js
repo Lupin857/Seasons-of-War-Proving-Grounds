@@ -865,7 +865,7 @@ function matSellFlight(i, name){
     matLiftDone(owner);
     if (h.fanPile && !document.querySelector('#view-play .osdeckfan')){
       const pile = document.querySelector(h.fanPile === 'bought' ? '#view-play .osseat.me .osbought' : '#view-play .osseat.me .osdeck');
-      matOpenOwnPile(pile);
+      matOpenShopPile(pile);
     }
   };
   matLand(h.g, matDiscardSpot(name), {done, find:() => matDiscardSpot(name)});
@@ -1209,7 +1209,7 @@ function matDragArm(e, card, inspector, face){
 $('view-play').addEventListener('pointerdown', e => {
   const mobileRaid = G?.raid && !matDesk() && matShopOn() ? e.target.closest('.osshop .osmkt .mcard[data-ck]') : null;
   const card = matDeskShopCard(e.target) || e.target.closest('.osdeckfan-card') || mobileRaid;
-  if (card && !e.target.closest('.ostag, .osright button')) matDragArm(e, card);
+  if (card && !e.target.closest('.ostag, .osright button, .osdeckfan[data-pile=discard]')) matDragArm(e, card);
 });
 window.addEventListener('pointermove', e => {
   const p = MATDRAG.p; if (!p || e.pointerId !== p.pid) return;
@@ -1802,20 +1802,42 @@ function matLayoutShopFan(fan){
   rows.classList.toggle('osdeckfan-scroll', rows.scrollHeight > rows.clientHeight + 1);
 }
 
-// The player's Shop piles spread from their spots using the Mobilize bench's fan geometry.
-function matOpenOwnPile(button){
-  if (!button?.matches('.osdesk .osseat.me :is(.osdeck,.osbought)') || !matShopOn()) return false;
-  const view = $('view-play'), i = seat(), p = G.players[i], {order, purchases} = matDeskInventory(i, p.hand);
-  const bought = button.classList.contains('osbought'), cards = bought ? purchases : order;
-  const origin = () => matPoseOf(button.querySelector('.ostop,.osslot'));
+// Shop piles spread from their spots using the Mobilize bench's fan geometry.
+function matOpenShopPile(button){
+  if (!button || G.phase !== 'shop' || ui.battle) return false;
+  const discard = button.id === 'muster-pile';
+  if (!discard && (!button.matches('.osdesk .osseat.me :is(.osdeck,.osbought)') || !matShopOn())) return false;
+  const view = $('view-play'), i = seat(), p = G.players[i];
+  const bought = button.classList.contains('osbought');
+  const pile = discard ? 'discard' : bought ? 'bought' : 'deck';
+  const title = discard ? 'Discard pile' : bought ? 'Bought this shop' : deckName(i);
+  let cards;
+  if (discard){
+    cards = (G.muster || []).map((name, idx) => ({name, idx, owned:musterMatch(name)}))
+      .sort((a, b) => Number(b.owned) - Number(a.owned) || b.idx - a.idx);
+  } else {
+    const {order, purchases} = matDeskInventory(i, p.hand);
+    cards = (bought ? purchases : order).map(name => ({name}));
+  }
+  const origin = () => matPoseOf(button.querySelector(discard ? '.mpcards' : '.ostop,.osslot'));
   const ov = document.createElement('div');
   ov.className = 'osdeckfan';
-  ov.dataset.pile = bought ? 'bought' : 'deck';
+  ov.dataset.pile = pile;
   ov.innerHTML = '<section class="osdeckfan-panel" role="dialog" aria-modal="true" aria-labelledby="osdeckfan-title"><header><h2 id="osdeckfan-title"></h2><button type="button" class="osdeckfan-close" aria-label="Close deck">×</button></header><div class="osdeckfan-rows"></div></section>';
-  ov.querySelector('h2').textContent = bought ? 'Bought this shop' : deckName(i);
+  ov.querySelector('h2').textContent = title;
   const rows = ov.querySelector('.osdeckfan-rows'), close = ov.querySelector('.osdeckfan-close');
-  if (bought) close.setAttribute('aria-label', 'Close bought cards');
-  const baseWidth = Math.floor(Math.min(168, Math.max(100, (origin()?.r.width || 120) * 1.13), innerWidth / 5.1));
+  if (bought || discard) close.setAttribute('aria-label', discard ? 'Close discard pile' : 'Close bought cards');
+  if (discard){
+    const description = document.createElement('p');
+    description.className = 'osdeckfan-discard-note';
+    description.textContent = bVal(p, 'War College')
+      ? 'Scrapyard lets you buy duplicates of cards you own for free. Each copy uses a buy.'
+      : 'Tap a card to inspect it. Scrapyard lets you take copies you already own.';
+    rows.before(description);
+    rows.insertAdjacentHTML('afterend', discardMiraclesHTML(G.salvMir || []));
+  }
+  const baseWidth = Math.floor(Math.min(168, Math.max(100, (origin()?.r.width || 120) * 1.13),
+    innerWidth / (discard && compact() ? 3.7 : 5.1)));
   let inspectRequest = 0;
   const inspect = async card => {
     const request = ++inspectRequest;
@@ -1825,16 +1847,25 @@ function matOpenOwnPile(button){
     if (shifts.length) await Promise.allSettled(shifts.map(animation => animation.finished));
     if (request === inspectRequest && card.isConnected && !ov.inert && !peekEl && !MATDRAG.p) openPeek(card, true);
   };
-  const slots = cards.map(name => {
-    const slot = document.createElement('div'), card = document.createElement('div');
-    const kind = DEFS[name] ? 'u' : 'b', count = kind === 'u' ? p.hand[name] : p.gear[name];
+  const slots = cards.map(({name, idx, owned}) => {
+    const slot = document.createElement('div'), kind = cardKind(name);
+    let card;
+    if (discard){
+      slot.innerHTML = marketCard(name, kind, 'mu', idx);
+      card = slot.querySelector('.mcard');
+      card.classList.toggle('osdiscard-owned', owned);
+    } else {
+      const count = kind === 'u' ? p.hand[name] : p.gear[name];
+      card = document.createElement('div');
+      card.className = 'mcard ' + kind;
+      card.innerHTML = cardFace(name, kind, count, true) + (canSell(G, i, kind, name) ? shopSellBtnHTML(name, kind) : '');
+    }
     slot.className = 'osfanslot';
-    card.className = 'mcard osdeckfan-card ' + kind;
+    card.classList.add('osdeckfan-card');
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
     card.setAttribute('aria-haspopup', 'dialog');
     card.setAttribute('aria-label', 'Inspect ' + dispName(name));
-    card.innerHTML = cardFace(name, kind, count, true) + (canSell(G, i, kind, name) ? shopSellBtnHTML(name, kind) : '');
     card.addEventListener('click', e => { if (!e.target.closest('button')) inspect(card); });
     card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); inspect(card); }
@@ -1842,11 +1873,14 @@ function matOpenOwnPile(button){
     slot.append(card);
     return slot;
   });
-  if (!cards.length) rows.innerHTML = bought
-    ? '<p class="osdeckfan-empty">No cards bought this shop yet.</p>'
-    : '<p class="osdeckfan-empty">No cards in your deck yet.</p>';
+  if (!cards.length){
+    const message = discard ? 'No unit, support or gear cards in the discard pile.'
+      : bought ? 'No cards bought this shop yet.' : 'No cards in your deck yet.';
+    rows.innerHTML = `<p class="osdeckfan-empty">${message}</p>`;
+  }
   const layout = ov._cardLayout = {overlay:ov, rows, slots, baseWidth, player:i, pile:ov.dataset.pile};
   view.append(ov);
+  if (discard) button.setAttribute('aria-expanded', 'true');
   matLayoutShopFan(layout);
   close.focus({preventScroll:true});
   sfx.soft();
@@ -1879,7 +1913,10 @@ function matOpenOwnPile(button){
     const done = () => {
       ov.remove();
       if (layout.dirty && matShopOn()) renderPlay();
-      if (button.isConnected) button.focus({preventScroll:true});
+      if (button.isConnected){
+        if (discard) button.setAttribute('aria-expanded', 'false');
+        button.focus({preventScroll:true});
+      }
     };
     const home = origin();
     if (reduceMotion() || !home){ done(); return; }
@@ -1902,7 +1939,8 @@ function matOpenOwnPile(button){
   ov.addEventListener('keydown', e => {
     if (e.key === 'Escape'){ e.stopPropagation(); shut(); }
     if (e.key !== 'Tab') return;
-    const last = slots.at(-1)?.firstElementChild || close;
+    const focusable = [...ov.querySelectorAll('.osdeckfan-close, .osdeckfan-card, summary')];
+    const last = focusable.at(-1) || close;
     if (e.shiftKey && e.target === close){ e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && e.target === last){ e.preventDefault(); close.focus(); }
   });

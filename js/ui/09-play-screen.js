@@ -770,7 +770,7 @@ $('view-play').addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const act = t.dataset.act, i = +t.dataset.i, d = ui.draft;
   switch (act){
-    case 'deck-open': { if (matOpenOwnPile(t)) return; const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.mason = null; ui.deckView = ui.deckView === k && !t.closest('.dstabs') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
+    case 'deck-open': { if (matOpenShopPile(t)) return; const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.mason = null; ui.deckView = ui.deckView === k && !t.closest('.dstabs') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
     case 'deck-close': popShut(); sfx.soft(); renderPlay(); return;
     case 'resign-confirm': resignMatch(+t.dataset.p); return;
     case 'roll': doRoll(); return;
@@ -840,7 +840,7 @@ $('view-play').addEventListener('click', e => {
       if (r.kind === 'pass'){ playerMove(['p']); return; }
       ui.remindOk = true; lockDeck(); return;
     }
-    case 'muster': ui.deckView = null; ui.mason = null; ui.pkWin = ui.pkWin === 'salvage' ? null : 'salvage'; ui.pkPending = false; sfx.soft(); renderPlay(); return;
+    case 'muster': matOpenShopPile(t); return;
     case 'bm-u': case 'bm-b': { const k = act === 'bm-b' ? 'b' : 'u'; ui.pkWin = 'peek'; ui.pkFocus = k; ui.pkPending = true; playerMove(['m', k]); return; }
     case 'mir-vis-u': case 'mir-vis-b': playerMove(['v', act === 'mir-vis-u' ? 'u' : 'b']); return;
     case 'mir-fav': playerMove(['f']); return;

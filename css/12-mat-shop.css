@@ -418,7 +418,7 @@ body.osdragging,body.osdragging *{cursor:grabbing!important}
 #view-play:has(>.osdeckfan[data-pile="deck"]) .osdesk .osseat.me .osdeck .ospile-stock>:is(.ostop,.osedge),
 #view-play:has(>.osdeckfan[data-pile="bought"]) .osdesk .osseat.me .osbought .ospile-stock>:is(.ostop,.osedge),
 #view-play:has(.pkwin .dsheet) .osdesk .osseat:has(.osdeck.on) :is(.osdeck,.osbought) .ospile-stock>:is(.ostop,.osedge),
-#view-play .osdesk .osdisc #muster-pile[aria-expanded="true"] :is(.mpc,.mpface){
+#view-play:has(>.osdeckfan[data-pile="discard"]) #muster-pile :is(.mpc,.mpface){
   visibility:hidden
 }
 .osdeckfan-panel{display:flex;flex-direction:column;max-width:calc(100vw - 40px);max-height:calc(100dvh - 48px)}
@@ -437,6 +437,12 @@ body.osdragging,body.osdragging *{cursor:grabbing!important}
 .osdeckfan .osdeckfan-card:focus-visible{outline:2px solid #edc674;outline-offset:3px}
 .osdeckfan .osdeckfan-card:hover>.cface{outline:2px solid #edc674}
 .osdeckfan-empty{margin:0;padding:24px 18px;background:#2a2018;border:1px solid #8a6a45;border-radius:6px}
+.osdeckfan[data-pile="discard"] .osdeckfan-panel{min-width:min(360px,calc(100vw - 40px))}
+.osdeckfan-discard-note{margin:0 8px;color:inherit;font-size:13px}
+.osdeckfan-miracles{max-height:32dvh;overflow:auto;margin:8px;color:inherit}
+.osdeckfan-miracles summary{cursor:pointer}
+.osdeckfan .osdiscard-owned>.cface{outline:1px solid #b79551}
+.osdeckfan[data-pile="discard"] .osdeckfan-card :is(.ctag,.stamps){display:none}
 .osdeckfan-discard{
   position:fixed;pointer-events:none;display:grid;place-items:center;border:1px dashed #e4c58c;border-radius:10px;
   background:#2a2018dd;color:#f3e4ca;font:700 16px/1 var(--f-body)

@@ -261,9 +261,9 @@ function mergedPos(kind, j){
 // The pile glows when it holds a copy of one of your units that could still level up.
 function musterMatch(n){ const me = G.players[seat()]; return ownsCard(me, n) > 0 && !(cardKind(n) === 'u' && exemptUnit(n)) && !cantAcquire(me, n, cardKind(n)); }
 function musterPileHTML(bazaar = false){
-  const pile = G.muster || [], sm = (G.salvMir || []).length, open = ui.pkWin === 'salvage' && (pile.length > 0 || sm > 0), hits = pile.filter(musterMatch).length, n = Math.min(3, pile.length);
-  const tip = pile.length ? `Discard pile: ${pile.length} card${pile.length > 1 ? 's' : ''} face-up${hits ? `, ${hits} cop${hits > 1 ? 'ies' : 'y'} of your cards` : ''}. Tap to ${open ? 'close' : 'look through it'}.` : 'Discard pile: empty. Unbought and sold cards land here face-up.';
-  return `<button type="button" class="mpile${hits ? ' glow' : ''}${pile.length ? '' : ' empty'}" id="muster-pile" data-act="muster" aria-expanded="${open}" ${pile.length || sm ? '' : 'disabled'} title="${esc(tip)}" aria-label="${esc(tip)}">
+  const pile = G.muster || [], sm = (G.salvMir || []).length, hits = pile.filter(musterMatch).length, n = Math.min(3, pile.length);
+  const tip = pile.length ? `Discard pile: ${pile.length} card${pile.length > 1 ? 's' : ''} face-up${hits ? `, ${hits} cop${hits > 1 ? 'ies' : 'y'} of your cards` : ''}. Tap to look through it.` : 'Discard pile: empty. Unbought and sold cards land here face-up.';
+  return `<button type="button" class="mpile${hits ? ' glow' : ''}${pile.length ? '' : ' empty'}" id="muster-pile" data-act="muster" aria-expanded="false" ${pile.length || sm ? '' : 'disabled'} title="${esc(tip)}" aria-label="${esc(tip)}">
     <span class="mplbl" aria-hidden="true">Discard</span><span class="mpcards" aria-hidden="true">${Array.from({length:Math.max(1, n)}, (_, k) => `<span class="mpc${pile.length ? '' : ' mpe'}" style="--k:${Math.max(1, n) - 1 - k}"></span>`).join('')}<span class="mpface">${pile.length ? bazaar ? bazaarDiscardFace(pile[pile.length - 1]) : zhChip(pile[pile.length - 1]) : ''}${bazaar ? '' : `<b class="mpcount pcount">${pile.length}</b>`}</span></span>${hits && !bazaar ? `<span class="mphit" aria-hidden="true">${hits}</span>` : ''}</button>`;
 }
 // Keep each logical slot in one place for the whole Shop, including refills and placeholders.
@@ -371,11 +371,16 @@ function sdeckHTML(k){
 }
 // your Black Market and Vision peeks, Black Market first
 function myPeeks(){ const S = seat(); return PEEK_BY.map(by => peekOf(G, S, by)).filter(Boolean); }
-/* The peek window. Black Market and Vision peeks (ui.pkWin 'peek') and the discard pile (ui.pkWin 'salvage') open in one
-   pop-up over the shop: the same sheet as a card's on phones, a centered window on wider screens. It scrolls when it's
-   long. Each card buys from its own button, or tap it to read it in full (the card pop-up opens on top). Swipe it down
-   by its top strip, tap ✕, Close or outside it to close. Closing a peek keeps the cards set aside: the deck glows
-   "Peek 3" until you buy one or the shop ends. */
+function discardMiraclesHTML(cards){
+  if (!cards.length) return '';
+  const counts = {};
+  for (const name of cards) counts[name] = (counts[name] || 0) + 1;
+  return `<details class="osdeckfan-miracles"><summary>Discarded miracles · ${cards.length}</summary>
+    <div class="mirgrid">${Object.entries(counts).map(([n, c]) =>
+      `<span class="mircard plain" title="${esc(mirBrief(n))}"><span class="mtop"><b>${esc(n)}</b>${c > 1 ? `<span class="mirlive">×${c}</span>` : ''}</span><span class="mseal" aria-hidden="true"><span>✶</span></span><span class="mtx">${esc(MIRS[n].sh.replace(/^hand: /, ''))}</span></span>`).join('')}</div></details>`;
+}
+/* Black Market and Vision peeks share the Shop's scrolling pop-up. Tap a card for its full view, or use the
+   Buy button. Closing the pop-up leaves the cards set aside until you buy one or the Shop ends. */
 function peekWinHTML(){
   if (ui.resignWin) return resignWinHTML();
   if (ui.codeWin) return bcodeWinHTML();   // paste a battle code (js/ui/18-game-menu.js)
@@ -401,21 +406,6 @@ function peekWinHTML(){
       <p class="pksub">It counts as one more copy of that building and levels it up. Tap a building to buy it.</p>
       <div class="fcards">${cards}</div></section>`;
     foot = 'Close to cancel. Nothing is bought until you tap a building.';
-  } else if (w === 'salvage'){
-    const pile = G.muster || [], sm = G.salvMir || []; if (!pile.length && !sm.length){ ui.pkWin = null; return ''; }
-    const hits = pile.filter(musterMatch).length, smc = {};
-    for (const n of sm) smc[n] = (smc[n] || 0) + 1;
-    const cards = pile.map((n, i) => [n, i]).sort((a, b) => musterMatch(b[0]) - musterMatch(a[0]))
-      .map(([n, i]) => `<div class="mwrap${musterMatch(n) ? ' hit' : ''}">${marketCard(n, cardKind(n), 'mu', i)}</div>`).join('');
-    label = 'Discard pile';
-    head = `<section class="pksec"><span class="pkchip sal">Discard pile</span><h2 class="pkttl">${pile.length} card${pile.length > 1 ? 's' : ''}, face up</h2>
-      <p class="pksub">Unbought and sold cards land here. ${bVal(me, 'War College') ? `War College lets you buy a duplicate of any card you own for free. It uses a buy.` : 'Only War College can take cards from here.'}${hits ? ' Yours are first.' : ''}</p>
-      <div class="market plain pkgrid">${cards}</div></section>`;
-    if (!pile.length) head = '';
-    if (sm.length) head += `<section class="pksec"><span class="pkchip sal">Miracles</span><h2 class="pkttl">${sm.length} used or discarded</h2>
-      <p class="pksub">Every miracle that's used up or discarded lands here face up, so both players can count them. They can't be bought.</p>
-      <div class="mirgrid">${Object.entries(smc).map(([n, c]) => `<span class="mircard plain" title="${esc(mirBrief(n))}"><span class="mtop"><b>${esc(n)}</b>${c > 1 ? `<span class="mirlive">×${c}</span>` : ''}</span><span class="mseal" aria-hidden="true"><span>✶</span></span><span class="mtx">${esc(MIRS[n].sh.replace(/^hand: /, ''))}</span></span>`).join('')}</div></section>`;
-    foot = 'Tap a card to read it in full.';
   } else if (w === 'peek'){
     const L = myPeeks();
     if (!L.length){ if (!ui.pkPending) ui.pkWin = null; return ''; }
@@ -434,7 +424,7 @@ function peekWinHTML(){
 }
 /* THE POP-UP. Every window over the game uses this one container, the same as a card's pop-up: a sheet from the bottom
    on phones (over the bottom bar), a centered window on bigger screens. Drag it down by its top strip, tap ✕, Close or
-   outside it, or press Escape to close it. Your deck / the enemy's, Discard, Black Market and Vision peeks and Mason's
+   outside it, or press Escape to close it. Your deck / the enemy's, Black Market and Vision peeks and Mason's
    Guild all open here, and every card in it is the market's card at the market's size (--uw × --uh). */
 function popWinHTML(label, cls, top, body, foot){
   return `<div class="pkwin" data-act="pk-close"><div class="sheet pksheet ${cls}" role="dialog" aria-modal="true" aria-label="${esc(label)}">

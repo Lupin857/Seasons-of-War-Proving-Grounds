@@ -18,6 +18,8 @@
 - Desktop Shop captions sit below their cards. The local player's Deck shows its most recent card from a previous
   Shop. Clicking the stack fans the prior holdings out for inspection. Clicking the backdrop returns the cards.
   Current purchases stay in Bought This Shop, which opens and closes with the same fan.
+  The discard pile also opens in the fan on desktop and phone. Tap a card to inspect it or buy an eligible
+  copy through Scrapyard. Discarded miracles appear below the cards.
   A click outside an enlarged pile card returns to its fan. Both piles show the card faces beneath the top
   card. Drag a card out of either fan onto the highlighted discard to sell it.
   The table pile is hidden while its cards are spread. The selected card leaves its spot while it is in the
