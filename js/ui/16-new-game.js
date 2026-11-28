@@ -283,7 +283,11 @@ $('view-play').addEventListener('click', async e => {
   e.stopImmediatePropagation();
   const a = t.dataset.act, resign = G && !G.over && G.opp && G.opp.rated && !G.ratedDone;
   if (a === 'st-back'){ ui.start = false; renderPlay(); return; }
-  if (a === 'st-mode'){ startMode = t.dataset.mode; ui.resignArm = false; ui.netErr = ''; renderPlay(); window.scrollTo({top:0}); return; }
+  if (a === 'st-mode'){
+    startMode = t.dataset.mode; ui.resignArm = false; ui.netErr = ''; renderPlay(); window.scrollTo({top:0});
+    prepareMatchArt();
+    return;
+  }
   if (a === 'st-modes'){ startMode = null; ui.resignArm = false; renderPlay(); return; }
   if (a === 'st-su-reset'){ const sp = SU.split; SU = {...suFresh(), split:sp}; suSave();
     if (MIRACLES_ON){ MIRACLES_ON = false; LS.set('sow-mir', false); } if (!REFILL_ON){ REFILL_ON = true; LS.set('sow-refill', true); }

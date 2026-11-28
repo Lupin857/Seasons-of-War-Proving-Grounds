@@ -24,27 +24,46 @@ const artImg = (url, alt) => `<img class="cart" src="${url}" alt="${esc(alt || '
    until it has (Safari can take a while) the card shows blank. Instead, a copy gets a canvas painted from a picture
    that is already loaded: painting is immediate, so a copy is never blank. A picture not loaded yet stays an <img>. */
 const ART_READY = new Map();
-let matchArtPromise;
-function prepareMatchArt(){
-  if (matchArtPromise) return matchArtPromise;
-  const paths = [...OASIS_ART].map(name => 'art/' + encodeURIComponent(name) + '.webp');
-  paths.push('art/banner.png', 'art/medallion.png');
-  if (!compact()) paths.push('art/rug/bazaar-rug.webp', 'art/rug/bazaar-sand.webp');
-  if (compact() && typeof rugSand === 'function' && !rugSand())
-    paths.push('art/rug/rug_albedo.webp', 'art/rug/rug_normal.webp');
-  matchArtPromise = Promise.all(paths.map(async src => {
-    if (artReady(src)) return null;
-    const img = new Image();
-    img.src = src;
+const MATCH_ART_PENDING = new Map();
+let matchArtCacheQueued = false;
+function matchArtSurface(){
+  if (!compact()) return 'bazaar';
+  return typeof rugSand === 'function' && !rugSand() ? 'rug' : 'sand';
+}
+function matchArtDecode(src){
+  if (MATCH_ART_PENDING.has(src)) return MATCH_ART_PENDING.get(src);
+  if (artReady(src)) return null;
+  const img = new Image();
+  img.src = src;
+  const pending = (async () => {
     try{ await img.decode(); ART_READY.set(src, img); return null; }
     catch(e){ return src; }
-  })).then(failed => failed.filter(Boolean));
-  return matchArtPromise;
+  })().finally(() => MATCH_ART_PENDING.delete(src));
+  MATCH_ART_PENDING.set(src, pending);
+  return pending;
 }
-document.addEventListener('DOMContentLoaded', prepareMatchArt, {once:true});
+async function prepareMatchArt(surface = matchArtSurface()){
+  const paths = [...OASIS_ART].map(name => 'art/' + encodeURIComponent(name) + '.webp');
+  paths.push('art/banner.png', 'art/medallion.png');
+  if (surface === 'bazaar') paths.push('art/rug/bazaar-rug.webp', 'art/rug/bazaar-sand.webp');
+  if (surface === 'rug') paths.push('art/rug/rug_albedo.webp', 'art/rug/rug_normal.webp');
+  const failed = await Promise.all(paths.map(matchArtDecode));
+  if (!matchArtCacheQueued){
+    matchArtCacheQueued = true;
+    // Fill the offline cache after the page's image requests, including on the first visit.
+    try{ navigator.serviceWorker?.ready.then(r => r.active?.postMessage('warm-art')).catch(() => {}); }
+    catch(e){}   // optional in sandboxed previews
+  }
+  return failed.filter(Boolean);
+}
 
 async function prepareMatchPresentation(){
-  const [missing] = await Promise.all([prepareMatchArt(), prepareBattleCubes()]);
+  const cubes = prepareBattleCubes();
+  let surface, missing;
+  do {
+    surface = matchArtSurface();
+    [missing] = await Promise.all([prepareMatchArt(surface), cubes]);
+  } while (matchArtSurface() !== surface);
   return missing;
 }
 
