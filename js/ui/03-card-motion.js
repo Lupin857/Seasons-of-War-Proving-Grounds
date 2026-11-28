@@ -130,6 +130,7 @@ function flyHost(ctx){
   for (const e of chain){
     const d = document.createElement('div');
     for (const a of e.attributes) if (a.name !== 'id' && !a.name.startsWith('aria-') && a.name !== 'role' && a.name !== 'tabindex') d.setAttribute(a.name, a.value);
+    d.classList.remove('osbattle-return');  // only the actual board owns the Battle → Shop gate
     d.style.setProperty('display', 'contents', 'important'); d.setAttribute('aria-hidden', 'true'); d.classList.add('flyhost');
     leaf.appendChild(d); leaf = d; if (!root) root = d;
   }

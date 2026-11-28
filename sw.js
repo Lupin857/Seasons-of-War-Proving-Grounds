@@ -3,7 +3,7 @@
    version; the cached copy is only used when the network is missing or slow.
    Card art and fonts: cache first (they rarely change).
    Bump VERSION whenever files are added, removed or renamed. */
-const VERSION = 'oasis-v4-bazaar';
+const VERSION = 'oasis-v11-bazaar-midstroke-blot';
 const CORE = [
  "./",
  "index.html",
@@ -208,7 +208,7 @@ async function cacheFirst(req) {
 
 async function networkFirst(req) {
   const c = await caches.open(VERSION);
-  const net = fetch(req).then(r => { if (r.ok) c.put(req, r.clone()); return r; });
+  const net = fetch(req, {cache:'no-cache'}).then(r => { if (r.ok) c.put(req, r.clone()); return r; });
   net.catch(() => {});
   try {
     return await Promise.race([

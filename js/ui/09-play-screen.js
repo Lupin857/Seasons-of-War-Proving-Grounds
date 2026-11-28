@@ -102,6 +102,10 @@ function battleRoom(){
 }
 function centerBattle(){
   const v = $('view-play'), ln = v && v.querySelector('.stage .line'); if (!ln) return false;
+  if (typeof matDesk === 'function' && matDesk() && ln.classList.contains('matz')){
+    if (window.scrollY) window.scrollTo(0, 0);
+    return true;
+  }
   const {top, bot} = battleRoom();
   const r = ln.getBoundingClientRect(), room = bot - top, x = v.querySelector('.stage .clash');
   let y;   // how far down the page to scroll
@@ -170,7 +174,7 @@ function drawPlay(){
   const pb = $('gtop'), bd = pb && pb.offsetHeight ? pb : $('view-play').querySelector('.board'); if (bd) document.documentElement.style.setProperty('--bh', bd.offsetHeight + 'px');
   markMore();
   flashedNow = false;
-  turnWatch();
+  if (typeof bazaarReturnsToShop !== 'function' || !bazaarReturnsToShop()) turnWatch();
   shopNotes();
   markGame(true);   // first, so the page has already scrolled when the deal measures each card's spot
   return dealNow;
@@ -467,7 +471,12 @@ function dealFly(el, deck, delay, dur, o = {}){
   }
   if (!matTrackDeal(el, g, an)){
     const wait = el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});
+    o.stage?.hold(wait);
     an.onfinish = an.oncancel = () => { g.remove(); wait.cancel(); };
+  }
+  if (o.stage){
+    for (const animation of g.getAnimations({subtree:true})) o.stage.hold(animation);
+    if (floor) o.stage.hold(floor);
   }
   return delay + dur;
 }
@@ -483,7 +492,7 @@ function deckCountdown(deck, starts){
 function dealMarket(){
   if (reduceMotion()) return;
   const bazaar = $('view-play').querySelector('.osdesk:not(.osmobmat):has(.osbazaar)');
-  if (bazaar){ bazaarOpen(bazaar); return; }
+  if (bazaar){ bazaarOpenAfterBattle(bazaar); return; }
   const vp = $('view-play'), rows = ['u','b'].map(k => vp.querySelector(`.mktp .msec[data-k="${k}"] .market`));
   if (!(deckEl('u') || deckEl('b')) || !rows.some(Boolean)) return;
   // first, the cards that left the shop fly from their old slots into the discard pile (cleanup)...
@@ -533,7 +542,9 @@ function dealIn(els, base, o){
   if (desk && !o?.desktop) o = o ? DESK_DEAL_WAVE : DESK_DEAL_REFILL;
   const flights = live.reduce((a, el) => a + 1 + backsOf(el).length, 0);
   const gap = o?.launchGap ?? (o ? spreadGap(flights, o.spread, o.gap) : 160), dur = o ? o.dur : 1100, backDur = o ? o.backDur : 800, lead = o ? o.backLead : 400;
-  const starts = {u:[], b:[]}; let n = 0, end = 0;
+  const starts = {u:[], b:[]}, stage = o?.stage;
+  const cue = callback => { if (stage) stage.cues.push(callback); else callback(); };
+  let n = 0, end = 0;
   for (const el of els){
     if (!el || !el.isConnected) continue;
     const k = (el.closest('.msec') || {}).dataset?.k === 'b' ? 'b' : 'u', deck = deckEl(k) || deckEl('u') || deckEl('b'); if (!deck) continue;
@@ -541,23 +552,29 @@ function dealIn(els, base, o){
     for (const b of backs){
       b.style.opacity = '';
       const bd = base + n++ * gap;
-      if (dealFly(b, deck, bd, backDur, {plain:true, fx:F, geometry:o?.geometry?.get(b)})){ starts[k].push(bd + 60); try{ sfx.flick(bd / 1000 + 0.05); sfx.drop(dealLandAt(bd + backDur * F.plainLand, F), .4); }catch(e){} }
+      if (dealFly(b, deck, bd, backDur, {plain:true, fx:F, geometry:o?.geometry?.get(b), stage})){
+        starts[k].push(bd + 60);
+        cue(() => { try{ sfx.flick(bd / 1000 + 0.05); sfx.drop(dealLandAt(bd + backDur * F.plainLand, F), .4); }catch(e){} });
+      }
       end = Math.max(end, bd + backDur * .65);
     }
     el.style.opacity = '';
     const delay = base + n++ * gap + (backs.length ? lead : 0);
-    if (dealFly(el, deck, delay, dur, {fx:F, geometry:o?.geometry?.get(el)})){
-      starts[k].push(delay + (desk ? dur * F.leaveAt : 60)); try{ sfx.flick(delay / 1000 + 0.05); sfx.drop(dealLandAt(delay + dur * F.land, F), .55); sfx.flick(dealLandAt(delay + dur * F.flipMid, F), 1.3); }catch(e){}
+    if (dealFly(el, deck, delay, dur, {fx:F, geometry:o?.geometry?.get(el), stage})){
+      starts[k].push(delay + (desk ? dur * F.leaveAt : 60));
+      cue(() => { try{ sfx.flick(delay / 1000 + 0.05); sfx.drop(dealLandAt(delay + dur * F.land, F), .55); sfx.flick(dealLandAt(delay + dur * F.flipMid, F), 1.3); }catch(e){} });
       end = Math.max(end, delay + dur);
       el.dataset.dealt = '1';
-      if (el.dataset.ck && !el.classList.contains('osarriving')) MOT.busy.set(el.dataset.ck, performance.now() + delay + dur);
+      if (el.dataset.ck && !el.classList.contains('osarriving')) cue(() => MOT.busy.set(el.dataset.ck, performance.now() + delay + dur));
     } else if (desk) {
       el.inert = false;
       el.classList.remove('osarriving');
     }
   }
-  ui.dealUntil = Math.max(ui.dealUntil || 0, performance.now() + end);
-  for (const k of ['u','b']) deckCountdown(deckEl(k), starts[k]);
+  cue(() => {
+    ui.dealUntil = Math.max(ui.dealUntil || 0, performance.now() + end);
+    for (const k of ['u','b']) deckCountdown(deckEl(k), starts[k]);
+  });
   return end;
 }
 // the cards in play that the screen follows, from the rules' own state: key -> where it is (a display row or a frozen row)
@@ -641,6 +658,7 @@ function dealPeeks(skip){
 // Lock in the deck being built at this screen (after a reminder about unused tokens, if any). Online it goes to the
 // room; pass-and-play hands the device to the second player, then fights; against the AI, the AI plans and fights.
 function lockDeck(){
+  if (ui.planning) return;
   const d = draftFromDeck(ui.draft);
   const err = validateDeck(G, seat(), d);
   if (err){ ui.err = err; sfx.err(); renderPlay(); return; }
@@ -660,12 +678,14 @@ function lockDeck(){
   }
   sfx.lock();
   ui.err = ''; ui.lastDraft = d; ui.planning = true;
-  if (!(AIMOB && AIMOB.g === G && AIMOB.round === G.round && AIMOB.r !== undefined)) renderPlay();   // "Waiting for other player…" only if the AI isn't done
+  const gathering = matBatPrepare();
+  if (!gathering && !(AIMOB && AIMOB.g === G && AIMOB.round === G.round && AIMOB.r !== undefined)) renderPlay();
   const g0 = G;
   setTimeout(async () => {
     // the AI plans from public information only; your locked deck is not visible to it
     let aiDeck = null;
-    const r = await aiMobResult();   // started when Mobilize opened (aiMobStart)
+    // Draw the destination while the bench gathers so the units can fly straight to the Battle slot.
+    const r = await aiMobResult();
     if (G !== g0) return;
     if (r && !r.error && r.deck){ aiDeck = r.deck; if (r.omPending) G.omPending = r.omPending; if (r.mobWhy){ G._mobWhy = r.mobWhy; G._mobLevel = r.mobLevel; } }
     else aiDeck = aiMobilize(G, 1, 60, AI_DEPTH()) || [];
@@ -705,6 +725,9 @@ function batBench(me, d){
 }
 // a battle miracle drawn as a card: its name, then what it does when it surfaces
 function spellFace(n){ return `<div class="top"><span class="nm">${esc(n)}</span><span class="cost">✶</span></div><span class="curve spcurve">Battle miracle</span><span class="tx">${esc(batFx(n))}</span><span class="stx">${esc(MIRS[n].sh.replace(/^battle: /, '').replace(/^./, c => c.toUpperCase()))}</span>`; }
+document.addEventListener('dragstart', e => {
+  if (e.target instanceof HTMLImageElement && e.target.closest('body.ingame :is(#view-play,.peekwrap,.turnflash,.labsheet)')) e.preventDefault();
+});
 $('view-play').addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const act = t.dataset.act, i = +t.dataset.i, d = ui.draft;
@@ -805,8 +828,11 @@ $('view-play').addEventListener('click', e => {
     case 'fr': sfx.soft(); goFrame(+t.dataset.k); return;
     case 'banner-off': sfx.soft(); ui.bannerOff = true; renderPlay(); return;
     case 'continue': if (G.replay){ sfx.soft(); replayEnd(); return; }
+      if (typeof bazaarCaptureBattle === 'function') bazaarCaptureBattle();
       if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
-      sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
+      sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay();
+      if (!bazaarBattleReturn?.shop) scheduleAI();
+      return;
     case 'rec-copy': { sfx.soft(); const id = t.dataset.id; copyMatch(id ? (LS.get(MATCH_KEY) || []).find(r => String(r.id) === id) : G && G.rec); return; }
     case 'newgame': sfx.soft(); startMode = G && G.over ? (G.net ? 'net' : PP() ? 'pp' : 'ai') : null; ui.start = true; ui.resignArm = false; renderPlay(); window.scrollTo({top:0}); return;
     case 'su-chip': ui.suOpen = !ui.suOpen; renderPlay(); return;

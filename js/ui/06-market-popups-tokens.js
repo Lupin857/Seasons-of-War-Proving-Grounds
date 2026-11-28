@@ -245,11 +245,12 @@ function pbarHTML(){
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const L = VS(0), Rt = VS(1);
-  const bar = `<div class="pbsc">${GMENU_BTN}<span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
+  const desktop = matDesk() && (matShopOn() || matMobOn() || (ui.battle && labMatZones()));
+  const bar = `<div class="pbsc">${desktop ? '' : GMENU_BTN}<span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
   const hint = shopping || matMobOn()   // the mat's Mobilize says what to do on the mat itself (and keeps the top bar the shop's height)
     ? (ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : '')
     : `<div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div>`;
-  return `<div class="gtop gs" id="gtop">${bar}${hint}</div>`;
+  return `<div class="gtop gs${desktop ? ' gtop-mat' : ''}" id="gtop">${desktop ? GMENU_BTN : ''}${bar}${hint}</div>`;
 }
 // "Taken by AI" placeholders keep their spot in the market for the rest of the shop
 function ghostList(kind){ return ui.ghosts && ui.ghosts.round === G.round ? ui.ghosts[kind] : []; }
@@ -488,12 +489,12 @@ function shopHTML(){
 function battleHTML(){
   const res = ui.battle, f = res.frames[ui.frame], w = res.result.w, last = res.frames.length - 1, atEnd = ui.frame === last;
   const wc = VS(w)===0 ? 'a' : VS(w)===1 ? 'b' : 'd';
-  let tail;
-  if (false) tail = '';
-  else if (G.over){
+  const desktopMat = matDesk() && labMatZones();
+  let tail = '';
+  if (G.over){
     const msg = G.winner < 0 ? 'The game ends in a draw.' : PP() ? `${esc(nm(G.winner))} wins the game.` : G.winner === 0 ? 'You win the game.' : 'The AI wins the game.';
     tail = `<div class="row"><span class="verdict ${VS(G.winner)===0?'a':VS(G.winner)===1?'b':'d'}">${msg}</span><span class="note">${esc(res.result.why)}</span>${ratingNoteHTML()}<span class="grow"></span>${G.rec ? '<button type="button" data-act="rec-copy">Copy match for Claude</button>' : ''}<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button></div>`;
-  } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${battleDoneLabel()}</button></div>`;
+  } else if (!desktopMat) tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${battleDoneLabel()}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
   if (!atEnd) tail = tail.replace('<div class="row">', '<div class="row tailwait" aria-hidden="true" inert>');
   return `<div class="panel">
@@ -501,5 +502,5 @@ function battleHTML(){
     <div class="stage">${lineHTML(f, PP() ? [poss(0), poss(1)] : ['Your','AI'])}${banner}</div>
     ${tail}
   </div>
-  <details class="panel" id="chron-panel" ${ui.chronOpen ? 'open' : ''}><summary><h2>Chronicle</h2><span class="note">Every step written out</span></summary>${chronHTML(res.frames, ui.frame)}</details>`;
+  ${desktopMat ? '' : `<details class="panel" id="chron-panel" ${ui.chronOpen ? 'open' : ''}><summary><h2>Chronicle</h2><span class="note">Every step written out</span></summary>${chronHTML(res.frames, ui.frame)}</details>`}`;
 }

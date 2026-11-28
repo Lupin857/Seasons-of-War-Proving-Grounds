@@ -31,16 +31,16 @@ body.lab-light .lablt{display:block;position:absolute;inset:0;z-index:1;pointer-
 body.lab-light .lablt::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 3px rgba(0,0,0,.35)}
 
 /* --- card size: cropped (the phone crop) or full, on any screen --- */
-html body.lab-crop{--bch:calc(var(--bcw) * .9707)!important}
-body.lab-crop .table .card.hasart:not(.mini){background-color:transparent!important;background-size:0 0!important;border-radius:0!important}
-body.lab-crop .table .card.hasart:not(.mini)>.cartbg{background-size:100% auto!important;background-position:center top!important;background-color:transparent!important;border-radius:0!important;clip-path:url(#tabclip)}
-body.lab-crop .table .card.hasart>.tk{background-size:100% auto;background-position:center top;border-radius:0!important;clip-path:url(#tabclip)}
-body.lab-crop .table .card.hasart>.tk>:is(img,canvas){object-fit:cover;object-position:center top}
-body.lab-crop .labsh>i,body.lab-crop .lablt,body.lab-crop .gcard .oback{border-radius:0!important;clip-path:url(#tabclip)}
-html body.lab-full{--bch:calc(var(--bcw) * 1.3827)!important}
-body.lab-full .table .card.hasart:not(.mini){border-radius:5% / 3.6%!important}
-body.lab-full .table .card.hasart:not(.mini)>.cartbg{clip-path:none!important;border-radius:5% / 3.6%!important;background-size:100% 100%!important}
-body.lab-full .table .card.hasart>.tk{clip-path:none!important;border-radius:5% / 3.6%!important}
+html :is(body.lab-crop,body.os-deskbat.os-battle-tight){--bch:calc(var(--bcw) * .9707)!important}
+:is(body.lab-crop,body.os-deskbat.os-battle-tight) .table .card.hasart:not(.mini){background-color:transparent!important;background-size:0 0!important;border-radius:0!important}
+:is(body.lab-crop,body.os-deskbat.os-battle-tight) .table .card.hasart:not(.mini)>.cartbg{background-size:100% auto!important;background-position:center top!important;background-color:transparent!important;border-radius:0!important;clip-path:url(#tabclip)}
+:is(body.lab-crop,body.os-deskbat.os-battle-tight) .table .card.hasart>.tk{background-size:100% auto;background-position:center top;border-radius:0!important;clip-path:url(#tabclip)}
+:is(body.lab-crop,body.os-deskbat.os-battle-tight) .table .card.hasart>.tk>:is(img,canvas){object-fit:cover;object-position:center top}
+:is(body.lab-crop,body.os-deskbat.os-battle-tight) .labsh>i,:is(body.lab-crop,body.os-deskbat.os-battle-tight) .lablt,:is(body.lab-crop,body.os-deskbat.os-battle-tight) .gcard .oback{border-radius:0!important;clip-path:url(#tabclip)}
+html body.lab-full:not(.os-deskbat.os-battle-tight){--bch:calc(var(--bcw) * 1.3827)!important}
+body.lab-full:not(.os-deskbat.os-battle-tight) .table .card.hasart:not(.mini){border-radius:5% / 3.6%!important}
+body.lab-full:not(.os-deskbat.os-battle-tight) .table .card.hasart:not(.mini)>.cartbg{clip-path:none!important;border-radius:5% / 3.6%!important;background-size:100% 100%!important}
+body.lab-full:not(.os-deskbat.os-battle-tight) .table .card.hasart>.tk{clip-path:none!important;border-radius:5% / 3.6%!important}
 
 /* --- splay: how the copies, gear and tokens behind a unit fan out --- */
 body.lab-sp-up .stage{--tkl:0px}

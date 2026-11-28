@@ -54,6 +54,11 @@
   Mobilize and Battle share the same sand. Reduced motion shows the settled board directly.
 - `bazaar-lab.html` previews the desktop opening and closing with a repeatable market. The timing controls
   replay the game animation, and **Copy settings** exports the values in milliseconds.
+  The Shop cards and rug sit halfway between the far and near Caravan rows in the table's perspective.
+  In Shop and Mobilize, pile captions sit above the near piles and below the rival's piles.
+  On the desktop mat, the menu is in the upper left and the score sits over Discard. The two Caravan rows share
+  slot columns on the table and have equal projected margins from the top and bottom of the screen.
+  The coin heaps and water counts stay with the rows through phase changes.
   The rug extends past the left edge far enough for the roll itself to disappear. **Wait from Shop close to rug
   roll-up** starts when cards begin packing, so the roll can overlap card flights or the deck and discard exits.
   In the desktop Shop, a held card grows slightly and swings around the exact point grabbed, with a soft shadow that
@@ -64,6 +69,8 @@
   **Try card enlarge** previews the larger reading view with adjustable glide, return, dimming, and details timing.
   The same preview has a populated Deck and Bought This Shop. **Inspecting a pile** controls the fan-out, fold-in,
   and time between cards.
+  **Try Mobilize** opens a crowded draft with a full five-slot Caravan against a preset rival. **Lock in** plays the
+  Battle entrance directly, with the same card gathering and deck landing as a desktop match.
 - Match setup fetches and decodes game art before starting. The layout-specific Shop textures load with the
   card art. A missing image is reported and the game can continue.
 - Desktop Shop income drops into the banks during the opening. Sale proceeds arc from the departing card
@@ -71,10 +78,23 @@
   card continues to its destination. The flying coins match the scale of the cards' printed water icons.
 - Desktop mat Mobilize overlaps the market sweep with the bought piles merging. In the lift, the deck, bench fan,
   fight order numbers, labels and controls settle together. Cards and controls take input once those animations
-  finish. Reduced motion skips the entrance. Lock In keeps the gathering of the deck and the landing of both decks.
-- Mobilize drag follows the mouse at its grab point. Neighboring cards slide to preview the insertion slot, and a
-  full deck refuses an extra unit before release. Cards settle from the lifted pose into the deck, bench fan or
-  attachment spot. Suggest runs through the AI worker when available and only applies to the draft it was requested for.
+  finish. The vertical deck cards are up to 25% wider than the market cards and shrink to fit when the stack gets tall.
+  Reduced motion skips the entrance. On desktop, Lock in starts gathering immediately. Gear and tokens tuck
+  behind their units, and unused bench cards gather beside your Caravan. Your Caravan crops downward from its
+  original bottom edge. The rival's crops upward from its original top edge. Battle draws after the crops settle,
+  then hands off to the live Battle rows at their shared Shop and Mobilize slot positions.
+  Both rows share the Battle board's perspective and use the same tabletop shadows through each phase and during
+  the crop, with the shadows following the reveal mask.
+  Battle cards use the Shop width. Where height is limited, the board crops the cards and can scroll without
+  reducing their width. The two sides of the centered Battle board are separated by half to three-quarters of a card
+  length. Your zone labels sit above the near row, and the rival's sit below the far row. The decks hit the sand
+  before their top cards splay their attachments.
+- Mobilize drag follows the mouse at its grab point. On desktop, the vertical deck opens room at the numbered
+  insertion slot while the unit is still held. Bench cards slide aside using the Shop pile's slot selection, motion and
+  landing. Attachment targeting keeps cards opaque and outlines the unit under the pointer, with its name or the reason
+  for refusal. Spare copies stay on the bench while a token or gear card lifts, and the receiving unit
+  covers the attachment as it slides behind the face. Suggest uses the AI worker when available and applies to the
+  draft it was requested for.
 - Flying cards travel **under** the bars, decks, discard pile and banners (use `LAYER` / `flyZ`).
 - Dealt cards come out of their own deck; cards going to the discard pile end at the pile.
 - On the earlier Shop layout, cleanup (unbought cards to the discard pile), upkeep (hourglass stamps) and the deal overlap in

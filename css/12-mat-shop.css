@@ -260,8 +260,24 @@ body.os-mat:has(#view-play .osbars) #dock :is(button,.act){min-height:44px!impor
    fitted to the window by matFitDesk (about 173px at 1920x1080). */
 body.os-mat .oinsp{display:none!important}   /* the right-side card panel stays off while the mat is on */
 #view-play .osshop.osdesk{top:var(--gtb, var(--bh,46px));bottom:0;perspective:2100px;--osres:1;--mw:173px;--osg:calc(var(--mw) * .07)}
+#view-play:has(#gtop.gtop-mat){--gtb:0px}
+html body #view-play #gtop.gtop-mat{
+  height:0;padding:0;background:none!important;border:0;box-shadow:none!important;pointer-events:none;
+}
+#view-play #gtop.gtop-mat>.gmenu-btn{
+  position:fixed;left:10px;top:10px;transform:none;pointer-events:auto;
+}
+#view-play #gtop.gtop-mat>.pbsc{
+  position:fixed;left:var(--desk-score-x,calc(100% - 100px));top:var(--desk-score-y,36%);
+  transform:translate(-50%,-100%);width:max-content;max-width:224px;display:flex;align-items:center;
+  gap:7px;padding:5px 9px;border-radius:8px;background:var(--surface);box-shadow:0 2px 6px #26170f44;
+}
+#view-play #gtop.gtop-mat :is(.rl,.rr){font-size:.75rem}
+#view-play #gtop.gtop-mat .sc{font-size:1.28rem;gap:5px}
+body.os-deskbat #view-play #gtop.gtop-mat>.pbsc{left:auto;right:12px;top:calc(50% - 160px);transform:translateY(-100%)}
+#view-play #gtop.gtop-mat .pbhint button{pointer-events:auto}
 #view-play .osdesk .osplane{left:0;width:100%;height:100%}
-#view-play .osdesk .osinner{align-items:center;justify-content:flex-end;gap:calc(var(--mw) * .058);padding:0 16px 8px}
+#view-play .osdesk .osinner{align-items:center;gap:calc(var(--mw) * .058);padding:0 16px 1px}
 #view-play .osdesk .osinner::before,#view-play .osdesk .osinner::after{content:none}
 #view-play .osdesk .mcard{margin:0!important;min-width:0!important;max-width:none!important}
 #view-play .osdesk .mcard>button,#view-play .osdesk .mcard>.ccost{display:none!important}   /* Buy and Sell show on the opened card */
@@ -276,18 +292,20 @@ body.os-mat .oinsp{display:none!important}   /* the right-side card panel stays 
 #view-play .osdesk .osbardiv{flex:none;width:2px;align-self:center;height:calc(var(--mw) * .98);margin:0 8px;background:rgba(60,40,20,.25)}
 /* Both piles show their top card face up, with captions beneath them. */
 #view-play .osdesk .ospile{position:relative;isolation:isolate;flex:none;width:calc(var(--mw) + 12px);height:calc(var(--mw) * 1.3827 + 9px);padding:0;margin:0;border:0;background:none;display:block;box-shadow:none;min-height:0;font:inherit;color:inherit;text-align:left}
-#view-play .osdesk .ospile>.ostop,#view-play .osdesk .ospile>.osslot{position:absolute;left:0;top:0;z-index:4;width:var(--mw)!important;display:block;overflow:hidden}
+#view-play .osdesk .ospile-stock{position:absolute;inset:0}
+#view-play .osdesk .ospile-stock>:is(.ostop,.osslot),#view-play .osdesk .ospile>.osslot{position:absolute;left:0;top:0;z-index:4;width:var(--mw)!important;display:block;overflow:hidden}
 /* Use the printed portrait as the pile's top card and its flight bounds. */
-#view-play .osdesk .ospile>.ostop{box-sizing:border-box;height:calc(var(--mw) * 1037 / 750)!important;min-height:0}
-#view-play .osdesk .ospile>.ostop>.cface.art{height:100%;aspect-ratio:750/1037;clip-path:none;mask:none}
+#view-play .osdesk .ospile-stock>.ostop{box-sizing:border-box;height:calc(var(--mw) * 1037 / 750)!important;min-height:0}
+#view-play .osdesk .ospile-stock>.ostop>.cface.art{height:100%;aspect-ratio:750/1037;clip-path:none;mask:none}
 #view-play .osdesk .ospile .osedge{position:absolute;left:calc(var(--k) * 4px);top:calc(var(--k) * 3px);width:var(--mw);aspect-ratio:750/1037;border-radius:8px;background:#efe3c8;border:2px solid #3a2a18;box-sizing:border-box;box-shadow:0 2px 5px rgba(40,25,10,.35);z-index:calc(4 - var(--k))}
 #view-play .osdesk .ospile .oslayer{height:calc(var(--mw) * 1037 / 750);pointer-events:none;overflow:hidden;background:#c5ae83}
 #view-play .osdesk .ospile .oslayer>.cface.art{height:100%}
-#view-play .osdesk .osdeck>.ostop{border-radius:var(--oasis-card-radius)}
-#view-play .osdesk .osdeck>.osedge.oback{background:var(--oasis-card-back);border:0;border-radius:var(--oasis-card-radius)}
+#view-play .osdesk .osdeck .ostop{border-radius:var(--oasis-card-radius)}
+#view-play .osdesk .osdeck .osedge.oback{background:var(--oasis-card-back);border:0;border-radius:var(--oasis-card-radius)}
 #view-play .osdesk .osdeck :is(.oback){--bcw:var(--mw);padding-bottom:0}
 #view-play .osdesk .osdeck .oback::after{bottom:calc(var(--bcw) * .035)}
 #view-play .osdesk .ostag{position:absolute;left:calc(var(--mw) / 2);top:calc(100% + 2px);transform:translateX(-50%);z-index:5;white-space:nowrap;text-align:center;pointer-events:none}
+#view-play .osdesk .osseat.me .ospile>.ostag{top:auto;bottom:calc(100% + 2px)}
 #view-play .osdesk .ostag,#view-play .osdesk .osmkt .alwaysw::after,
 #view-play .osdesk .ostray>:is(.sdeck,.osswept>.sdeck)::after{
   padding:2px 6px;border-radius:4px;background:#2a2018;color:#f3e4ca;
@@ -295,22 +313,22 @@ body.os-mat .oinsp{display:none!important}   /* the right-side card panel stays 
 }
 #view-play .osdesk .ostag.osgold{color:#edc674}
 #view-play .osdesk .ostag.osmirtag{color:#dac1f7}
-#view-play .osdesk .ospile.on>.ostop{outline:3px solid #e6c06a;outline-offset:2px;border-radius:var(--oasis-card-radius)}
+#view-play .osdesk .ospile.on .ostop{outline:3px solid #e6c06a;outline-offset:2px;border-radius:var(--oasis-card-radius)}
 #view-play .osdesk .osmirback{position:absolute;left:0;top:0;z-index:4;width:var(--mw);aspect-ratio:750/1037;border-radius:8px;border:2px solid #c9a24a;box-sizing:border-box;
   background:radial-gradient(circle at 50% 45%,#6d4fa0,#2b1d45);display:grid;place-items:center;font:400 calc(var(--mw) * .3)/1 Marcellus,serif;color:#e8c977}
 #view-play .osdesk .osmirback.osempty{background:none;border:2px dashed rgba(60,40,20,.45);color:transparent}
 #view-play .osdesk .osmirp.glow .osmirback{box-shadow:0 0 0 3px #e6c06a,0 0 18px rgba(230,192,106,.8)}
 #view-play .osdesk .osmirp.on .osmirback{outline:3px solid #e6c06a;outline-offset:2px}
 /* water: the coin heap over the count pill, both sides */
-#view-play .osdesk .ospurse{flex-direction:column;gap:10px}
-#view-play .osdesk .osrow .osheap{display:block}
-#view-play .osdesk .ospill{height:30px;padding:0 12px 0 4px;background:#fff;border:2px solid #111}
-#view-play .osdesk .ospill b{font:700 20px/1 var(--f-body);color:#111;text-shadow:none}
-#view-play .osdesk .ospill i{color:#555;font-size:13px}
+#view-play :is(.osdesk .osrow,.osstrip) .ospurse{flex-direction:column;gap:10px}
+#view-play :is(.osdesk .osrow,.osstrip) .osheap{display:block}
+#view-play :is(.osdesk .osrow,.osstrip) .ospill{height:30px;padding:0 12px 0 4px;background:#fff;border:2px solid #111}
+#view-play :is(.osdesk .osrow,.osstrip) .ospill b{font:700 20px/1 var(--f-body);color:#111;text-shadow:none}
+#view-play :is(.osdesk .osrow,.osstrip) .ospill i{color:#555;font-size:13px}
 
 /* the trays: the ALWAYS pile, the shop deck, then 5 fixed display slots, each sideways-width (a square, 1.4 card widths)
    with a faint dashed outline: an upright card sits centred in it, a sideways leftover fills it, so a tray never resizes */
-#view-play .osdesk .osmid{display:flex;align-items:center;gap:18px}
+#view-play .osdesk .osmid{display:flex;align-items:center;gap:18px;margin-block:auto;position:relative;top:var(--shop-middle-offset,0px)}
 #view-play .osdesk .osmkt{width:auto;gap:10px}
 #view-play .osdesk .ostray{display:flex;align-items:center;gap:12px;padding:8px 16px 25px;border-radius:18px}
 body.os-sand #view-play .osdesk .ostray{background:rgba(70,45,22,.2)}
@@ -382,9 +400,9 @@ body.osdragging,body.osdragging *{cursor:grabbing!important}
   background:rgba(12,8,5,.68);color:#f3e4ca
 }
 /* The cards are in the open pile view until it finishes closing. */
-#view-play:has(>.osdeckfan[data-pile="deck"]) .osdesk .osseat.me .osdeck>:is(.ostop,.osedge),
-#view-play:has(>.osdeckfan[data-pile="bought"]) .osdesk .osseat.me .osbought>:is(.ostop,.osedge),
-#view-play:has(.pkwin .dsheet) .osdesk .osseat:has(.osdeck.on) :is(.osdeck,.osbought)>:is(.ostop,.osedge),
+#view-play:has(>.osdeckfan[data-pile="deck"]) .osdesk .osseat.me .osdeck .ospile-stock>:is(.ostop,.osedge),
+#view-play:has(>.osdeckfan[data-pile="bought"]) .osdesk .osseat.me .osbought .ospile-stock>:is(.ostop,.osedge),
+#view-play:has(.pkwin .dsheet) .osdesk .osseat:has(.osdeck.on) :is(.osdeck,.osbought) .ospile-stock>:is(.ostop,.osedge),
 #view-play .osdesk .osdisc #muster-pile[aria-expanded="true"] :is(.mpc,.mpface){
   visibility:hidden
 }
@@ -419,21 +437,23 @@ body.osdragging,body.osdragging *{cursor:grabbing!important}
 #view-play .osdeskmob .forces.mz.osmz{display:grid;align-items:center;grid-template-columns:minmax(180px,.43fr) minmax(0,1.57fr);
   gap:clamp(20px,3vw,56px);height:100%;box-sizing:border-box;padding:18px max(126px,calc(var(--mw) * 1.55)) 26px clamp(20px,4vw,68px)}
 #view-play .osdeskmob :is(.mz-deck,.mz-bench){container-type:normal}   /* sized by their cards (the phone's columns are sized by the screen) */
-#view-play .osdeskmob .mz-deck{height:100%;flex:none;align-items:center;justify-content:center;min-width:calc(var(--mw) + 40px)}
+#view-play .osdeskmob .mz-deck{--mz-deck-width:calc(var(--mw) * 1.25);height:100%;flex:none;align-items:center;justify-content:center;min-width:calc(var(--mw) + 40px)}
 #view-play .osdeskmob .osmzhd{margin:0;font:400 clamp(19px,2vw,28px)/1.15 Marcellus,serif;letter-spacing:.02em;text-transform:none;color:#f4e6ce}
 #view-play .osdeskmob .mzlim{padding:0;justify-content:center;color:#dfcfb2}
 #view-play .osdeskmob .osmz-first{font-size:.78rem;color:#dfcfb2}
 #view-play .osdeskmob .mzno{left:calc(-1 * var(--mzrail));font-family:Marcellus,serif}
 #view-play .osdeskmob #mz-deck .mztags{top:2px;left:calc(100% + 5px);right:auto;white-space:nowrap}
 #view-play .osdeskmob .mzc[data-no="1"]>.mzno{background:#d8b573;border-color:#d8b573;color:#25180d}
-#view-play .osdeskmob #mz-deck.mzstack{--mzsr:.24;flex:1 1 0;min-height:0;width:calc(var(--mw) + var(--mzrail, 0px) + 10px);max-height:calc(var(--mw) * (1.3827 + (var(--n) - 1) * var(--mzsr) + var(--tt) * .175) + 24px);justify-content:center;container-type:size}
-#view-play .osdeskmob #mz-deck.mzstack>*{--mzr:1.3827;--mzw:min(var(--mw), calc((100cqh - 8px) / ((var(--n) - 1) * var(--mzsr) + 1.3827 + var(--tt) * .175)));
+#view-play .osdeskmob #mz-deck.mzstack{--mzsr:.24;flex:1 1 0;min-height:0;width:min(100%,calc(var(--mz-deck-width) + var(--mzrail, 0px) + 10px));max-height:calc(var(--mz-deck-width) * (1.3827 + (var(--n) - 1) * var(--mzsr) + var(--tt) * .175) + 24px);justify-content:center;container-type:size}
+#view-play .osdeskmob #mz-deck.mzstack>*{--mzr:1.3827;--mzw:min(var(--mz-deck-width),calc(100cqw - 6px),calc((100cqh - 8px) / ((var(--n) - 1) * var(--mzsr) + 1.3827 + var(--tt) * .175)));
   --mzh:calc(var(--mzw) * var(--mzr));--mzstrip:calc(var(--mzw) * var(--mzsr));--mztk:calc(var(--mzw) * .175)}
 #view-play .osdeskmob .mobright{height:100%;min-width:0;justify-content:center;align-items:stretch;gap:10px}
 #view-play .osdeskmob .mz-bench{min-width:0;flex:0 1 auto;align-items:stretch}
 #view-play .osdeskmob .mz-bench>.osmzhd{padding:0 13px 2px}
 .osmob-bench-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-color:#9f8056 transparent}
 .osdeskmob[inert] .osmob-bench-scroll,.osdeskmob.matbatpin .osmob-bench-scroll{overflow:visible}
+#view-play .osdeskmob.osbatgather .osmob-bench-scroll{overflow:auto}
+#view-play .osdeskmob.osbatgather .osmob-bench-scroll.osbench-flight{overflow:visible}
 /* the bench fan: each card in a slot that holds its pose (matFanTf); the fan's size is set from the poses */
 #view-play .osdeskmob #mz-bench.osfan{position:relative;display:flex;align-items:center;gap:14px;flex:none;padding:8px 13px 12px;min-height:0;container-type:normal}
 #view-play .osdeskmob .osmob-fan-row{position:relative;flex:none}
@@ -444,7 +464,27 @@ body.osdragging,body.osdragging *{cursor:grabbing!important}
 #view-play .osdeskmob .mzc.mzslot,#view-play .osdeskmob .mz-bench.mz-over{border-color:#c9a36a;outline-color:#c9a36a}
 #view-play .osdeskmob .mzc.mzslot{background:#a8834929}
 #view-play .osdeskmob #mz-deck .mzslot.mz-spread:not(:last-child){margin-bottom:calc(var(--mzstrip) - var(--mzh) + min(26px,var(--mzw) * .18))}
-#view-play .osdeskmob .mz-src{visibility:hidden}
+#view-play .osdeskmob #mz-deck .mzslot{border-style:solid;border-top:3px solid #edc674}
+#view-play .osdeskmob #mz-deck .mzslot>.mzno{background:#edc674;border-color:#edc674;color:#2a2018}
+body.mz-dragging #view-play .osdeskmob #mz-deck>.mzc:not(.mzslot){
+  translate:0 0;transition:translate var(--mz-room-time,240ms) cubic-bezier(.28,.62,.27,1)
+}
+body.mz-dragging #view-play .osdeskmob #mz-deck>.mzc.mz-room{translate:var(--mz-preview-room) 0}
+#view-play .osdeskmob .mz-attachment-target>.mzface::after{
+  content:"";position:absolute;inset:0;z-index:24;pointer-events:none;border:2px solid #f6d191;
+  border-radius:inherit;box-shadow:inset 0 4px 0 #edc67458
+}
+#view-play .osdeskmob .mz-attachment-target.mz-attachment-blocked>.mzface::after{border-color:#f7aaa0;box-shadow:inset 0 4px 0 #e9796a55}
+#view-play .osdeskmob .mz-bench-remainder{position:absolute;inset:0 auto auto 0;transform-origin:0 0;pointer-events:none}
+.mz-drag-cue{
+  position:fixed;z-index:82;max-width:min(290px,calc(100vw - 20px));pointer-events:none;padding:6px 9px;border:1px solid #d6ac6a;
+  border-radius:5px;background:#2a2018;color:#fff1cf;font:600 14px/1.3 var(--f-body);box-shadow:0 3px 10px #21140ba0
+}
+.mz-drag-cue.is-blocked{border-color:#e28b7d;color:#ffd0c6}
+.mz-tuck-flight{position:fixed;inset:0;z-index:80;pointer-events:none}
+@media (prefers-reduced-motion:reduce){
+  body.mz-dragging #view-play .osdeskmob #mz-deck>.mzc:not(.mzslot){transition:none}
+}
 #view-play .osdeskmob .osfan>.mzempty{position:static;width:calc(var(--mw) * 2);padding:20px;text-align:center}
 /* the AI's deck, face down near the top edge, and its words */
 #view-play .osdeskmob .osaideck{position:absolute;z-index:3;right:clamp(18px,3vw,56px);top:20px;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
@@ -467,34 +507,47 @@ body.osdragging,body.osdragging *{cursor:grabbing!important}
 .flyhost.osdesk .mcard :is(.stamps,.ctag,.ccost),.flyhost.osdesk .mcard>button,.flyhost.osdesk .mcard>[data-act^="sell-"]{display:none!important}
 
 /* ===================== the AI's Caravan row at the top of the desktop mat (Brian, Nov 25: all screens) ===================== */
-#view-play .osdesk .osinner>.osseat.opp{margin-bottom:auto;margin-top:6px}
+#view-play .osdesk .osinner>.osseat.opp{margin-top:calc(var(--mw) * -.44);position:relative;top:var(--caravan-far-y,0px);left:var(--caravan-far-x,0px)}
+#view-play .osdesk .osinner>.osseat.me{padding-bottom:22px}
 
 /* ===================== THE DESKTOP BATTLE ON THE MAT (stage 4; mock-up "Battle on the mat", #artboard-BattleMat) =====================
    body.os-deskbat (js/rug.js). The Caravans are strips of cropped cards (the phone's crop, 750:728 with its tab, at the
-   table's card size --deskmw) against the top and bottom edges; the battle board fills the room between them, its sides
-   .5 to .75 of a card's length apart (matFitBattle, --matgapk) for the arrows and charges; the step line and the battle
+   shop card width --deskmw) against the top and bottom edges; the battle board fits between them. The step line and the battle
    buttons stand in the right column, where Pass and Lock in were. The board keeps the mat's camera: perspective 2100px,
    14 deg from its bottom edge (--matP; __cubeTilt and matBatTip read the same). */
 body.os-deskbat{--matP:2100px;--deskright:270px}
 body.os-deskbat #view-play .board.topboard,body.os-deskbat #view-play #chron-panel,body.os-deskbat #view-play>div>.row:not(.tailwait){display:none!important}
 body.os-deskbat #view-play:not([hidden]):has(.osbars){padding-top:0!important}
-/* the board: between the strips, left of the buttons' column */
-body.os-deskbat #view-play .panel:has(>.stage){position:fixed!important;left:0;right:var(--deskright);top:calc(var(--gtb, 42px) + var(--dsh-o, 0px));bottom:var(--dsh-m, 0px);margin:0!important;padding:0!important;
+/* The controls sit beside the full-width board. */
+body.os-deskbat #view-play .panel:has(>.stage){position:fixed!important;left:0;right:0;top:calc(var(--gtb, 42px) + var(--dsh-o, 0px));bottom:var(--dsh-m, 0px);margin:0!important;padding:0!important;
   background:transparent!important;border:0!important;box-shadow:none!important;display:flex;flex-direction:column;justify-content:center;max-width:none!important;width:auto!important}
 body.os-deskbat #view-play .panel>.stage{flex:none;margin:0 auto;width:100%;background:transparent!important;box-shadow:none!important}
-body.os-deskbat .stage .line.table.matz{max-width:none!important;margin-left:auto!important;margin-right:auto!important}
+body.os-deskbat .stage{--tky:calc(var(--bcw) * .12)}
+body.os-deskbat .stage .linewrap{padding:0}
+body.os-deskbat .stage .line.table.matz{position:relative;top:var(--battle-y-offset,0px);max-width:none!important;margin-left:auto!important;margin-right:auto!important}
 body.os-deskbat .stage .line.table.matz>.trow{display:flex!important;justify-content:center;gap:calc(var(--matbcw, 160px) * .55)!important;grid-template-columns:none!important}
-body.os-deskbat .stage .line.table.matz>.trow.s0{margin-top:calc(var(--matbcw, 160px) * 1.3827 * var(--matgapk, .5))!important}
-body.os-deskbat .stage .line.table.matz .tz>.zl{font-size:.85rem!important;letter-spacing:.12em}
+body.os-deskbat .stage .line.table.matz>.trow.s0{margin-top:calc(var(--matbcw) * 1037 / 750 * var(--matgapk, .5))!important}
+body.os-deskbat.os-battle-tight .stage{--tky:calc(var(--bcw) * .10)}
+body.os-deskbat .stage .line.table.matz .tz{position:relative}
+body.os-deskbat .stage .line.table.matz .tz>.zl{
+  position:absolute;top:100%;left:0;right:0;z-index:3;display:flex;
+  flex-direction:row;justify-content:center;align-items:center;gap:4px
+}
+body.os-deskbat .stage .line.table.matz .trow.s0 .tz>.zl{top:auto;bottom:100%;justify-content:center}
+body.os-deskbat .stage .line.table.matz .deckz .labsub{white-space:nowrap}
+body.os-deskbat #view-play .panel.os-battle-scroll{overflow-y:auto;justify-content:flex-start}
+html body.os-deskbat .stage .line.table.matz .tz .card:not(.mini),
+html body.os-deskbat .stage .line.table.matz .tz .slot.labempty{margin-bottom:18px!important}
 /* the Caravan strips (matSeatHTML 'battle' on the desktop): fixed against the top and bottom edges, flat on the screen */
 body.os-deskbat #view-play .osbars{display:contents}
 /* the strips lie on the mat like the board: each tilted 14 deg from its bottom edge, camera 2100 px away (--matP) */
-body.os-deskbat #view-play .osstrip{position:fixed;z-index:2;left:0;right:var(--deskright);margin:0 auto;width:fit-content;transform:perspective(var(--matP)) rotateX(14deg);transform-origin:50% 100%;display:flex;align-items:center;gap:calc(var(--deskmw, 170px) * .07);
-  padding:5px 16px;border-radius:16px;--mw:var(--stripw, var(--deskmw, 170px))}
+body.os-deskbat #view-play .osstrip{position:fixed;z-index:2;left:0;right:0;margin:0 auto;width:fit-content;transform:perspective(var(--matP)) rotateX(14deg);transform-origin:50% 100%;display:flex;align-items:center;gap:var(--osg);
+  padding:5px 18px;border-radius:16px;--mw:var(--stripw, var(--deskmw, 170px));--osg:calc(var(--mw) * .07)}
 body.os-deskbat #view-play .osstrip.opp{top:calc(var(--gtb, 42px) + 4px)} body.os-deskbat #view-play .osstrip.me{bottom:4px}
+body.os-deskbat #view-play .osstrip.osstrip-anchored{inset:0 auto auto 0;margin:0;transform:none;transform-origin:0 0}
 body.os-deskbat #view-play .osstrip .osside{writing-mode:vertical-rl;transform:rotate(180deg);font:700 13px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase}
 body.os-deskbat #view-play .osstrip.s0 .osside{color:#2d5fbf} body.os-deskbat #view-play .osstrip.s1 .osside{color:#a23a2f}
-body.os-deskbat #view-play .osstrip .fcards{display:flex!important;gap:calc(var(--mw) * .07)!important;margin:0!important;padding:0!important;flex-wrap:nowrap!important;grid-template-columns:none!important}
+body.os-deskbat #view-play .osstrip .fcards{display:flex!important;gap:var(--osg)!important;margin:0!important;padding:0!important;flex-wrap:nowrap!important;grid-template-columns:none!important}
 body.os-deskbat #view-play .osstrip .oscarrow>*{flex:none;width:var(--mw)!important;margin:0!important;min-width:0!important;max-width:none!important}
 body.os-deskbat #view-play .osstrip .oscar>.cface{aspect-ratio:750/728!important;height:auto!important;clip-path:url(#tabclip);border-radius:0!important}
 /* the picture keeps the full card's shape (750:1037); the box and the tab cut show its top only, as on phones */
@@ -502,19 +555,21 @@ body.os-deskbat #view-play .osstrip .oscar>.cface{overflow:hidden!important}
 body.os-deskbat #view-play .osstrip .oscar>.cface>:is(img,canvas){width:100%!important;height:auto!important;aspect-ratio:750/1037!important;object-fit:fill!important;display:block}
 body.os-deskbat #view-play .osstrip .oscar>:is(button,.ccost,.stamps,.ctag){display:none!important}
 body.os-deskbat #view-play .osstrip .oscar{height:auto!important;aspect-ratio:auto!important;min-height:0!important}
+body.os-deskbat #view-play .osstrip .oscar:not(:has(>.cface)){height:calc(var(--mw) * 728 / 750)!important;overflow:hidden;clip-path:url(#tabclip)}
 body.os-deskbat #view-play .osstrip .osslot{display:block;flex:none;width:var(--mw);aspect-ratio:750/728!important;height:auto!important;border:2px dashed rgba(60,40,20,.42);border-radius:8px;box-sizing:border-box}
 body.os-deskbat #view-play .osstrip .osbardiv{flex:none;width:2px;align-self:center;height:calc(var(--mw) * .62);margin:0 6px;background:rgba(60,40,20,.25)}
 body.os-deskbat #view-play .osstrip .ospile{position:relative;flex:none;width:var(--mw);height:calc(var(--mw) * .9707);padding:0;margin:0;border:0;background:none}
+body.os-deskbat #view-play .osstrip .osbenchpile{width:var(--benchw);height:calc(var(--benchw) * 728 / 750);max-width:none;isolation:isolate}
+body.os-deskbat #view-play .osbenchpile .oback{position:absolute;inset:0;translate:calc(var(--k) * 3px) calc(var(--k) * 2px);z-index:calc(-1 * var(--k));clip-path:url(#tabclip)}
+body.os-deskbat #view-play .osbench-face{height:100%;overflow:hidden;clip-path:url(#tabclip);background:#2e2118}
+body.os-deskbat #view-play .osbench-face .cface{width:100%;height:auto;aspect-ratio:750/1037}
+body.os-deskbat #view-play .osbench-face .cface>:is(img,canvas){width:100%;height:auto;aspect-ratio:750/1037;object-fit:fill;display:block}
 body.os-deskbat #view-play .osstrip .osmirback{position:absolute;inset:0;border-radius:8px 8px 0 0;border:2px solid #c9a24a;box-sizing:border-box;clip-path:url(#tabclip);
   background:radial-gradient(circle at 50% 45%,#6d4fa0,#2b1d45);display:grid;place-items:center;font:400 calc(var(--mw) * .26)/1 Marcellus,serif;color:#e8c977}
 body.os-deskbat #view-play .osstrip .osmirback.osempty{background:none;border:2px dashed rgba(60,40,20,.42);color:transparent;clip-path:none;border-radius:8px}
 body.os-deskbat #view-play .osstrip .osedge{display:none}
 body.os-deskbat #view-play .osstrip .ostag{position:absolute;left:50%;bottom:calc(var(--mw) * .12);transform:translateX(-50%);z-index:4;padding:3px 8px;border-radius:5px;background:#5b3f86;color:#f3eaff;font:700 calc(var(--mw) * .075)/1.25 var(--f-body);white-space:nowrap;pointer-events:none}
-body.os-deskbat #view-play .osstrip .ospurse{display:flex;flex-direction:row;align-items:center;gap:6px}
-body.os-deskbat #view-play .osstrip .osheap{display:block}
-body.os-deskbat #view-play .osstrip .ospill{height:28px;padding:0 12px 0 4px;background:#fff;border:2px solid #111}
-body.os-deskbat #view-play .osstrip .ospill b{font:700 18px/1 var(--f-body);color:#111;text-shadow:none}
-body.os-deskbat #view-play .osstrip .ospill i{color:#555;font-size:12px}
+body.os-deskbat #view-play .osstrip-anchored .ospurse{position:absolute}
 /* the right column: the step line, then Next step (big, gold), Back and Auto, Notes; the end-of-battle button under them */
 body.os-deskbat #gtop .pbhint{display:flex!important;position:fixed!important;right:12px;left:auto!important;width:calc(var(--deskright) - 24px);top:calc(50% - 150px);margin:0!important;padding:0!important;
   background:transparent!important;font:600 1.15rem/1.3 Marcellus,serif!important;color:#3a2a18!important;text-align:center;z-index:3}
@@ -529,6 +584,6 @@ body.os-deskbat #dock>.dbtns>:disabled{opacity:.5}
 body.os-deskbat #view-play .panel .row.tailwait{position:fixed;right:12px;width:calc(var(--deskright) - 24px);top:calc(50% + 150px);z-index:3;justify-content:center}
 body.os-deskbat #gtop .pbhint{flex-direction:column;align-items:center;gap:6px!important}
 body.os-deskbat #gtop .pbhint .dtxt{flex:none}
-/* Mobilize → battle (matBatAfterDraw): the strips wait empty, then their parts come in on their beat (matBatStrips) */
+/* Cropped battle strips wait for the Mobilize masks to finish in the same positions. */
 body.os-deskbat #view-play .osstrip.matbatpre{background-color:transparent}
 body.os-deskbat #view-play .osstrip.matbatpre>:not(.oscarrow),body.os-deskbat #view-play .osstrip.matbatpre>.oscarrow>*{opacity:0}

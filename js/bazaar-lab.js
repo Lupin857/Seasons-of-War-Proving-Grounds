@@ -167,14 +167,16 @@ async function replay(mode, firstPlay = false){
   dragGuide.hidden = true;
   status.textContent = firstPlay ? 'Loading Shop artwork…'
     : {open:'Opening Shop…', close:'Closing Shop…', both:'Playing full cycle…',
-      drag:'Setting up drag preview…', inspect:'Setting up enlarge preview…', mobilize:'Opening Mobilize…'}[mode];
+      drag:'Setting up drag preview…', inspect:'Setting up enlarge preview…', mobilize:'Opening Mobilize…',
+      'battle-end':'Preparing Battle result…'}[mode];
   try {
     await bridge.play(mode, {...settings});
     const drag = mode === 'drag';
-    const interactive = drag || mode === 'inspect' || mode === 'mobilize';
+    const interactive = drag || mode === 'inspect' || mode === 'mobilize' || mode === 'battle-end';
     status.textContent = {drag:'Drag a card to try it', inspect:'Click a card to enlarge it',
       open:'Shop is open', close:'Shop is closed', both:'Shop is closed',
-      mobilize:'Reorder the deck or drag gear and tokens onto a unit.'}[mode];
+      mobilize:'',
+      'battle-end':'Choose Go to round 2 shop to preview the return.'}[mode];
     stage.classList.toggle('is-interactive', interactive);
     frame.tabIndex = interactive ? 0 : -1;
     dragGuide.hidden = !drag;

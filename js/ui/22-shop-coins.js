@@ -37,6 +37,13 @@ function shopCoinIncome(){
   });
 }
 
+function shopCoinPrepareIncome(){
+  if (!shopCoinLayer && shopCoinRound?.game === G && shopCoinRound.round === G.round
+      && shopCoinRound.amounts.some(amount => amount > 0) && shopCoinEnabled()){
+    shopCoinLayer = shopCoinCanvas();
+  }
+}
+
 function shopCoinCardEdge(card){
   const el = card?.querySelector?.('.cface') || card;
   const r = el?.getBoundingClientRect?.();

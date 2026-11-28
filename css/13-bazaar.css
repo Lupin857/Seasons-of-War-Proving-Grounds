@@ -12,7 +12,7 @@
 #view-play .osdesk .osbazaar{
   --bazaar-rug-art:url("../art/rug/bazaar-rug.webp") center / 100% 100% no-repeat;
   --bazaar-rug-shadow:drop-shadow(0 4px 3px #30201572);
-  position:absolute;inset:-1.5% 0;z-index:-1;pointer-events:none;
+  position:absolute;inset:var(--rug-top,-1.5%) 0 var(--rug-bottom,-1.5%);z-index:-1;pointer-events:none;
   left:calc(-1 * var(--rug-overhang, max(112px,6vw)));
   background:var(--bazaar-rug-art);
   filter:var(--bazaar-rug-shadow)
@@ -36,6 +36,19 @@ body.os-sand #view-play .osdesk :is(.osmkt:has(>.osbazaar),.osmobmat .osmkt)>.os
 #view-play .osdesk.osmobmat .osmid .osmkt,
 #view-play .osdesk.osmobmat .osmid .osdisc{visibility:hidden}
 #view-play .osdesk .osbazaar-closed{visibility:hidden}
+#view-play .osdesk.osbattle-return :is(.osmid,.oscarrow>.osslot,.osdeck,.osbought){visibility:hidden}
+#view-play .osdesk.osbattle-return :is(.oscar-stock,.ospurse){transform-origin:0 0}
+.osbattle-return-stacks{
+  position:fixed;inset:0 auto auto 0;z-index:18;pointer-events:none
+}
+.osbattle-return-side{position:absolute;inset:0;filter:var(--bazaar-table-shadow)}
+.osbattle-return-pile{position:absolute;transform-origin:0 0;isolation:isolate}
+.osbattle-return-pile>.oback{position:absolute;inset:0;translate:calc(var(--k) * 4px) calc(var(--k) * 3px)}
+.osbattle-return-face{position:relative;width:100%;height:100%}
+.osbattle-return-face>:is(.cface,.oback){position:absolute;inset:0;display:block;width:100%;height:100%}
+.osbattle-return-face>.oback{display:flex}
+.osbattle-return-tuck{overflow:hidden;border-radius:var(--oasis-card-radius)}
+.osbattle-return-pile :is(.cface,.oback){box-shadow:none}
 #view-play .osdesk .osdiscardface{
   position:absolute;inset:0;display:block;width:100%;height:100%;
   box-sizing:border-box;padding:0;border:0;border-radius:8px;overflow:hidden
@@ -45,26 +58,52 @@ body.os-sand #view-play .osdesk :is(.osmkt:has(>.osbazaar),.osmobmat .osmkt)>.os
 }
 
 /* A warm edge catches light while the card artwork retains its contrast. */
-#view-play .osdesk:has(.osbazaar) .mcard>.cface.art,
+#view-play .osdesk:has(.osbazaar) .mcard:not(.oscar)>.cface.art,
 #view-play .osdeckfan .mcard>.cface.art,
 .osbazaar-flight>.cface.art{
   box-shadow:var(--bazaar-contact-shadow),var(--bazaar-contact-edge)
 }
-#view-play .osdesk:has(.osbazaar) .mcard:not(.ghost):not(:has(>.cface.art)){
+#view-play .osdesk:has(.osbazaar) .mcard:not(.ghost,.oscar):not(:has(>.cface.art)){
   box-shadow:inset 0 1px 1px #fff0c96b,var(--bazaar-contact-shadow)
 }
-#view-play .osdesk:has(.osbazaar) .mcard>.cface.art::after,
+#view-play .osdesk:has(.osbazaar) .mcard:not(.oscar)>.cface.art::after,
 :is(.osbazaar-flight,.osdrag)>.cface.art::after{
   content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
   box-shadow:inset 0 1px 1px #fff0c96b,inset -1px -1px 1px #26150b66
 }
+/* Cast from the visible outline after masking the face, including while a card crops. */
+#view-play :is(.oscar-stock,.osbenchpile,.osdeskmob #mz-bench .osfanslot,.osdeskmob #mz-deck>.mzc[data-mz]){
+  filter:var(--bazaar-table-shadow)
+}
+#view-play .osdeskmob.osbatgather :is(#mz-deck,#mz-bench){filter:var(--bazaar-table-shadow)}
+#view-play .osdeskmob.osbatgather #mz-bench .osfanslot,
+#view-play .osdeskmob.osbatgather #mz-deck>.mzc[data-mz],
+#view-play .osdeskmob.osbatgather #mz-deck>.mzc>.mzface{filter:none}
+.oslift .osinspect-unit{position:relative;isolation:isolate;container-type:inline-size}
+.oslift .osinspect-unit>.peek{z-index:20}
+.oslift .osinspect-unit>.mztk{height:auto;aspect-ratio:750/1037;pointer-events:none}
+.oslift .osinspect-unit>.mztk img{display:block;width:100%;height:100%;object-fit:cover}
+body.os-deskbat.lab-stock #view-play .line.matz .labsh{filter:var(--bazaar-table-shadow)!important}
+body.os-deskbat.lab-stock #view-play .line.matz .labsh>i{box-shadow:none}
+body.os-deskbat.lab-stock #view-play .line.matz .labsh::before{content:none}
+:root{--bazaar-table-shadow:drop-shadow(var(--bazaar-contact-edge)) drop-shadow(var(--bazaar-contact-shadow))}
+#view-play .oscar-stock>.oscar{width:100%!important;box-shadow:none!important}
+#view-play :is(.oscar-stock,.osbenchpile,.osdeskmob #mz-bench .osfanslot) .cface.art{box-shadow:none}
+#view-play .osdeskmob #mz-deck>.mzc>.mzface>.cface.art{box-shadow:none}
+#view-play .osdeskmob.osbatgather #mz-deck .mztk>.cface.art{box-shadow:none}
+#view-play :is(.oscar-stock,.osbench-face) .cface.art::after{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  box-shadow:inset 0 1px 1px #fff0c96b
+}
 .osbazaar-flight>.cface.art{width:100%;height:100%;clip-path:none}
 .osbazaar-flipping>.cface.art{box-shadow:none}
 .osbazaar-deal-shadow{position:fixed;pointer-events:none;border-radius:var(--oasis-card-radius);background:#211207}
-/* Stack layers override the art cards' outer shadow reset. */
+/* Exclude the captions and empty slots from the pile's cast silhouette. */
+#view-play .osdesk .ospile-stock:has(>:is(.osedge,.ostop)){filter:var(--bazaar-table-shadow)}
+#view-play .osdesk .ospile-stock :is(.osedge,.ostop,.cface.art){box-shadow:none!important}
+/* Market and discard stock. */
 #view-play .osdesk:has(.osbazaar) :is(
-  .ospile>.osedge:nth-last-child(1 of .osedge),
-  .ospile:not(:has(>.osedge))>:is(.ostop,.osmirback:not(.osempty)),
+  .ospile.osmirp:not(:has(>.osedge))>.osmirback:not(.osempty),
   .dealdeck:not(.empty)>.cb:first-child,
   .mpcards:has(.osdiscardface)>.mpc:first-child
 ){

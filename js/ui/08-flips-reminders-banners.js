@@ -367,6 +367,7 @@ function stepForward(){
   juiceRinse();   // an Interceptor's ink wash from the last step rinses out as this one starts
   breakShieldsNow();   // a shield that blocked a hit in the step on screen breaks as soon as you move on
   const prev = ui.battle.frames[ui.frame], next = ui.battle.frames[ui.frame + 1], to = ui.frame + 1;
+  window.battleInkImpact?.(null);
   ui.inkStart = to;   // the battle ink starts drawing this step now, as it begins (js/ui/19-battle-ink.js)
   try{ glowStep(next); ui.abFrame = to; mountAbWin(); }catch(e){}   // abilities firing this step glow, and their notes show, as it begins
   if (reduceMotion()){ goFrame(to, true); return; }
@@ -385,26 +386,27 @@ function stepForward(){
   const heals = (next.hits || []).some(x => x.heal > 0);
   if (!fought && !hits.length && !arrows.length && !heals && !juiceWants(next)){ goFrame(to, true); return; }   // (juiceWants: an Interceptor's Silence with nothing else to show)
   const root = $('view-play');
-  const hitT = fought ? labClash(root) : juiceAbilityWind(root, next, hits);   // the charging units rush in and collide (or an ability winds up and stamps); hits land at the impact
-  if (!fought && !hits.length) sfx.tick();
-  if (fought) setTimeout(() => sfx.clash(), Math.max(0, hitT - 30));
+  const clash = fought ? labClash(root) : null;
+  const hitT = clash ? clash.hitAt : juiceAbilityWind(root, next, hits);
   ui.pendingFrame = to;
   ui.animT = setTimeout(() => {
-    for (const l of arrows) if (l.to && l.from && !l.tok && !l.sil && !l.cut && l.amt === 0) cubeGlow('sh:' + l.to);   // a Shield stops this hit
+    window.battleInkImpact?.(ui.battle, to, clash);
+    for (const l of arrows) if (l.to && battleShieldBlock(l)) cubeGlow('sh:' + l.to);
     juiceSilenceStep(root, next, prev);   // Interceptor: the ink wash floods the cards its strokes reach
     const koOnly = hits.length && hits.every(h => h.ko) && !fought && !heals;   // a casualty step: nothing lands, cards just leave
     if (lethal) juiceLethal(hits);   // Lethal: a seal, the sound drops out for a silent beat, then one low thud
-    else if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.some(h => !h.save) && !koOnly) sfx.ko();
+    else if (fought) sfx.clash(); else if (hits.some(h => !h.ko)) sfx.hit(); else if (hits.some(h => !h.save) && !koOnly) sfx.ko();
+    else if (!hits.length) sfx.tick();
     juiceKeywords(root, next, prev, hits);   // Overrun nudge, a Shield's clang
     for (const h of hits){
       const el = root.querySelector(`.card[data-uid="${h.id}"]`); if (!el) continue;
       // health bar drains to its new level
-      const bar = el.querySelector('.hp i'); if (bar){ bar.style.transition = 'width .6s cubic-bezier(.3,.6,.3,1) .12s'; bar.style.width = h.hp + '%'; }
+      const bar = el.querySelector('.hp i'); if (bar){ bar.style.transition = 'width .35s cubic-bezier(.3,.6,.3,1)'; bar.style.width = h.hp + '%'; }
       // the hp readout ticks down to its new value
       if (h.cur != null){
         const hn = el.querySelector('.hpn');
         if (hn){ hn.classList.add('hurt'); hn.innerHTML = `<b>${h.cur}</b>/${h.max}<span class="hpu"> hp</span>`;
-          hn.animate([{opacity:0, transform:'scale(1.3)'}, {opacity:1, transform:'none'}], {duration:450, delay:150, easing:'ease-out', fill:'backwards'}); }
+          hn.animate([{transform:'scale(1.16)'}, {transform:'none'}], {duration:220, easing:'ease-out'}); }
       }
     }
     juiceImpact(root, hits, fought);   // impact juice: table thump, recoil (Board settings switches)
