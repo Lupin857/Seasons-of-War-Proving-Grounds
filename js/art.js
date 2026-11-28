@@ -24,6 +24,47 @@ const artImg = (url, alt) => `<img class="cart" src="${url}" alt="${esc(alt || '
    until it has (Safari can take a while) the card shows blank. Instead, a copy gets a canvas painted from a picture
    that is already loaded: painting is immediate, so a copy is never blank. A picture not loaded yet stays an <img>. */
 const ART_READY = new Map();
+let matchArtPromise;
+function prepareMatchArt(){
+  if (matchArtPromise) return matchArtPromise;
+  const paths = [...OASIS_ART].map(name => 'art/' + encodeURIComponent(name) + '.webp');
+  paths.push('art/banner.png', 'art/medallion.png');
+  if (!compact()) paths.push('art/rug/bazaar-rug.webp', 'art/rug/bazaar-sand.webp');
+  if (compact() && typeof rugSand === 'function' && !rugSand())
+    paths.push('art/rug/rug_albedo.webp', 'art/rug/rug_normal.webp');
+  matchArtPromise = Promise.all(paths.map(async src => {
+    if (artReady(src)) return null;
+    const img = new Image();
+    img.src = src;
+    try{ await img.decode(); ART_READY.set(src, img); return null; }
+    catch(e){ return src; }
+  })).then(failed => failed.filter(Boolean));
+  return matchArtPromise;
+}
+document.addEventListener('DOMContentLoaded', prepareMatchArt, {once:true});
+
+async function prepareMatchPresentation(){
+  const [missing] = await Promise.all([prepareMatchArt(), prepareBattleCubes()]);
+  return missing;
+}
+
+let matchArtButtonBusy = false;
+async function waitForMatchArt(button){
+  if (matchArtButtonBusy) return false;
+  matchArtButtonBusy = true;
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Loading artwork…';
+  try{
+    const missing = await prepareMatchPresentation();
+    if (missing.length) showToast('Some artwork could not load.');
+    return true;
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+    matchArtButtonBusy = false;
+  }
+}
 document.addEventListener('load', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.naturalWidth){ const k = t.getAttribute('src'); if (k && k.startsWith('art/')) ART_READY.set(k, t); } }, true);
 function artReady(src){
   const im = ART_READY.get(src);

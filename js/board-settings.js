@@ -2,7 +2,7 @@
 /* ===== Board settings: the battle board's look (table view, card size, splay, impact, depth, zoom), saved per browser ===== */
 // Which version of the game this is: the artifact's publish number, bumped on every publish (shown in Board settings,
 // so a bug report can say which version it came from; the repo's commit message ends with the same number)
-const OASIS_BUILD = 'v92-engine-refactor';
+const OASIS_BUILD = 'v92-bazaar-midstroke-blot-preview';
 const LAB_DEF = {view:'table', tilt:15, size:'auto', splay:'now', stock:true, light:true, freeze:true, dust:true, squash:true, jolt:false, stopMs:85, power:1, thump:true, thumpPx:4, thumpMin:4, recoil:true, recoilPx:8, abWind:true, abStamp:true, abStop:true, tokPop:true, kwOverrun:true, kwLethal:true, shBlock:true, shStyle:'glint', shRim:true, inkMin:10, inkMax:25, zoom:115, morph:true, open:false};
 let LAB = {...LAB_DEF};
 try{ Object.assign(LAB, JSON.parse(localStorage.getItem('oasisBoard') || '{}')); }catch(e){}
@@ -151,7 +151,17 @@ addEventListener('click', e => {
 // the cube layer draws inside the tipped table, so cubes lie on the slanted cards
 window.__cubeFrame = () => LAB.view === 'table' ? document.querySelector('#view-play .stage .line.table') : null;
 // the table's camera, matching its CSS (perspective, tilt, transform origin), so the cube scene tips the same way
-window.__cubeTilt = () => labMatZones() ? {P:matDesk() ? 2100 : 1000, a:14 * Math.PI / 180, fx:.5, fy:1} : ({P:compact() ? 900 : 1500, a:(compact() ? LAB.tilt * .92 : LAB.tilt) * Math.PI / 180, fx:.5, fy:compact() ? .55 : .6});   // (the phone battle on the mat: the mat's own camera, css/11-rug.css)
+window.__cubeTilt = () => {
+  if (!labMatZones()) return {P:compact() ? 900 : 1500, a:(compact() ? LAB.tilt * .92 : LAB.tilt) * Math.PI / 180, fx:.5, fy:compact() ? .55 : .6};
+  const desk = matDesk(), line = desk && document.querySelector('#view-play .stage .line.matz');
+  const camera = {P:desk ? 2100 : 1000, a:14 * Math.PI / 180, fx:.5, fy:1};
+  if (line?.offsetWidth && line.offsetHeight){
+    const [x, y] = getComputedStyle(line).transformOrigin.split(' ').map(parseFloat);
+    camera.fx = x / line.offsetWidth;
+    camera.fy = y / line.offsetHeight;
+  }
+  return camera;
+};
 
 // switches
 const LAB_OPTS = [
@@ -210,16 +220,19 @@ addEventListener('resize', () => { if (compact() !== labWasCompact){ labWasCompa
 const labRevealed = f => f ? f.snap.map(sd => sd.deck[0] ? sd.deck[0].uid : null) : [null, null];
 // only: just these of its peeking cards (a token just gained); done: called once the last has landed
 // where a peeking card sits when it is tucked all the way behind its card (as {translate, rotate} keyframe values)
-function labTuckedAt(el, t, i){
-  const tky = parseFloat(getComputedStyle(el).getPropertyValue('--tky')) || 26, fan = LAB.splay === 'fanL' ? 1 : LAB.splay === 'fanR' ? -1 : 0;
+function labTuckedAt(t, i){
+  const fan = LAB.splay === 'fanL' ? 1 : LAB.splay === 'fanR' ? -1 : 0;
   const j = parseInt(t.style.getPropertyValue('--j')) || i;
-  return {translate:`${-t.offsetLeft}px ${-t.offsetTop + (fan ? tky * .55 * (j + 1) : 0)}px`, rotate:`${fan * 7 * (j + 1)}deg`};
+  const transform = fan && getComputedStyle(t).transform;
+  const matrix = transform && transform !== 'none' ? new DOMMatrix(transform) : null;
+  const spread = matrix ? Math.hypot(matrix.m41, matrix.m42) : 0;
+  return {translate:`${-t.offsetLeft}px ${-t.offsetTop + spread}px`, rotate:`${fan * 7 * (j + 1)}deg`};
 }
 function labSplayIn(el, delay, only, done){
   if (!el || reduceMotion()){ if (done) done(); return; }
   const tks = only || [...el.querySelectorAll(':scope > .tk')]; if (!tks.length){ if (done) done(); return; }
   tks.forEach((t, i) => {
-    const a = t.animate([labTuckedAt(el, t, i), {translate:'0px 0px', rotate:'0deg'}],
+    const a = t.animate([labTuckedAt(t, i), {translate:'0px 0px', rotate:'0deg'}],
       {duration:480, delay:delay + 80 * i, easing:'cubic-bezier(.2,.8,.3,1)', fill:'backwards'});
     if (done && i === tks.length - 1){ a.onfinish = a.oncancel = done; }
   });
@@ -232,7 +245,7 @@ function labSplayOut(el, delay){
   if (!el || reduceMotion()) return delay;
   const tks = [...el.querySelectorAll(':scope > .tk')]; if (!tks.length) return delay;
   const n = tks.length;
-  tks.forEach((t, i) => t.animate([{translate:'0px 0px', rotate:'0deg'}, labTuckedAt(el, t, i)],
+  tks.forEach((t, i) => t.animate([{translate:'0px 0px', rotate:'0deg'}, labTuckedAt(t, i)],
     {duration:LAB_TUCK, delay:delay + 60 * (n - 1 - i), easing:'cubic-bezier(.5,0,.6,1)', fill:'forwards'}));
   return delay + LAB_TUCK + 60 * (n - 1);
 }
@@ -302,15 +315,13 @@ function mKids(a, b){
 }
 function morphInto(el, html){ const t = document.createElement('template'); t.innerHTML = html; mKids(el, t.content); }
 /* ---- the clash: both charging units rush at each other, collide at the middle, and spring back (like Hearthstone).
-   Impact options (lab switches): a brief freeze, a dust puff, a squash, a knock-back jolt. Returns when the hit lands. */
+   Impact options (lab switches): a brief freeze, a dust puff, a squash, a knock-back jolt. */
 function labClash(root){
   const a = root.querySelector('.charge .card[data-side="1"]'), b = root.querySelector('.charge .card[data-side="0"]');
-  if (!a || !b || !a.animate){ for (const [el, s] of [[a, 1], [b, 0]]) if (el) el.classList.add('lunge' + s); return 190; }
+  if (!a || !b || !a.animate){ for (const [el, s] of [[a, 1], [b, 0]]) if (el) el.classList.add('lunge' + s); return {hitAt:190, hold:0, recoil:260}; }
   const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
-  // they meet where they really touch: the top of whatever is tucked behind the near card (its copies and tokens peek
-  // up toward the far one), not its face
-  const edge = (el, r, up) => [...el.querySelectorAll(':scope > .tk')].reduce((m, t) => { const q = t.getBoundingClientRect(); return up ? Math.min(m, q.top) : Math.max(m, q.bottom); }, up ? r.top : r.bottom);
-  const gap = Math.max(0, edge(b, rb, true) - edge(a, ra, false)), meet = gap / 2 + 2;   // each travels half the gap, overlapping a touch
+  // The faces meet over the tucked attachments and cover the impact stroke until they recoil.
+  const gap = Math.max(0, rb.top - ra.bottom), meet = gap / 2 + 2;
   const pw = LAB.power ?? 1, wind = 130, rush = 110, hold = LAB.freeze ? (LAB.stopMs ?? 85) : 0, back = 300, T = wind + rush + hold + back, hitT = wind + rush;
   const o = x => +(x / T).toFixed(4);
   for (const [el, r, dir] of [[a, ra, 1], [b, rb, -1]]){
@@ -331,8 +342,8 @@ function labClash(root){
     an.onfinish = an.oncancel = () => { el.style.transformOrigin = ''; el.style.zIndex = prevZ; if (tz){ tz.style.zIndex = ''; tz.style.position = ''; } };
   }
   try{ window.OasisCubes && OasisCubes.afterRender(); }catch(e){}   // the cube layer keeps drawing while the cards move
-  if (LAB.dust) setTimeout(() => labDust((ra.left + ra.right + rb.left + rb.right) / 4, (edge(a, ra, false) + edge(b, rb, true)) / 2, (ra.width + rb.width) / 2), hitT);
-  return hitT;
+  if (LAB.dust) setTimeout(() => labDust((ra.left + ra.right + rb.left + rb.right) / 4, (ra.bottom + rb.top) / 2, (ra.width + rb.width) / 2), hitT);
+  return {hitAt:hitT, hold, recoil:back};
 }
 // a puff of sand where the cards meet: grains thrown out mostly sideways along the table, and a soft cloud
 function labDust(x, y, w){
@@ -515,7 +526,7 @@ function juiceKeywords(root, next, prev, hits){
     juiceFollow(400);
   }
   if (LAB.shBlock) for (const l of next.lines){
-    if (!(l.to && l.from && !l.tok && !l.sil && !l.cut && l.amt === 0)) continue;   // a Shield stops this hit
+    if (!(l.to && battleShieldBlock(l))) continue;
     const card = juiceCard(`${l.to}`) || root.querySelector(`.card[data-uid$="-${l.to}"]:not(.mini)`); if (!card) continue;
     const tok = card.querySelector(':scope > .pk[data-k="sh"]');
     if (tok) tok.animate([{translate:'0 0'}, {translate:`0 ${-5 * pw}px`, offset:.2}, {translate:`0 ${1.5 * pw}px`, offset:.55}, {translate:'0 0'}], {duration:juiceSp(260), easing:'ease-out', composite:'add'});
@@ -590,5 +601,15 @@ function labPrep(){
   labPrepH = window.requestIdleCallback ? requestIdleCallback(run, {timeout:1200}) : setTimeout(run, 300);
 }
 addEventListener('load', () => setTimeout(() => labApply(false), 50));
-// get the cube graphics and physics ready while the page settles, so the first drop doesn't stall
-addEventListener('load', () => setTimeout(() => { try{ window.OasisCubes && OasisCubes.warm && OasisCubes.warm(); }catch(e){} }, 1200));
+// Compile the battle renderer during match loading. It can block the main thread, so never run it on a page-load timer.
+let battleCubeWarmup;
+function prepareBattleCubes(){
+  const cubes = window.OasisCubes;
+  if (!cubes?.ok || !cubes.warm) return;
+  return battleCubeWarmup ??= new Promise(resolve => {
+    setTimeout(() => {
+      try { cubes.warm(); } catch(e) {}
+      resolve();
+    }, 0);
+  });
+}

@@ -86,12 +86,11 @@
 .mzc.mz-press>.mzface{filter:brightness(.95)}
 .mzc.mz-lift{transform:scale(1.04);transition:transform .12s ease-out;z-index:5}
 .mz .mz-gone{display:none!important}
-.mz .mz-src{opacity:.35}
+.mz .mz-src{visibility:hidden}
 /* where a dragged unit will land */
 .mzc.mzslot{border:2px dashed var(--azure);background:color-mix(in srgb, var(--azure) 10%, var(--surface));box-sizing:border-box;cursor:grabbing}
 .mzstack:has(>.mzslot)>.mzempty{display:none}
 .mzc.mz-ok>.mzface{filter:drop-shadow(0 0 1.5px var(--azure)) drop-shadow(0 0 1.5px var(--azure))}
-.mzc.mz-no>.mzface,.mzc.mz-self>.mzface{opacity:.5}
 .mzc.mz-over>.mzface{filter:drop-shadow(0 0 2px var(--or)) drop-shadow(0 0 3px var(--or))}
 .mz-bench.mz-over{outline:2px dashed var(--azure);outline-offset:-5px}
 .mzghostwrap{position:fixed;z-index:80;margin:0;pointer-events:none}

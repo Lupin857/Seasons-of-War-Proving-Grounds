@@ -74,9 +74,10 @@ html body .stage .line.table.matz .city.s1{margin-bottom:-4px!important} html bo
 html body .stage .line.table.matbat .chz .tzc .card,html body .stage .line.table.matbat .citycard,html body .stage .line.table.matbat .grz .tzc>*{visibility:hidden}
 /* the phone battle on the mat uses the mat's own camera (css/12-mat-shop.css .osshop: 1000 px away, tipped 14° from
    its bottom edge), so a card looks the same on the mat and on the board (__cubeTilt follows) */
-html body.lab-v-table.os-mat .line.table.matz{transform:perspective(var(--matP, 1000px)) rotateX(14deg)!important;transform-origin:50% 100%!important}   /* --matP: 2100px on the desktop mat (css/12-mat-shop.css), as __cubeTilt and matBatTip read it */
+html body.lab-v-table.os-mat .line.table.matz{transform:perspective(var(--matP, 1000px)) rotateX(14deg)!important;transform-origin:var(--battle-pivot,50% 100%)!important}
 /* (the pinned mat is only a picture for the camera move: the page keeps scrolling as the battle needs, top bar stuck) */
-html:has(#view-play > .matbatcam),body:has(#view-play > .matbatcam){overflow:visible!important}
+html:has(body:not(.os-deskbat) #view-play > .matbatcam),body:not(.os-deskbat):has(#view-play > .matbatcam){overflow:visible!important}
+html:has(body.os-deskbat #view-play:not([hidden])){overflow:hidden}
 /* the camera's frame: the screen, clipping what it holds (contain:paint makes it the box its fixed children sit in) */
 #view-play > .matbatcam{position:fixed;inset:0;overflow:hidden;contain:paint;z-index:9;pointer-events:none}
 

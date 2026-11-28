@@ -68,12 +68,12 @@ function miniHTML(u, rside, k){
 }
 // The table: the AI sits across from you (its row is rotated: graveyard, charge, then its deck on the far side),
 // you sit at the bottom (your deck, charge, graveyard). Charges meet in the middle.
-// Shields used up in a step: the frame's snapshot no longer has them, but the step still draws them (the blocked arrow
-// points at the shield), and they break when you move to the next step. Keyed by unit id, the count blocked.
+// Shields used up in a step stay visible until the player moves on.
 let SHHIT = null;
+const battleShieldBlock = l => l.amt === 0 && /'s Shield blocks /.test(l.t || '');
 function shieldHits(f){
   const m = new Map();
-  for (const l of (f && f.lines) || []) if (l.to && !l.tok && !l.sil && !l.cut && l.amt === 0) m.set(l.to, (m.get(l.to) || 0) + 1);
+  for (const l of (f && f.lines) || []) if (l.to && battleShieldBlock(l)) m.set(l.to, (m.get(l.to) || 0) + 1);
   return m;
 }
 function lineHTML(f, names){

@@ -46,9 +46,12 @@ function matSeatHTML(i, mode = 'shop'){
   const cap = citySlots(p), spots = Math.max(cap, car.length);
   const fw = matWaitN(i, 'Field'), fields = car.filter(c => c[0] === 'Field').length;
   const hid = (n, k) => (n === 'Field' ? k >= car.length - fw && k >= car.length - fields : matWaitN(i, n) > 0) ? ' style="visibility:hidden"' : '';
-  const carHTML = Array.from({length:spots}, (_, k) => car[k]
-    ? `<div class="mcard b oscar" data-b="${esc(car[k][0])}"${hid(car[k][0], k)}>${cardFace(car[k][0], 'b', car[k][1], true)}${sell(car[k][0], 'b')}</div>`
-    : `<span class="osslot" aria-hidden="true"></span>`).join('');
+  const carHTML = Array.from({length:spots}, (_, k) => {
+    if (!car[k]) return '<span class="osslot" aria-hidden="true"></span>';
+    const [name, count] = car[k];
+    const html = `<div class="mcard b oscar" data-b="${esc(name)}"${hid(name, k)}>${cardFace(name, 'b', count, true)}${sell(name, 'b')}</div>`;
+    return desk ? `<div class="oscar-stock">${html}</div>` : html;
+  }).join('');
   let rest = '';
   if (deckOn){
     const copies = Object.values(hand).reduce((t, c) => t + Math.max(0, c), 0), top = matPileTop(p, hand);
@@ -66,38 +69,72 @@ function matSeatHTML(i, mode = 'shop'){
   }
   const act = mode === 'shop' && G.phase === 'shop' && !G.passed[i] && cur(G) === i;   // whose turn it is: their bar glows
   const side = desk ? `<span class="osside" aria-hidden="true">${PP() || G.net ? esc(nm(i)) : mine ? 'You' : 'Enemy'}</span>` : '';
-  if (strip) rest = `<i class="osbardiv" aria-hidden="true"></i>${matDeskPilesHTML(i, hand, 'battle')}${matPurseHTML(i)}`;
+  if (strip) rest = `<i class="osbardiv" aria-hidden="true"></i>${mine ? matBattleBenchHTML() : ''}${matDeskPilesHTML(i, hand, 'battle')}${matPurseHTML(i)}`;
   return `<section class="osseat ${strip ? 'osrow osstrip' : desk ? 'osrow' : 'osbar'} ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" aria-label="${who} side${act ? ', shopping now' : ''}">
     ${side}<div class="fcards oscarrow" style="--n:${spots}" aria-label="${who} Caravan, ${slotsUsed(p)} of ${cap}">${carHTML}</div>${rest}
   </section>`;
 }
-/* Desktop row (Oasis desktop shop brief): after the Caravan, the deck pile (units and gear from before this shop), the
-   "Bought this shop" pile (units and gear bought this shop, with the buys left; supports go straight into the
-   Caravan), the Miracles pile, then the water. Each pile: the top card face up, the copies as edges under it, a tag. */
-function matDeskPilesHTML(i, hand, mode = 'shop'){
-  const S = seat(), mine = i === S, p = G.players[i], gear = p.gear || {}, got = (G.shopBought && G.shopBought[i]) || [];
-  const isGear = n => !!(BDEFS[n] && BDEFS[n].gear), kindOf = n => DEFS[n] ? 'u' : 'b';
+// Inventory before and during this Shop. Keeping a chronological list also distinguishes prior copies of a
+// card from a new copy with the same name when choosing the top of the deck.
+function matDeskInventory(i, hand){
+  const p = G.players[i], gear = p.gear || {}, got = G.shopBought?.[i] || [];
   const bought = {}; for (const n of got) if (DEFS[n] || isGear(n)) bought[n] = (bought[n] || 0) + 1;
   const deck = {}, nb = {};
   for (const n in hand) if (hand[n] > 0) deck[n] = hand[n];
   for (const n in gear) if (gear[n] > 0) deck[n] = (deck[n] || 0) + gear[n];
   for (const n in bought){ const k = Math.min(bought[n], deck[n] || 0); if (k > 0){ nb[n] = k; deck[n] -= k; if (!deck[n]) delete deck[n]; } }
+  const remaining = {...deck}, history = p.bought || [], recent = [];
+  for (let j = history.length - 1; j >= 0; j--){
+    const n = history[j];
+    if (bought[n] > 0){ bought[n]--; continue; }
+    if (remaining[n] > 0){ remaining[n]--; recent.push(n); }
+  }
+  const initial = Object.entries(remaining).flatMap(([n, count]) => Array(count).fill(n));
+  const pending = {...nb}, purchases = [];
+  for (let j = got.length - 1; j >= 0; j--){
+    const n = got[j];
+    if (pending[n] > 0){ pending[n]--; purchases.push(n); }
+  }
+  return {deck, purchases:matShopPileOrder(i, 'bought', purchases.reverse()),
+    order:matShopPileOrder(i, 'deck', initial.concat(recent.reverse()))};
+}
+function matShopPileOrder(i, pile, cards){
+  const saved = ui.shopPileOrder?.[i]?.[pile];
+  if (!saved || (pile === 'bought' && saved.round !== G.round)) return cards;
+  const remaining = [...cards], order = [];
+  for (const name of saved.cards){
+    const next = remaining.indexOf(name);
+    if (next >= 0) order.push(...remaining.splice(next, 1));
+  }
+  return order.concat(remaining);
+}
+/* Desktop row: the deck (from before this Shop), this Shop's purchases, Miracles, and water. */
+function matDeskPilesHTML(i, hand, mode = 'shop'){
+  const S = seat(), mine = i === S, p = G.players[i], gear = p.gear || {}, kindOf = n => DEFS[n] ? 'u' : 'b';
+  const {deck, purchases, order} = matDeskInventory(i, hand);
   const count = o => Object.values(o).reduce((t, c) => t + c, 0);
-  const edges = n => Array.from({length:Math.min(3, Math.max(0, n - 1))}, (_, k) => `<i class="osedge" style="--k:${k + 1}"></i>`).join('');
+  const edges = (n, faceDown = false) => Array.from({length:Math.min(3, Math.max(0, n - 1))}, (_, k) =>
+    `<i class="osedge${faceDown ? ' oback' : ''}" style="--k:${k + 1}" aria-hidden="true"></i>`).join('');
   const canSell = mine && G.phase === 'shop' && !ui.battle && cur(G) === S && !G.passed[S];   // (its Sell button is pressed by a drag to the discard)
   // (the deck pile is itself a button, and a button can't hold another: there the Sell control is a span with the same data-act)
   const sellCtl = (n, inBtn) => { const h = canSell ? shopSellBtnHTML(n, kindOf(n)) : ''; return inBtn ? h.replace(/<button\b/g, '<span').replace(/<\/button>/g, '</span>') : h; };
-  const top = (n, hide, inBtn) => `<span class="mcard ${kindOf(n)} ostop"${hide ? ' style="visibility:hidden"' : ''}>${cardFace(n, kindOf(n), kindOf(n) === 'u' ? (hand[n] || 1) : gear[n] || 1, true)}${sellCtl(n, inBtn)}</span>`;
-  // the deck pile: the most recently bought card on top, as on the phone
-  const dn = count(deck), du = Object.keys(deck).filter(n => DEFS[n]).reduce((t, n) => t + deck[n], 0), dtop = matPileTop(p, deck);
+  const face = n => cardFace(n, kindOf(n), kindOf(n) === 'u' ? (hand[n] || 1) : gear[n] || 1, true);
+  const top = (n, hide, inBtn) =>
+    `<span class="mcard ${kindOf(n)} ostop"${hide ? ' style="visibility:hidden"' : ''}>${face(n)}${sellCtl(n, inBtn)}</span>`;
+  const layers = cards => cards.slice(-4, -1).reverse().map((n, k) =>
+    `<span class="mcard ${kindOf(n)} osedge oslayer" style="--k:${k + 1}" aria-hidden="true">${face(n)}</span>`).join('');
+  // The newest card from an earlier Shop is on top.
+  const dn = count(deck), du = Object.keys(deck).filter(n => DEFS[n]).reduce((t, n) => t + deck[n], 0), dtop = order.at(-1);
   const dtag = dn ? `Deck · ${du} unit${du === 1 ? '' : 's'}${dn - du ? ` + ${dn - du} gear` : ''}` : 'Deck';
   const deckPile = `<button type="button" class="ospile osdeck deckbtn s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: ${esc(dtag)}, units ${uniqueUnits(hand === p.hand ? p : {...p, hand})} of ${deckCap(p)}, click to view">
-    ${edges(dn)}${dtop ? top(dtop, false, true) : '<span class="osslot" aria-hidden="true"></span>'}<span class="ostag">${esc(dtag)}</span></button>`;
+    <span class="ospile-stock">${edges(dn, true)}${dtop ? top(dtop, false, true) : '<span class="osslot" aria-hidden="true"></span>'}</span><span class="ostag">${esc(dtag)}</span></button>`;
   // bought this shop: the latest buy on top (it hides while a rival's buy is still on its way to it)
-  const bn = count(nb), btop = got.filter(n => nb[n]).pop() || null, b = G.buys && G.buys[i], left = b ? Math.max(0, baseLeft(b)) : 0, of = b ? buysOf(b) : 3;
+  const bn = purchases.length, btop = purchases.at(-1), b = G.buys && G.buys[i], left = b ? Math.max(0, baseLeft(b)) : 0, of = b ? buysOf(b) : 3;
   const bhide = btop && (matWaitN(i, 'pile') || matWaitN(i, btop));
-  const boughtPile = `<div class="ospile osbought s${VS(i)}" aria-label="Bought this shop: ${bn} card${bn === 1 ? '' : 's'}, ${left} of ${of} buys left">
-    ${edges(bn)}${btop ? top(btop, bhide) : '<span class="osslot" aria-hidden="true"></span>'}<span class="ostag osgold">Bought this shop<br>${left}/${of} buys left</span></div>`;
+  const pileTag = mine ? 'button' : 'div';
+  const pileAction = mine ? ` type="button" data-act="deck-open" data-p="${i}" aria-haspopup="dialog"` : '';
+  const boughtPile = `<${pileTag} class="ospile osbought s${VS(i)}"${pileAction} aria-label="Bought this shop: ${bn} card${bn === 1 ? '' : 's'}, ${left} of ${of} buys left">
+    <span class="ospile-stock">${layers(purchases)}${btop ? top(btop, bhide, mine) : '<span class="osslot" aria-hidden="true"></span>'}</span><span class="ostag osgold">Bought this shop<br>${left}/${of} buys left</span></${pileTag}>`;
   // Miracles: face down with the count (yours opens the miracles tray, as the phone's Miracles button does)
   let mir = '';
   // Mobilize: both decks are lifted off the mat (the bought pile joined the deck at the end of the shop)
@@ -114,13 +151,24 @@ function matDeskPilesHTML(i, hand, mode = 'shop'){
 }
 // renderPlay's step: the bars (and the mat between them) start right where the top bar ends on screen (--gtb), so the
 // rival's bar is at the same place in every phase whatever the page's scroll (the battle can scroll a little)
-function matBarsAfterDraw(){
+const MATDESK_BOUNDS = new WeakMap();
+function matBarsAfterDraw(geometryOnly = false){
   const desk = document.querySelector('#view-play .osshop.osdesk');
   if (!document.querySelector('#view-play .osbar') && !desk) return;
   if (window.scrollY && !matBarsAfterDraw.busy){ matBarsAfterDraw.busy = true; window.scrollTo(0, 0); matBarsAfterDraw.busy = false; }   // the page sits at its top in every phase on the mat, so nothing shifts between them
   const g = $('gtop'), b = g && g.offsetHeight ? Math.round(g.getBoundingClientRect().bottom) : null;
   if (b != null && document.documentElement.style.getPropertyValue('--gtb') !== b + 'px') document.documentElement.style.setProperty('--gtb', b + 'px');
-  if (desk){ if (g && !MATBARS_SEEN.has(g)){ MATBARS_SEEN.add(g); MATBARS_RO.observe(g, {box:'border-box'}); } if (MATHOV.card && !MATHOV.card.isConnected) matHoverEnd(true); matFitDesk(desk); matDeskMobLayout(); matShopInspectCards(desk); return; }
+  if (desk){
+    if (g && !MATBARS_SEEN.has(g)){ MATBARS_SEEN.add(g); MATBARS_RO.observe(g, {box:'border-box'}); }
+    const box = desk.getBoundingClientRect(), previous = MATDESK_BOUNDS.get(desk);
+    if (geometryOnly && previous && box.top === previous.top && box.left === previous.left &&
+        box.width === previous.width && box.height === previous.height) return;
+    MATDESK_BOUNDS.set(desk, box);
+    matFitDesk(desk, box);
+    matDeskMobLayout();
+    if (!geometryOnly) matShopInspectCards(desk);
+    return;
+  }
   // your bar sits on the dock's real top edge: measured, so the home-bar padding or a dock that grows after the
   // first draw (fonts, a second row) can never cover it (Brian's iPhone, v89)
   const dk = $('dock'), dh = dk && dk.offsetHeight ? Math.max(0, Math.round(window.innerHeight - dk.getBoundingClientRect().top)) : null;
@@ -151,26 +199,82 @@ function matFitMat(){
 }
 // desktop: the card width (--mw) that fits the whole mat (both rows and the trays) in the window, in its tilt, rows
 // anchored to the bottom; about 173 px at 1920x1080 (the mock-up). Searched on screen, so the tilt is included.
-function matFitDesk(shop){
+function matFitDesk(shop, box = shop.getBoundingClientRect()){
   const inner = shop.querySelector('.osinner'); if (!inner) return;
-  const box = shop.getBoundingClientRect();
-  const fits = () => { for (const c of inner.children){ const r = c.getBoundingClientRect(); if (r.height && (r.top < box.top || r.left < box.left || r.right > box.right)) return false; } return true; };
-  let lo = 60, hi = 320;
-  for (let i = 0; i < 10 && hi - lo > 0.5; i++){ const m = (lo + hi) / 2; shop.style.setProperty('--mw', m + 'px'); if (fits()) lo = m; else hi = m; }
-  const mw = Math.floor(lo * 10) / 10 + 'px';
+  for (const key of ['--shop-middle-offset', '--caravan-far-y', '--caravan-far-x']) shop.style.removeProperty(key);
+  const fits = width => {
+    shop.style.setProperty('--mw', width + 'px');
+    for (const c of inner.children){
+      const r = c.getBoundingClientRect();
+      if (r.height && (r.top < box.top || r.bottom > box.bottom || r.left < box.left || r.right > box.right)) return false;
+    }
+    return true;
+  };
+  // Search exact tenths of a pixel so a second draw cannot creep toward a wider fit.
+  let lo = 600, hi = 3201;
+  const previous = Math.round(parseFloat(document.documentElement.style.getPropertyValue('--deskmw')) * 10);
+  if (previous >= lo && previous < hi){
+    if (fits(previous / 10)){
+      lo = previous;
+      if (previous < 3200 && fits((previous + 1) / 10)) lo++;
+      else hi = previous + 1;
+    } else hi = previous;
+  }
+  while (hi - lo > 1){
+    const middle = Math.floor((lo + hi) / 2);
+    if (fits(middle / 10)) lo = middle; else hi = middle;
+  }
+  const mw = lo / 10 + 'px';
   shop.style.setProperty('--mw', mw); document.documentElement.style.setProperty('--deskmw', mw);   // (the battle's Caravan strips keep this size)
+  const market = inner.querySelector('.osmkt');
+  const farRow = inner.querySelector('.osseat.opp .oscarrow'), nearRow = inner.querySelector('.osseat.me .oscarrow');
+  const camera = matTiltOf();
+  if (market && farRow && nearRow && camera){
+    const radians = camera.t * Math.PI / 180;
+    const unproject = y => (y - camera.oy) /
+      (Math.cos(radians) + (y - camera.oy) * Math.sin(radians) / camera.d);
+    const flat = matFlatRects(inner.parentElement, [farRow, nearRow]);
+    const near = nearRow.getBoundingClientRect(), farY = farRow.getBoundingClientRect().top;
+    const targetTop = box.top + (box.bottom - near.bottom);
+    shop.style.setProperty('--caravan-far-y', unproject(targetTop) - unproject(farY) + 'px');
+    shop.style.setProperty('--caravan-far-x', flat.get(nearRow).left - flat.get(farRow).left + 'px');
+    const far = farRow.getBoundingClientRect(), r = market.getBoundingClientRect();
+    const middle = (r.top + r.bottom) / 2, target = (far.bottom + near.top) / 2;
+    const min = unproject(far.bottom) - unproject(r.top), max = unproject(near.top) - unproject(r.bottom);
+    const offset = Math.max(min, Math.min(max, unproject(target) - unproject(middle)));
+    shop.style.setProperty('--shop-middle-offset', offset + 'px');
+    const rug = market.querySelector('.osbazaar');
+    if (rug){
+      const centered = market.getBoundingClientRect();
+      const farTags = [...farRow.closest('.osseat').querySelectorAll('.ospile > .ostag')];
+      const nearTags = [...nearRow.closest('.osseat').querySelectorAll('.ospile > .ostag')];
+      const clearance = Math.max(12,
+        ...farTags.map(tag => tag.getBoundingClientRect().bottom - far.bottom + 6),
+        ...nearTags.map(tag => near.top - tag.getBoundingClientRect().top + 6));
+      const gap = Math.max(0, Math.min(clearance, centered.top - far.bottom, near.top - centered.bottom));
+      rug.style.setProperty('--rug-top', unproject(far.bottom + gap) - unproject(centered.top) + 'px');
+      rug.style.setProperty('--rug-bottom', unproject(centered.bottom) - unproject(near.top - gap) + 'px');
+    }
+  }
+  const discard = inner.querySelector('.osdisc')?.getBoundingClientRect();
+  if (discard){
+    const style = document.documentElement.style;
+    style.setProperty('--desk-score-x', Math.max(106, Math.min(innerWidth - 106, discard.left + discard.width / 2)) + 'px');
+    style.setProperty('--desk-score-y', Math.max(48, discard.top - 12) + 'px');
+  }
+  bazaarFitRug(shop);
   const mob = document.querySelector('#view-play .osdeskmob'); if (mob) mob.style.setProperty('--mw', mw);   // Mobilize's cards are the board's size
 }
 const MATBARS_SEEN = new WeakSet();
 const matBarsHere = () => !!document.querySelector('#view-play :is(.osbar, .osshop.osdesk)');
-const MATBARS_RO = new ResizeObserver(() => { if (matBarsHere()) matBarsAfterDraw(); });
-window.addEventListener('scroll', () => { if (matBarsHere()) matBarsAfterDraw(); }, {passive:true});
-for (const t of [window, window.visualViewport]) if (t) t.addEventListener('resize', () => { if (matBarsHere()) matBarsAfterDraw(); });
+const MATBARS_RO = new ResizeObserver(() => { if (matBarsHere()) matBarsAfterDraw(true); });
+window.addEventListener('scroll', () => { if (matBarsHere()) matBarsAfterDraw(true); }, {passive:true});
+for (const t of [window, window.visualViewport]) if (t) t.addEventListener('resize', () => { if (matBarsHere()) matBarsAfterDraw(true); });
 // the two trays and the discard pile between them (deck: the tray's shop deck, row: its market row)
 // side (desktop): the discard pile and Pass go in a column right of the trays instead
-function matTraysHTML(deck, row, extra, side){
-  const disc = `<div class="osdisc">${musterPileHTML()}</div>`;
-  return `<div class="osmid"><div class="mktp osmkt">${extra[0] || ''}
+function matTraysHTML(deck, row, extra, side, bazaar = false){
+  const disc = `<div class="osdisc">${musterPileHTML(bazaar)}</div>`;
+  return `<div class="osmid"><div class="mktp osmkt">${bazaar ? '<div class="osbazaar" aria-hidden="true"></div>' : ''}${extra[0] || ''}
       <div class="ostray" data-k="u">${deck('u')}<div class="msec" data-k="u"><span class="oslbl">Units</span><div class="market">${row('u', 'du')}</div></div></div>
       ${side ? '' : disc}
       <div class="ostray" data-k="b">${deck('b')}<div class="msec" data-k="b"><span class="oslbl">Support &amp; gear</span><div class="market">${row('b', 'db')}</div></div></div>
@@ -182,7 +286,7 @@ function matShopHTML(){
   // desktop: both rows and the trays on one tilted mat, the discard and Pass on the right, no bottom bar
   if (matDesk()) return `<div class="osshop osdesk"><div class="osplane"><div class="osinner">
     ${matSeatHTML(1 - S)}
-    ${matTraysHTML(k => deckPileHTML(k, false, true), marketRow, [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${shopActsHTML()}</div>`)}
+    ${matTraysHTML(k => deckPileHTML(k, false, true), (k, src) => marketRow(k, src, true), [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${shopActsHTML()}</div>`, true)}
     ${matSeatHTML(S)}
   </div></div></div>
   ${mirTrayHTML()}${mirModalHTML()}`;
@@ -208,13 +312,16 @@ function matDockHTML(mine, mirBtn, acts){
    matLiftOpen / matLiftClose; the bottom sheet stays for everything else. */
 const MATLIFT = {src:null, ck:null, held:null};
 const MAT_EASE = 'cubic-bezier(.45,.05,.25,1)';
-function matLiftWanted(card){ return (matShopOn() && !!card.closest('#view-play .osshop')) || (matMobOn() && !!card.closest('#view-play .osmob')) || (compact() && !!card.closest('#view-play .osbar')); }
+function matDeskPileCard(card){
+  return matDesk() && matShopOn() && card.matches('#view-play :is(.osdeckfan-card, .pkwin :is(.pkgrid,.dsheet .fcards) .mcard)');
+}
+function matLiftWanted(card){ return matDeskPileCard(card) || (matShopOn() && !!card.closest('#view-play .osshop')) || (matMobOn() && !!card.closest('#view-play .osmob')) || (compact() && !!card.closest('#view-play .osbar')); }
 // where a lifted card starts and ends: a mat card in the tilt (its flat rect), a Mobilize card flat where it lies;
 // crop: it sits cropped there (mat cards, the bench), so the crop opens as it lifts
 function matLiftFrom(el){
   if (!el || !el.isConnected) return null;
   if (el.closest('.osplane')){ const pose = matPoseOf(el); return pose && {...pose, crop:compact()}; }
-  if (el.closest('.osdeskmob')) return matPoseOf(el);
+  if (el.closest('.osdeskmob,.osdeckfan')) return matPoseOf(el);
   return {r:el.getBoundingClientRect(), tilt:0, crop:compact() && !el.closest('#mz-deck')};
 }
 // the card that was lifted, as it is on the page now (a redraw may have replaced its element)
@@ -223,7 +330,16 @@ function matLiftSrc(){
   if (c && c.isConnected) return c;
   return MATLIFT.ck ? ckEl(MATLIFT.ck) : null;
 }
-function matLiftShow(){ document.querySelectorAll('.oslifted').forEach(e => e.classList.remove('oslifted')); MATLIFT.src = null; MATLIFT.ck = null; }
+function matLiftShow(){
+  document.querySelectorAll('.oslifted').forEach(e => e.classList.remove('oslifted'));
+  MATLIFT.src = null; MATLIFT.ck = null;
+  matRefreshShopFan();
+  if (MATMOB.layoutPending && !MATMOB.busy && !mzP) matDeskMobLayout();
+}
+function matLiftDone(owner){
+  if (MATLIFT.src === owner) matLiftShow();
+  else owner?.classList.remove('oslifted');
+}
 // The mat's projection in screen coordinates: .osshop's perspective and .osplane's tilt both pivot on the shop's
 // bottom middle, so one matrix takes a point on the flat mat to where it shows.
 // a: how much of the tilt (1 = the mat's own; less = part way out of it, as a card lifts off). q: matTiltOf() taken once.
@@ -240,23 +356,25 @@ function matTiltMatrix(a = 1, q = matTiltOf()){
 /* One flight as keyframes, for an element with layout box b (origin top left): from end A to end B along one smooth
    arc (a curve bowed up by o.arc px, so the card never changes speed or direction with a jerk). An end is {r, tilt}: r is
    the rect the box sits on (left, top, width), tilt 1 means r is a flat mat spot and the box lies in the mat's tilt
-   there (matPose), 0 flat on the screen. The tilt comes off (or on) over the half of the flight nearest the mat.
+   there (matPose), 0 flat on the screen. The tilt comes off (or on) over the half of the flight nearest the mat,
+   or through the full flight when o.levelThroughout is set.
    o.bump: the card grows by that much of its size at the top of the arc. The last step is exactly the end.
    Both ends on the mat (tilt 1 and 1): the card slides across the mat in its tilt all the way (the sweep, a card dealt back).
    An end may also be turned: rot, in degrees about the card's centre (a card in a fan, matFanPoses); the turn eases
    from one end's to the other's. The box b must then have its height. */
 const MAT_STEPS = 24;
 function matArc(b, A, B, o = {}){
-  const q = matTiltOf(); if (!q) return null;
+  const q = o.projection || matTiltOf(); if (!q) return null;
   const ax = A.r.left, ay = A.r.top, bx = B.r.left, by = B.r.top, aw = A.r.width, bw = B.r.width;
   const cx = (ax + bx) / 2, cy = (ay + by) / 2 - 2 * (o.arc ?? 50);
   const sm = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
   const out = [];
   for (let k = 0; k <= MAT_STEPS; k++){
-    const u = k / MAT_STEPS, v = 1 - u;
+    const progress = k / MAT_STEPS, u = o.easeTravel ? sm(progress) : progress, v = 1 - u;
     const x = v * v * ax + 2 * v * u * cx + u * u * bx, y = v * v * ay + 2 * v * u * cy + u * u * by;
     const w = aw + (bw - aw) * u + (o.bump || 0) * Math.sin(Math.PI * u) * Math.max(aw, bw);
-    const a = A.tilt && B.tilt ? 1 : A.tilt ? 1 - sm(u / .5) : B.tilt ? sm((u - .5) / .5) : 0;   // both on the mat: the whole flight stays in the tilt
+    const a = o.levelThroughout ? A.tilt + (B.tilt - A.tilt) * sm(u)
+      : A.tilt && B.tilt ? 1 : A.tilt ? 1 - sm(u / .5) : B.tilt ? sm((u - .5) / .5) : 0;
     let m = new DOMMatrix().translate(-b.left, -b.top).multiply(matTiltMatrix(a, q)).translate(x, y).scale(w / b.width);
     if (A.rot || B.rot){ const r = (A.rot || 0) + ((B.rot || 0) - (A.rot || 0)) * sm(u); m = m.translate(b.width / 2, b.height / 2).rotate(r).translate(-b.width / 2, -b.height / 2); }
     out.push({transform:m.toString()});
@@ -270,6 +388,13 @@ function matFlatRect(el){
   const r = el.getBoundingClientRect();
   plane.style.transform = t;
   return r;
+}
+// Read a whole batch in the flat plane before restoring its tilt.
+function matFlatRects(plane, elements){
+  const transform = plane.style.transform;
+  plane.style.transform = 'scale(calc(1 / var(--osres)))';
+  try { return new Map([...new Set(elements.filter(Boolean))].map(el => [el, el.getBoundingClientRect()])); }
+  finally { plane.style.transform = transform; }
 }
 // where an element sits for a flight: on the mat, its flat rect in the tilt (tilt 1); in a bar, its rect on the screen (tilt 0)
 function matSpotRect(el){
@@ -288,14 +413,25 @@ const MAT_CROP = 728 / 750;   // the crop's height for its width (the phone card
    fixed shape, the crop's bottom (tab and all) with the top running far up, and pk slides down by t while each of its
    children slides back up by t (the translate property, which the graphics chip moves on its own), so the cards
    stay put and only the window's bottom edge moves: t = 0 is the crop, t = open shows the whole card and what is under
-   it. The card's own rounded top corners match the crop's. pk must sit inside the box that carries the move (.osfly).
+   it. The downward crop lets the art follow the window so the printed bottom edge keeps its table position.
+   The card's own rounded top corners match the crop's. pk sits inside the box that carries the move (.osfly).
    keys: [[offset, 'crop' | 'open'], ...]. Returns {anims, done}: done() drops the clip (call it as the move ends). */
 const MAT_TABTOP = .89354;   // where the crop's bottom corners start, of its height (from the #tabclip path)
-function matCrop(pk, keys, opt){
-  if (!compact()) return {anims:[], done:() => {}};   // desktop mat: full cards, nothing to crop (a card just unflattens)
-  const face = pk.querySelector(':scope > .cface'), d = (document.querySelector('#tabclip path') || {getAttribute:() => null}).getAttribute('d');
+// Measure fractional card dimensions for the desktop handoff. The crop and the live strip share this anchor.
+function matCropMetrics(pk){
+  const face = pk.querySelector(':scope > .cface') || pk;
+  const css = getComputedStyle(face);
+  const width = parseFloat(css.width) || face.offsetWidth, height = parseFloat(css.height) || face.offsetHeight;
+  return {width, height, drop:Math.max(0, height - width * MAT_CROP)};
+}
+function matCrop(pk, keys, opt, direction){
+  if (!compact() && !direction) return {anims:[], done:() => {}};
+  const art = pk.querySelector(':scope > .cface'), face = art || (direction ? pk : null);
+  const d = document.querySelector('#tabclip path')?.getAttribute('d');
   if (!face || !d) return {anims:[], done:() => {}};
-  const w = face.offsetWidth, cH = w * MAT_CROP, y0 = face.offsetTop, H = pk.offsetHeight, open = H - y0 - MAT_TABTOP * cH + 2, top = -(H + open + 40);
+  const geometry = direction ? matCropMetrics(pk) : null;
+  const w = geometry?.width ?? face.offsetWidth, cH = w * MAT_CROP, y0 = art?.offsetTop || 0, H = pk.offsetHeight;
+  const open = H - y0 - MAT_TABTOP * cH + 2, top = -(H + open + 40);
   const X = x => (x * w).toFixed(2), Y = y => (y > .06 ? y0 + y * cH : top).toFixed(2);
   pk.style.clipPath = 'path("' + d.replace(/([MQLHV])([^MQLHVZ]*)/g, (m, c, a) => {
     const n = a.trim().split(/[\s,]+/).filter(Boolean).map(Number);
@@ -304,7 +440,7 @@ function matCrop(pk, keys, opt){
     const pts = []; for (let i = 0; i + 1 < n.length; i += 2) pts.push(`${X(n[i])},${Y(n[i + 1])}`);
     return `${c} ${pts.join(' ')} `;
   }).trim() + '")';
-  const T = (s, sg) => `0 ${s === 'open' ? sg * open : 0}px`;
+  const T = (s, sg) => `0 ${s === 'open' ? sg * open : sg === 1 && direction === 'down' ? geometry.drop : 0}px`;
   const anims = [pk.animate(keys.map(([o, s]) => ({offset:o, translate:T(s, 1)})), opt),
     ...[...pk.children].map(c => c.animate(keys.map(([o, s]) => ({offset:o, translate:T(s, -1)})), opt))];
   return {anims, done:() => { anims.forEach(a => a.cancel()); pk.style.clipPath = ''; }};
@@ -326,6 +462,12 @@ function matShopInspectSide(card, pk, miracles){
   const name = card.querySelector('.cfm')?.dataset.n;
   title.textContent = name ? dispName(name) : card.querySelector('.nm')?.textContent.trim() || 'Card';
   head.append(title, close); side.append(head);
+  if (card.classList.contains('leaving')){
+    const note = document.createElement('p');
+    note.className = 'osinspect-last-chance';
+    note.textContent = 'Last chance to buy';
+    side.append(note);
+  }
   const actions = document.createElement('div'); actions.className = 'osinspect-actions';
   actions.append(...pk.querySelectorAll(':scope > button'));
   if (actions.childElementCount) side.append(actions);
@@ -333,10 +475,9 @@ function matShopInspectSide(card, pk, miracles){
   return {side, close};
 }
 function matLiftOpen(card, pk, wrap){
-  const desktopShop = !!matDeskShopCard(card), desktopMob = !!card.closest('.osdeskmob');
-  const hovered = desktopMob && MATHOV.card === card.closest('.mzc') && MATHOV.g;
-  const from = hovered ? {r:hovered.getBoundingClientRect(), tilt:0} : matLiftFrom(card);
-  if (desktopMob) matHoverEnd(true);
+  const desktopShop = !!matDeskShopCard(card) || matDeskPileCard(card);
+  const desktop = desktopShop || !!card.closest('.osdeskmob');
+  const from = matLiftFrom(card);
   wrap.classList.add('osliftwrap');
   wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-modal', 'true');
   const col = document.createElement('div'); col.className = 'oslift';
@@ -345,11 +486,24 @@ function matLiftOpen(card, pk, wrap){
   if (miracles){ try{ kwDecorate(miracles); }catch(e){} miracles.className = 'sheetmir osliftmir'; miracles.removeAttribute('aria-hidden'); }
   pk.removeAttribute('aria-hidden');
   pk.querySelectorAll('button[aria-label]').forEach(b => { if (b.textContent.trim().length <= 2) b.textContent = b.getAttribute('aria-label'); });
-  if (miracles && !desktopShop) col.append(miracles);
+  if (miracles && !desktop) col.append(miracles);
   col.appendChild(pk); const F = matFlyBox(pk);
-  const inspect = desktopShop && matShopInspectSide(card, pk, miracles);
+  if (card.matches('.osdeskmob #mz-deck > .mzc.unit') && from?.r.width){
+    const attachments = card.querySelectorAll(':scope > .mztk'), width = from.r.width;
+    if (attachments.length) F.classList.add('osinspect-unit');
+    for (const attachment of attachments){
+      const copy = attachment.cloneNode(true);
+      copy.removeAttribute('data-mz');
+      copy.setAttribute('aria-hidden', 'true');
+      copy.style.left = (100 * attachment.offsetLeft / width) + '%';
+      copy.style.top = (100 * attachment.offsetTop / width) + 'cqw';
+      F.append(copy);
+    }
+  }
+  const inspect = desktop && matShopInspectSide(card, pk, miracles);
   if (inspect){
     wrap.classList.add('osshopinspect'); wrap.setAttribute('aria-labelledby', 'osinspect-title');
+    col.style.setProperty('--inspect-width', bazaarTiming.inspectWidth + 'px');
     col.append(inspect.side);
   }
   wrap.appendChild(col); document.body.appendChild(wrap);
@@ -363,6 +517,15 @@ function matLiftOpen(card, pk, wrap){
   if (inspect){
     wrap._cardFocus = card.matches('[tabindex]') ? card : card.closest('button');
     inspect.close.focus({preventScroll:true});
+    F.addEventListener('pointerdown', e => {
+      if (e.target.closest('button, a')) return;
+      if (desktopShop) matDragArm(e, card, wrap, F);
+      else {
+        const unit = card.closest('[data-mz]');
+        if (unit) mzArm(e, unit, wrap, F);
+      }
+    });
+    F.addEventListener('dragstart', e => e.preventDefault());
     wrap.addEventListener('keydown', e => {
       if (e.key !== 'Tab') return;
       const controls = [...col.querySelectorAll('button:not(:disabled)')], first = controls[0], last = controls.at(-1);
@@ -372,24 +535,32 @@ function matLiftOpen(card, pk, wrap){
   } else wrap.addEventListener('click', e => { if (peekReady && peekEl === wrap && !e.target.closest('button')) closePeek(); });   // tap anywhere, the card too
   sfx.pick(); if (navigator.vibrate) try{ navigator.vibrate(8); }catch(e){}
   if (reduceMotion() || !r || !r.width) return;
-  const duration = desktopShop ? 230 : desktopMob ? 300 : 650;
-  const b = F.getBoundingClientRect(), kf = matArc(b, fr, {r:b, tilt:0}, {arc:desktopShop ? 14 : hovered ? 0 : desktopMob ? 24 : 50, bump:desktopShop || desktopMob ? 0 : .06});
+  const duration = desktop ? bazaarTiming.inspectOpen : 650;
+  const b = F.getBoundingClientRect();
+  const flight = desktop ? {arc:0, levelThroughout:true} : {arc:50, bump:.06};
+  const kf = matArc(b, fr, {r:b, tilt:0}, flight);
   if (!kf) return;
-  const opening = F.animate(kf, {duration, easing:MAT_EASE, fill:'both'});
-  if (desktopShop) F._inspectOpen = opening;
+  const fan = matFanInspectPath(b, fr, duration, true, matFanInspectRoom(card));
+  const opening = fan ? matFanInspectFlight(F, b, fan) : F.animate(kf, {duration, easing:MAT_EASE, fill:'both'});
+  if (desktop) F._inspectOpen = opening;
   if (fr.crop){ const cr = matCrop(pk, [[0, 'crop'], [.3, 'crop'], [1, 'open']], {duration:650, easing:'ease-in-out', fill:'forwards'});   // then no clip: the card's own corners
     if (cr.anims[0]) cr.anims[0].onfinish = cr.done; }
-  wrap.animate([{backgroundColor:'rgba(12,8,5,0)'}, {backgroundColor:getComputedStyle(wrap).backgroundColor}], {duration:desktopShop ? 155 : desktopMob ? 200 : 450, easing:'ease-out'});
-  const extra = inspect ? [inspect.side] : [...pk.querySelectorAll(':scope > button, :scope > .kwgloss, :scope > .stamps'), ...col.querySelectorAll('.osliftmir')];
-  extra.forEach(e => e.animate([{opacity:0, transform:'translateY(8px)'}, {opacity:1, transform:'none'}], {duration:desktopShop ? 140 : desktopMob ? 150 : 260, delay:desktopShop ? 55 : desktopMob ? 130 : 450, easing:'ease-out', fill:'backwards'}));
+  wrap.animate([{backgroundColor:'rgba(12,8,5,0)'}, {backgroundColor:getComputedStyle(wrap).backgroundColor}], {duration:desktop ? bazaarTiming.inspectDim : 450, delay:fan?.switchAt ?? 0, easing:'ease-out', fill:'backwards'});
+  if (inspect){
+    inspect.side.animate([{opacity:0}, {opacity:1}], {duration:bazaarTiming.inspectPanelFade, delay:Math.max(bazaarTiming.inspectPanelDelay, fan?.switchAt ?? 0), easing:'ease-out', fill:'backwards'});
+  } else {
+    const extra = [...pk.querySelectorAll(':scope > button, :scope > .kwgloss, :scope > .stamps'), ...col.querySelectorAll('.osliftmir')];
+    extra.forEach(e => e.animate([{opacity:0, transform:'translateY(8px)'}, {opacity:1, transform:'none'}], {duration:260, delay:450, easing:'ease-out', fill:'backwards'}));
+  }
 }
 // closePeek's step for a lifted mat card. after: a button was pressed, so the card stays up for the move's flight.
 function matLiftClose(w, now, after){
   const pk = w.querySelector('.mcard.peek');
-  if (after && !now && pk){ matLiftHold(w, pk); after(); matLiftUnheld(); return; }
+  if (after && !now && pk && !MATLIFT.src?.closest('.osdeskmob')){ matLiftHold(w, pk); after(); matLiftUnheld(); return; }
   const src = matLiftSrc(), fr = matLiftFrom(src), r = fr && fr.r;
   const owner = MATLIFT.src, desktopShop = w.classList.contains('osshopinspect');
   const done = () => {
+    matFanReleaseInspectRoom(w.querySelector('.osfly'));
     w.remove();
     if (MATLIFT.src === owner){
       matLiftShow();
@@ -398,25 +569,33 @@ function matLiftClose(w, now, after){
     if (after) after();
   };
   if (now || reduceMotion() || !pk || !r || !r.width){ done(); return; }
-  w.style.pointerEvents = 'none';
+  if (!src?.closest('.osdeckfan,.osdeskmob')) w.style.pointerEvents = 'none';
   const F = matFlyBox(pk);
-  const desktopMob = !!src?.closest('.osdeskmob');
-  const from = desktopMob ? F.getBoundingClientRect() : null;
-  const duration = desktopShop ? 190 : desktopMob ? 230 : 520;
+  const duration = desktopShop ? bazaarTiming.inspectClose : 520;
   const opening = desktopShop && F._inspectOpen;
   if (opening && opening.playState === 'running'){
-    // A quick dismissal reverses the actual lift, including whatever turn it had reached.
-    opening.reverse();
+    // A quick dismissal reverses the glide from its current place and angle.
+    const fan = F._fanInspect;
+    const returnTime = duration + (fan ? bazaarTiming.pileRoomClose : 0);
+    const rate = -opening.effect.getTiming().duration / Math.max(1, returnTime);
+    const untilTuck = fan ? Math.max(0, opening.currentTime - fan.switchAt) / -rate : duration;
+    for (const animation of [opening, ...(fan?.parts || [])]){
+      animation.reverse();
+      animation.updatePlaybackRate(rate);
+    }
     opening.onfinish = opening.oncancel = done;
-    matInspectFadeOut(w, duration);
+    matInspectFadeOut(w, untilTuck);
     return;
   }
   F.getAnimations().forEach(a => a.cancel()); pk.getAnimations({subtree:true}).forEach(a => a.cancel()); pk.style.clipPath = '';
-  const b = F.getBoundingClientRect(), kf = matArc(b, {r:from || b, tilt:0}, fr, {arc:desktopShop ? 12 : desktopMob ? 18 : 50, bump:desktopShop || desktopMob ? 0 : .06});
+  const b = F.getBoundingClientRect();
+  const flight = desktopShop ? {arc:0, levelThroughout:true} : {arc:50, bump:.06};
+  const kf = matArc(b, {r:b, tilt:0}, fr, flight);
   if (!kf){ done(); return; }
-  const a = F.animate(kf, {duration, easing:MAT_EASE, fill:'forwards'});
+  const fan = matFanInspectPath(b, fr, duration, false, F._fanRoom);
+  const a = fan ? matFanInspectFlight(F, b, fan) : F.animate(kf, {duration, easing:MAT_EASE, fill:'forwards'});
   if (fr.crop) matCrop(pk, [[0, 'open'], [.7, 'crop'], [1, 'crop']], {duration:520, easing:'ease-in-out', fill:'forwards'});
-  if (desktopShop) matInspectFadeOut(w, duration);
+  if (desktopShop) matInspectFadeOut(w, fan?.switchAt ?? duration);
   else {
     w.animate([{backgroundColor:getComputedStyle(w).backgroundColor}, {backgroundColor:'rgba(12,8,5,0)'}], {duration, fill:'forwards'});
     [...pk.querySelectorAll(':scope > button, :scope > .kwgloss, :scope > .stamps'), ...w.querySelectorAll('.osliftmir')]
@@ -437,6 +616,7 @@ function matLiftHold(w, pk){
   const opening = desktopShop && F._inspectOpen;
   const inFlight = opening?.playState === 'running';
   const transform = inFlight && getComputedStyle(F).transform;
+  matFanReleaseInspectRoom(F);
   F.getAnimations().forEach(a => a.cancel()); pk.getAnimations({subtree:true}).forEach(a => a.cancel()); pk.style.clipPath = '';
   pk.querySelectorAll('button, .kwgloss, .stamps, .pkdrag').forEach(x => x.remove());
   const b = pk.getBoundingClientRect();
@@ -452,9 +632,14 @@ function matLiftHold(w, pk){
 }
 // nothing took the held card (a move that waits for a pick, a refused move, an online move still on its way): back it goes
 function matLiftUnheld(){
-  const h = MATLIFT.held; if (!h) { matLiftShow(); return; }
+  const h = MATLIFT.held; if (!h) return;
   MATLIFT.held = null;
-  matLand(h.g, matLiftSrc(), {dur:520, arc:50, done:matLiftShow});
+  const source = matLiftSrc(), owner = MATLIFT.src, done = () => matLiftDone(owner);
+  if (h.g.classList.contains('osdrag')) matSettleDragged(h.g, source, done);
+  else matLand(h.g, source, {dur:520, arc:50, done});
+}
+function matSettleDragged(g, to, done){
+  matLand(g, to, {dur:520, arc:0, settleOnly:true, done});
 }
 // A flat card above the page (g: fixed, transform origin top left) flies in an arc and settles onto `to` on the mat,
 // in the tilt and cropped like it, then `to` shows and g goes.
@@ -469,22 +654,60 @@ function matLand(g, to, o = {}){
   }
   const L = {find:o.find || null, to};
   const spot = () => { const t = L.find ? L.find() : null; return t && t.isConnected ? t : L.to; };
-  const fin = () => { MATLANDS.delete(L); g.remove(); const t = spot(); if (t) t.style.visibility = ''; if (L.to && L.to !== t) L.to.style.visibility = ''; if (o.done) o.done(); return t; };
+  let contact, closeRoom;
+  const fin = () => { MATLANDS.delete(L); contact?.remove(); g._osGripShadow?.remove(); g.remove(); const t = spot(); if (t) t.style.visibility = ''; if (L.to && L.to !== t) L.to.style.visibility = ''; closeRoom?.(); if (o.done) o.done(); return t; };
   const sp = matPoseOf(to), r = sp && sp.r;
   if (!r || !r.width || reduceMotion()){ fin(); return; }
   to.style.visibility = 'hidden';
   g.getAnimations({subtree:true}).forEach(a => a.cancel());
-  const s = o.s || 1, bb = g.getBoundingClientRect(), b = {left:bb.left, top:bb.top, width:bb.width / s, height:bb.height / s};
+  const drag = g._osDragPose, s = o.s || 1;
+  const bb = drag ? drag.box : g.getBoundingClientRect();
+  const b = {left:bb.left, top:bb.top, width:bb.width / s, height:bb.height / s};
   const shop = !!to.closest('#view-play .osdesk:not(.osmobmat)');
-  const kf = matArc(b, {r:{left:b.left, top:b.top, width:b.width * s}, tilt:0}, sp, {arc:o.arc ?? (shop ? 36 : 60)});
+  const kf = matArc(b, {r:{left:b.left, top:b.top, width:b.width * s}, tilt:0}, sp,
+    {arc:o.arc ?? (shop ? 36 : 60), levelThroughout:o.settleOnly});
   if (!kf){ fin(); return; }
+  if (drag){
+    const identity = new DOMMatrix();
+    kf.forEach((key, i) => {
+      const t = Math.min(1, i / (kf.length - 1) * 2.4);
+      const pose = matDragMix(drag.matrix, identity, t * t * (3 - 2 * t));
+      key.transform = new DOMMatrix(key.transform).multiply(pose).toString();
+    });
+  }
+  if (o.settleOnly){
+    // Level the card on the way back while its projected center follows a straight line.
+    const center = new DOMPoint(b.width/2, b.height/2);
+    const points = kf.map(({transform}) => center.matrixTransform(new DOMMatrix(transform)));
+    const first = points[0], last = points.at(-1);
+    kf.forEach((key, i) => {
+      const t = i / (kf.length-1), p = points[i];
+      const x = (1-t)*first.x/first.w + t*last.x/last.w;
+      const y = (1-t)*first.y/first.w + t*last.y/last.w;
+      key.transform = new DOMMatrix().translate(x-p.x/p.w, y-p.y/p.w).multiply(new DOMMatrix(key.transform)).toString();
+    });
+  }
   MATLANDS.add(L);
   const dur = o.dur || (shop ? 560 : 850);
+  const cast = g._osGripShadow;
+  if (cast){
+    const duration = Math.min(160, dur), fade = {duration, delay:dur - duration, fill:'forwards'};
+    const timing = {duration:dur, easing:MAT_EASE, fill:'both'};
+    const light = kf.map((key, i) => matCastLight(new DOMMatrix(key.transform), b, 1 - i / (kf.length - 1)));
+    cast.style.left = b.left + 'px';
+    cast.style.top = b.top + 'px';
+    cast.animate(light.map(({x, y, blur}) => ({translate:`${x}px ${y}px`, filter:`blur(${blur}px)`})), timing);
+    cast.firstElementChild.animate(light.map(({transform}) => ({transform})), timing);
+    cast.animate([{opacity:bazaarShadow(1).opacity}, {opacity:0}], fade);
+    contact = matContactShadow(to, sp);
+    contact?.animate([{opacity:0}, {opacity:1}], {...fade, fill:'both'});
+  }
   const flight = g.animate(kf, {duration:dur, easing:MAT_EASE, fill:'forwards'});
+  if (o.settleOnly) closeRoom = matFanLandingRoom(to, dur);
   flight.oncancel = fin;
   flight.onfinish = () => {
     const t = fin();
-    if (!t?.isConnected) return;
+    if (o.settleOnly || !t?.isConnected) return;
     if (sp.rot) t.animate([{scale:1}, {scale:1.035, offset:.32}, {scale:1}], {duration:190, easing:'ease-out'});
     else bumpEl(t);
   };
@@ -499,7 +722,7 @@ function matMarkDeal(el){
 // Tie reveal and interactivity to the flight. Keep the slot covered when a draw replaces its card node.
 function matTrackDeal(el, flyer, flight){
   const key = el.dataset.ck;
-  if (!key || !el.matches('#view-play .osdesk:not(.osmobmat) .osmkt .market > .mcard')) return false;
+  if (!key || !el.matches('#view-play .osdesk:not(.osmobmat) .osmkt .market > .mcard, #view-play .osdesk:not(.osmobmat) .osmkt .market > .mirwrap > .mcard')) return false;
   const deal = {el, flight, finish:null};
   MATDEALS.set(key, deal);
   matMarkDeal(el);
@@ -515,9 +738,14 @@ function matTrackDeal(el, flyer, flight){
 }
 // renderPlay step: spots that cards in flight are landing on stay hidden in the redrawn mat
 function matLandAfterDraw(){
+  const p = MATDRAG.p;
+  if (p?.drag){
+    const card = matDragFind(p);
+    if (card){ p.card = MATLIFT.src = card; card.classList.add('oslifted'); }
+  }
   for (const L of MATLANDS){ const t = L.find && L.find(); if (t && t.isConnected){ t.style.visibility = 'hidden'; L.to = t; } }
   for (const [key, deal] of MATDEALS){
-    const el = document.querySelector(`#view-play .osdesk:not(.osmobmat) .osmkt .market > .mcard[data-ck="${CSS.escape(key)}"]`);
+    const el = document.querySelector(`#view-play .osdesk:not(.osmobmat) .osmkt .market .mcard[data-ck="${CSS.escape(key)}"]`);
     if (el){ deal.el = el; matMarkDeal(el); }
     else deal.flight.cancel();
   }
@@ -528,10 +756,13 @@ function matLandAfterDraw(){
 // starts and ends exactly on the tilted spots. null off the mat, or when either end isn't on it.
 function matFlightFrame(el, dest){
   if (!matShopOn() || !el || !el.closest || !el.closest('#view-play .osplane') || !dest || !dest.closest || !dest.closest('#view-play .osplane')) return null;
-  const r = matFlatRect(el), d = matFlatRect(dest), M = matTiltMatrix();
-  if (!r || !r.width || !d || !d.width || !M) return null;
-  return {r, d, pre:g => {
-    const o = getComputedStyle(g).transformOrigin.split(' ').map(parseFloat), x = r.left + (o[0] || 0), y = r.top + (o[1] || 0);
+  return matFlightGeometry(matFlatRect(el), matFlatRect(dest), matTiltMatrix());
+}
+function matFlightGeometry(r, d, M){
+  if (!r?.width || !d?.width || !M) return null;
+  return {r, d, pre:(g, origin) => {
+    const o = origin || getComputedStyle(g).transformOrigin.split(' ').map(parseFloat);
+    const x = r.left + (o[0] || 0), y = r.top + (o[1] || 0);
     return new DOMMatrix().translate(-x, -y).multiply(M).translate(x, y).toString();
   }};
 }
@@ -547,16 +778,35 @@ function matSpotOf(n, k, i = seat()){
 // buyFlight's step for your buys on the mat: the card flies from where you lifted it (else from its market spot) and
 // lands on your side; Covenant cards come along from the market spot. Returns true when it handled the flight.
 function matBuyFlight(i, ev, src, j){
-  if (i !== seat() || !document.querySelector('#view-play .osshop')) return false;
+  const pay = ev.price > 0 && shopCoinEnabled();
+  if (!document.querySelector('#view-play .osshop') || (i !== seat() && !(pay && PP() && !G.net))) return false;
   const list = [{n:ev.on || ev.n, look:ev.n, el:src && src.el}, ...(ev.pair || []).map(n => ({n, look:n, el:null}))];
   list.forEach((x, m) => {
-    const to = matSpotOf(x.n, ev.k);
-    let g = null;
-    if (m === 0 && MATLIFT.held){ g = MATLIFT.held.g; MATLIFT.held = null; }
+    const find = () => matSpotOf(x.n, ev.k, i), to = find();
+    let g = null, done = null;
+    if (m === 0 && MATLIFT.held){
+      g = MATLIFT.held.g; MATLIFT.held = null;
+      const owner = MATLIFT.src;
+      done = () => matLiftDone(owner);
+    }
     else if (src && src.r && src.r.width){ const f = flyer(x.el || x.look, ev.k); g = f.g; flyEl(g, src.r, src.r.width, src.r.height, LAYER.flight, f.ctx); g.style.overflow = ''; }
-    if (!g) return;
-    const go = () => matLand(g, to, {done:m === 0 ? matLiftShow : null, find:() => matSpotOf(x.n, ev.k, i)});
-    if (m === 0 && !j) go(); else { g.style.opacity = '0'; setTimeout(() => { g.style.opacity = ''; go(); }, (j + m) * 220); }
+    if (!g){ if (!m && pay) shopCoinPay(i, ev, to); return; }
+    const land = () => matLand(g, find() || to, {done, find});
+    const go = () => {
+      g.style.opacity = '';
+      if (m || !pay){ land(); return; }
+      const pending = {find, to};
+      if (to) to.style.visibility = 'hidden';
+      MATLANDS.add(pending);
+      const game = G, round = G.round;
+      // Wait until an early click's inspection glide stops, so the payment hits the resting card.
+      Promise.resolve(g._shopLift?.finished).catch(() => {}).then(() => shopCoinPay(i, ev, g)).then(() => {
+        MATLANDS.delete(pending);
+        if (G === game && G.round === round && matShopOn()) land();
+        else { g._osGripShadow?.remove(); g.remove(); if (pending.to) pending.to.style.visibility = ''; done?.(); }
+      });
+    };
+    if (m === 0 && !j) go(); else { g.style.opacity = '0'; setTimeout(go, (j + m) * 220); }
   });
   return true;
 }
@@ -569,7 +819,15 @@ function matDiscardSpot(name){
 function matSellFlight(i, name){
   const h = MATLIFT.held; if (!h || i !== seat()) return false;
   MATLIFT.held = null;
-  matLand(h.g, matDiscardSpot(name), {done:matLiftShow, find:() => matDiscardSpot(name)});
+  const owner = MATLIFT.src;
+  const done = () => {
+    matLiftDone(owner);
+    if (h.fanPile && !document.querySelector('#view-play .osdeckfan')){
+      const pile = document.querySelector(h.fanPile === 'bought' ? '#view-play .osseat.me .osbought' : '#view-play .osseat.me .osdeck');
+      matOpenOwnPile(pile);
+    }
+  };
+  matLand(h.g, matDiscardSpot(name), {done, find:() => matDiscardSpot(name)});
   return true;
 }
 
@@ -583,10 +841,9 @@ function matSellFlight(i, name){
    can't go, the reason shows under the cursor and nothing lights. Let go anywhere else, or press Esc: it flies back
    (matLiftUnheld). The phone keeps tap to lift. (The Mobilize drag, js/ui/10-mobilize.js, reorders a list in place;
    this one carries a card to a target and hands it to the buy and sell flights.) */
-const MAT_HOVER_DELAY = 100, MAT_HOVER_GROW = 150, MAT_HOVER_SCALE = 1.8, MAT_DRAG_PX = 6, MAT_DRAG_LIFT = 120;
-const MATHOV = {card:null, pend:null, t:0, g:null, owner:0};
+const MAT_DRAG_PX = 6, MAT_DRAG_LIFT = 120, MAT_DRAG_TURN = 280;
 const MATDRAG = {p:null, eat:false};
-// Shop cards are selected in place. The enlarged hover is only used for the Mobilize cascade and bench.
+// Shop cards and Mobilize cards are selected in place.
 const MAT_INSPECT_CARDS = '.osmkt .mcard, .osseat .mcard.oscar, .osseat .mcard.ostop';
 const matShopCardCanInspect = card => !card.matches('.writtgt, .writoff, .masonpick, .writsrc');
 function matDeskShopCard(el){
@@ -605,115 +862,134 @@ function matShopInspectCards(shop){
     card.setAttribute('aria-label', name ? `Inspect ${dispName(name)}` : 'Inspect card');
   }
 }
-const matMzDragging = () => typeof mzP !== 'undefined' && !!mzP && !!mzP.drag;
-function matHoverEnd(now){
-  clearTimeout(MATHOV.t); MATHOV.t = 0; MATHOV.pend = null;
-  const {g, card, owner} = MATHOV; MATHOV.g = null; MATHOV.card = null;
-  if (!g) return;
-  const done = () => {
-    g.remove();
-    if (card && card.dataset.osmzHoverOwner === String(owner)){
-      card.classList.remove('oshover', 'osmzpeek');
-      delete card.dataset.osmzHoverOwner;
-    }
-    card?.parentElement?.querySelectorAll('.osmzpush-up,.osmzpush-down').forEach(r => {
-      if (r.dataset.osmzPushOwner !== String(owner)) return;
-      r.classList.remove('osmzpush-up', 'osmzpush-down'); r.style.removeProperty('--osmzshift'); delete r.dataset.osmzPushOwner;
-    });
-  };
-  if (now || reduceMotion() || !g._kf){ done(); return; }
-  const frames = [{transform:getComputedStyle(g).transform}, g._kf[0]];
-  g.getAnimations().forEach(a => a.cancel());
-  const a = g.animate(frames, {duration:MAT_HOVER_GROW * .8, easing:MAT_EASE, fill:'forwards'});
-  a.onfinish = a.oncancel = done;
-}
-function matHoverStart(card){
-  if (MATDRAG.p || matMzDragging() || !card.isConnected || !matDesk() || card.inert) return;
-  if (!card.closest('.osdeskmob') || !mzActive()) return;
-  const from = matPoseOf(card), sr = card.getBoundingClientRect(); if (!from) return;   // where it rests: on the mat, in the fan, or flat
-  const fr = from.r, w = fr.width * MAT_HOVER_SCALE, h = (fr.height || fr.width * 1.3827) * MAT_HOVER_SCALE;
-  const top = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gtb')) || 0) + 8;   // near an edge it grows inwards
-  const deckPeek = card.matches('#view-play .osdeskmob #mz-deck > .mzc[data-mz="deck"]');
-  const owner = String(++MATHOV.owner);
-  card.dataset.osmzHoverOwner = owner;
-  if (deckPeek){
-    const rows = [...card.parentElement.children].filter(r => r.matches('.mzc[data-mz="deck"]'));
-    const i = rows.indexOf(card);
-    const step = card.getBoundingClientRect().width * .3;   // 1.5 cascade steps (.2 card widths) per row
-    rows.forEach((r, j) => {
-      if (j === i) return;
-      const dir = j < i ? 'up' : 'down';
-      r.classList.add('osmzpush-' + dir); r.dataset.osmzPushOwner = owner;
-      r.style.setProperty('--osmzshift', `${step * Math.abs(j - i)}px`);
-    });
-    card.classList.add('osmzpeek');
-  }
-  const x = Math.max(8, Math.min(innerWidth - 8 - w, sr.left + sr.width / 2 - w / 2));
-  const cy = deckPeek ? sr.top - (h - sr.height) * .42 : sr.top + sr.height / 2 - h / 2;
-  const y = Math.max(top, Math.min(innerHeight - 8 - h, cy));
-  const face = card.querySelector(':scope > .mzface') || card;   // Mobilize: the card itself, not its tokens and numbers
-  const {g, ctx} = flyer(face, face.classList.contains('u') ? 'u' : 'b');
-  // (a Mobilize card's copy is styled from the Mobilize box, not its own card: the copy's styling shells take their
-  // ancestors' attributes, and a second element with the card's data-key would confuse Mobilize's slides)
-  flyEl(g, {left:x, top:y}, w, h, LAYER.cardPop, face === card ? ctx : card.closest('.osmz') || ctx); g.style.overflow = ''; g.classList.add('oshov');
-  card.classList.add('oshover'); MATHOV.g = g; MATHOV.card = card;
-  if (reduceMotion()) return;
-  const b = g.getBoundingClientRect(), kf = matArc(b, from, {r:b, tilt:0}, {arc:0});
-  if (kf){ g._kf = kf; g.animate(kf, {duration:MAT_HOVER_GROW, easing:MAT_EASE, fill:'both'}); }
-}
-document.addEventListener('mouseover', e => {
-  if (matMzDragging()){ if (MATHOV.card || MATHOV.t) matHoverEnd(true); return; }   // hover stays off while a card is dragged
-  if (MATDRAG.p && MATDRAG.p.drag) return;
-  const c = e.target.closest?.('#view-play .osdeskmob .mzc:not(.mzslot)');
-  if (c && (c === MATHOV.card || c === MATHOV.pend)) return;
-  if (MATHOV.card || MATHOV.t) matHoverEnd();
-  if (!c) return;
-  MATHOV.pend = c;
-  MATHOV.t = setTimeout(() => { MATHOV.t = 0; MATHOV.pend = null; if (c.matches(':hover')) matHoverStart(c); }, MAT_HOVER_DELAY);   // a sweep across the board sets nothing off
-});
-document.addEventListener('mouseout', e => { if (!e.relatedTarget && (MATHOV.card || MATHOV.t)) matHoverEnd(); });
-// what dragging this card can do: a market card is bought with its Buy button, your own card sold with its Sell button
 function matDragWhat(card){
   const S = seat(), turn = G.passed[S] ? 'You passed' : cur(G) !== S ? 'Not your turn' : '';
   if (card.closest('.osmkt')){
     const buy = card.querySelector(':scope > button[data-act="buy"]'); if (!buy) return null;
     return {buy, ok:!buy.disabled, why:buy.disabled ? turn || buy.textContent.trim() : ''};
   }
-  if (!card.closest('.osseat.me') || !card.matches('.oscar, .ostop')) return null;
+  if (!card.matches('.osdeckfan-card') && (!card.closest('.osseat.me') || !card.matches('.oscar, .ostop'))) return null;
   const sell = card.querySelector(':scope > [data-act^="sell-"]'), why = turn || (sell ? '' : "Can't be sold");
   return {sell, ok:!why, why};
 }
+function matDragPlanePose({r, tilt, rot}, left, top){
+  const x = r.width / 2, y = r.height / 2;
+  return new DOMMatrix().translate(-left, -top).multiply(matTiltMatrix(tilt))
+    .translate(r.left + x, r.top + y).rotate(rot || 0).translate(-x, -y);
+}
+function matContactShadow(card, pose){
+  // A stack's lowest card already casts a stationary shadow.
+  if (card.matches('.ospile-stock:has(>.osedge)>.ostop')) return null;
+  const {left, top, width, height} = pose.r;
+  const contact = document.createElement('div');
+  contact.className = 'osbazaar-contact-fade';
+  contact.setAttribute('aria-hidden', 'true');
+  const slot = card.closest('.osdeckfan-row > .osfanslot, .osmob-fan-row > .osfanslot');
+  if (slot){
+    Object.assign(contact.style, {position:'absolute', left:'0', top:'0', width:width+'px', height:height+'px'});
+    slot.append(contact);
+    return contact;
+  }
+  Object.assign(contact.style, {left:left+'px', top:top+'px', width:width+'px', height:height+'px',
+    zIndex:LAYER.cardPop-2, transform:matDragPlanePose(pose, left, top).toString()});
+  document.body.appendChild(contact);
+  return contact;
+}
 function matDragStart(p, e){
-  const card = p.card, from = matPoseOf(card);
+  const card = p.card, from = p.inspectorPose || matPoseOf(card);
   if (!from) return;
-  p.drag = true; MATDRAG.eat = true; matHoverEnd(true);
-  const r = from.r, point = matGrabPoint(from, p.x0, p.y0);
+  if (p.inspector) closePeek(true);
+  p.drag = true; MATDRAG.eat = true;
+  const r = from.r, point = from.point || matGrabPoint(from, p.x0, p.y0);
+  p.size = {width:r.width, height:r.height};
   p.left = p.x0 - point.x; p.top = p.y0 - point.y;
   const {g, ctx} = flyer(card, card.classList.contains('u') ? 'u' : 'b');
   flyEl(g, {left:p.left, top:p.top}, r.width, r.height, LAYER.cardPop, ctx);
   g.style.overflow = ''; g.style.transformOrigin = '0 0'; g.classList.add('osdrag');
+  g.querySelector(':scope > .cface')?.style.setProperty('box-shadow', 'none');
   p.g = g; MATLIFT.src = card; MATLIFT.ck = card.dataset.ck || null; MATLIFT.held = null; card.classList.add('oslifted');
+  const fan = card.closest('.osdeckfan')?._cardLayout;
+  if (fan?.slots.length > 1){
+    const box = card.getBoundingClientRect();
+    p.reorder = {fan, original:[...fan.slots], held:card.parentElement,
+      dx:p.inspector ? 0 : box.left + box.width/2 - p.x0,
+      dy:p.inspector ? 0 : box.top + box.height/2 - p.y0};
+  }
   document.body.classList.add('osdragging');
-  p.target = p.w.ok ? document.querySelector(p.w.buy ? '#view-play .osdesk .osseat.me' : '#view-play .osdesk .osdisc') : null;
-  if (p.target) p.target.classList.add('osdrop');
-  if (!p.w.ok && p.w.why){ p.tag = document.createElement('div'); p.tag.className = 'osdragwhy'; p.tag.textContent = p.w.why; p.tag.style.zIndex = LAYER.cardPop + 1; document.body.appendChild(p.tag); }
-  sfx.pick();
+  const shadowEl = g._osGripShadow = matGripShadow(p, LAYER.cardPop - 1);
+  const raised = bazaarShadow(1), physical = !reduceMotion();
+  const turn = from.rot || 0;
+  const pickup = physical ? bazaarTiming.dragPickup : MAT_DRAG_LIFT;
+  const turnTime = turn ? Math.max(MAT_DRAG_TURN, pickup * 1.5) : pickup;
+  shadowEl.style.opacity = raised.opacity;
   if (!reduceMotion()){
-    const b = g.getBoundingClientRect(), kf = matArc(b, from, {r:b, tilt:0}, {arc:0});
-    if (kf) g._shopLift = g.animate(kf, {duration:MAT_DRAG_LIFT, easing:MAT_EASE});
+    const fade = {duration:pickup, easing:'ease-out'};
+    shadowEl.animate([{opacity:0}, {opacity:raised.opacity}], {...fade, fill:'backwards'});
+    if (!p.inspector){
+      const contact = p.contact = matContactShadow(card, from);
+      if (contact) contact.animate([{opacity:1}, {opacity:0}], {...fade, fill:'forwards'}).onfinish = () => contact.remove();
+    }
+  }
+  p.target = p.w.ok ? document.querySelector(p.w.buy ? '#view-play .osdesk .osseat.me' : '#view-play .osdesk .osdisc') : null;
+  if (p.fanPile && p.target){
+    const r = p.target.getBoundingClientRect();
+    const cue = document.createElement('div');
+    cue.className = 'osdeckfan-discard';
+    cue.textContent = 'Discard';
+    Object.assign(cue.style, {left:r.left+'px', top:r.top+'px', width:r.width+'px', height:r.height+'px',
+      zIndex:LAYER.cardPop-1});
+    document.body.appendChild(cue);
+    p.target = p.discardCue = cue;
+  }
+  if (p.target) p.target.classList.add('osdrop');
+  if (!p.reorder && !p.w.ok && p.w.why){ p.tag = document.createElement('div'); p.tag.className = 'osdragwhy'; p.tag.textContent = p.w.why; p.tag.style.zIndex = LAYER.cardPop + 1; document.body.appendChild(p.tag); }
+  sfx.pick();
+  if (physical){
+    const initial = from.matrix || matDragPlanePose({...from, rot:0}, p.left, p.top);
+    p.physical = {initial, point, width:r.width, height:r.height, turn, turnTime, began:performance.now(),
+      x:p.x0, y:p.y0, pitch:0, yaw:0, roll:0};
+    matDragPhysicalPaint(p, p.physical.began);
+    try{ $('view-play').setPointerCapture(p.pid); }catch(e){}
+  } else {
+    if (!reduceMotion()){
+      const b = g.getBoundingClientRect(), kf = from.matrix ?
+        [{transform:from.matrix.toString()}, {transform:'none'}] : matArc(b, from, {r:b, tilt:0}, {arc:0});
+      if (kf){
+        if (turn) kf.forEach(key => { key.transform = matPinGrab(new DOMMatrix(key.transform), point).toString(); });
+        g._shopLift = g.animate(kf, {duration:turnTime, easing:turn ? 'ease-in-out' : MAT_EASE});
+      }
+    }
+    matDragShadowPaint(p, from.matrix || (reduceMotion() ? new DOMMatrix() : matDragPlanePose(from, p.left, p.top)));
   }
   matDragMove(p, e);
   return true;
 }
+function matUnprojectPoint(m, x, y){
+  const a = m.m11 - x * m.m14, b = m.m21 - x * m.m24, c = x * m.m44 - m.m41;
+  const d = m.m12 - y * m.m14, e = m.m22 - y * m.m24, f = y * m.m44 - m.m42;
+  const det = a * e - b * d;
+  return Math.abs(det) > 1e-6 ? {x:(c * e - b * f) / det, y:(a * f - c * d) / det} : {x, y};
+}
+function matScreenMatrix(el){
+  const transform = getComputedStyle(el).transform;
+  return new DOMMatrix(transform === 'none' ? undefined : transform);
+}
+function matInspectGrip(face, x, y){
+  const width = face.offsetWidth, height = face.offsetHeight;
+  if (!width || !height) return null;
+  const pose = matScreenMatrix(face), box = face.getBoundingClientRect();
+  const corners = [[0, 0], [width, 0], [0, height], [width, height]]
+    .map(([x, y]) => new DOMPoint(x, y).matrixTransform(pose));
+  const left = box.left - Math.min(...corners.map(p => p.x / p.w));
+  const top = box.top - Math.min(...corners.map(p => p.y / p.w));
+  const point = matUnprojectPoint(pose, x - left, y - top);
+  const matrix = new DOMMatrix().translate(left - x + point.x, top - y + point.y).multiply(pose);
+  return {r:{left, top, width, height}, point, matrix};
+}
 // Unproject the mouse onto the plane, then undo the card's turn to find the point on its face.
 function matGrabPoint(pose, x, y){
   const m = pose.tilt && matTiltMatrix(), r = pose.r;
-  if (m){
-    const a = m.m11 - x * m.m14, b = m.m21 - x * m.m24, c = x * m.m44 - m.m41;
-    const d = m.m12 - y * m.m14, e = m.m22 - y * m.m24, f = y * m.m44 - m.m42;
-    const det = a * e - b * d;
-    if (Math.abs(det) > 1e-6){ x = (c * e - b * f) / det; y = (a * f - c * d) / det; }
-  }
+  if (m) ({x, y} = matUnprojectPoint(m, x, y));
   const w = r.width / 2, h = r.height / 2, p = new DOMPoint(x - r.left - w, y - r.top - h)
     .matrixTransform(new DOMMatrix().rotate(-(pose.rot || 0)));
   return {x:p.x + w, y:p.y + h};
@@ -724,54 +1000,161 @@ function matDragOver(p, e){
 }
 function matDragMove(p, e){
   p.x = e.clientX; p.y = e.clientY;
-  if (!p.frame) p.frame = requestAnimationFrame(() => matDragPaint(p));
+  if (!p.frame) p.frame = requestAnimationFrame(now => matDragPaint(p, now));
 }
-function matDragPaint(p){
+function matDragPaint(p, now){
   p.frame = 0;
   if (p !== MATDRAG.p) return;
   if (!p.card.isConnected){ const c = matDragFind(p); if (c){ p.card = c; MATLIFT.src = c; c.classList.add('oslifted'); } }   // redrawn: keep its spot empty
   const over = matDragOver(p, {clientX:p.x, clientY:p.y});
+  if (!over) matPlaceShopFanCard(p);
   p.g.style.translate = `${p.x - p.x0}px ${p.y - p.y0}px`;
+  let moving;
+  if (p.physical) moving = matDragPhysicalPaint(p, now);
+  else {
+    matDragShadowPaint(p, matScreenMatrix(p.g));
+    moving = p.g._shopLift?.playState === 'running';
+  }
+  if (moving) p.frame = requestAnimationFrame(next => matDragPaint(p, next));
   if (p.tag) p.tag.style.translate = `${p.x + 14}px ${p.y + 20}px`;
   if (p.target) p.target.classList.toggle('osover', over);
 }
+function matDragMix(a, b, t){
+  const end = b.toFloat64Array();
+  return new DOMMatrix(a.toFloat64Array().map((value, i) => value + (end[i] - value) * t));
+}
+function matPinGrab(matrix, point){
+  const anchor = new DOMPoint(point.x, point.y).matrixTransform(matrix);
+  return new DOMMatrix().translate(point.x - anchor.x / anchor.w, point.y - anchor.y / anchor.w).multiply(matrix);
+}
+// Reproject the exact grabbed pixel after applying perspective so only the free edges swing.
+function matDragPhysicalPaint(p, now){
+  const d = p.physical, t = bazaarTiming, {point} = d;
+  const dt = Math.max(1, Math.min(48, d.last == null ? 16 : now - d.last));
+  const x = p.x ?? p.x0, y = p.y ?? p.y0;
+  const velocity = delta => Math.max(-1, Math.min(1, delta / dt / .92));
+  const sideways = velocity(x - d.x), vertical = velocity(y - d.y);
+  const damping = 1 - Math.exp(-dt * 3 / Math.max(1, t.dragSettle));
+  d.pitch += (vertical * t.dragLean * .74 - d.pitch) * damping;
+  d.yaw += (-sideways * t.dragLean - d.yaw) * damping;
+  d.roll += (sideways * t.dragLean * .48 - d.roll) * damping;
+  d.last = now; d.x = x; d.y = y;
+  const rise = Math.max(0, Math.min(1, (now - d.began) / Math.max(1, t.dragPickup)));
+  const lift = 1 - (1 - rise) ** 3;
+  const perspective = new DOMMatrix(); perspective.m34 = -1 / Math.max(460, d.width * 4);
+  const held = new DOMMatrix().translate(point.x, point.y).multiply(perspective)
+    .rotate(7 + d.pitch, d.yaw, d.roll).scale(p.inspector ? 1 : 1+t.dragGrow/100).translate(-point.x, -point.y);
+  const matrix = matDragMix(d.initial, held, lift);
+  const turnProgress = Math.min(1, (now - d.began) / Math.max(1, d.turnTime));
+  if (d.turn){
+    const angle = d.turn * (1 - turnProgress ** 2 * (3 - 2 * turnProgress));
+    const cx = d.width / 2, cy = d.height / 2;
+    matrix.translateSelf(cx, cy).rotateSelf(angle).translateSelf(-cx, -cy);
+  }
+  d.matrix = matPinGrab(matrix, point);
+  p.g.style.transform = d.matrix.toString();
+  matDragShadowPaint(p, d.matrix);
+  return rise < 1 || turnProgress < 1 || Math.max(Math.abs(d.pitch), Math.abs(d.yaw), Math.abs(d.roll)) > .04;
+}
+function matCastLight(pose, {width, height}, lift = 1){
+  const center = new DOMPoint(width / 2, height / 2).matrixTransform(pose);
+  const edge = new DOMPoint(width, height / 2).matrixTransform(pose);
+  const scale = 2 * Math.hypot(edge.x / edge.w - center.x / center.w, edge.y / edge.w - center.y / center.w) / 150;
+  const rest = bazaarShadow(0), raised = bazaarShadow(1);
+  const blend = (contact, elevated) => contact + (elevated * scale - contact) * lift;
+  // The raised projection flattens onto the card's own plane before the contact shadow takes over.
+  const projection = new DOMMatrix();
+  projection.m31 = .55 * lift; projection.m32 = .75 * lift;
+  projection.m41 = -projection.m31 * center.z / center.w;
+  projection.m42 = -projection.m32 * center.z / center.w;
+  return {transform:projection.multiply(pose).toString(),
+    x:blend(1, raised.offset * .55), y:blend(rest.offset, raised.offset), blur:blend(rest.blur, raised.blur)};
+}
+function matGripShadow(p, zIndex){
+  const el = document.createElement('div');
+  el.className = 'osbazaar-grip-shadow';
+  el.setAttribute('aria-hidden', 'true');
+  el.append(document.createElement('div'));
+  Object.assign(el.style, {left:p.left+'px', top:p.top+'px', width:p.size.width+'px',
+    height:p.size.height+'px', zIndex, opacity:bazaarShadow(1).opacity});
+  document.body.appendChild(el);
+  return p.shadowEl = el;
+}
+function matDragShadowPaint(p, pose){
+  const {transform, x, y, blur} = matCastLight(pose, p.size), el = p.shadowEl;
+  el.firstElementChild.style.transform = transform;
+  el.style.translate = `${(p.x ?? p.x0)-p.x0+x}px ${(p.y ?? p.y0)-p.y0+y}px`;
+  el.style.filter = `blur(${blur}px)`;
+}
 // the dragged card as it is on the page now: a redraw (a toast, a timer) may have replaced its element since the press
 function matDragFind(p){
-  if (p.card.isConnected) return p.card;
+  if (p.card.isConnected && (p.ck ? p.card.dataset.ck === p.ck : (p.card.querySelector('.cfm')?.dataset.n ?? null) === p.name)) return p.card;
+  if (p.fanPile) return null;
   if (p.ck) return ckEl(p.ck);
   const me = document.querySelector('#view-play .osdesk .osseat.me'); if (!me || !p.name) return null;
   return [...me.querySelectorAll(p.sel)].find(e => { const f = e.querySelector('.cfm'); return f && f.dataset.n === p.name; }) || null;
 }
 // let go: on its target the card's own button makes the move (its flight takes the copy); else the copy flies home
-function matDragDrop(p, ok){
+function matDragDrop(p, ok, {reset = false, cancel = false} = {}){
   if (p.frame) cancelAnimationFrame(p.frame);
   MATDRAG.p = null; document.body.classList.remove('osdragging');
   if (p.tag) p.tag.remove();
+  p.discardCue?.remove();
   if (p.target) p.target.classList.remove('osdrop', 'osover');
+  if (p.physical && $('view-play').hasPointerCapture(p.pid)) $('view-play').releasePointerCapture(p.pid);
+  if (p.reorder?.fan.overlay.isConnected){
+    const {fan, original, held} = p.reorder;
+    const keep = !reset && !cancel && !ok && matPlaceShopFanCard(p);
+    if (!keep) matArrangeShopFan(fan, original, held);
+    else if (fan.slots.some((slot, i) => slot !== original[i])){
+      const piles = (ui.shopPileOrder ??= {});
+      (piles[fan.player] ??= {})[fan.pile] = {round:G.round, cards:fan.slots.map(slot => slot.firstElementChild.querySelector('.cfm').dataset.n)};
+      fan.dirty = true;
+    }
+  }
+  if (reset){
+    p.shadowEl?.remove(); p.contact?.remove();
+    if (p.g) p.g.remove();
+    MATDRAG.eat = false;
+    matLiftShow();
+    return;
+  }
   if (!p.g) return;
-  p.g.style.setProperty('left', (p.left + p.x - p.x0) + 'px', 'important');
-  p.g.style.setProperty('top', (p.top + p.y - p.y0) + 'px', 'important');
+  const matrix = p.physical?.matrix || matScreenMatrix(p.g);
+  p.g._shopLift?.cancel();
+  p.g.style.transform = matrix.toString();
+  matDragShadowPaint(p, matrix);
+  const left = p.left + p.x - p.x0, top = p.top + p.y - p.y0;
+  p.g.style.setProperty('left', left + 'px', 'important');
+  p.g.style.setProperty('top', top + 'px', 'important');
   p.g.style.translate = '';
-  MATLIFT.held = {g:p.g};
+  p.g._osDragPose = {matrix, box:{left, top, ...p.size}};
+  MATLIFT.held = {g:p.g, fanPile:p.fanPile};
   const c = matDragFind(p), w = c && matDragWhat(c);
   if (c && c !== p.card){ MATLIFT.src = c; c.classList.add('oslifted'); }
   if (ok && w && w.ok && G && G.phase === 'shop'){ const b = w.buy || w.sell; MATDRAG.eat = false; b.click(); MATDRAG.eat = true; }
   matLiftUnheld();   // nothing took it (refused, or a pick to make first): back to its spot
 }
-$('view-play').addEventListener('pointerdown', e => {
+function matDragArm(e, card, inspector, face){
   if (e.button > 0 || MATDRAG.p) return;
-  const card = matDeskShopCard(e.target); if (!card || e.target.closest('.ostag, .osright button')) return;
-  const w = matDragWhat(card); if (!w) return;
+  const inspectorPose = face && matInspectGrip(face, e.clientX, e.clientY);
+  if (inspector && !inspectorPose) return;
+  const w = matDragWhat(card) || (inspector && {ok:false}); if (!w) return;
   const f = card.querySelector('.cfm');
-  MATDRAG.p = {card, w, pid:e.pointerId, x0:e.clientX, y0:e.clientY, drag:false, ck:card.dataset.ck || null, name:f ? f.dataset.n : null,
-    sel:card.classList.contains('oscar') ? '.oscar' : card.closest('.osbought') ? '.osbought .ostop' : '.osdeck .ostop'};
+  const fanPile = card.closest('.osdeckfan')?.dataset.pile;
+  MATDRAG.p = {card, w, fanPile, inspector, inspectorPose, pid:e.pointerId, x0:e.clientX, y0:e.clientY, drag:false, ck:card.dataset.ck || null, name:f ? f.dataset.n : null,
+    sel:card.classList.contains('oscar') ? '.oscar' : fanPile === 'bought' || card.closest('.osbought') ? '.osbought .ostop' : '.osdeck .ostop'};
+}
+$('view-play').addEventListener('pointerdown', e => {
+  const card = matDeskShopCard(e.target) || e.target.closest('.osdeckfan-card');
+  if (card && !e.target.closest('.ostag, .osright button')) matDragArm(e, card);
 });
 window.addEventListener('pointermove', e => {
   const p = MATDRAG.p; if (!p || e.pointerId !== p.pid) return;
   if (!p.drag){
     if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < MAT_DRAG_PX) return;   // under it: a plain click (it does nothing)
-    const c = matDesk() && matDragFind(p), w = c && matDragWhat(c);
-    if (!w || c.inert){ MATDRAG.p = null; return; }
+    const c = matDesk() && matDragFind(p), w = c && (matDragWhat(c) || (p.inspector && {ok:false}));
+    if (!w || c.inert || (p.inspector && p.inspector !== peekEl)){ MATDRAG.p = null; return; }
     p.card = c; p.w = w;
     if (!matDragStart(p, e)){ MATDRAG.p = null; return; }
   }
@@ -783,8 +1166,8 @@ window.addEventListener('pointerup', e => {
   p.x = e.clientX; p.y = e.clientY;
   matDragDrop(p, matDragOver(p, e)); setTimeout(() => { MATDRAG.eat = false; }, 0);
 });
-window.addEventListener('pointercancel', () => { const p = MATDRAG.p; if (p && p.drag) matDragDrop(p, false); else MATDRAG.p = null; MATDRAG.eat = false; });
-document.addEventListener('keydown', e => { const p = MATDRAG.p; if (e.key === 'Escape' && p && p.drag){ e.stopImmediatePropagation(); matDragDrop(p, false); MATDRAG.eat = false; } }, true);
+window.addEventListener('pointercancel', () => { const p = MATDRAG.p; if (p && p.drag) matDragDrop(p, false, {cancel:true}); else MATDRAG.p = null; MATDRAG.eat = false; });
+document.addEventListener('keydown', e => { const p = MATDRAG.p; if (e.key === 'Escape' && p && p.drag){ e.stopImmediatePropagation(); matDragDrop(p, false, {cancel:true}); MATDRAG.eat = false; } }, true);
 window.addEventListener('click', e => { if (MATDRAG.eat){ MATDRAG.eat = false; e.stopPropagation(); e.preventDefault(); } }, true);   // the click that ends a drag
 $('view-play').addEventListener('dragstart', e => { if (matDeskShopCard(e.target)) e.preventDefault(); });
 
@@ -873,7 +1256,7 @@ function matPurseSet(i, d, at){
   const meds = [...old.querySelectorAll('.osmed')], rs = meds.map(e => e.getBoundingClientRect());
   const tmp = document.createElement('div'); tmp.innerHTML = matPurseHTML(i);
   const nu = tmp.firstElementChild; old.replaceWith(nu);
-  if (!d || reduceMotion()) return;
+  if (!d || reduceMotion() || shopCoinEnabled()) return;
   const pill = nu.querySelector('.ospill'); if (pill) pill.animate([{transform:'scale(1)'}, {transform:'scale(1.18)'}, {transform:'none'}], {duration:360, delay:d < 0 ? 120 : 380, easing:'ease-out'});
   const top = rs[rs.length - 1] || (pill && pill.getBoundingClientRect()); if (!top) return;
   const n = Math.min(Math.abs(d), 5);
@@ -940,11 +1323,17 @@ function matOppBuy(i, ev, src){
   if (ev._matStand){ ev._matStand.remove(); ev._matStand = null; }   // it lifts from here on: the copy over its spot goes
   if (!c) return null;
   try{ sfx.pick(); }catch(e){}
-  matPurseSet(i, -(ev.price || 0), fr && fr.width ? fr : c.at);
+  const pay = shopCoinEnabled();
+  if (!pay) matPurseSet(i, -(ev.price || 0), fr && fr.width ? fr : c.at);
   const tag = `${oppWho(i)} bought · $${ev.price}${ev.on ? ` · leveled ${dispName(ev.on)}` : ''}`;
   const n = ev.on || ev.n, w = ev._matWait;
   return matOppRise(c, src && src.fr ? fr : null, false, src?.rot)
     .then(() => oppHold(c.g, c.at, c.W, c.h, tag, i, MAT_OPP_HOLD))
+    .then(() => {
+      if (!pay) return;
+      matPurseSet(i, -(ev.price || 0));
+      return shopCoinPay(i, ev, c.g);
+    })
     .then(() => new Promise(res => {
       // Covenant cards come along from the market spot, without a hold
       (ev.pair || []).forEach((pn, m) => {
@@ -954,7 +1343,7 @@ function matOppBuy(i, ev, src){
       });
       const to = matSpotOf(n, ev.k, i);
       if (to) to.style.visibility = 'hidden';
-      matLand(c.g, to, {s:c.s, find:() => matSpotOf(n, ev.k, i), done:() => { matOppShow(i, w, n, ev.k); try{ sfx.coin(0.35); }catch(e){} res(); }});
+      matLand(c.g, to, {s:c.s, find:() => matSpotOf(n, ev.k, i), done:() => { matOppShow(i, w, n, ev.k); if (!pay) try{ sfx.coin(0.35); }catch(e){} res(); }});
     }));
 }
 // oppSellStep's step on the mat: the sold card lifts off their side, holds, and lands on the discard pile (a Moisture
@@ -962,11 +1351,12 @@ function matOppBuy(i, ev, src){
 function matOppSell(i, ev, src){
   if (i === seat() || !matShopOn()) return null;
   const c = matOppCard(ev.n, ev.k, null); if (!c) return null;
-  const gain = SELL_PRICE + (typeof bVal === 'function' ? bVal(G.players[i], 'The Bazaar') || 0 : 0);
+  const gain = ev.gain ?? SELL_PRICE, coins = shopCoinEnabled();
   return matOppRise(c, src && src.fr, src && src.flat)
-    .then(() => oppHold(c.g, c.at, c.W, c.h, `${oppWho(i)} sold · +$1`, i, MAT_OPP_HOLD))
+    .then(() => oppHold(c.g, c.at, c.W, c.h, `${oppWho(i)} sold · +$${gain}`, i, MAT_OPP_HOLD))
     .then(() => new Promise(res => {
-      matLand(c.g, matDiscardSpot(ev.n), {s:c.s, find:() => matDiscardSpot(ev.n), done:() => { matPurseSet(i, gain); try{ sfx.coin(0.35); }catch(e){} res(); }});
+      if (coins) shopCoinSale(i, ev, c.g);
+      matLand(c.g, matDiscardSpot(ev.n), {s:c.s, find:() => matDiscardSpot(ev.n), done:() => { matPurseSet(i, gain); if (!coins) try{ sfx.coin(0.35); }catch(e){} res(); }});
     }));
 }
 
@@ -1017,7 +1407,7 @@ function matMobHTML(){
   let k = 0; const nos = d.map(u => isBat(u.name) ? 0 : ++k);
   const rows = d.map((u, i) => mzDeckCard(u, nos[i])).reverse().join('');   // drawn back (top) to front: card 1, in full, at the bottom
   const items = mzBenchItems(me, d), bench = items.map(mzBenchCard).join('');
-  const who = PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck';
+  const who = PP() && !G.net && !ui.bazaarMobilize ? `${esc(nm(S))}'s deck` : 'Your deck';
   if (matDesk()) return matMobDeskHTML(S, me, d, rows, items, who);
   return `${matSeatHTML(1 - S, 'mob')}${matSeatHTML(S, 'mob')}<div class="osshop osmobmat${MATMOB.lift ? ' oslifting' : ''}" aria-hidden="true"><div class="osplane"><div class="osinner">
     ${matTraysHTML(matSweptDeck, matMobRow, ['', frozenHTML(S)])}
@@ -1052,9 +1442,8 @@ function matMobHTML(){
      drag reads the same value (mzStripR in js/ui/10-mobilize.js), and every flight measures where the cards lie. */
 const MAT_FAN = {gap:.46, span:4.2, step:6, drop:.03};   // gap: card widths between cards; span: widest fan, in card widths; step: degrees per card; drop: the arc
 const MAT_AIDECK_ROT = -5;
-const MATFAN = {cur:new Map(), prev:new Map()};   // each bench card's turn (by data-key) now and at the last layout, for matFanFlip
-function matFanPoses(n, w, h){
-  const F = MAT_FAN, mid = (n - 1) / 2, gap = n > 1 ? Math.min(F.gap, (F.span - 1) / (n - 1)) * w : 0;
+function matFanPoses(n, w, h, F = MAT_FAN){
+  const mid = (n - 1) / 2, gap = n > 1 ? Math.min(F.gap, (F.span - 1) / (n - 1)) * w : 0;
   const P = Array.from({length:n}, (_, i) => { const d = i - mid; return {x:d * gap, y:F.drop * d * d * w, rot:d * F.step}; });
   // the box round them all, turns included; poses are measured from its top left
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -1065,14 +1454,29 @@ function matFanPoses(n, w, h){
   for (const p of P){ p.x -= x0; p.y -= y0; }
   return {poses:P, w:n ? x1 - x0 : 0, h:n ? y1 - y0 : 0};
 }
+function matPileFanShape(){
+  const gap = bazaarTiming.pileCardSpacing / 100, step = bazaarTiming.pileFanAngle;
+  return {gap, step, drop:MAT_FAN.drop * step / MAT_FAN.step, span:Math.max(MAT_FAN.span, 1 + 7 * gap)};
+}
+function matPileFanColumns(n, w, h, width, shape){
+  let columns = Math.min(8, Math.max(1, n));
+  while (columns > 1 && matFanPoses(columns, w, h, shape).w > width) columns--;
+  return columns;
+}
+function matPileMotion(n, opening){
+  const total = opening ? bazaarTiming.pileOpen : bazaarTiming.pileClose;
+  const spread = Math.min(opening ? Infinity : total * .42, bazaarTiming.pileGap * 5);
+  const gap = spreadGap(n, spread, bazaarTiming.pileGap);
+  return {gap, duration:opening ? total : total - Math.max(0, n - 1) * gap};
+}
 // the transforms (origin top left) that turn a w x h box about its centre, and put a fan card in its pose
 const matRotTf = (rot, w, h) => `translate(${w / 2}px, ${h / 2}px) rotate(${rot}deg) translate(${-w / 2}px, ${-h / 2}px)`;
 const matFanTf = (p, w, h) => `translate(${p.x}px, ${p.y}px) ${matRotTf(p.rot, w, h)}`;
 // where a card rests, for a flight or the hover read: on the mat its flat rect in the tilt; in the fan its pose; else its box
-function matPoseOf(el){
+function matPoseOf(el, flat){
   if (!el || !el.isConnected) return null;
   if (el.closest('.osplane')){
-    const r = matFlatRect(el); if (!r || !r.width) return null;
+    const r = flat ? flat.get(el) : matFlatRect(el); if (!r || !r.width) return null;
     return matTablePose(el, r);
   }
   const slot = el.closest('.osfanslot'), p = slot && slot._pose;
@@ -1081,26 +1485,383 @@ function matPoseOf(el){
   const r = el.getBoundingClientRect(); return r.width ? {r, tilt:0, rot:0} : null;
 }
 function matTablePose(el, r){
-  const sideways = el.matches('#view-play .osdesk .osmkt .market > .mcard.leaving, #view-play .osdesk .osdisc .mpcards');
+  const sideways = el.matches('#view-play .osdesk .osmkt .market .mcard.leaving, #view-play .osdesk .osdisc .mpcards');
   if (!sideways) return {r, tilt:1, rot:0};
   return {r:{left:r.left + (r.width - r.height) / 2, top:r.top + (r.height - r.width) / 2, width:r.height, height:r.width}, tilt:1, rot:90};
+}
+const MAT_FAN_SHIFT_EASE = 'cubic-bezier(.28,.62,.27,1)';
+// Measure the gap before shifting any cards. The return uses the same positions.
+function matFanInspectRoom(card){
+  const slot = card?.closest('.osdeckfan-row > .osfanslot, .osmob-fan-row > .osfanslot, .osdeskmob #mz-deck > .mzc');
+  const vertical = !!slot?.matches('.mzc');
+  const face = card?.querySelector('.cface');
+  if (!slot?.nextElementSibling || !face || (vertical && slot !== card)) return null;
+  const slots = [...slot.parentElement.children];
+  const faces = slots.slice(slots.indexOf(slot) + 1).map(neighbor => vertical ? neighbor : neighbor.firstElementChild);
+  const bounds = faces.map(face => face.getBoundingClientRect()), here = card.getBoundingClientRect();
+  const neighbors = faces.map(face => ({face, translate:face.style.translate}));
+  if (vertical){
+    // Clear the lower cards sideways without disturbing their fight order.
+    const attached = card.querySelector('.mztk');
+    const edge = Math.min(here.left, attached?.getBoundingClientRect().left ?? here.left);
+    const left = Math.min(...bounds.map(r => r.left)) - here.right - 6;
+    const right = Math.max(...bounds.map(r => r.right)) - here.left + 6;
+    const dx = edge + left >= 8 ? left : right;
+    const roomBelow = Math.max(0, innerHeight - 12 - Math.max(...bounds.map(r => r.bottom)));
+    return {slot, face, dx, dy:0, apart:roomBelow ? `0px ${Math.min(roomBelow, here.width * .14)}px` : null, neighbors, vertical};
+  }
+  const gap = here.right - Math.min(...bounds.map(r => r.left)) + 5;
+  if (gap <= 0) return null;
+  const right = Math.max(0, innerWidth - 10 - Math.max(...bounds.map(r => r.right)));
+  const shift = Math.min(gap * .65, right);
+  let dx = shift - gap, dy = 0;
+  if (here.left + dx < 8){
+    const up = Math.min(...bounds.map(r => r.top)) - here.bottom - 5;
+    const down = Math.max(...bounds.map(r => r.bottom)) - here.top + 5;
+    dx = 0;
+    dy = here.top + up >= 8 || here.bottom + down > innerHeight - 8 ? up : down;
+  }
+  return {slot, face, dx, dy, apart:!dy && shift ? shift + 'px 0' : null, neighbors};
+}
+// Slide along the row, then swap layers once the cards' edges clear.
+function matFanInspectPath(box, home, glideTime, opening, room){
+  if (!room?.slot.isConnected || !glideTime) return null;
+  const {left, top, width, height} = home.r;
+  const clear = {...home, r:{left:left + room.dx, top:top + room.dy, width, height}};
+  const center = {r:box, tilt:0};
+  const slideTime = opening ? bazaarTiming.pileRoomOpen : bazaarTiming.pileRoomClose;
+  const duration = glideTime + slideTime;
+  const switchAt = opening ? slideTime : glideTime;
+  const seam = switchAt / duration;
+  const options = {arc:0, levelThroughout:true, easeTravel:true};
+  const glide = matArc(box, opening ? clear : center, opening ? center : clear, options);
+  if (!glide) return null;
+  const rest = matArc(box, home, home, options)[0];
+  const steps = glide.map((key, i) => ({...key, offset:(opening ? seam : 0) + (opening ? 1 - seam : seam) * i / (glide.length-1)}));
+  if (opening) steps.unshift({...rest, offset:0, easing:MAT_FAN_SHIFT_EASE});
+  else {
+    steps.at(-1).easing = MAT_FAN_SHIFT_EASE;
+    steps.push({...rest, offset:1});
+  }
+  return {room, frames:steps, opening, seam, switchAt, duration};
+}
+function matFanReleaseInspectRoom(front){
+  front?._fanInspect?.clean();
+  const room = front?._fanRoom;
+  if (!room) return;
+  if (room.apart) for (const {face, translate} of room.neighbors) face.style.translate = translate;
+  front._fanRoom = null;
+}
+function matFanInspectFlight(front, box, {room, frames, opening, seam, switchAt, duration}){
+  const {slot, neighbors, apart} = room;
+  front._fanRoom = room;
+  const below = document.createElement('div');
+  below.className = 'osfan-flight-depth';
+  below.setAttribute('aria-hidden', 'true');
+  Object.assign(below.style, {width:box.width+'px', height:box.height+'px'});
+  below.append(room.face.cloneNode(true));
+  slot.append(below);
+  const row = (room.vertical ? slot : slot.parentElement).getBoundingClientRect();
+  const local = (room.vertical ? new DOMMatrix() : matScreenMatrix(slot).inverse())
+    .translate(box.left - row.left, box.top - row.top);
+  const timing = {duration, fill:'both'};
+  const visibility = (before, after) => [
+    {visibility:before, offset:0, easing:'steps(1, end)'},
+    {visibility:after, offset:seam},
+    {visibility:after, offset:1}
+  ];
+  const motion = front.animate(frames, timing);
+  const parts = [
+    front.animate(visibility(opening ? 'hidden' : 'visible', opening ? 'visible' : 'hidden'), timing),
+    below.animate(visibility(opening ? 'visible' : 'hidden', opening ? 'hidden' : 'visible'), timing),
+    below.animate(frames.map(key => ({...key, transform:local.multiply(new DOMMatrix(key.transform)).toString()})), timing)
+  ];
+  if (apart) for (const {face, translate} of neighbors){
+    const rest = translate || '0px 0';
+    parts.push(face.animate([
+      {translate:opening ? rest : apart, offset:0, easing:MAT_FAN_SHIFT_EASE},
+      {translate:apart, offset:seam, easing:MAT_FAN_SHIFT_EASE},
+      {translate:opening ? apart : rest, offset:1}
+    ], timing));
+  }
+  const sync = document.timeline.currentTime;
+  for (const animation of [motion, ...parts]) animation.startTime = sync;
+  const clean = () => {
+    parts.forEach(animation => animation.cancel());
+    below.remove();
+    if (front._fanInspect?.clean === clean) front._fanInspect = null;
+  };
+  front._fanInspect = {parts, seam, switchAt, clean};
+  motion.addEventListener('finish', () => {
+    if (front._fanRoom === room && apart){
+      const keepGap = opening && motion.playbackRate > 0;
+      for (const {face, translate} of neighbors) face.style.translate = keepGap ? apart : translate;
+    }
+    clean();
+  }, {once:true});
+  motion.addEventListener('cancel', clean, {once:true});
+  return motion;
+}
+// Keep the returning card above the fan. Move only the cards that would cover its slot.
+function matFanLandingRoom(card, duration){
+  const slot = card.closest('.osdeckfan-row > .osfanslot, .osmob-fan-row > .osfanslot');
+  if (!slot?.nextElementSibling) return;
+  const slots = [...slot.parentElement.children];
+  const foreground = slots.slice(slots.indexOf(slot) + 1);
+  const {w, h} = slot.closest('.osdeckfan,#mz-bench')._cardLayout;
+  const halfWidth = ({rot}) => {
+    const angle = rot * Math.PI / 180;
+    return (Math.abs(w * Math.cos(angle)) + Math.abs(h * Math.sin(angle))) / 2;
+  };
+  const rowLeft = slot.parentElement.getBoundingClientRect().left;
+  const edge = rowLeft + slot._pose.x + w / 2 + halfWidth(slot._pose);
+  const bounds = foreground.map(neighbor => {
+    const {x, rot} = neighbor._pose, center = rowLeft + x + w / 2, half = halfWidth({rot});
+    return {left:center - half, right:center + half};
+  });
+  const shift = Math.min(edge + 3 - Math.min(...bounds.map(b => b.left)),
+    innerWidth - 10 - Math.max(...bounds.map(b => b.right)));
+  return matLandingSpace(foreground.map(slot => slot.firstElementChild), shift, duration);
+}
+const MAT_LANDING_SPACE = new WeakMap();
+function matLandingSpace(faces, shift, duration){
+  if (shift <= 0 || !faces.length) return;
+  const translate = shift + 'px 0';
+  const openTime = Math.min(duration, bazaarTiming.pileRoomOpen);
+  const moves = faces.map(face => {
+    const from = getComputedStyle(face).translate;
+    MAT_LANDING_SPACE.get(face)?.cancel();
+    const open = face.animate([{translate:from}, {translate}], {duration:openTime,
+      delay:Math.max(0, duration - openTime - 100), easing:MAT_FAN_SHIFT_EASE, fill:'both'});
+    MAT_LANDING_SPACE.set(face, open);
+    return {face, open};
+  });
+  return () => {
+    for (const {face, open} of moves){
+      if (MAT_LANDING_SPACE.get(face) !== open) continue;
+      const from = getComputedStyle(face).translate;
+      open.cancel();
+      if (!face.isConnected) continue;
+      const close = face.animate([{translate:from}, {translate:'0px 0'}],
+        {duration:bazaarTiming.pileRoomClose, easing:MAT_FAN_SHIFT_EASE});
+      MAT_LANDING_SPACE.set(face, close);
+      close.onfinish = () => { if (MAT_LANDING_SPACE.get(face) === close) MAT_LANDING_SPACE.delete(face); };
+    }
+  };
+}
+function matPlaceShopFanCard(p){
+  if (!p.reorder?.fan.overlay.isConnected) return false;
+  const {fan, held, dx, dy} = p.reorder, {rows, positions, slots, w, h} = fan;
+  const bounds = (rows.matches('#mz-bench') ? rows.parentElement : rows).getBoundingClientRect(), margin = 20;
+  if (p.x < bounds.left - margin || p.x > bounds.right + margin ||
+      p.y < bounds.top - margin || p.y > bounds.bottom + margin) return false;
+  const boundsByRow = new Map([...rows.children].map(row => [row, row.getBoundingClientRect()]));
+  const centers = positions.map(({row, pose}) => {
+    const at = boundsByRow.get(row);
+    return {x:at.left + pose.x + w/2, y:at.top + pose.y + h/2};
+  });
+  const current = slots.indexOf(held), target = closestCardSlot(centers, p.x + dx, p.y + dy, current);
+  if (target !== current){
+    const order = [...slots];
+    order.splice(current, 1);
+    order.splice(target, 0, held);
+    matArrangeShopFan(fan, order, held);
+  }
+  return true;
+}
+function matArrangeShopFan(fan, order, held){
+  const {slots, positions, w, h} = fan;
+  const changed = order.flatMap((slot, i) => slot === slots[i] ? [] : [{slot, ...positions[i]}]);
+  if (!changed.length) return;
+
+  const animated = !reduceMotion(), before = new Map(), rowBounds = new Map();
+  const bounds = row => {
+    if (!rowBounds.has(row)) rowBounds.set(row, row.getBoundingClientRect());
+    return rowBounds.get(row);
+  };
+  if (animated) for (const {slot, row} of changed){
+    if (slot === held) continue;
+    const from = bounds(slot.parentElement), to = bounds(row);
+    before.set(slot, new DOMMatrix().translate(from.left-to.left, from.top-to.top).multiply(matScreenMatrix(slot)));
+  }
+  for (const {slot, pose} of changed){
+    slot.getAnimations().forEach(animation => animation.cancel());
+    slot._pose = pose;
+    slot.style.transform = matFanTf(pose, w, h);
+  }
+  // Only the held card and any cards crossing rows need to change DOM position to preserve stacking order.
+  for (let i = order.length - 1; i >= 0; i--){
+    const slot = order[i], {row} = positions[i];
+    const next = positions[i+1]?.row === row ? order[i+1] : null;
+    if (slot.parentElement !== row || (slot === held && slot.nextElementSibling !== next))
+      row.insertBefore(slot, next);
+  }
+  slots.splice(0, slots.length, ...order);
+  for (const [slot, from] of before)
+    slot.animate([{transform:from.toString()}, {transform:slot.style.transform}],
+      {duration:bazaarTiming.pileShift, easing:MAT_FAN_SHIFT_EASE});
+}
+function matRefreshShopFan(request = false){
+  const fan = $('view-play').querySelector(':scope > .osdeckfan')?._cardLayout;
+  if (!fan) return;
+  if (request) fan.layoutPending = true;
+  if (fan.layoutPending && !fan.overlay.inert && !MATDRAG.p && !MATLIFT.src){
+    fan.layoutPending = false;
+    matLayoutShopFan(fan);
+  }
+}
+
+function matLayoutShopFan(fan){
+  const {overlay, rows, slots, baseWidth} = fan;
+  const w = Math.round(baseWidth * bazaarTiming.pileCardSize / 100), h = w * 1037 / 750;
+  const shape = matPileFanShape();
+  Object.assign(fan, {w, h, positions:[]});
+  overlay.style.setProperty('--os-deck-fan-w', w + 'px');
+  overlay.style.setProperty('--os-deck-fan-h', h + 'px');
+  if (!slots.length) return;
+  const cardsPerRow = matPileFanColumns(slots.length, w, h, innerWidth - 76, shape);
+  const content = document.createDocumentFragment();
+  for (let start = 0; start < slots.length; start += cardsPerRow){
+    const rowSlots = slots.slice(start, start + cardsPerRow), poses = matFanPoses(rowSlots.length, w, h, shape);
+    const row = document.createElement('div');
+    row.className = 'osdeckfan-row';
+    row.style.width = poses.w + 'px'; row.style.height = poses.h + 'px';
+    rowSlots.forEach((slot, i) => {
+      slot.getAnimations().forEach(animation => animation.cancel());
+      slot._pose = poses.poses[i];
+      slot.style.transform = matFanTf(slot._pose, w, h);
+      row.append(slot);
+      fan.positions.push({row, pose:slot._pose});
+    });
+    content.append(row);
+  }
+  rows.replaceChildren(content);
+  rows.classList.toggle('osdeckfan-scroll', rows.scrollHeight > rows.clientHeight + 1);
+}
+
+// The player's Shop piles spread from their spots using the Mobilize bench's fan geometry.
+function matOpenOwnPile(button){
+  if (!button?.matches('.osdesk .osseat.me :is(.osdeck,.osbought)') || !matShopOn()) return false;
+  const view = $('view-play'), i = seat(), p = G.players[i], {order, purchases} = matDeskInventory(i, p.hand);
+  const bought = button.classList.contains('osbought'), cards = bought ? purchases : order;
+  const origin = () => matPoseOf(button.querySelector('.ostop,.osslot'));
+  const ov = document.createElement('div');
+  ov.className = 'osdeckfan';
+  ov.dataset.pile = bought ? 'bought' : 'deck';
+  ov.innerHTML = '<section class="osdeckfan-panel" role="dialog" aria-modal="true" aria-labelledby="osdeckfan-title"><header><h2 id="osdeckfan-title"></h2><button type="button" class="osdeckfan-close" aria-label="Close deck">×</button></header><div class="osdeckfan-rows"></div></section>';
+  ov.querySelector('h2').textContent = bought ? 'Bought this shop' : deckName(i);
+  const rows = ov.querySelector('.osdeckfan-rows'), close = ov.querySelector('.osdeckfan-close');
+  if (bought) close.setAttribute('aria-label', 'Close bought cards');
+  const baseWidth = Math.floor(Math.min(168, Math.max(100, (origin()?.r.width || 120) * 1.13), innerWidth / 5.1));
+  let inspectRequest = 0;
+  const inspect = async card => {
+    const request = ++inspectRequest;
+    const row = card.closest('.osdeckfan-row');
+    if (!row) return;
+    const shifts = [...row.children].flatMap(slot => slot.getAnimations()).filter(animation => animation.playState === 'running');
+    if (shifts.length) await Promise.allSettled(shifts.map(animation => animation.finished));
+    if (request === inspectRequest && card.isConnected && !ov.inert && !peekEl && !MATDRAG.p) openPeek(card, true);
+  };
+  const slots = cards.map(name => {
+    const slot = document.createElement('div'), card = document.createElement('div');
+    const kind = DEFS[name] ? 'u' : 'b', count = kind === 'u' ? p.hand[name] : p.gear[name];
+    slot.className = 'osfanslot';
+    card.className = 'mcard osdeckfan-card ' + kind;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-haspopup', 'dialog');
+    card.setAttribute('aria-label', 'Inspect ' + dispName(name));
+    card.innerHTML = cardFace(name, kind, count, true) + (canSell(G, i, kind, name) ? shopSellBtnHTML(name, kind) : '');
+    card.addEventListener('click', e => { if (!e.target.closest('button')) inspect(card); });
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); inspect(card); }
+    });
+    slot.append(card);
+    return slot;
+  });
+  if (!cards.length) rows.innerHTML = bought
+    ? '<p class="osdeckfan-empty">No cards bought this shop yet.</p>'
+    : '<p class="osdeckfan-empty">No cards in your deck yet.</p>';
+  const layout = ov._cardLayout = {overlay:ov, rows, slots, baseWidth, player:i, pile:ov.dataset.pile};
+  view.append(ov);
+  matLayoutShopFan(layout);
+  close.focus({preventScroll:true});
+  sfx.soft();
+
+  const backdrop = opening => {
+    const shade = opening ? 'rgba(12,8,5,.68)' : getComputedStyle(ov).backgroundColor;
+    const shades = ['rgba(12,8,5,0)', shade];
+    ov.getAnimations().forEach(animation => animation.cancel());
+    return ov.animate((opening ? shades : shades.reverse()).map(backgroundColor => ({backgroundColor})),
+      {duration:opening ? 220 : 280, easing:'ease-out', fill:opening ? 'backwards' : 'forwards'});
+  };
+  const getFlight = (slot, home, opening) => {
+    const {w, h} = layout;
+    const row = slot.parentElement.getBoundingClientRect(), base = {left:row.left, top:row.top, width:w, height:h};
+    const to = {r:{left:row.left + slot._pose.x, top:row.top + slot._pose.y, width:w, height:h}, tilt:0, rot:slot._pose.rot};
+    return matArc(base, opening ? home : to, opening ? to : home, {arc:0, levelThroughout:true});
+  };
+  const home = origin();
+  if (!reduceMotion() && home){
+    backdrop(true);
+    const {duration, gap} = matPileMotion(slots.length, true);
+    slots.forEach((slot, i) => {
+      const frames = getFlight(slot, home, true);
+      if (frames) slot.animate(frames, {duration, delay:i * gap, easing:MAT_EASE, fill:'backwards'});
+    });
+  }
+  function shut(){
+    if (ov.inert || peekEl) return;
+    ov.inert = true;
+    const done = () => {
+      ov.remove();
+      if (layout.dirty && matShopOn()) renderPlay();
+      if (button.isConnected) button.focus({preventScroll:true});
+    };
+    const home = origin();
+    if (reduceMotion() || !home){ done(); return; }
+    const animations = [backdrop(false).finished];
+    const layers = [home, ...[...button.querySelectorAll(':scope > .ospile-stock > .osedge')].map(edge => matPoseOf(edge)).filter(Boolean)];
+    const {duration, gap} = matPileMotion(slots.length, false);
+    slots.forEach((slot, i) => {
+      const depth = slots.length - 1 - i;
+      const frames = getFlight(slot, layers[Math.min(depth, layers.length - 1)], false);
+      if (!frames) return;
+      const playing = slot.getAnimations(), current = getComputedStyle(slot).transform;
+      playing.forEach(a => a.cancel());
+      const steps = playing.length ? [{transform:current}, frames.at(-1)] : frames;
+      animations.push(slot.animate(steps, {duration, delay:i * gap, easing:MAT_EASE, fill:'both'}).finished);
+    });
+    Promise.allSettled(animations).then(done);
+  }
+  close.addEventListener('click', shut);
+  ov.addEventListener('click', e => { if (e.target === ov) shut(); });
+  ov.addEventListener('keydown', e => {
+    if (e.key === 'Escape'){ e.stopPropagation(); shut(); }
+    if (e.key !== 'Tab') return;
+    const last = slots.at(-1)?.firstElementChild || close;
+    if (e.shiftKey && e.target === close){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && e.target === last){ e.preventDefault(); close.focus(); }
+  });
+  return true;
 }
 // a bench card slides from where it was (r0, a screen box, e.g. where it was dropped) to its pose, turning as it goes
 function matFanFlip(el, r0, land){
   const slot = el.closest('.osfanslot'), p = slot && slot._pose; if (!p || !r0 || reduceMotion()) return;
   const w = el.offsetWidth, h = el.offsetHeight, f = slot.parentElement.getBoundingClientRect();
-  if (land && r0.rot != null && w && h){
-    const from = `translate(${r0.left - f.left}px,${r0.top - f.top}px) rotate(${r0.rot}deg) scale(${r0.width / w},${r0.height / h})`;
-    slot.animate([{transform:from}, {transform:matFanTf(p, w, h)}], {duration:190, easing:SLIDE});
-    return;
-  }
+  if (!w || !h) return;
   const dx = r0.left + r0.width / 2 - (f.left + p.x + w / 2), dy = r0.top + r0.height / 2 - (f.top + p.y + h / 2);
-  const rot0 = land ? 0 : MATFAN.prev.has(el.dataset.key) ? MATFAN.prev.get(el.dataset.key) : p.rot;
-  if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && rot0 === p.rot) return;
-  slot.animate([{transform:`translate(${dx}px, ${dy}px) ${matFanTf({...p, rot:rot0}, w, h)}`}, {transform:`translate(0px, 0px) ${matFanTf(p, w, h)}`}], {duration:land ? 180 : MZ_MS, easing:SLIDE});
+  const rot = r0.rot ?? p.rot;
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && rot === p.rot && Math.abs(r0.width - w) < 1) return;
+  const from = matFanTf({x:p.x + dx, y:p.y + dy, rot}, w, h) +
+    ` translate(${w/2}px,${h/2}px) scale(${r0.width/w},${r0.height/h}) translate(${-w/2}px,${-h/2}px)`;
+  slot.animate([{transform:from}, {transform:matFanTf(p, w, h)}],
+    {duration:land ? bazaarTiming.dragSettle : bazaarTiming.pileShift, easing:MAT_FAN_SHIFT_EASE});
 }
 function matMobDeskHTML(S, me, d, rows, items, who){
-  const bench = items.map((it, i) => `<div class="osfanslot" style="z-index:${i + 1}">${mzBenchCard(it)}</div>`).join('');
+  const order = new Map((ui.mzBenchOrder?.[S] || []).map((key, i) => [key, i]));
+  const sorted = [...items].sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity));
+  const bench = sorted.map(it => `<div class="osfanslot">${mzBenchCard(it)}</div>`).join('');
   const ai = !PP() && !G.net ? 'AI planning its deck…' : `${esc(nm(1 - S))}'s deck`;
   return `<div class="osshop osdesk osmobmat${MATMOB.lift ? ' oslifting' : ''}" aria-hidden="true"><div class="osplane"><div class="osinner">
     ${matSeatHTML(1 - S, 'mob')}
@@ -1109,13 +1870,14 @@ function matMobDeskHTML(S, me, d, rows, items, who){
   </div></div></div>
   <div class="osmob osdeskmob"><div class="osmobdim" aria-hidden="true"></div>
     <div class="forces mz osmz" style="--n:${Math.max(1, d.length)};--tt:${d.reduce((t, u) => t + (u.gear ? 1 : 0) + (u.arm || 0) + (u.tr || 0) + (u.sh || 0), 0)}">
-      <section class="mz-deck" aria-label="${who}"><div class="osmzhd">${who} · 1 at the bottom fights first</div>${mzLimitsHTML(me, d)}
+      <section class="mz-deck" aria-label="${who}"><h2 class="osmzhd">${who}</h2>${mzLimitsHTML(me, d)}
         <div class="mzstack" id="mz-deck">${rows || '<div class="mzempty">Drag units here from the bench</div>'}</div>
+        ${d.length ? '<div class="osmz-first">Bottom card fights first</div>' : ''}
         ${ui.err ? `<p class="err" role="alert">${esc(ui.err)}</p>` : ''}
       </section>
       <div class="mobright">
-        <section class="mz-bench" aria-label="Bench"><div class="osmzhd">Bench</div>
-          <div class="mzstack osfan" id="mz-bench">${bench || '<div class="mzempty">Everything is in your deck</div>'}</div>
+        <section class="mz-bench" aria-label="Bench"><h2 class="osmzhd">Bench</h2>
+          <div class="osmob-bench-scroll"><div class="mzstack osfan" id="mz-bench">${bench || '<div class="mzempty">Everything is in your deck</div>'}</div></div>
         </section>
         ${mobMirHTML(me)}
       </div>
@@ -1127,14 +1889,37 @@ function matMobDeskHTML(S, me, d, rows, items, who){
 // renderPlay's step on the desktop: the fan, Lock in and the AI's deck take their places (after the mat is fitted)
 function matDeskMobLayout(){
   const mob = document.querySelector('#view-play .osdeskmob'); if (!mob) return;
-  const fan = mob.querySelector('#mz-bench.osfan'), slots = fan ? [...fan.querySelectorAll(':scope > .osfanslot')] : [];
-  const c = slots[0] && slots[0].firstElementChild;
-  MATFAN.prev = MATFAN.cur; MATFAN.cur = new Map();
-  if (c){
-    const w = c.offsetWidth, h = c.offsetHeight, L = matFanPoses(slots.length, w, h);
-    fan.style.width = L.w + 'px'; fan.style.height = L.h + 'px';
-    slots.forEach((s, i) => { s._pose = L.poses[i]; s.style.transform = matFanTf(L.poses[i], w, h); MATFAN.cur.set(s.firstElementChild.dataset.key, L.poses[i].rot); });
-  } else if (fan){ fan.style.width = ''; fan.style.height = ''; }
+  MATMOB.layoutPending = false;
+  const fan = mob.querySelector('#mz-bench.osfan'), slots = fan ? [...fan.querySelectorAll('.osfanslot')] : [];
+  if (fan) fan._cardLayout = null;
+  if (slots.length){
+    const width = fan.parentElement.clientWidth - 26;
+    const w = Math.round(Math.min(width, parseFloat(getComputedStyle(mob).getPropertyValue('--mw')) * .8 * bazaarTiming.pileCardSize / 100));
+    if (w > 0){
+      const h = w * 1037 / 750, shape = matPileFanShape();
+      const columns = matPileFanColumns(slots.length, w, h, width, shape);
+      const scroll = fan.parentElement.scrollTop;
+      fan.style.setProperty('--mzbenchw', w + 'px');
+      const content = document.createDocumentFragment(), positions = [];
+      for (let i = 0; i < slots.length; i += columns){
+        const row = document.createElement('div'), children = slots.slice(i, i + columns);
+        const fanRow = matFanPoses(children.length, w, h, shape);
+        row.className = 'osmob-fan-row';
+        row.style.width = fanRow.w + 'px';
+        row.style.height = fanRow.h + 'px';
+        children.forEach((slot, j) => {
+          slot._pose = fanRow.poses[j];
+          slot.style.transform = matFanTf(slot._pose, w, h);
+          positions.push({row, pose:slot._pose});
+          row.append(slot);
+        });
+        content.append(row);
+      }
+      fan.replaceChildren(content);
+      fan._cardLayout = {overlay:fan, rows:fan, slots, positions, w, h};
+      fan.parentElement.scrollTop = scroll;
+    }
+  }
   // Suggest and Lock in where Pass was (right of the trays, under the discard)
   const pass = document.querySelector('#view-play .osdesk.osmobmat .ospass'), acts = mob.querySelector('.osmobacts');
   if (pass && acts){ const r = pass.getBoundingClientRect(), m = mob.getBoundingClientRect(); acts.style.left = (r.left - m.left) + 'px'; acts.style.top = (r.top - m.top) + 'px'; acts.style.width = r.width + 'px'; }
@@ -1149,9 +1934,10 @@ function matMobDockHTML(acts){
 // last moves to play, then sweep the market and draw Mobilize. Returns true when this redraw should wait.
 function matMobGate(){
   if (MATMOB.busy){ MATMOB.redraw = true; return true; }
-  if (MATMOB.lift || !G || G.phase !== 'mobilize' || !matMobOn()) return false;   // lift: the sweep is done, draw Mobilize
+  if (MATMOB.lift || !G || G.phase !== 'mobilize' || ui.battle || ui.start) return false;
   const shop = document.querySelector('#view-play .osshop:not(.osmobmat)');
   if (!shop || reduceMotion()) return false;   // nothing on screen to sweep: draw Mobilize as it is
+  if (!matMobOn() && !shop.querySelector('.osbazaar')) return false;   // desktop also packs up before a handoff panel
   if (oppBusy()){
     if (!MATMOB.queued){ MATMOB.queued = true; oppOnIdle(() => { MATMOB.queued = false; renderPlay(); }); }
     return true;
@@ -1161,7 +1947,7 @@ function matMobGate(){
   try{ if (peekEl) closePeek(); }catch(e){}
   dismissTurnFlash();
   matSweep(shop).then(() => {
-    MATMOB.busy = false; MATMOB.lift = true;
+    MATMOB.busy = false; MATMOB.lift = matMobOn();
     renderPlay();   // draws Mobilize; matMobAfterDraw lifts the deck
     const fl = MATMOB.flyers.splice(0);
     requestAnimationFrame(() => requestAnimationFrame(() => fl.forEach(g => g.remove())));   // the swept cards now lie on their decks
@@ -1171,20 +1957,32 @@ function matMobGate(){
 // 1. the sweep, on the shop as it is on screen. Resolves when the last card has landed.
 function matSweep(shop){
   return new Promise(res => {
-    const desk = shop.classList.contains('osdesk'), motion = [];
+    const desk = shop.classList.contains('osdesk'), bazaar = desk && !!shop.querySelector('.osbazaar'), motion = [], piles = [];
     const live = new Set(['u', 'b'].flatMap(k => (G.disp[k] || []).map(c => 'c' + c.id)));
     const deck = k => shop.querySelector(`.ostray .sdeck[data-k="${k}"] .dealdeck`);
     const pile = shop.querySelector('#muster-pile .mpcards') || shop.querySelector('#muster-pile');
+    const sections = [...shop.querySelectorAll('.osmkt .msec[data-k]')];
+    const seats = desk ? [...shop.querySelectorAll('.osseat')].map(seat => ({
+      seat, top:seat.querySelector('.osbought .ostop'), to:seat.querySelector('.osdeck .ostop, .osdeck .osslot')
+    })) : [];
+    const market = bazaar ? '.market > .mcard, .market > .mirwrap > .mcard' : '.market > .mcard';
+    const rows = sections.map(sec => [...sec.querySelectorAll(market)]);
+    const destinations = {u:deck('u'), b:deck('b'), p:pile};
+    const projection = bazaar ? matTiltOf() : null;
+    const flat = bazaar ? matFlatRects(shop.querySelector('.osplane'),
+      rows.flat().concat(Object.values(destinations), seats.flatMap(({top, to}) => [top, to]))) : null;
     MATMOB.cells = {};
     const list = [];
-    for (const sec of shop.querySelectorAll('.osmkt .msec[data-k]')){
-      const k = sec.dataset.k === 'b' ? 'b' : 'u', all = [...sec.querySelectorAll('.market > .mcard')], cards = all.filter(e => e.dataset.ck && !e.classList.contains('ghost'));
+    for (const [index, sec] of sections.entries()){
+      const k = sec.dataset.k === 'b' ? 'b' : 'u';
+      const all = rows[index];
+      const cards = all.filter(e => e.dataset.ck && !e.classList.contains('ghost'));
       MATMOB.cells[k] = all.length;
       // the always-for-sale pile (Drifter, Moisture Harvester) slides off the left edge for Mobilize
-      const sup = sec.querySelector('.alwaysw .astack > .mcard'), sfr = sup && matFlatRect(sup), sto = matSupplyOff(sfr);
-      if (sfr && sfr.width && sto) list.push({el:sup, k, fr:sfr, to:'supply', dest:sto, hide:sup.closest('.alwaysw')});
+      const sup = !bazaar && sec.querySelector('.alwaysw .astack > .mcard'), sfr = sup && matFlatRect(sup), sto = matSupplyOff(sfr);
+      if (!bazaar && sfr && sfr.width && sto) list.push({el:sup, k, fr:sfr, to:'supply', dest:sto, hide:sup.closest('.alwaysw')});
       for (const el of cards){
-        const pose = matPoseOf(el);
+        const pose = matPoseOf(el, flat);
         if (pose && getComputedStyle(el).visibility !== 'hidden' && el.style.opacity !== '0')
           list.push({el, k, fr:pose.r, rot:pose.rot, to:live.has(el.dataset.ck) ? 'deck' : 'pile'});
       }
@@ -1194,42 +1992,55 @@ function matSweep(shop){
     document.querySelectorAll('#view-play .osseat.osact').forEach(b => b.classList.remove('osact'));
     for (const e of document.querySelectorAll('#dock .dbtns, #dock .ospurse, #dock .tslots, #view-play .osdesk .ospass'))
       motion.push(e.animate([{opacity:1}, {opacity:0}], {duration:250, fill:'forwards'}));
-    const duration = desk ? 500 : MAT_SWEEP;
-    const gap = desk ? Math.min(58, 330 / Math.max(1, list.length - 1)) : MAT_SWEEP_GAP;
+    const duration = bazaar ? bazaarTiming.sweepTravel : desk ? 500 : MAT_SWEEP;
+    const gap = bazaar ? spreadGap(list.length, bazaarTiming.sweepSpread, bazaarTiming.sweepGap) : desk ? Math.min(58, 330 / Math.max(1, list.length - 1)) : MAT_SWEEP_GAP;
     const n = {u:0, b:0, p:0}, tot = {u:0, b:0, p:0}; let end = 0;
     for (const x of list) if (!x.dest) tot[x.to === 'deck' ? x.k : 'p']++;
+    const targets = Object.fromEntries(Object.entries(destinations).map(([kind, el]) => [kind, matPoseOf(el, flat)]));
     list.forEach((x, j) => {
-      const target = x.dest ? null : matPoseOf(x.to === 'deck' ? deck(x.k) : pile);
+      const w = x.to === 'deck' ? x.k : 'p', target = x.dest ? null : targets[w];
       const tr = x.dest || target?.r;
       if (!tr || !tr.width) return;
-      const w = x.to === 'deck' ? x.k : 'p', h = x.dest ? 0 : n[w]++;
+      const h = x.dest ? 0 : n[w]++;
       const dest = x.dest || {left:tr.left, top:tr.top + Math.min(3, tot[w] - 1 - h) * 2, width:tr.width};   // each a little lower than the next: the last lands on the spot itself
       const {g, ctx} = flyer(x.el, x.k, {exact:true});
       g.classList.remove('canbuy', 'cant', 'peeked', 'oslifted');
+      if (bazaar) bazaarFlightCard(g);
       flyEl(g, x.fr, x.fr.width, x.fr.height, LAYER.flight, ctx); g.style.overflow = '';
-      const kf = matArc(x.fr, {r:x.fr, tilt:1, rot:x.rot}, {r:dest, tilt:1, rot:target?.rot}, {arc:22, bump:.06});
+      let to = {r:{...dest, height:tr.height}, tilt:1, rot:bazaar ? 90 : target?.rot, discard:x.to === 'pile'};
+      if (bazaar) to = bazaarCardPose(to, x.fr);
+      const start = {r:x.fr, tilt:1, rot:x.rot};
+      const kf = matArc(x.fr, start, to, {arc:bazaar && to.discard ? 36 : 22, bump:bazaar ? 0 : .06, projection});
       if (!kf){ g.remove(); return; }
       const delay = j * gap;
       motion.push(g.animate(kf, {duration, delay, easing:MAT_EASE, fill:'both'}));
       (x.hide || x.el).style.visibility = 'hidden';
       MATMOB.flyers.push(g);
+      if (bazaar) piles.push({g, from:x.fr, to});
       try{ sfx.flick(delay / 1000 + .02); }catch(e){}
       end = Math.max(end, delay + duration);
     });
     // On desktop the bought piles merge into the players' decks as the last shop cards reach their own decks.
     const t1 = Math.max(0, end - 160);
-    if (desk) for (const st of shop.querySelectorAll('.osseat')){
-      const top = st.querySelector('.osbought .ostop'), to = st.querySelector('.osdeck .ostop, .osdeck .osslot');
-      const fr = top && matFlatRect(top), tr = to && matFlatRect(to); if (!fr || !fr.width || !tr || !tr.width) continue;
+    for (const {seat, top, to} of seats){
+      const fr = flat ? flat.get(top) : top && matFlatRect(top);
+      const tr = flat ? flat.get(to) : to && matFlatRect(to);
+      if (!fr?.width || !tr?.width) continue;
       const {g, ctx} = flyer(top, top.classList.contains('u') ? 'u' : 'b', {exact:true});
+      if (bazaar) bazaarFlightCard(g);
       flyEl(g, fr, fr.width, fr.height, LAYER.flight, ctx); g.style.overflow = '';
-      const kf = matArc(fr, {r:fr, tilt:1}, {r:tr, tilt:1}, {arc:14, bump:.04}); if (!kf){ g.remove(); continue; }
+      const toPose = {r:tr, tilt:1};
+      const kf = matArc(fr, {r:fr, tilt:1}, bazaar ? bazaarCardPose(toPose, fr) : toPose,
+        {arc:14, bump:bazaar ? 0 : .04, projection}); if (!kf){ g.remove(); continue; }
       motion.push(g.animate(kf, {duration:MAT_MERGE, delay:t1, easing:MAT_EASE, fill:'both'}));
-      setTimeout(() => { for (const e of st.querySelectorAll('.osbought > :not(.ostag)')) e.style.visibility = 'hidden'; }, t1);
+      setTimeout(() => { for (const e of seat.querySelectorAll('.osbought > :not(.ostag)')) e.style.visibility = 'hidden'; }, t1);
       MATMOB.flyers.push(g);
     }
-    if (desk) Promise.allSettled(motion.map(a => a.finished)).then(res);
-    else setTimeout(res, end ? end + 120 : 0);
+    if (desk){
+      const packed = Promise.allSettled(motion.map(a => a.finished));
+      const closed = bazaar ? bazaarClose(shop, piles, packed) : packed;
+      closed.then(res);
+    } else setTimeout(res, end ? end + 120 : 0);
   });
 }
 // renderPlay's step: Mobilize was just drawn after the sweep, so the deck lifts off the mat
@@ -1238,9 +2049,10 @@ function matMobAfterDraw(){
   MATMOB.lift = false;
   if (!matMobOn() || !document.querySelector('#view-play .osmobmat')) return;
   MATMOB.busy = true; MATMOB.redraw = false;
-  matMobLift().catch(err => console.error('Mobilize entrance', err)).finally(() => {
+  MATMOB.entrance = matMobLift().catch(err => console.error('Mobilize entrance', err)).finally(() => {
     const mob = document.querySelector('#view-play .osdeskmob'); if (mob) mob.inert = false;
     MATMOB.busy = false;
+    MATMOB.entrance = null;
     renderPlay();   // one redraw catches up (and puts the piles away)
   });
 }
@@ -1296,6 +2108,11 @@ function matMobLift(){
   try{ sfx.rustle(); }catch(e){}
   return new Promise(res => setTimeout(res, Math.max(end, 1750)));
 }
+function matMobDimIn(mob){
+  const dim = mob?.querySelector('.osmobdim');
+  if (!dim || reduceMotion()) return;
+  return dim.animate([{opacity:0}, {opacity:1}], {duration:bazaarTiming.inspectDim, easing:'ease-out', fill:'backwards'});
+}
 // 2 on the desktop (Brian, Nov 25): the dim comes down; your deck lifts off its spot, flat out of the tilt, to the middle
 // and fans up into the cascade, card 1 settling last at the bottom; gear and tokens fly to their places in the bench fan;
 // the AI's deck lifts face down towards the top edge. Labels and controls settle during the last part of the lift.
@@ -1312,57 +2129,89 @@ async function matMobLiftDesk(){
     el.style.transformOrigin = '0 0';
     play(el, frames, options);
   };
-  const dim = mob.querySelector('.osmobdim');
-  if (dim) play(dim, [{opacity:0}, {opacity:1}], {duration:340, easing:'ease-out'});
+  const dimIn = matMobDimIn(mob);
+  if (dimIn) motion.push(dimIn);
   const rows = [...mob.querySelectorAll('#mz-deck > .mzc')];   // back to front: card 1 (at the bottom) is the last
-  const gap = Math.min(48, 160 / Math.max(1, rows.length - 1));
+  const {duration, gap} = matPileMotion(rows.length, true);
   rows.forEach((el, i) => {
-    const delay = 100 + i * gap, duration = 780;
+    const delay = i * gap;
     if (ps){
       const b = el.getBoundingClientRect();
-      flight(el, matArc(b, ps, {r:b, tilt:0}, {arc:50, bump:.06}), {duration, delay});
-      for (const x of el.querySelectorAll(':scope > .mzpow, :scope > .mztags, :scope > .mztk'))
-        play(x, [{opacity:0}, {opacity:1}], {duration:200, delay:delay + duration - 220, easing:'ease-out'});
+      flight(el, matArc(b, ps, {r:b, tilt:0}, {arc:0, levelThroughout:true}), {duration, delay});
+      const unfold = Math.min(bazaarTiming.pileRoomOpen, duration);
+      for (const tuck of el.querySelectorAll(':scope > .mztk'))
+        play(tuck, [{translate:`${-tuck.offsetLeft}px ${-tuck.offsetTop}px`}, {translate:'0 0'}],
+          {duration:unfold, delay:delay + duration - unfold});
+      for (const x of el.querySelectorAll(':scope > .mzpow, :scope > .mztags'))
+        play(x, [{opacity:0}, {opacity:1}], {duration:Math.min(140, duration), delay:delay + Math.max(0, duration - 140), easing:'ease-out'});
     }
     const number = el.querySelector(':scope > .mzno');
     if (number) play(number, [{opacity:0, transform:'scale(.72)'}, {opacity:1, transform:'scale(1.10)', offset:.72}, {opacity:1, transform:'none'}],
-      {duration:200, delay:ps ? delay + duration - 180 : 420 + i * gap, easing:'ease-out'});
+      {duration:Math.min(140, duration), delay:delay + Math.max(0, duration - 140), easing:'ease-out'});
   });
-  const fan = mob.querySelector('#mz-bench.osfan'), fb = fan && fan.getBoundingClientRect();
-  const slots = [...mob.querySelectorAll('#mz-bench > .osfanslot')], fanGap = Math.min(55, 180 / Math.max(1, slots.length - 1));
+  const slots = [...mob.querySelectorAll('#mz-bench .osfanslot')], fan = matPileMotion(slots.length, true);
   slots.forEach((slot, i) => {
-    const c = slot.firstElementChild, p = slot._pose, ss = matSpotRect(me && c && matBenchFrom(c, me)); if (!ss || !p || !fb) return;
-    const w = c.offsetWidth, h = c.offsetHeight;
-    flight(slot, matArc({left:fb.left, top:fb.top, width:w, height:h}, ss, {r:{left:fb.left + p.x, top:fb.top + p.y, width:w}, tilt:0, rot:p.rot}, {arc:40, bump:.05}),
-      {duration:650, delay:150 + i * fanGap});
+    const c = slot.firstElementChild, p = slot._pose, ss = matSpotRect(me && c && matBenchFrom(c, me));
+    if (!ss || !p) return;
+    const fb = slot.parentElement.getBoundingClientRect(), w = c.offsetWidth, h = c.offsetHeight;
+    flight(slot, matArc({left:fb.left, top:fb.top, width:w, height:h}, ss,
+      {r:{left:fb.left + p.x, top:fb.top + p.y, width:w}, tilt:0, rot:p.rot}, {arc:0, levelThroughout:true}),
+      {duration:fan.duration, delay:i * fan.gap});
   });
   // the AI's deck: face down off its spot up towards the top edge
   const ai = mob.querySelector('.osaicard'), os = matSpotRect(opp && opp.querySelector('.osdeck .osslot, .osdeck .ostop'));
   if (ai && os){ const pr = ai.offsetParent.getBoundingClientRect(), b = {left:pr.left + ai.offsetLeft, top:pr.top + ai.offsetTop, width:ai.offsetWidth, height:ai.offsetHeight};
-    flight(ai, matArc(b, os, {r:b, tilt:0, rot:MAT_AIDECK_ROT}, {arc:30}), {duration:670, delay:150}); }
-  [...mob.querySelectorAll('.osmzhd, .mzlim, .mzempty, .err, .osaitxt, .osmobacts')].forEach((e, i) =>
-    play(e, [{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'none'}], {duration:230, delay:535 + Math.min(i * 25, 125)}));
+    flight(ai, matArc(b, os, {r:b, tilt:0, rot:MAT_AIDECK_ROT}, {arc:30}), {duration, delay:0}); }
+  const chromeTime = Math.min(160, duration);
+  for (const el of mob.querySelectorAll('.osmzhd, .osmz-first, .mzlim, .mzempty, .err, .osaitxt, .osmobacts'))
+    play(el, [{opacity:0}, {opacity:1}], {duration:chromeTime, delay:duration - chromeTime});
   try{ sfx.rustle(); }catch(e){}
   await Promise.allSettled(motion.map(a => a.finished));
 }
 // The next round's deal on the mat: last shop's leftovers come back out of the top of their deck (where the sweep left
 // them), face up, sliding across the mat to their spot; the real card shows when its copy lands. Returns when it lands.
-function matReturnFly(el, deck, delay, dur){
+function matReturnFly(el, deck, delay, dur, entryDistance, geometry){
   if (!matShopOn() || !el || !deck || !el.closest('#view-play .osplane')) return 0;
-  const to = matPoseOf(el), from = deck.nodeType ? matPoseOf(deck) : {r:deck, tilt:1};   // or a flat rect off the left edge
+  const to = matPoseOf(el, geometry?.flat), from = deck.nodeType ? matPoseOf(deck) : deck.r ? deck : {r:deck, tilt:1};   // or a flat rect off the left edge
   const fr = to?.r;
   if (!fr?.width || !from?.r.width) return 0;
   const {g, ctx} = flyer(el, null, {exact:true});
   g.classList.remove('canbuy', 'cant', 'peeked');
-  if (to.rot) g.querySelector('.hgtok')?.remove();   // hours stamp the card in the tray after the handoff
-  flyEl(g, fr, fr.width, fr.height, LAYER.flight, ctx); g.style.overflow = '';
-  const kf = matArc(fr, from, to, {arc:22, bump:.06}); if (!kf){ g.remove(); return 0; }
-  const a = g.animate(kf, {duration:dur, delay, easing:MAT_EASE, fill:'both'});
+  if (to.rot) g.querySelector('.hgtok')?.remove();
+  const stacked = entryDistance != null, layer = stacked ? LAYER.flight + 1 : LAYER.flight;
+  if (deck.r) bazaarFlightCard(g);
+  flyEl(g, fr, fr.width, fr.height, layer, ctx); g.style.overflow = '';
+  const start = deck.r ? bazaarCardPose(from, fr) : from;
+  const kf = matArc(fr, start, to, {arc:22, bump:deck.r ? 0 : .06, projection:geometry?.projection}); if (!kf){ g.remove(); return 0; }
+  let cover;
+  if (stacked){
+    cover = flyer(el, null).g;
+    bazaarFlightCard(cover);
+    cover.classList.add('osbazaar-carry');
+    flyEl(cover, fr, fr.width, fr.height, layer, ctx);
+    const off = {...start, r:{...start.r, left:start.r.left + entryDistance}};
+    const entry = matArc(fr, off, start, {arc:0, projection:geometry?.projection});
+    cover.animate(entry, {duration:bazaarTiming.deckEnter, delay:bazaarTiming.deckEnterDelay, easing:BAZAAR_SLIDE, fill:'both'});
+    g.style.opacity = '0';
+    kf[0].opacity = kf.at(-1).opacity = 1;
+  }
+  const a = g.animate(kf, {duration:dur, delay, easing:MAT_EASE, fill:cover ? 'forwards' : 'both'});
+  if (cover){
+    // Same timeline and delay as the flight, so one face replaces the other in the same frame.
+    cover.animate([{opacity:0}, {opacity:0}], {duration:dur, delay, fill:'forwards'});
+    a.finished.then(() => cover.remove(), () => cover.remove());
+  }
   if (!matTrackDeal(el, g, a)){
     const wait = el.animate([{opacity:0}, {opacity:0}], {duration:delay + dur});
+    geometry?.stage?.hold(wait);
     a.onfinish = a.oncancel = () => { g.remove(); wait.cancel(); };
   }
-  try{ sfx.flick(delay / 1000 + .02); }catch(e){}
+  const sound = () => { try{ sfx.flick(delay / 1000 + .02); }catch(e){} };
+  if (geometry?.stage){
+    geometry.stage.hold(a);
+    for (const animation of cover?.getAnimations() || []) geometry.stage.hold(animation);
+    geometry.stage.cues.push(sound);
+  } else sound();
   return delay + dur;
 }
 
@@ -1382,18 +2231,108 @@ function matReturnFly(el, deck, delay, dur){
    How: matBatGate pins the mat and Mobilize where they are and takes them out of the page (the view's redraw reshapes
    the nodes it finds, morphInto); the same redraw draws the battle; matBatAfterDraw puts them back on top inside a
    screen-sized frame and plays matBatFold then matBatLand. The decks that slam are the board's own deck spots, so the
-   battle starts with no swap. Redraws and autoplay wait while it plays. Pass and play, online, desktop, the rug switch
+   battle starts with no swap. Redraws and autoplay wait while it plays. Pass and play, online, the rug switch
    off and reduced motion keep the hard cut.
-   Desktop (stage 4, Brian Nov 25; mock-up "Battle on the mat"): the same flow on the big mat, with one more beat. Unused
-   bench cards leave the fan for your deck pile; the trays, decks, discard and purses fade under the dim but the two
-   Caravan rows stay; when the dim lifts, each Caravan card folds to its crop and slides out to its strip at the top or
-   bottom edge (matBatStrips); then the words, then both decks slam: yours from the gathered stack, the AI's from where
-   its card back waited near the top. Every place is measured from the page when its beat starts, a beat with a missing
-   piece is skipped, and all the timings are the constants below. */
-const MATBAT = {busy:false, land:null, redraw:false};
+   Desktop starts gathering on lock-in, while the rival can still be planning. The Caravan masks close in place and
+   bench cards gather into the player's spare pile. The live Battle board takes over the cropped rows at the same
+   anchors. The decks land, then the standard reveal animation spreads the cards tucked behind each top unit. */
+const MATBAT = {busy:false, prep:null, land:null, redraw:false, entrance:null};
 const MAT_GATHER = 320, MAT_GATHER_GAP = 30, MAT_CROP_T = 300, MAT_CLEAR = 420, MAT_DIM = 380, MAT_WORDS = 360, MAT_TIP = 460, MAT_SLAM = 520;
-const MAT_FOLD = 240, MAT_SLIDE = 520, MAT_SLIDE_GAP = 45, MAT_STRIP_IN = 300;   // desktop: the Caravans fold to their crops, slide to the strips; the strips' other parts come in
+const MAT_FOLD = 300;
 function matBatBusy(){ return MATBAT.busy; }
+function matBattleBenchHTML(){
+  const bench = (ui.battle?.matSeats || MATBAT.prep?.seats)?.bench;
+  if (!bench?.count) return '';
+  const edges = Array.from({length:Math.min(3, bench.count - 1)}, (_, i) => `<i class="oback" style="--k:${i + 1}"></i>`).join('');
+  return `<div class="ospile osbenchpile" role="img" aria-label="Unused bench cards" style="--benchw:${bench.width}px">${edges}
+    <div class="osbench-face">${bench.face}</div></div>`;
+}
+function matBatScene(mat, mob){
+  const L = {mat, mob};
+  if (!mat?.classList.contains('osdesk')){
+    const home = document.querySelector('#view-play .osbar.me .oshandrow, #view-play .osbar.me .ospile');
+    L.home = home ? matRect(home) : null;
+    return L;
+  }
+  const plane = mat.querySelector('.osplane'), projection = matTiltOf();
+  const me = mat.querySelector('.osseat.me .oscarrow'), opp = mat.querySelector('.osseat.opp .oscarrow');
+  const nearSeat = me.closest('.osseat'), farSeat = opp.closest('.osseat');
+  const nearPurse = nearSeat.querySelector('.ospurse'), farPurse = farSeat.querySelector('.ospurse');
+  const home = mat.querySelector('.osseat.me .osdeck > .osslot');
+  const flat = matFlatRects(plane, [me, opp, nearSeat, farSeat, nearPurse, farPurse, home]);
+  const fan = [...mob.querySelectorAll('#mz-bench .osfanslot')], scroll = mob.querySelector('.osmob-bench-scroll');
+  const bounds = scroll.getBoundingClientRect();
+  const visible = fan.filter(slot => {
+    const rect = slot.getBoundingClientRect();
+    return rect.bottom > bounds.top && rect.top < bounds.bottom;
+  });
+  const card = (visible.at(-1) || fan.at(-1))?.firstElementChild;
+  const r = flat.get(home);
+  const croppedRow = row => {
+    const rect = flat.get(row);
+    const drop = matCropMetrics(row.querySelector('.oscar') || row.firstElementChild).drop;
+    return {left:rect.left, top:rect.top + drop, seatWidth:flat.get(nearSeat).width, purse:flat.get(nearPurse)};
+  };
+  const benchFace = card?.querySelector('.mzface'), benchCrop = benchFace && matCropMetrics(benchFace);
+  L.fan = fan;
+  L.visibleBench = new Set(visible);
+  L.seats = {projection, viewW:innerWidth, viewH:innerHeight, width:parseFloat(getComputedStyle(mat).getPropertyValue('--mw')),
+    me:croppedRow(me), opp:{left:flat.get(opp).left, top:flat.get(opp).top, seatWidth:flat.get(farSeat).width, purse:flat.get(farPurse)},
+    bench:benchCrop && r ? {left:r.left, top:r.top, drop:benchCrop.drop, width:benchCrop.width,
+      count:fan.length, face:benchFace.innerHTML} : null};
+  return L;
+}
+function matDesktopBattleCamera(){
+  const scene = ui.battle?.matSeats;
+  if (scene && scene.viewW === innerWidth && scene.viewH === innerHeight) return scene.projection;
+  return {d:2100, t:14, ox:innerWidth / 2, oy:innerHeight};
+}
+function matPlaceBattleStrips(){
+  const scene = ui.battle?.matSeats || MATBAT.prep?.seats;
+  const anchor = scene && scene.viewW === innerWidth && scene.viewH === innerHeight;
+  const strips = document.querySelectorAll('#view-play .osbars .osstrip');
+  for (const strip of strips){
+    strip.classList.toggle('osstrip-anchored', !!anchor);
+    strip.style.transform = '';
+    strip.style.width = '';
+    const purse = strip.querySelector('.ospurse');
+    const pile = strip.querySelector('.osbenchpile');
+    if (purse) { purse.style.left = ''; purse.style.top = ''; }
+    if (pile) pile.style.translate = '';
+    if (!anchor){
+      strip.style.transformOrigin = '0 0';
+      strip.style.transform = 'none';
+      const rect = strip.getBoundingClientRect();
+      strip.style.transform = new DOMMatrix().translate(-rect.left, -rect.top)
+        .multiply(matTiltMatrix(1, matDesktopBattleCamera())).translate(rect.left, rect.top).toString();
+      continue;
+    }
+    strip.style.transformOrigin = '';
+    const side = strip.classList.contains('me') ? 'me' : 'opp', original = scene[side];
+    strip.style.width = original.seatWidth + 'px';
+    const current = strip.querySelector('.oscarrow').getBoundingClientRect();
+    const x = original.left - current.left, y = original.top - current.top;
+    if (purse && original.purse){
+      purse.style.left = original.purse.left - x + 'px';
+      purse.style.top = original.purse.top - y + 'px';
+    }
+    if (pile && scene.bench){
+      const rect = pile.getBoundingClientRect();
+      pile.style.translate = `${scene.bench.left - rect.left - x}px ${scene.bench.top + scene.bench.drop - rect.top - y}px`;
+    }
+    strip.style.transform = matTiltMatrix(1, matDesktopBattleCamera()).translate(x, y).toString();
+  }
+  return !!anchor;
+}
+function matBatPrepare(){
+  if (!matDesk() || !labMatZones() || reduceMotion() || MATBAT.prep?.game === G) return false;
+  const mat = document.querySelector('#view-play .osmobmat.osdesk'), mob = document.querySelector('#view-play .osdeskmob');
+  if (!mat || !mob) return false;
+  const L = MATBAT.prep = matBatScene(mat, mob);
+  L.game = G;
+  mob.inert = true;
+  return L.folded = matBatFold(L);
+}
 function matBatWanted(){
   return !!G && !!ui.battle && ui.frame === 0 && !ui.battle.matIn && !PP() && !G.net && !reduceMotion()
     && typeof labMatZones === 'function' && labMatZones() && !!document.querySelector('#view-play .osmobmat .osplane');
@@ -1402,22 +2341,25 @@ function matBatWanted(){
 // pinned where they are and taken out of the page, then this same redraw draws the battle underneath.
 function matBatGate(){
   if (MATBAT.busy){ MATBAT.redraw = true; return true; }
+  if (MATBAT.prep && MATBAT.prep.game !== G) MATBAT.prep = null;
+  if (MATBAT.prep && !ui.battle) return true;
   if (!matBatWanted()) return false;
   ui.battle.matIn = true;
   try{ if (peekEl) closePeek(); }catch(e){}
-  try{ matHoverEnd(true); }catch(e){}   // (desktop: a card held up by the hover goes now)
   const mat = document.querySelector('#view-play .osmobmat'), mob = document.querySelector('#view-play .osmob');
-  const home = matDesk() ? document.querySelector('#view-play .osmobmat .osseat.me .osdeck') || document.querySelector('#view-play .osmobmat .osseat.me .ospile')
-    : document.querySelector('#view-play .osbar.me .oshandrow') || document.querySelector('#view-play .osbar.me .ospile');
-  MATBAT.land = {mat:matPin(mat), mob:matPin(mob), home:home ? matRect(home) : null};
+  const prep = MATBAT.prep, L = MATBAT.land = prep || matBatScene(mat, mob);
+  MATBAT.prep = null;
+  if (L.seats) ui.battle.matSeats = L.seats;
+  matPin(mat, !!prep);
+  matPin(mob, !!prep);
   for (const n of [MATBAT.land.mat, MATBAT.land.mob]) if (n) n.remove();   // the view's redraw must not take these
   return false;
 }
 // the screen rect of an element's box, and a node pinned where it is now (fixed), so it can outlive a redraw
 const matRect = el => { const r = el.getBoundingClientRect(); return {left:r.left, top:r.top, width:r.width, height:r.height}; };
-function matPin(el){
+function matPin(el, keepMotion = false){
   if (!el) return null;
-  el.getAnimations({subtree:true}).forEach(a => { try{ a.commitStyles(); }catch(e){} a.cancel(); });   // bake where the animations left things
+  if (!keepMotion) el.getAnimations({subtree:true}).forEach(a => { try{ a.commitStyles(); }catch(e){} a.cancel(); });
   const r = el.getBoundingClientRect();
   el.style.position = 'fixed'; el.style.left = r.left + 'px'; el.style.top = r.top + 'px'; el.style.width = r.width + 'px'; el.style.height = r.height + 'px';
   el.style.margin = '0'; el.style.pointerEvents = 'none'; el.setAttribute('aria-hidden', 'true'); el.classList.add('matbatpin');
@@ -1429,23 +2371,28 @@ function matBatAfterDraw(){
   MATBAT.land = null;
   const view = $('view-play'), line = view.querySelector('.stage .line.table.matz');
   if (!line || !L.mob){ return; }
-  toGame();   // the page settles on the battle now, so the decks slam where they live
+  if (!L.seats) toGame();
   const cam = document.createElement('div'); cam.className = 'matbatcam'; cam.setAttribute('aria-hidden', 'true');
   for (const n of [L.mat, L.mob]) if (n) cam.appendChild(n);   // (a screen-sized frame that clips: nothing makes the page grow)
   view.appendChild(cam);
-  line.classList.add('matbat', 'matbatpre');   // the board's cards wait hidden; its words, Caravans and decks wait for their beat
+  line.classList.add('matbat', 'matbatpre');
   L.strips = matDesk() ? [...view.querySelectorAll('.osbars .osstrip')] : [];
-  L.stripBg = L.strips.map(st => getComputedStyle(st).backgroundColor);   // (their shade, to fade back in to)
-  L.strips.forEach(st => st.classList.add('matbatpre'));   // desktop: the strips wait empty until their Caravans slide in
-  const late = [...document.querySelectorAll('#gtop .pbhint, #dock .act, #dock .dbtns')];
+  L.strips.forEach(st => st.classList.add('matbatpre'));
+  const late = [...view.querySelectorAll('#gtop .pbhint, .battlectl, #dock .act, #dock .dbtns')];
+  const controls = late.filter(e => !e.inert);
+  controls.forEach(e => { e.inert = true; });
   late.forEach(e => { e.style.opacity = '0'; });
   MATBAT.busy = true; MATBAT.redraw = false;
-  matBatFold(L).then(() => matBatLand(line, L)).then(() => {
+  L.folded ||= matBatFold(L);
+  const entrance = L.seats ? matBatLand(line, L) : L.folded.then(() => matBatLand(line, L));
+  MATBAT.entrance = entrance.catch(err => console.error('Battle entrance', err)).finally(() => {
+    controls.forEach(e => { e.inert = false; });
     late.forEach(e => { e.style.opacity = ''; if (e.isConnected) e.animate([{opacity:0}, {opacity:1}], {duration:260, easing:'ease-out'}); });
-    line.classList.remove('matbat');
+    line.classList.remove('matbat', 'matbatpre');
     (L.strips || []).forEach(st => { st.classList.remove('matbatpre'); st.getAnimations({subtree:true}).forEach(a => a.cancel()); });
     cam.remove();
     MATBAT.busy = false;
+    MATBAT.entrance = null;
     if (MATBAT.redraw){ MATBAT.redraw = false; renderPlay(); }
     if (autoOn()) startAuto(400);
   });
@@ -1454,20 +2401,38 @@ function matBatAfterDraw(){
 function matBatFold(L){
   return new Promise(res => {
     const mob = L.mob, mat = L.mat;
-    const desktop = !!L.strips?.length;
-    const gather = desktop ? 260 : MAT_GATHER, crop = desktop ? 220 : MAT_CROP_T, clear = desktop ? 300 : MAT_CLEAR;
+    const desktop = !!L.seats;
+    if (desktop) mob.classList.add('osbatgather');
     const rows = [...mob.querySelectorAll('#mz-deck > .mzc')];
-    const one = L.one = rows[rows.length - 1];   // drawn back to front: card 1 is the last row
-    const at = one && one.getBoundingClientRect();
-    const go = (el, kf, o) => el && kf ? el.animate(kf, {fill:'forwards', easing:MAT_EASE, ...o}) : null;
+    const fold = desktop ? matPileMotion(rows.length, false) : {duration:MAT_GATHER, gap:MAT_GATHER_GAP};
+    const gather = fold.duration, clear = desktop ? 300 : MAT_CLEAR;
+    const one = L.one = rows.findLast(row => !row.classList.contains('spell'));
+    const rest = desktop ? [] : rows.filter(row => row !== one);
+    if (one) one.style.zIndex = rows.length;
+    const at = !desktop && one?.getBoundingClientRect();
+    const motion = [];
+    const go = (el, kf, o) => {
+      if (el && kf) motion.push(el.animate(kf, {fill:'forwards', easing:MAT_EASE, ...o}));
+    };
     // 1. the cascade gathers into one stack of full cards on card 1, the last card first
-    rows.slice(0, -1).forEach((el, i) => {
+    if (desktop){
+      rows.forEach((row, i) => {
+        const delay = Math.min(i, Math.max(0, rows.length - 2)) * fold.gap;
+        for (const tuck of row.querySelectorAll(':scope > .mztk')){
+          go(tuck, [{transform:'none', visibility:'visible'},
+            {transform:`translate(${-tuck.offsetLeft}px,${-tuck.offsetTop}px)`, visibility:'hidden'}],
+          {duration:Math.min(gather, bazaarTiming.pileRoomClose), delay});
+        }
+      });
+    }
+    rest.forEach((el, i) => {
       const r = el.getBoundingClientRect(); if (!at) return;
       el.style.transformOrigin = '0 0';
-      go(el, [{transform:'none'}, {transform:`translate(${at.left - r.left}px,${at.top - r.top}px) scale(${at.width / r.width})`}], {duration:gather, delay:i * MAT_GATHER_GAP});
+      go(el, [{transform:'none'}, {transform:`translate(${at.left - r.left}px,${at.top - r.top}px) scale(${at.width / r.width})`}], {duration:gather, delay:i * fold.gap});
     });
-    const gathered = gather + Math.max(0, rows.length - 2) * MAT_GATHER_GAP;
-    for (const e of mob.querySelectorAll('.mzno, .mzpow, .mztags, .mztk, .osmzhd, .mzlim, .mzempty, .err, .mobmir, .osmobacts')) go(e, [{opacity:1}, {opacity:0}], {duration:220});
+    const gathered = gather + Math.max(0, rows.length - 2) * fold.gap;
+    for (const e of mob.querySelectorAll('.mzno, .mzpow, .mztags, .osmzhd, .mzlim, .mzempty, .err, .mobmir, .osmobacts, .osmz-first')) go(e, [{opacity:1}, {opacity:0}], {duration:220});
+    if (!desktop) for (const e of mob.querySelectorAll('.mztk')) go(e, [{opacity:1}, {opacity:0}], {duration:220});
     // bench items you didn't use go back to your hand spot (or your deck pile) in your bar, where it was, and fade there
     const hr = L.home;
     [...mob.querySelectorAll('#mz-bench > .mzc')].forEach((el, i) => {
@@ -1475,39 +2440,64 @@ function matBatFold(L){
       if (hr && hr.width && b.width){ el.style.transformOrigin = '0 0'; go(el, matArc(b, {r:b, tilt:0}, {r:{left:hr.left, top:hr.top, width:Math.min(hr.width, hr.height * b.width / b.height)}, tilt:0}, {arc:30}), o); }
       go(el, [{opacity:1}, {opacity:1, offset:.7}, {opacity:0}], {...o, easing:'linear'});
     });
-    // desktop: the fan's cards keep their own pose (matFanTf) and move from it to the deck pile, shrinking as they go
-    const fan = [...mob.querySelectorAll('#mz-bench > .osfanslot')], gap = Math.min(40, 125 / Math.max(1, fan.length - 1));
-    fan.forEach((el, i) => {
-      const b = el.getBoundingClientRect(), o = {duration:gather + 85, delay:i * gap};
-      const base = el.style.transform || getComputedStyle(el).transform; const tf = base && base !== 'none' ? base : '';
-      if (hr && hr.width && b.width){
-        const dx = hr.left + hr.width / 2 - (b.left + b.width / 2), dy = hr.top + hr.height / 2 - (b.top + b.height / 2), k = Math.min(1, hr.width / b.width);
-        go(el, [{transform:`translate(0,0) ${tf}`}, {transform:`translate(${dx / 2}px,${dy / 2 - 40}px) ${tf} scale(${(1 + k) / 2})`, offset:.5}, {transform:`translate(${dx}px,${dy}px) ${tf} scale(${k})`}], o);
-      }
-      go(el, [{opacity:1}, {opacity:1, offset:.7}, {opacity:0}], {...o, easing:'linear'});
-    });
+    if (desktop) motion.push(...matBatBenchFold(L));
     // 2. once gathered, the stack turns into its cropped version, in place (the cards under card 1 go with it)
-    rows.slice(0, -1).forEach(el => go(el, [{opacity:1}, {opacity:0}], {duration:1, delay:gathered}));
+    rest.forEach(el => go(el, [{visibility:'hidden'}, {visibility:'hidden'}], {duration:1, delay:gathered}));
     const face = one && one.querySelector(':scope > .mzface');
-    if (face && face.querySelector(':scope > .cface')) matCrop(face, [[0, 'open'], [1, 'crop']], {duration:crop, delay:gathered, easing:'ease-in-out', fill:'forwards'});
+    if (face && !desktop) motion.push(...matCrop(face, [[0, 'open'], [1, 'crop']], {duration:MAT_CROP_T, delay:gathered, easing:'ease-in-out', fill:'forwards'}).anims);
     // under the dim, the whole mat leaves (shop decks, discard, market words): the battle has its own table
     // (desktop: all of it but the two Caravan rows, which fold into the strips once the dim lifts)
-    if (mat && L.strips && L.strips.length){
-      const out = [...mat.querySelectorAll('.osinner > :not(.osseat), .osinner > .osseat > :not(.oscarrow), .osinner > .osseat > .oscarrow > .osslot')];
+    if (mat && desktop){
+      const out = [...mat.querySelectorAll('.osinner > :not(.osseat), .osinner > .osseat > :not(.oscarrow,.ospurse), .osinner > .osseat > .oscarrow > .osslot')];
       out.forEach(e => go(e, [{opacity:1}, {opacity:0}], {duration:clear, delay:80, easing:'ease-in'}));
       for (const e of [mat, ...mat.querySelectorAll('.osplane, .osinner, .osinner > .osseat')])
         go(e, [{}, {backgroundColor:'transparent', backgroundImage:'none', boxShadow:'none', borderColor:'transparent'}], {duration:clear, delay:80, easing:'ease-in'});
+      mat.querySelectorAll('.oscarrow .oscar').forEach(card => {
+        const direction = card.closest('.osseat.opp') ? 'up' : 'down';
+        motion.push(...matCrop(card, [[0, 'open'], [1, 'crop']], {duration:MAT_FOLD, easing:'ease-in-out', fill:'both'}, direction).anims);
+      });
     } else if (mat) go(mat, [{opacity:1}, {opacity:0}], {duration:clear, delay:80, easing:'ease-in'});
     try{ sfx.rustle(); }catch(e){}
-    setTimeout(res, Math.max(gathered + crop, 80 + clear) + 40);
+    Promise.allSettled(motion.map(animation => animation.finished)).then(res);
   });
 }
-// 3–5. the dim lifts on a clear table, the words and Caravans come, the decks slam. Resolves when the board is the board.
-function matBatLand(line, L){
-  return new Promise(res => {
+function matBatBenchFold(L){
+  const home = L.seats.bench;
+  if (!home) return [];
+  const motion = [];
+  const {duration, gap} = matPileMotion(L.fan.length, false);
+  const scroll = L.mob.querySelector('.osmob-bench-scroll');
+  const offset = scroll.scrollTop, w = home.width;
+  scroll.classList.add('osbench-flight');
+  if (offset) scroll.firstElementChild.style.translate = `0 ${-offset}px`;
+  L.fan.forEach((slot, i) => {
+    const row = slot.parentElement.getBoundingClientRect(), pose = slot._pose;
+    if (!pose) return;
+    const card = slot.firstElementChild, r = {left:row.left + pose.x, top:row.top + pose.y, width:w, height:card.offsetHeight};
+    if (!L.visibleBench.has(slot)) { slot.style.visibility = 'hidden'; return; }
+    const layout = {left:row.left, top:row.top, width:w, height:r.height};
+    const frames = matArc(layout, {r, tilt:0, rot:pose.rot}, {r:home, tilt:1},
+      {arc:36, projection:L.seats.projection});
+    const delay = i * gap;
+    motion.push(slot.animate(frames, {duration, delay, fill:'both', easing:MAT_EASE}));
+    motion.push(...matCrop(card.querySelector('.mzface'), [[0, 'open'], [1, 'crop']],
+      {delay:delay + duration * .8, duration:MAT_FOLD, easing:'ease-in-out', fill:'both'}, 'down').anims);
+  });
+  return motion;
+}
+function matBatSwapRows(L){
+  // Swap the cropped cards, bench and banks together at the recorded tabletop positions.
+  L.mat.querySelectorAll('.oscarrow,.ospurse').forEach(el => { el.style.visibility = 'hidden'; });
+  L.fan.forEach(slot => { slot.style.visibility = 'hidden'; });
+  for (const strip of L.strips) strip.classList.remove('matbatpre');
+}
+// The dim lifts, the decks drop, and the first cards splay their attachments before controls are released.
+async function matBatLand(line, L){
+  const rowsReady = L.seats && L.folded.then(() => matBatSwapRows(L));
+  const decksReady = new Promise(res => {
     const mob = L.mob;
-    const desktop = !!L.strips?.length;
-    const dimMs = desktop ? 300 : MAT_DIM, tipMs = desktop ? 340 : MAT_TIP, slamMs = desktop ? 410 : MAT_SLAM;
+    const desktop = !!L.seats, splaying = [];
+    const dimMs = desktop ? 300 : MAT_DIM, tipMs = desktop ? 600 : MAT_TIP, slamMs = desktop ? 320 : MAT_SLAM;
     const mine = line.querySelector('.trow.s0 > .deckz > .tzc'), theirs = line.querySelector('.trow.s1 > .deckz > .tzc');
     const face = el => el && el.querySelector('.card:not(.mini)');
     const go = (el, kf, o) => el && kf ? el.animate(kf, {fill:'backwards', easing:'cubic-bezier(.2,.7,.25,1)', ...o}) : null;
@@ -1515,103 +2505,79 @@ function matBatLand(line, L){
     // 3. the dim lifts (the stack stays, held above the table)
     const dim = mob.querySelector('.osmobdim'); if (dim) dim.animate([{opacity:1}, {opacity:0}], {duration:dimMs, easing:'ease-out', fill:'forwards'});
     t += dimMs - (desktop ? 190 : 80);
-    // (desktop) the Caravans fold to their crops and slide out to the strips; the strips' other parts come in
-    if (L.strips && L.strips.length) t += matBatStrips(L, t);
+    const oneF = L.one && L.one.querySelector(':scope > .mzface');
+    const cropped = desktop && document.body.matches('.os-battle-tight,.lab-crop');
     // 4. the zone words fade in (the Caravans stay where they were, in the bars)
     for (const w of line.querySelectorAll('.zl, .labslot')) go(w, [{opacity:0}, {opacity:1}], {duration:desktop ? 280 : MAT_WORDS, delay:t, easing:'ease-out'});
     // (your deck starts tipping as the words come, and lands once they're in: MAT_TIP > MAT_WORDS)
     // 5. your deck takes over from the cropped stack where it is, flat, the same size, then tips into the board's tilt
     // while it moves to the spot it drops from, right above its place; then both decks slam down together (the rival's
     // from off the top edge, face up), a squash and the puff on each
-    const squash = [{k:'translate(0,-10px) scale(1.04)', o:.72}, {k:'scale(1.07,.88)', o:.84}, {k:'scale(.99,1.02)', o:.93}, {k:'none', o:1}];
+    const squash = [{k:'translate(0,-10px)', o:.72}, {k:'scaleY(.88)', o:.84}, {k:'scaleY(1.02)', o:.93}, {k:'none', o:1}];
+    const impact = t + tipMs + slamMs * .84, settled = t + tipMs + slamMs;
+    const showDeck = (deck, sources) => {
+      const delay = t + tipMs;
+      for (const source of sources) source.animate([{visibility:'hidden'}, {visibility:'hidden'}], {duration:1, delay:delay + 1, fill:'forwards'});
+      go(deck, [{visibility:'hidden'}, {visibility:'visible'}], {duration:1, delay, easing:'steps(1, end)'});
+    };
+    const reveal = el => {
+      if (!el) return;
+      splaying.push(new Promise(done => labSplayIn(face(el), settled, null, done)));
+      for (const bar of el.querySelectorAll('.hprow')) go(bar, [{opacity:0}, {opacity:1}], {duration:160, delay:settled});
+    };
     const dust = (el, at) => setTimeout(() => { const q = face(el) ? face(el).getBoundingClientRect() : el.getBoundingClientRect(); try{ labDust(q.left + q.width / 2, q.bottom - 4, q.width * 1.3); }catch(e){} }, at);
-    const slam = (el, from) => {   // (the rival's: from off the top edge)
+    const slam = el => {   // off the top edge when there is no source stack on the mat
       if (!el) return;
       const r = el.getBoundingClientRect(), f = face(el) ? face(el).getBoundingClientRect() : r, cos = Math.cos(14 * Math.PI / 180);
       el.style.transformOrigin = `${f.left - r.left + f.width / 2}px ${(f.bottom - r.top) / cos}px`;
-      go(el, [{transform:`translate(0,${-(f.bottom + 40) / cos}px) scale(1.12)`, offset:0}, ...squash.map(q => ({transform:q.k, offset:q.o}))], {duration:slamMs, delay:t + tipMs, easing:'ease-in'});
-      dust(el, t + tipMs + slamMs * .82);
-      for (const hp of el.querySelectorAll('.hprow, .tk')) go(hp, [{opacity:0}, {opacity:1}], {duration:200, delay:t + tipMs + slamMs});
+      go(el, [{transform:`translate(0,${-(f.bottom + 40) / cos}px)`, offset:0}, ...squash.map(q => ({transform:q.k, offset:q.o}))], {duration:slamMs, delay:t + tipMs, easing:'linear'});
+      dust(el, impact);
+      reveal(el);
     };
-    const oneF = L.one && L.one.querySelector(':scope > .mzface');
-    const fl = mine && oneF ? matBatTip(line, mine, face(mine), matRect(oneF), squash) : null;
+    const sources = desktop ? [...mob.querySelectorAll('#mz-deck > .mzc')] : oneF ? [oneF] : [];
+    const target = mine && matBatDeckGeometry(line, mine, face(mine));
+    const flights = target ? sources.map(source => ({source, flight:matBatTip(target, matRect(source), squash, false, desktop)}))
+      .filter(({flight}) => flight) : [];
+    const fl = flights[0]?.flight;
     line.classList.remove('matbatpre');   // (every piece now has its beat's animation holding it back)
     if (mine && fl){
-      // the stack itself (still the sharp, big card) tips and moves; your deck takes over at the drop spot, same pose
-      oneF.style.transformOrigin = '0 0';
-      oneF.animate(fl.tip, {duration:tipMs, delay:t, easing:'linear', fill:'forwards'});
-      oneF.animate([{opacity:1}, {opacity:0}], {duration:1, delay:t + tipMs + 16, fill:'forwards'});
+      // Each unit gathers directly at the destination. The Battle pile takes over for the short vertical drop.
+      const gap = desktop ? spreadGap(flights.length, tipMs * .35, bazaarTiming.pileGap) : 0;
+      flights.forEach(({source, flight}, i) => {
+        const stagger = i * gap, delay = t + stagger, duration = tipMs - stagger;
+        source.style.transformOrigin = '0 0';
+        source.animate(flight.tip, {duration, delay, easing:'linear', fill:'forwards'});
+        if (cropped) matCrop(source.querySelector(':scope > .mzface'), [[0,'open'], [1,'crop']],
+          {duration, delay, easing:MAT_EASE, fill:'both'}, 'up');
+      });
       mine.style.transformOrigin = '0 0';
       go(mine, fl.drop, {duration:slamMs, delay:t + tipMs, easing:'linear'});
-      go(mine, [{opacity:0}, {opacity:1}], {duration:1, delay:t + tipMs, easing:'linear'});
-      dust(mine, t + tipMs + slamMs * .82);
-      for (const hp of mine.querySelectorAll('.hprow, .tk')) go(hp, [{opacity:0}, {opacity:1}], {duration:200, delay:t + tipMs + slamMs});
-    } else if (mine){ go(mine, [{opacity:0}, {opacity:1}], {duration:60, delay:t + tipMs, easing:'linear'}); slam(mine, null); if (oneF) oneF.animate([{opacity:1}, {opacity:0}], {duration:60, delay:t + tipMs, fill:'forwards'}); }
-    if (theirs) go(theirs, [{opacity:0}, {opacity:1}], {duration:1, delay:t + tipMs, easing:'linear'});
+      showDeck(mine, sources);
+      dust(mine, impact);
+      reveal(mine);
+    } else if (mine){ showDeck(mine, sources); slam(mine); }
     // the rival's deck: on the desktop its card back waited near the top (.osaicard) and tips in the same way as yours;
     // otherwise (or if that card is gone) it slams from off the top edge
     const aiB = L.strips && L.strips.length ? mob.querySelector('.osaideck .osaicard') : null;
-    const fa = theirs && aiB && aiB.getBoundingClientRect().width ? matBatTip(line, theirs, face(theirs), matRect(aiB), squash) : null;
+    const aiTarget = theirs && aiB && matBatDeckGeometry(line, theirs, face(theirs));
+    const fa = aiTarget && matBatTip(aiTarget, matRect(aiB), squash, true, desktop);
     if (fa){
       aiB.style.transformOrigin = '0 0';
       aiB.animate(fa.tip, {duration:tipMs, delay:t, easing:'linear', fill:'forwards'});
-      aiB.animate([{opacity:1}, {opacity:0}], {duration:1, delay:t + tipMs + 16, fill:'forwards'});
+      showDeck(theirs, [aiB]);
       const tx = mob.querySelector('.osaideck .osaitxt'); if (tx) go(tx, [{opacity:1}, {opacity:0}], {duration:200, delay:t, fill:'forwards'});
       theirs.style.transformOrigin = '0 0';
       go(theirs, fa.drop, {duration:slamMs, delay:t + tipMs, easing:'linear'});
-      dust(theirs, t + tipMs + slamMs * .82);
-      for (const hp of theirs.querySelectorAll('.hprow, .tk')) go(hp, [{opacity:0}, {opacity:1}], {duration:200, delay:t + tipMs + slamMs});
-    } else slam(theirs, null);
-    t += tipMs;
-    setTimeout(() => { try{ sfx.lock(); }catch(e){} }, t + slamMs * .82);
+      dust(theirs, impact);
+      reveal(theirs);
+    } else if (theirs){ showDeck(theirs, []); slam(theirs); }
+    setTimeout(() => { try{ sfx.lock(); }catch(e){} }, impact);
     setTimeout(() => {
       for (const el of [mine, theirs]) if (el) el.style.transformOrigin = '';
-      res();
-    }, t + slamMs + 60);
+      Promise.all(splaying).then(res);
+    }, settled + 60);
   });
-}
-
-/* Desktop: the Caravan rows on the mat become the strips. Each card on the mat folds to its crop (the bottom of its face
-   rolls up to the crop line), then the strip's own card for that spot takes over from that same place and slides out to
-   the strip; empty spots, the side word, Miracles, the purse and the strip's shade fade in after. The strip cards are
-   matched by spot (the n-th card of a row goes to the n-th card of its strip); a card with no partner just fades, and a
-   strip card with no partner fades in. Returns how long the beat takes from t. */
-function matBatStrips(L, t){
-  const cos = Math.cos(14 * Math.PI / 180), go = (el, kf, o) => el && kf ? el.animate(kf, {fill:'backwards', easing:'cubic-bezier(.3,.6,.25,1)', ...o}) : null;
-  let n = 0, end = 0;
-  for (const st of L.strips){
-    const side = st.classList.contains('me') ? 'me' : 'opp';
-    const from = L.mat ? [...L.mat.querySelectorAll(`.osinner > .osseat.${side} > .oscarrow > .oscar`)] : [];
-    const to = [...st.querySelectorAll(':scope > .oscarrow > .oscar')];
-    to.forEach((c, j) => {
-      const m = from[j], mf = m && (m.querySelector(':scope > .cface') || m), d = t + MAT_FOLD + n * MAT_SLIDE_GAP;
-      if (m && mf.getBoundingClientRect().width){
-        const fh = mf.offsetHeight, fw = mf.offsetWidth, cut = fh && fw ? Math.max(0, Math.min(60, (1 - fw * MAT_CROP / fh) * 100)) : 29.8;
-        mf.animate([{clipPath:'inset(0 0 0 0)'}, {clipPath:`inset(0 0 ${cut.toFixed(2)}% 0)`}], {duration:MAT_FOLD, delay:t + n * MAT_SLIDE_GAP, easing:'ease-in-out', fill:'forwards'});
-        m.animate([{opacity:1}, {opacity:0}], {duration:1, delay:d, fill:'forwards'});
-        const a = mf.getBoundingClientRect(), b = c.getBoundingClientRect(), k = b.width ? a.width / b.width : 1;
-        const dx = a.left + a.width / 2 - (b.left + b.width / 2), dy = (a.top - b.top) / cos;
-        c.style.transformOrigin = '50% 0';
-        go(c, [{transform:`translate(${dx}px,${dy}px) scale(${k})`}, {transform:`translate(${dx * .45}px,${dy * .45 - 24}px) scale(${(k + 1) / 2})`, offset:.5}, {transform:'none'}], {duration:MAT_SLIDE, delay:d});
-        c.animate([{opacity:1}, {opacity:1}], {duration:1, delay:d, fill:'forwards'});   // (hidden until it takes over)
-        end = Math.max(end, MAT_FOLD + n * MAT_SLIDE_GAP + MAT_SLIDE);
-      } else {
-        go(c, [{opacity:0}, {opacity:1}], {duration:MAT_STRIP_IN, delay:t + MAT_FOLD, easing:'ease-out', fill:'both'});
-        end = Math.max(end, MAT_FOLD + MAT_STRIP_IN);
-      }
-      n++;
-    });
-    from.slice(to.length).forEach(m => m.animate([{opacity:1}, {opacity:0}], {duration:MAT_FOLD, delay:t, fill:'forwards'}));
-  }
-  // the rest of each strip comes in as the cards arrive
-  const at = t + MAT_FOLD + Math.max(0, n - 1) * MAT_SLIDE_GAP + MAT_SLIDE * .5;
-  L.strips.forEach((st, i) => {
-    for (const e of st.querySelectorAll(':scope > :not(.oscarrow), :scope > .oscarrow > :not(.oscar)')) go(e, [{opacity:0}, {opacity:1}], {duration:MAT_STRIP_IN, delay:at, easing:'ease-out', fill:'both'});
-    const bg = L.stripBg && L.stripBg[i]; if (bg) go(st, [{backgroundColor:'transparent'}, {backgroundColor:bg}], {duration:MAT_STRIP_IN, delay:at, easing:'ease-out', fill:'both'});
-  });
-  end = Math.max(end, at - t + MAT_STRIP_IN);
-  try{ setTimeout(() => sfx.rustle(), t + MAT_FOLD); }catch(e){}
-  return end - 120;   // the words start as the last cards settle
+  await Promise.all([rowsReady, decksReady]);
 }
 
 /* Your deck's flight in two parts (transform origin top left on both).
@@ -1620,27 +2586,36 @@ function matBatStrips(L, t){
    that same pose down onto its spot with the squash. The board (.line.table) tips back by the mat's camera,
    perspective(1000px) rotateX(14deg) from its bottom edge (css/11-rug.css). The stack's pose is the deck's pose in the
    board, seen through that camera at an angle that grows from 0 to 14°, so at the end the two match exactly. */
-function matBatTip(line, el, cardEl, R, squash){
-  if (!cardEl || !R || !R.width) return null;
+function matBatDeckGeometry(line, el, cardEl){
+  if (!cardEl) return null;
   line.style.setProperty('transform', 'none', 'important');
   const Lr = line.getBoundingClientRect(), D = el.getBoundingClientRect(), F = cardEl.getBoundingClientRect();
   line.style.removeProperty('transform');
-  if (!F.width) return null;
-  const ox = Lr.left + Lr.width / 2, oy = Lr.bottom, deg = 14, P = parseFloat(getComputedStyle(line).getPropertyValue('--matP')) || 1000;   // the board's camera (css/11-rug.css)
-  const cam = a => new DOMMatrix().translate(ox, oy).multiply(new DOMMatrix(`perspective(${P}px) rotateX(${a}deg)`)).translate(-ox, -oy);
+  const q = matDesk() ? matDesktopBattleCamera() : {d:1000, t:14, ox:Lr.left + Lr.width / 2, oy:Lr.bottom};
+  return F.width ? {D, F, q} : null;
+}
+function matBatTip({D, F, q}, R, squash, turn = false, desktop = false){
+  if (!R.width) return null;
+  const deg = q.t, cam = a => matTiltMatrix(a / deg, q);
   const fx = F.left - D.left, fy = F.top - D.top, fw = F.width, fh = F.height;
   // the deck's own transform (in the board's flat plane): k0/t0 puts its card over R, k1/t1 is the drop pose
   const k0 = R.width / fw, t0x = R.left - D.left - k0 * fx, t0y = R.top - D.top - k0 * fy;
-  const k1 = 1.12, cx = fx + fw / 2, cy = fy + fh, lift = fh * .42, t1x = cx - k1 * cx, t1y = cy - k1 * cy - lift;
-  const sm = x => x * x * (3 - 2 * x), N = 18, tip = [];
+  const k1 = 1, cx = fx + fw / 2, cy = fy + fh, lift = fh * (desktop ? .26 : .42), t1x = cx - k1 * cx, t1y = cy - k1 * cy - lift;
+  const sm = x => x * x * (3 - 2 * x), N = desktop ? 30 : 18, tip = [];
+  const yaw = (matrix, a) => matrix.translate(cx, fy + fh / 2).rotate(0, a, 0).translate(-cx, -fy - fh / 2);
   for (let i = 0; i <= N; i++){
     const u = i / N, e = sm(u), th = deg * sm(Math.min(1, u * 1.15));
-    const k = k0 + (k1 - k0) * e, tx = t0x + (t1x - t0x) * e, ty = t0y + (t1y - t0y) * e - Math.sin(Math.PI * u) * fh * .12;
+    const k = k0 + (k1 - k0) * e, tx = t0x + (t1x - t0x) * e, ty = t0y + (t1y - t0y) * e - Math.sin(Math.PI * (desktop ? e : u)) * fh * .12;
     // on screen: the board's camera at th, of the deck's spot moved by (tx, ty, k); the stack's own box maps onto the deck's card
-    const S = cam(th).translate(D.left, D.top).translate(tx, ty).scale(k).translate(fx, fy).scale(fw / R.width);
+    let S = cam(th).translate(D.left, D.top).translate(tx, ty).scale(k);
+    if (turn) S = yaw(S, 89.9 * sm(Math.max(0, (u - .55) / .45)));
+    S = S.translate(fx, fy).scale(fw / R.width);
     tip.push({transform:new DOMMatrix().translate(-R.left, -R.top).multiply(S).toString(), offset:u});
   }
-  const drop = [{transform:new DOMMatrix().translate(t1x, t1y).scale(k1).toString(), offset:0, easing:'ease-in'}];
+  let start = new DOMMatrix().translate(t1x, t1y).scale(k1);
+  if (turn) start = yaw(start, -89.9);
+  const drop = [{transform:start.toString(), offset:0, easing:'ease-in'}];
+  if (turn) drop.push({transform:`translate(0,${t1y * .85}px)`, offset:.3, easing:'ease-in'});
   for (const q of squash.slice(0, -1)) drop.push({transform:new DOMMatrix().translate(cx, cy).multiply(new DOMMatrix(q.k)).translate(-cx, -cy).toString(), offset:q.o, easing:'ease-out'});
   drop.push({transform:'none', offset:1});
   return {tip, drop};

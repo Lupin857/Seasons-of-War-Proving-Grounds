@@ -278,7 +278,7 @@ $('view-play').addEventListener('input', e => {
   root.querySelectorAll('.bk').forEach((el, k) => el.classList.toggle('on', k === br.k));
   const go = root.querySelector('[data-act="st-go"]'); if (go) go.textContent = goLabel(R);
 });
-$('view-play').addEventListener('click', e => {
+$('view-play').addEventListener('click', async e => {
   const t = e.target.closest('[data-act^="st-"]'); if (!t || t.disabled) return;
   e.stopImmediatePropagation();
   const a = t.dataset.act, resign = G && !G.over && G.opp && G.opp.rated && !G.ratedDone;
@@ -293,17 +293,21 @@ $('view-play').addEventListener('click', e => {
   if (a.startsWith('st-net')){ netStartClick(a, resign); return; }
   if (a === 'st-pp'){
     if (resign && ui.resignArm !== 'pp'){ ui.resignArm = 'pp'; renderPlay(); return; }
-    if (resign) recordResult(true);
     const val = (id, d) => { const el = $(id); const v = el && el.value.trim().slice(0, 16); return v || d; };
     let names = [val('pp-n0', 'Player 1'), val('pp-n1', 'Player 2')];
     if (names[0] === names[1]) names = [names[0] + ' 1', names[1] + ' 2'];
     if (names.includes('You')) names = names.map((n, i) => n === 'You' ? `Player ${i + 1}` : n);   // "You" is the solo game's name
+    const before = ui, mode = startMode;
+    if (!(await waitForMatchArt(t)) || ui !== before || !ui.start || startMode !== mode) return;
+    if (resign) recordResult(true);
     try{ LS.set('sow-pp-names', names); }catch(e){}
     netLeave(); ui.pick = null; newPassPlay(names); return;
   }
   if (a === 'st-go' || a === 'st-free'){
     const key = a === 'st-go' ? true : 'free';
     if (resign && ui.resignArm !== key){ ui.resignArm = key; renderPlay(); return; }
+    const before = ui, mode = startMode;
+    if (!(await waitForMatchArt(t)) || ui !== before || !ui.start || startMode !== mode) return;
     if (resign) recordResult(true);
     const placing = ME.rating == null;
     ui.pick = null; netLeave();

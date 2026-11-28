@@ -18,7 +18,7 @@ function abGroups(f){
   const groups = new Map();
   for (const l of f.lines){ if (!l.ab) continue; const k = l.ab.g ? `g:${l.ab.n}:${l.ab.u}` : l.ab.u || `b:${l.ab.s}:${l.ab.n}`; if (!groups.has(k)) groups.set(k, {ab:l.ab, lines:[]}); groups.get(k).lines.push(l); }
   // a Shield that blocks a hit gets its own note, joined to the shield on that card
-  for (const l of f.lines) if (l.to && !l.tok && !l.sil && !l.cut && l.amt === 0){
+  for (const l of f.lines) if (l.to && battleShieldBlock(l)){
     const k = 'sh:' + l.to; if (groups.has(k)) continue;
     groups.set(k, {ab:{n:'Shield', u:l.to, s:+String(l.to).split('-')[0], sh:true}, lines:[]});
   }
@@ -167,7 +167,8 @@ function reserveRows(){
   const mz = typeof labMatZones === 'function' && labMatZones();
   // phone battle on the mat: the cards start at the board's own size each battle; matFitBattle shrinks them to fit
   if (mz && ui.battle.fitW == null){ ui.battle.fitW = matBatBase(); document.documentElement.style.setProperty('--matbcw', ui.battle.fitW + 'px'); }
-  const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length + ':' + (typeof LAB === 'object' ? LAB.splay : '') + ':' + (mz ? ui.battle.fitW : '');
+  const tight = document.body.matches('.os-deskbat.os-battle-tight');
+  const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length + ':' + (typeof LAB === 'object' ? LAB.splay : '') + ':' + (mz ? ui.battle.fitW + ':' + tight : '');
   if (ui.battle.rowKey !== key){
     const probe = document.createElement('div');
     probe.className = 'stage'; probe.setAttribute('aria-hidden', 'true');
@@ -192,7 +193,7 @@ function reserveRows(){
     probe.remove();
     // the rows keep the tallest height any battle has needed at this width and board look, so they never shrink
     // from one battle to the next
-    const gk = w + ':' + (typeof LAB === 'object' ? [LAB.splay, LAB.size, LAB.view, LAB.zoom, LAB.tilt].join(',') : '') + (mz ? ':' + LABROOM + ':' + ui.battle.fitW : '');
+    const gk = w + ':' + (typeof LAB === 'object' ? [LAB.splay, LAB.size, LAB.view, LAB.zoom, LAB.tilt].join(',') : '') + (mz ? ':' + LABROOM + ':' + ui.battle.fitW + ':' + tight : '');
     const keep = (window.__rowKeep || (window.__rowKeep = {}))[gk] || [0, 0];
     mx[0] = Math.max(mx[0], keep[0]); mx[1] = Math.max(mx[1], keep[1]); window.__rowKeep[gk] = mx.slice();
     ui.battle.rowH = mx; ui.battle.rsv = rsv; ui.battle.rowKey = key; ui.battle.rowGk = gk;
@@ -223,28 +224,76 @@ function reserveRows(){
 // the battle cards' own size on the mat: the phone board's, or on the desktop the table's card size from the shop
 function matBatBase(){
   const d = typeof matDesk === 'function' && matDesk() && parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--deskmw'));
-  return d > 0 ? Math.round(d) : Math.round(98 * LAB.zoom / 100);
+  return d > 0 ? d : Math.round(98 * LAB.zoom / 100);
 }
-/* Desktop (Brian, Nov 25): the Caravan strips hold normal-width cards with the crop applied, tilted with the table.
-   "Normal width" is the battle cards' width, so the strips' cards follow --matbcw (as --stripw), and the strip zones are
-   only as tall as the crop; matFitBattle settles the shared width (the strips get shorter as the cards shrink). */
-function matDeskStrips(w){ document.documentElement.style.setProperty('--stripw', Math.round(w) + 'px'); }
+function matSetBattlePivot(line){
+  const q = matDesktopBattleCamera();
+  line.style.setProperty('transform', 'none', 'important');
+  const rect = line.getBoundingClientRect();
+  line.style.removeProperty('transform');
+  line.style.setProperty('--battle-pivot', `${q.ox - rect.left}px ${q.oy - rect.top}px`);
+}
+function matFitDesktopBattle(line, b){
+  const de = document.documentElement, panel = line.closest('.panel'), body = document.body;
+  const width = b.matSeats?.width || matBatBase();
+  de.style.setProperty('--stripw', width + 'px');
+  if (b.fitW !== width){
+    b.fitW = width;
+    de.style.setProperty('--matbcw', width + 'px');
+    reserveRows();
+    return;
+  }
+  line.style.removeProperty('--battle-y-offset');
+  panel.classList.remove('os-battle-scroll');
+  matPlaceBattleStrips();
+  const so = document.querySelector('#view-play .osbars .osstrip.opp');
+  const sm = document.querySelector('#view-play .osbars .osstrip.me'), gb = $('gtop')?.getBoundingClientRect().bottom || 0;
+  const top = so?.getBoundingClientRect().bottom + 8 || gb, bottom = sm?.getBoundingClientRect().top - 8 || innerHeight;
+  de.style.setProperty('--dsh-o', Math.max(0, top - gb) + 'px');
+  de.style.setProperty('--dsh-m', Math.max(0, innerHeight - bottom) + 'px');
+  de.style.setProperty('--matdy', '0px');
+  de.style.setProperty('--matgapk', '.5');
+  const layout = `${innerWidth}x${innerHeight}:${width}:${LAB.size}:${LAB.splay}`;
+  if (layout !== b.deskFitLayout){
+    b.deskFitLayout = layout;
+    if (body.classList.contains('os-battle-tight')){
+      body.classList.remove('os-battle-tight');
+      reserveRows();
+      return;
+    }
+  }
+  const room = panel.clientHeight;
+  if (line.getBoundingClientRect().height > room && !body.matches('.os-battle-tight,.lab-crop')){
+    body.classList.add('os-battle-tight');
+    reserveRows();
+    return;
+  }
+  const cardLength = width * 1037 / 750;
+  const extra = Math.max(0, room - line.offsetHeight);
+  const gap = .5 + Math.min(.25, extra / cardLength);
+  de.style.setProperty('--matgapk', gap.toFixed(5));
+  matSetBattlePivot(line);
+  const projected = line.getBoundingClientRect(), viewport = panel.getBoundingClientRect();
+  if (projected.height > room){
+    panel.classList.add('os-battle-scroll');
+  } else {
+    const q = matDesktopBattleCamera(), a = q.t * Math.PI / 180;
+    const unproject = y => (y - q.oy) / (Math.cos(a) + (y - q.oy) * Math.sin(a) / q.d);
+    const center = (projected.top + projected.bottom) / 2;
+    const aim = (viewport.top + viewport.bottom) / 2;
+    line.style.setProperty('--battle-y-offset', unproject(aim) - unproject(center) + 'px');
+  }
+  matSetBattlePivot(line);
+  panel.onscroll = panel.classList.contains('os-battle-scroll') ? () => matSetBattlePivot(line) : null;
+}
 function matFitBattle(line){
   const b = ui.battle; if (!b || !line || b.fitting) return;
   const desk = typeof matDesk === 'function' && matDesk();
-  if (desk) matDeskStrips(b.fitW || matBatBase());   // desktop: the strips' cards share the battle cards' width
-  if (desk){   // desktop: the board's panel sits between the Caravan strips (css/12-mat-shop.css, --dsh-o / --dsh-m)
-    const so = document.querySelector('#view-play .osbars .osstrip.opp'), sm = document.querySelector('#view-play .osbars .osstrip.me'), g = $('gtop'), de = document.documentElement;
-    const gb = g ? g.getBoundingClientRect().bottom : 0;
-    de.style.setProperty('--dsh-o', Math.round(so ? so.getBoundingClientRect().bottom + 16 - gb : 0) + 'px');
-    de.style.setProperty('--dsh-m', Math.round(sm ? innerHeight - sm.getBoundingClientRect().top + 16 : 0) + 'px');   // clear of the near row's zone names
-  }
-  const pr = desk && line.closest('.panel') ? line.closest('.panel').getBoundingClientRect() : null;   // desktop: the room is the board's panel, between the strips
-  const base = matBatBase(), {top, bot} = pr ? {top:pr.top, bot:pr.bottom + 6} : battleRoom(), room = bot - top - 6;
+  if (desk) { matFitDesktopBattle(line, b); return; }
+  const base = matBatBase(), {top, bot} = battleRoom(), room = bot - top - 6;
   if (room < 120) return;
   const H = () => line.getBoundingClientRect().height;
   document.documentElement.style.setProperty('--matgap', '0px');   // measured without the extra gap (added back below)
-  if (desk) document.documentElement.style.setProperty('--matgapk', '.5');   // desktop: the sides keep half a card's length between them (up to .75 with room to spare)
   let w = b.fitW, h = H(), pw = null, ph = null;
   b.fitting = true;
   try{
@@ -260,7 +309,7 @@ function matFitBattle(line){
     if (h > room && w > 56){ b.fitW = w = Math.max(56, w - 2); document.documentElement.style.setProperty('--matbcw', w + 'px'); reserveRows(); }
     // and across: on a narrow phone the three spots of a row (the near row is drawn wider, in the tilt) must stay on
     // screen, so the cards shrink a little more if a spot hangs past either edge
-    const vw = desk ? (line.closest('.panel') || line).getBoundingClientRect().right : document.documentElement.clientWidth;   // (desktop: left of the buttons' column)
+    const vw = document.documentElement.clientWidth;
     const over = () => Math.max(0, ...[...line.querySelectorAll('.trow > .tz > .tzc')].map(z => { const r = z.getBoundingClientRect(); return Math.max(-r.left, r.right - vw); }));
     for (let i = 0; i < 6 && w > 56; i++){
       const o = over(); if (o <= 1) break;
@@ -270,13 +319,8 @@ function matFitBattle(line){
     }
     // room left over once the cards are full size goes between the two battle rows (Brian, Nov 24: more space there),
     // up to 90 px more than the 28 px they always keep (--matgap, css/11-rug.css)
-    if (desk){   // desktop (Brian, Nov 25): .5 to .75 of a card's length between the sides, for the arrows and charges
-      const k = Math.min(.75, .5 + Math.max(0, room - H()) / (w * 1.3827));
-      b.fitGap = k; document.documentElement.style.setProperty('--matgapk', k.toFixed(3));
-    } else {
-      const gap = Math.max(0, Math.min(90, Math.floor(room - H())));
-      b.fitGap = gap; document.documentElement.style.setProperty('--matgap', gap + 'px');
-    }
+    const gap = Math.max(0, Math.min(90, Math.floor(room - H())));
+    b.fitGap = gap; document.documentElement.style.setProperty('--matgap', gap + 'px');
     // and down: the page stays at its top on the mat, so where the page flow puts the table is where it is drawn; if
     // that hangs under the bottom bar (or above the top one), the table moves just enough to sit between them
     // (--matdy, css/11-rug.css; Brian, Nov 24: nothing cut off on short phones). Worked out from the table's own
@@ -288,12 +332,6 @@ function matFitBattle(line){
     if (t0 + dy < top + 3) dy = top + 3 - t0;
     dy = Math.round(dy); if (dy !== cur) de.style.setProperty('--matdy', dy + 'px');
   } finally { b.fitting = false; }
-  // desktop: the strips used the old width; if the cards changed size, fit once more with the strips at the new one
-  // (a smaller card makes shorter strips, so this settles in a round or two)
-  if (desk){
-    const sw = parseFloat(document.documentElement.style.getPropertyValue('--stripw')) || 0;
-    if (Math.abs(sw - b.fitW) >= 2 && (b.stripRounds = (b.stripRounds || 0) + 1) <= 3) matFitBattle(line); else b.stripRounds = 0;
-  }
 }
 window.addEventListener('resize', () => { if (ui.battle) reserveRows(); });
 /* Show battle step k (glide: animate from the step on screen). Steps around the redraw come from the cubes

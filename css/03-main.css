@@ -613,7 +613,7 @@ button.sdeck.bmready:hover{border-color:var(--ink)}
 .bmtag b{font-family:var(--f-mono);font-weight:600;font-size:.74rem;color:var(--or)}
 @media (prefers-reduced-motion: reduce){ .sdeck.bmready .dealdeck{animation:none;filter:drop-shadow(0 0 3px var(--or))} }
 .mcard{position:relative}
-.dealback{position:absolute;inset:-1px;border-radius:8px;z-index:5;pointer-events:none}
+.dealback{position:absolute;inset:0;border-radius:var(--oasis-card-radius);z-index:5;pointer-events:none}
 header{position:relative}
 .rolebar{margin-top:8px;gap:6px 12px}
 .lenrow{gap:6px 12px}
@@ -1332,6 +1332,8 @@ body.dsopen{overflow:hidden}
   .abbox .abn{font-size:.8rem}
 }
 body.ingame #view-play{min-height:calc(100dvh - 16px)}
+body.ingame :is(#view-play,.peekwrap,.turnflash,.labsheet){-webkit-user-select:none;user-select:none}
+body.ingame :is(#view-play,.peekwrap,.turnflash,.labsheet) :is(input,textarea,[contenteditable]){-webkit-user-select:text;user-select:text}
 /* draw piles and the salvage pile: the same rounded square, shaped like the market cards. Decks show card backs
    (blue units, gold buildings) with the count on top; the salvage pile is face-up, showing the top card's name chip. */
 :root{--pile:46px}

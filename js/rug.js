@@ -109,7 +109,7 @@ function rugAfterDraw(){
     if (want){ html.dataset.rugTheme = html.getAttribute('data-theme') || ''; html.setAttribute('data-theme', 'dark'); }
     else if ('rugTheme' in html.dataset){ html.dataset.rugTheme ? html.setAttribute('data-theme', html.dataset.rugTheme) : html.removeAttribute('data-theme'); delete html.dataset.rugTheme; }
   }
-  const sand = want && rugSand();
+  const sand = want && (!compact() || rugSand());
   document.body.classList.toggle('os-sand', sand);
   document.body.classList.toggle('os-rug', want && !sand && !!ui.battle && document.body.classList.contains('lab-v-table'));
   document.body.classList.toggle('os-deskbat', want && !!ui.battle && matDesk() && document.body.classList.contains('lab-v-table'));   // the desktop battle on the mat (css/12-mat-shop.css)

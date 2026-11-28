@@ -42,7 +42,10 @@ function shopMove(i, a, vol, own){
   const ok = applyMove(i, a);
   if (ok && a[0] === 'r') redealSeen();
   if (ok) ghostsFrom(i, n0);
-  if (vol != null){ if (ok) MOVE_SOUND[a[0]](vol); else if (own) sfx.err(); }
+  if (vol != null){
+    if (ok && !((a[0] === 'b' || a[0] === 's') && shopCoinEnabled())) MOVE_SOUND[a[0]](vol);
+    else if (!ok && own) sfx.err();
+  }
   return ok;
 }
 // The player at this screen makes a shop move: online it goes to the room (and comes back through netPump);
@@ -68,7 +71,7 @@ function netPump(){
     if (NET.needShop){
       const pending = [0, 1].some(i => actsOf(i).length > NET.applied[i]);
       if (NET.live && ui.battle && !pending) break;   // wait until you've seen the battle (or your friend moves on)
-      startShop(G); NET.needShop = false; changed = true; continue;
+      shopCoinStart(G); NET.needShop = false; changed = true; continue;
     }
     if (G.phase === 'shop'){
       const i = cur(G), a = actsOf(i)[NET.applied[i]]; if (!a) break;
@@ -544,6 +547,7 @@ function marketCard0(name, kind, src, idx, side, always, mir){
   const d = kind === 'u' ? DEFS[name] : BDEFS[name];
   const info = buyInfo(G, S, name, kind, src, idx);
   const own = kind === 'u' ? (me.hand[name] || 0) : (me.city[name] || 0);
+  const hourglass = side && !(matDesk() && matShopOn()) ? hgToken() : '';
   let extra = '';
   // Discard Writ targeting: the card being bought is marked, every other display card is tapped to pick it, and
   // anything that can't be picked (Recruit, Field, the discard pile, Black Market, Vision) steps back
@@ -553,7 +557,7 @@ function marketCard0(name, kind, src, idx, side, always, mir){
     const what = 'Tap to set it aside for you.';
     const fcard = `<div class="mcard ${kind} writtgt${side ? ' leaving' : ''}" data-act="frz-pick" data-src="${src}" data-idx="${idx ?? 0}" role="button" tabindex="0" title="${esc(what)}" aria-label="${esc(name)}. ${esc(what)}">
     ${cardFace(name, kind, own)}
-    ${side ? hgToken() : ''}
+    ${hourglass}
   </div>`;
     return mirWrapHTML(name, kind, mir, fcard, pairOf(G, {src, idx:idx ?? 0}));
   }
@@ -564,7 +568,7 @@ function marketCard0(name, kind, src, idx, side, always, mir){
     const tcard = `<div class="mcard ${kind} writtgt${on ? ' on' : ''}${full ? ' full' : ''}${side ? ' leaving' : ''}" data-act="writ-tog" data-j="${j}" role="button" tabindex="0" aria-pressed="${on}" title="${esc(what)}" aria-label="${esc(name)}. ${esc(what)}">
     ${cardFace(name, kind, own)}
     <span class="writmark" aria-hidden="true">${on ? '✓ To discard' : ''}</span>${oo ? `<span class="writown" aria-hidden="true">${oo}</span>` : ''}
-    ${side ? hgToken() : ''}
+    ${hourglass}
   </div>`;
     return mirWrapHTML(name, kind, mir, tcard, pairOf(G, {src, idx:idx ?? 0}));
   }
@@ -578,7 +582,7 @@ function marketCard0(name, kind, src, idx, side, always, mir){
     ${stampsHTML([short ? ['st-need', `Need $${info.price - me.money} more`] : null, always ? null : ownStamp(name, kind, own)])}
     ${extra}${wrole === 'src' ? `<span class="ctag">✶ Buying</span>` : info.ok && myTurn && !wrole ? `<span class="ctag">Buy $${info.price}</span>` : ''}
     <button type="button" class="${info.ok && myTurn && wrole !== 'off' ? 'primary' : ''}" data-act="buy" data-src="${src}" data-idx="${idx ?? ''}" ${info.ok && myTurn && wrole !== 'off' ? '' : 'disabled'}>${label}</button>
-    ${side ? hgToken() : ''}
+    ${hourglass}
     ${hasMir && ui.mirOpen === mkey ? mirListHTML(name, mir, 'mirpop').replace('<div class="mirpop">', `<div class="mirpop" data-act="mir-peek" data-k="${esc(mkey)}">`).replace('.</span></div>', '. Click to close.</span></div>') : ''}
   </div>`;
   return mirWrapHTML(name, kind, mir, card, pair);

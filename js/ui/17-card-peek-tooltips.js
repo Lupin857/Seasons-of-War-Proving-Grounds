@@ -318,7 +318,7 @@ function wirePeek(card, wrap){
       });
       return;
     }
-    const inside = wrap.classList.contains('osshopinspect') ? '.oslift' : '.peek, .sheet';
+    const inside = wrap.classList.contains('osshopinspect') ? '.osfly, .osinspect-side' : '.peek, .sheet';
     if (e.target.closest('.sheetx, .osinspect-close') || !e.target.closest(inside)) closePeek();
   });
 }
@@ -406,7 +406,7 @@ window.addEventListener('scroll', () => { if (press && !peekEl) endPress(); }, {
 $('view-play').addEventListener('click', e => {
   if (!G || ui.start) return;
   const shopCard = typeof matDeskShopCard === 'function' && matDeskShopCard(e.target);
-  if (shopCard && !e.target.closest('.ostag, .mirpop, button:not(.osdeck), [data-act^="sell-"]')){
+  if (shopCard && !e.target.closest('.osdeck, .ostag, .mirpop, button, [data-act^="sell-"]')){
     e.stopPropagation(); e.preventDefault(); openPeek(shopCard, true); return;
   }
   if (e.target.closest('button')) return;
@@ -458,9 +458,10 @@ try{ if (!document.documentElement.lang) document.documentElement.lang = 'en'; }
 // a save the current version can't draw (a card it names was removed, say) falls back to the start screen instead of a frozen page
 // runs once every script on the page has loaded: the battle board's helpers (labDeck, labGrave, ...) live in a later
 // <script>, so resuming a saved battle any earlier drew the Play tab as an error box
-function resumeOrStart(){
+async function resumeOrStart(){
+  if (typeof bazaarLabRequested === 'function' && bazaarLabRequested()) return;
   let resumed = false;
-  try{ if (loadSave()){ renderPlay(); resumed = true; if (ui.battle) startAuto(600); else scheduleAI(); } }
+  try{ if (loadSave()){ await prepareMatchPresentation(); renderPlay(); resumed = true; if (ui.battle) startAuto(600); else scheduleAI(); } }
   catch(e){   // kept aside rather than deleted, in case a later fix can read it
     console.error('Saved game could not be resumed', e);
     try{ localStorage.setItem('sow-save-unreadable', localStorage.getItem(SAVE_KEY)); localStorage.removeItem(SAVE_KEY); }catch(e2){}

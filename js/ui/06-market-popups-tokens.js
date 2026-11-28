@@ -245,11 +245,12 @@ function pbarHTML(){
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const L = VS(0), Rt = VS(1);
-  const bar = `<div class="pbsc">${GMENU_BTN}<span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
+  const desktop = matDesk() && (matShopOn() || matMobOn() || (ui.battle && labMatZones()));
+  const bar = `<div class="pbsc">${desktop ? '' : GMENU_BTN}<span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
   const hint = shopping || matMobOn()   // the mat's Mobilize says what to do on the mat itself (and keeps the top bar the shop's height)
     ? (ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : '')
     : `<div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div>`;
-  return `<div class="gtop gs" id="gtop">${bar}${hint}</div>`;
+  return `<div class="gtop gs${desktop ? ' gtop-mat' : ''}" id="gtop">${desktop ? GMENU_BTN : ''}${bar}${hint}</div>`;
 }
 // "Taken by AI" placeholders keep their spot in the market for the rest of the shop
 function ghostList(kind){ return ui.ghosts && ui.ghosts.round === G.round ? ui.ghosts[kind] : []; }
@@ -260,22 +261,38 @@ function mergedPos(kind, j){
 // Discard pile: face-up units that went unbought or were sold. You can buy a copy of a unit you own from it (a normal unit buy).
 // The pile glows when it holds a copy of one of your units that could still level up.
 function musterMatch(n){ const me = G.players[seat()]; return ownsCard(me, n) > 0 && !(cardKind(n) === 'u' && exemptUnit(n)) && !cantAcquire(me, n, cardKind(n)); }
-function musterPileHTML(){
+function musterPileHTML(bazaar = false){
   const pile = G.muster || [], sm = (G.salvMir || []).length, open = ui.pkWin === 'salvage' && (pile.length > 0 || sm > 0), hits = pile.filter(musterMatch).length, n = Math.min(3, pile.length);
   const tip = pile.length ? `Discard pile: ${pile.length} card${pile.length > 1 ? 's' : ''} face-up${hits ? `, ${hits} cop${hits > 1 ? 'ies' : 'y'} of your cards` : ''}. Tap to ${open ? 'close' : 'look through it'}.` : 'Discard pile: empty. Unbought and sold cards land here face-up.';
   return `<button type="button" class="mpile${hits ? ' glow' : ''}${pile.length ? '' : ' empty'}" id="muster-pile" data-act="muster" aria-expanded="${open}" ${pile.length || sm ? '' : 'disabled'} title="${esc(tip)}" aria-label="${esc(tip)}">
-    <span class="mplbl" aria-hidden="true">Discard</span><span class="mpcards" aria-hidden="true">${Array.from({length:Math.max(1, n)}, (_, k) => `<span class="mpc${pile.length ? '' : ' mpe'}" style="--k:${Math.max(1, n) - 1 - k}"></span>`).join('')}<span class="mpface">${pile.length ? zhChip(pile[pile.length - 1]) : ''}<b class="mpcount pcount">${pile.length}</b></span></span>${hits ? `<span class="mphit" aria-hidden="true">${hits}</span>` : ''}</button>`;
+    <span class="mplbl" aria-hidden="true">Discard</span><span class="mpcards" aria-hidden="true">${Array.from({length:Math.max(1, n)}, (_, k) => `<span class="mpc${pile.length ? '' : ' mpe'}" style="--k:${Math.max(1, n) - 1 - k}"></span>`).join('')}<span class="mpface">${pile.length ? bazaar ? bazaarDiscardFace(pile[pile.length - 1]) : zhChip(pile[pile.length - 1]) : ''}${bazaar ? '' : `<b class="mpcount pcount">${pile.length}</b>`}</span></span>${hits && !bazaar ? `<span class="mphit" aria-hidden="true">${hits}</span>` : ''}</button>`;
 }
-function marketRow(kind, src){
+// Keep each logical slot in one place for the whole Shop, including refills and placeholders.
+// On desktop, reserve the spots nearest discard for the cards that returned sideways.
+function bazaarSlotRanks(kind){
+  if (ui.bazaarSlots?.round !== G.round) ui.bazaarSlots = {round:G.round};
+  if (!ui.bazaarSlots[kind]){
+    const carry = new Set(G.disp[kind].flatMap((card, i) => card.side ? [card.at ?? i] : []));
+    const slots = Array.from({length:dispSize(G, kind)}, (_, at) => at);
+    slots.sort((a, b) => Number(carry.has(a)) - Number(carry.has(b)) || a - b);
+    const ranks = [];
+    slots.forEach((at, i) => { ranks[at] = i; });
+    ui.bazaarSlots[kind] = ranks;
+  }
+  return ui.bazaarSlots[kind];
+}
+function marketRow(kind, src, bazaar = false){
   // each card stays in its own slot from shop to shop (a returning card keeps its place); a bought card's ghost holds its slot
-  const slotted = G.disp[kind].some(c => c.at != null);
+  const slotted = bazaar || G.disp[kind].some(c => c.at != null);
   let cards;
   if (slotted){
     const items = G.disp[kind].map((c, i) => ({at:c.at != null ? c.at : i, html:marketCard(c.name, kind, src, i, c.side, false, c.mir)}));
-    const occ = new Set(G.disp[kind].map(c => c.at));
+    const occ = new Set(items.map(it => it.at));
     for (const g of ghostList(kind)) if (!occ.has(g.idx)) items.push({at:g.idx, html:ghostCard(g, kind), ghost:true});
-    items.sort((a, b) => a.at - b.at || (a.ghost ? 1 : 0) - (b.ghost ? 1 : 0));
-    cards = items.map(it => it.html.replace('<div ', `<div data-at="${it.at}" `));
+    const ranks = bazaar ? bazaarSlotRanks(kind) : [];
+    const pos = it => ranks[it.at] ?? it.at;
+    items.sort((a, b) => pos(a) - pos(b) || (a.ghost ? 1 : 0) - (b.ghost ? 1 : 0));
+    cards = items.map(it => it.html.replace('<div ', `<div data-at="${it.at}"${bazaar ? ` data-bazaar-slot="${pos(it)}"` : ''} `));
   } else {
     cards = G.disp[kind].map((c, i) => marketCard(c.name, kind, src, i, c.side, false, c.mir));
     for (const g of ghostList(kind).slice().sort((a, b) => a.idx - b.idx))
@@ -472,12 +489,12 @@ function shopHTML(){
 function battleHTML(){
   const res = ui.battle, f = res.frames[ui.frame], w = res.result.w, last = res.frames.length - 1, atEnd = ui.frame === last;
   const wc = VS(w)===0 ? 'a' : VS(w)===1 ? 'b' : 'd';
-  let tail;
-  if (false) tail = '';
-  else if (G.over){
+  const desktopMat = matDesk() && labMatZones();
+  let tail = '';
+  if (G.over){
     const msg = G.winner < 0 ? 'The game ends in a draw.' : PP() ? `${esc(nm(G.winner))} wins the game.` : G.winner === 0 ? 'You win the game.' : 'The AI wins the game.';
     tail = `<div class="row"><span class="verdict ${VS(G.winner)===0?'a':VS(G.winner)===1?'b':'d'}">${msg}</span><span class="note">${esc(res.result.why)}</span>${ratingNoteHTML()}<span class="grow"></span>${G.rec ? '<button type="button" data-act="rec-copy">Copy match for Claude</button>' : ''}<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button></div>`;
-  } else tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${battleDoneLabel()}</button></div>`;
+  } else if (!desktopMat) tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${battleDoneLabel()}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
   if (!atEnd) tail = tail.replace('<div class="row">', '<div class="row tailwait" aria-hidden="true" inert>');
   return `<div class="panel">
@@ -485,5 +502,5 @@ function battleHTML(){
     <div class="stage">${lineHTML(f, PP() ? [poss(0), poss(1)] : ['Your','AI'])}${banner}</div>
     ${tail}
   </div>
-  <details class="panel" id="chron-panel" ${ui.chronOpen ? 'open' : ''}><summary><h2>Chronicle</h2><span class="note">Every step written out</span></summary>${chronHTML(res.frames, ui.frame)}</details>`;
+  ${desktopMat ? '' : `<details class="panel" id="chron-panel" ${ui.chronOpen ? 'open' : ''}><summary><h2>Chronicle</h2><span class="note">Every step written out</span></summary>${chronHTML(res.frames, ui.frame)}</details>`}`;
 }
