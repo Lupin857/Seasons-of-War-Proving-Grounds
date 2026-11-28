@@ -8,11 +8,11 @@ const SU_LIM = {water:[0, 20], fields:[0, 10], drift:[0, 6], inc:[0, 10], buys:[
 const SU_PL = ['water', 'fields', 'drift', 'inc', 'buys', 'fps'];
 const SU_SH = ['deckCap', 'city', 'uDisp', 'bDisp', 'catchup'];
 // the setup screen's state: suDefault()'s fields, plus tgt (a custom points-to-win, or null for 3/4/5) and split
-function suFresh(){ return {...suDefault(), tgt:null, split:false}; }
+function suFresh(){ return {...suDefault(), tgt:null, split:false, raid:false}; }
 let SU = (() => {
   const d = suFresh(), s = LS.get(SU_KEY);
   if (!s || typeof s !== 'object') return d;
-  const out = {...d, tgt:Number.isFinite(s.tgt) ? s.tgt : null, split:!!s.split};
+  const out = {...d, tgt:Number.isFinite(s.tgt) ? s.tgt : null, split:!!s.split, raid:!!s.raid};
   for (const k of SU_SH) if (Number.isFinite(s[k])) out[k] = s[k];
   out.pl = d.pl.map((q, i) => { const sq = (s.pl && s.pl[i]) || {}, o = {...q}; for (const k of SU_PL) if (Number.isFinite(sq[k])) o[k] = sq[k]; return o; });
   return out;
@@ -91,7 +91,7 @@ function modesHTML(back, resign){
 // the rules part of every setup screen. names: the two sides' labels (for the per-player columns)
 function rulesHTML(names, opts){
   opts = opts || {};
-  const d = suDefault(), dflt = suIsDefault(), split = SU.split;
+  const d = suDefault(), dflt = suIsDefault(), split = SU.split, raid = opts.raid && SU.raid;
   const step = (path, v, lim, lbl) => `<span class="sustep"><button type="button" data-su-step="${path}" data-d="-1" aria-label="Less ${lbl}" ${v <= lim[0] ? 'disabled' : ''}>−</button><input type="number" inputmode="numeric" data-su="${path}" value="${v}" min="${lim[0]}" max="${lim[1]}" aria-label="${lbl}"><button type="button" data-su-step="${path}" data-d="1" aria-label="More ${lbl}" ${v >= lim[1] ? 'disabled' : ''}>+</button></span>`;
   const chg = (v, dv) => v !== dv ? ' chg' : '';
   const plRow = (k, lbl, hint) => {
@@ -111,9 +111,9 @@ function rulesHTML(names, opts){
         <label class="suswitch"><input type="checkbox" data-su-split ${split ? 'checked' : ''}> Set each player separately</label></div>
       <div class="sugrid">
         <fieldset class="sufs"><legend>Game</legend>
-          <div class="surow"><span class="sul">Points to win</span><div class="seg" role="group" aria-label="Points to win">${LENS.map(L => `<button type="button" data-su-pts="${L}" aria-pressed="${pts === L}" ${job || calState.busy ? 'disabled' : ''}>${L}</button>`).join('')}<button type="button" data-su-pts="c" aria-pressed="${pts === 'c'}" ${job || calState.busy ? 'disabled' : ''}>Custom</button></div></div>
-          ${SU.tgt != null ? `<div class="surow"><span class="sul">Custom points<span class="note">Never rated</span></span><div class="sucell chg">${step('tgt', SU.tgt, SU_LIM.tgt, 'Custom points to win')}</div></div>` : ''}
-          ${shRow('catchup', 'Catch-up water', SU.catchup ? 'Behind on points: +$ each shop' : 'Off. The player behind on points gets this much extra each shop')}
+          ${raid ? '<p class="note">Raid starts each Caravan at 8 health.</p>' : `<div class="surow"><span class="sul">Points to win</span><div class="seg" role="group" aria-label="Points to win">${LENS.map(L => `<button type="button" data-su-pts="${L}" aria-pressed="${pts === L}" ${job || calState.busy ? 'disabled' : ''}>${L}</button>`).join('')}<button type="button" data-su-pts="c" aria-pressed="${pts === 'c'}" ${job || calState.busy ? 'disabled' : ''}>Custom</button></div></div>
+          ${SU.tgt != null ? `<div class="surow"><span class="sul">Custom points<span class="note">Never rated</span></span><div class="sucell chg">${step('tgt', SU.tgt, SU_LIM.tgt, 'Custom points to win')}</div></div>` : ''}`}
+          ${shRow('catchup', 'Catch-up water', raid ? 'The Caravan with less health gets extra Water' : SU.catchup ? 'Behind on points: +$ each shop' : 'Off. The player behind on points gets this much extra each shop')}
         </fieldset>
         <fieldset class="sufs suwide"><legend>Starting cards &amp; economy</legend>
           ${colHead}
@@ -127,17 +127,34 @@ function rulesHTML(names, opts){
           <p class="note r1">Round 1 water: ${split ? names.map((n, i) => `${esc(n)} $${SU.pl[i].inc + SU.pl[i].fields + SU.pl[i].water}`).join(', ') : `$${SU.pl[0].inc + SU.pl[0].fields + SU.pl[0].water} each`}.</p>
         </fieldset>
         <fieldset class="sufs"><legend>Limits</legend>
-          ${shRow('deckCap', 'Units limit', 'Different units in a deck')}
+          ${raid ? '<p class="note">Up to 7 unique units total, 5 per deck.</p>' : shRow('deckCap', 'Units limit', 'Different units in a deck')}
           ${shRow('city', 'Caravan slots', 'Harvesters use one each')}
           ${shRow('uDisp', 'Units in the shop', '')}
           ${shRow('bDisp', 'Caravan cards in the shop', '')}
         </fieldset>
-        <fieldset class="sufs"><legend>Card sets</legend>${mirToggleHTML()}</fieldset>
+        <fieldset class="sufs"><legend>Card sets</legend>${raid ? `<p class="note">Raid uses the standard card sets without miracles, Cathedral or Pack Beasts.</p><label class="suswitch"><input type="checkbox" data-raid-refill ${REFILL_ON ? 'checked' : ''}> Automatic shop refills</label>` : mirToggleHTML()}</fieldset>
       </div>
     </div>`;
 }
 const goLabel = R => { const br = bracketOf(R); return suIsDefault() ? `Start ${ME.rating == null ? 'placement' : 'rated'} game vs ${br.name} AI (${R})` : `Start unrated game vs ${br.name} AI (${R})`; };
+function aiDifficultyKey(raid){ return raid ? 'oasis-raid-ai-level' : 'oasis-unrated-ai-level'; }
+function aiDifficultyPick(raid){
+  const saved = LS.get(aiDifficultyKey(raid));
+  return Number.isInteger(saved) && AI_DIFFICULTY_RUNGS[saved] ? saved : raid ? AI_DIFFICULTY_RUNGS.length - 1 : 0;
+}
+function aiDifficultyHTML(raid){
+  const level = aiDifficultyPick(raid), name = BRACKETS[level];
+  return `<div class="pick"><label for="st-difficulty" class="eyebrow">AI difficulty</label>
+    <select id="st-difficulty" data-ai-difficulty aria-describedby="st-difficulty-note">${BRACKETS.map((label, i) =>
+      `<option value="${i}" ${i === level ? 'selected' : ''}>${label}</option>`).join('')}</select>
+    <span class="note" id="st-difficulty-note">${name} · Unrated</span></div>`;
+}
 function aiSetupHTML(resign){
+  if (SU.raid) return `${raidSetupHTML()}${rulesHTML(['You', 'AI'], {raid:true})}
+    ${aiDifficultyHTML(true)}
+    ${resign ? '<p class="err">Starting a new game ends your current rated game as a loss.</p>' : ''}
+    <div class="row sugo"><button type="button" class="primary" data-act="st-free">${resign && ui.resignArm === 'free' ? 'Click again to resign and start' : 'Start Raid vs AI'}</button></div>`;
+
   const L = ladder(), [lo, hi] = ratingRange();
   const placing = ME.rating == null, mine = placing ? null : ME.rating;
   if (oppPick == null){ const saved = LS.get(lenKey('sow-pick-v1', LEN)); oppPick = Number.isFinite(saved) ? saved : placing ? lo : mine; }   // new players start against Novice
@@ -145,7 +162,7 @@ function aiSetupHTML(resign){
   const R = oppPick, br = bracketOf(R), myBr = mine != null ? bracketOf(mine) : null, dflt = suIsDefault();
   const calBox = calState.busy
     ? `<div class="finalbox"><p><b>Calibrating the ladder…</b> Each AI level plays the next two up, and the ratings come from the results.</p><div id="calprog">${calProgHTML()}</div></div>`
-    : !CAL ? `<div class="finalbox"><p><b>The rating ladder isn't calibrated yet.</b> Until it is, you can play today's full-strength AI, unrated.</p>${calBtn('Calibrate now')}</div>`
+    : !L.length ? `<div class="finalbox"><p><b>The rating ladder isn't calibrated for this length.</b> Choose an unrated difficulty to play now.</p>${calBtn('Calibrate now')}</div>`
     : calStale() ? `<div class="finalbox"><p><b>Your card numbers changed since the ladder was calibrated</b> (${esc(fmtWhen(CAL.at))}), so the AI ratings may be a little off.</p>${calBtn('Recalibrate')}</div>` : '';
   const strip = L.length ? `<div class="brackets">${BRACKETS.map((name, k) => {
       const w = (hi - lo) / 5, a = Math.round(lo + k * w), b = Math.round(lo + (k + 1) * w), mid = (a + b) / 2;
@@ -160,6 +177,8 @@ function aiSetupHTML(resign){
       </details>` : '';
   const recent = !placing && ME.history.length ? `<details><summary class="note">Your recent games</summary><div class="list" style="margin-top:6px">${ME.history.slice(0, 12).map(h => `<div class="li"><span class="nm" style="font-weight:400">${h.s === 1 ? 'Win' : h.s === 0 ? (h.forfeit ? 'Resigned' : 'Loss') : 'Draw'} vs ${h.opp}</span><span class="mono">${h.placement ? 'placement' : `${h.before} → ${h.after}`}</span></div>`).join('')}</div></details>` : '';
   const flag = calBox && calState.busy ? calBox : '';
+  const primaryLabel = resign && ui.resignArm === true ? 'Click again to resign and start'
+    : L.length ? goLabel(R) : `Start unrated game vs ${BRACKETS[aiDifficultyPick(false)]} AI (first to ${gameTarget()})`;
   return `
       <div class="suopp">
         <div class="me compact">${placing
@@ -171,14 +190,15 @@ function aiSetupHTML(resign){
           <div class="row"><span class="pickr">${R}</span><span class="pickn">${br.name}</span>${!placing ? `<span class="note" id="st-exp">${pct(expected(mine, R))} expected win chance for you</span>` : ''}</div>
           <input type="range" id="st-r" min="${lo}" max="${lo + Math.ceil((hi - lo) / 10) * 10}" step="10" value="${R}" ${calState.busy ? 'disabled' : ''} aria-describedby="st-lvl">
           <span class="note" id="st-lvl">${esc(levelText(R))}</span>
-        </div>` : ''}
+        </div>` : aiDifficultyHTML(false)}
         ${flag}
       </div>
+      ${raidSetupHTML()}
       ${rulesHTML(['You', 'AI'], {rated:true})}
       ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
-      ${!dflt ? `<p class="note">Custom rules: the game isn't rated. The AI thinks through the new rules on its own; its rating was measured on Default.</p>` : ''}
+      ${!dflt && L.length ? '<p class="note">Custom rules use unrated play. The ladder ratings were measured with default rules.</p>' : ''}
       <div class="row sugo">
-        ${L.length ? `<button type="button" class="primary" data-act="st-go" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm === true ? 'Click again to resign and start' : goLabel(R)}</button>` : ''}
+        <button type="button" class="primary" data-act="st-go" ${calState.busy ? 'disabled' : ''}>${primaryLabel}</button>
         <button type="button" data-act="st-free" ${calState.busy ? 'disabled' : ''}>${resign && ui.resignArm === 'free' ? 'Click again to resign and start' : `Unrated game vs full-strength AI (first to ${gameTarget()})`}</button>
       </div>
       <details class="ladder"><summary class="note">Ladder details</summary>
@@ -193,8 +213,9 @@ function ppSetupHTML(resign){
         <label class="ppn s0"><span class="eyebrow">Player 1</span><input type="text" id="pp-n0" maxlength="16" value="${esc(names[0])}"></label>
         <label class="ppn s1"><span class="eyebrow">Player 2</span><input type="text" id="pp-n1" maxlength="16" value="${esc(names[1])}"></label>
       </div>
-      ${rulesHTML(names)}
-      <div class="row sugo"><button type="button" class="primary" data-act="st-pp">${resign && ui.resignArm === 'pp' ? 'Click again to resign and start' : `Start pass-and-play game (first to ${gameTarget()})`}</button></div>`;
+      ${raidSetupHTML()}
+      ${rulesHTML(names, {raid:true})}
+      <div class="row sugo"><button type="button" class="primary" data-act="st-pp">${resign && ui.resignArm === 'pp' ? 'Click again to resign and start' : SU.raid ? 'Start Raid' : `Start pass-and-play game (first to ${gameTarget()})`}</button></div>`;
 }
 function netSetupHTML(){
   const saved = LS.get('sow-net'), nameV = esc(LS.get('sow-net-name') || (LS.get('sow-pp-names') || [])[0] || '');
@@ -244,6 +265,14 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.matches?.('[data-ai-difficulty]')){
+    LS.set(aiDifficultyKey(SU.raid), +t.value);
+    ui.resignArm = false; renderPlay();
+    $('st-difficulty')?.focus({preventScroll:true});
+    return;
+  }
+  if (t.matches?.('[data-raid-setup]')){ SU.raid = t.checked; suSave(); renderPlay(); return; }
+  if (t.matches?.('[data-raid-refill]')){ REFILL_ON = t.checked; LS.set('sow-refill', REFILL_ON); renderPlay(); return; }
   if (t.matches && t.matches('[data-su]')){ suSet(t.dataset.su, t.value); renderPlay(); return; }
   if (t.matches && t.matches('[data-su-split]')){
     SU.split = !!t.checked;
@@ -311,7 +340,9 @@ $('view-play').addEventListener('click', async e => {
     if (resign) recordResult(true);
     const placing = ME.rating == null;
     ui.pick = null; netLeave();
-    newPlay(a === 'st-free' ? null : {rating: bracketPick(), rated:true, placement:placing});
+    const raid = SU.raid, pick = {difficulty:aiDifficultyPick(raid), rated:false};
+    if (raid || (a === 'st-go' && !ladder().length)) newPlay(pick, raid);
+    else newPlay(a === 'st-free' ? null : {rating: bracketPick(), rated:true, placement:placing});
   }
 }, true);
 let oppPick = null;   // the AI rating you chose on the slider (saved per game length)

@@ -79,11 +79,11 @@ const mirSur = list => (list || []).reduce((s, n) => s + MIRS[n].s, 0);
 const mirHeld = (p, key) => (p.mir || []).reduce((s, n) => s + (MIRS[n][key] || 0), 0);
 // Recruits, Armaments and Training a player can place at Mobilize: their own (bought Recruits, Barracks, Smithy, Study) plus any
 // miracles in hand. Placing more than their own uses up miracles (see mirSpend).
-function recBase(p){ return ((p.hand && p.hand.Recruit) || 0) + bVal(p, 'Barracks'); }
+function recBase(p){ return ((p.hand && p.hand.Recruit) || 0) + bVal(p, 'Barracks') - (p.raidSpent?.rec || 0); }
 function recAllow(p){ return recBase(p) + (p._noMir ? 0 : mirHeld(p, 'rec')); }
-function armAllow(p){ return bVal(p, 'Smithy') + (p._noMir ? 0 : mirHeld(p, 'arm')); }
-function trAllow(p){ return bVal(p, 'Study') + (p._noMir ? 0 : mirHeld(p, 'tr')); }
-function shAllow(p){ return bVal(p, 'Armory'); }
+function armAllow(p){ return bVal(p, 'Smithy') - (p.raidSpent?.arm || 0) + (p._noMir ? 0 : mirHeld(p, 'arm')); }
+function trAllow(p){ return bVal(p, 'Study') - (p.raidSpent?.tr || 0) + (p._noMir ? 0 : mirHeld(p, 'tr')); }
+function shAllow(p){ return bVal(p, 'Armory') - (p.raidSpent?.sh || 0); }
 // which miracles in hand (indexes) cover `over` extra tokens of one kind: the smallest total that covers it, then the fewest cards
 function mirSpend(p, key, over){
   if (over <= 0) return [];

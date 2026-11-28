@@ -1,0 +1,104 @@
+.raid-setup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  width: fit-content;
+  color: var(--fg, #f5e5ca);
+  background: #282621;
+  border: 1px solid #6f624e;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.raid-setup input { width: 20px; height: 20px; accent-color: #d3a65a; }
+.raid-setup small, .raid-caravan small { display: block; color: #d6c6aa; }
+.raid-public { display: flex; flex-wrap: wrap; column-gap: 16px; row-gap: 4px; align-items: baseline; }
+.raid-public > span > b { margin-right: 4px; }
+.raid-buy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#view-play #dock.raid-dock {
+  display: block;
+  position: fixed;
+  z-index: 25;
+  inset: auto 0 0;
+  box-sizing: border-box;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #76644b;
+  background: linear-gradient(160deg, #29231b, #161615);
+  color: #f5e5ca;
+}
+.raid-dock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: stretch;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.raid-dock-row button { min-height: 44px; }
+.raid-caravan { min-width: 0; text-align: left; overflow-wrap: anywhere; }
+.raid-dock-row .raid-caravan:disabled, .raid-dock-row .raid-pile:disabled { opacity: .85; }
+.raid-piles, .raid-actions { display: flex; gap: 5px; align-items: stretch; }
+.raid-dock-row .raid-pile {
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  padding: 4px 9px;
+  text-align: center;
+  line-height: 1.05;
+  border-bottom-width: 3px;
+}
+.raid-pile.raid-attack { border-color: #bd815e; background: #3e2823; }
+.raid-pile.raid-defense { border-color: #869fac; background: #233841; }
+.raid-dock-row button[aria-expanded="true"], .raid-dock-row .raid-drop-ready { outline: 2px solid #e5bd74; outline-offset: 1px; }
+.raid-drawer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  max-width: 960px;
+  margin: 0 auto 8px;
+}
+.raid-unit-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.raid-unit { display: grid; gap: 3px; min-width: 0; max-width: 144px; }
+.raid-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 5px 8px;
+  background: #343b3d;
+  border: 1px solid #8b9799;
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+  user-select: none;
+}
+.raid-card img { width: 30px; height: 31px; object-fit: cover; border-radius: 3px; pointer-events: none; }
+.raid-card small { display: block; color: #d6c6aa; }
+.raid-unit button { font-size: 12px; min-height: 30px; padding: 4px 6px; }
+.raid-card[data-raid-drag] { cursor: grab; touch-action: none; }
+.raid-drag-card { position: fixed; inset: 0 auto auto 0; pointer-events: none; z-index: 150; opacity: .95; }
+.raid-transfer-note { display: block; width: fit-content; max-width: 100%; margin: 5px auto 0; color: #d6c6aa; }
+@media (max-width: 600px) {
+  #view-play #dock.raid-dock { padding-inline: 7px; }
+  .raid-dock-row { gap: 5px; }
+  .raid-dock-row .raid-pile { padding-inline: 5px; font-size: 12px; }
+  .raid-caravan { padding: 4px 6px; font-size: 12px; }
+  .raid-dock-row .raid-actions .act { white-space: normal; font-size: 12px; padding: 4px 6px; max-width: 104px; }
+  .raid-unit { max-width: min(138px, 43vw); }
+}
+
+#view-play .raid-dock + .dockspace { display: block; height: calc(var(--dockh, 64px) + 8px); }
+.raid-drawer .dpiles { flex: 1 0 100%; }
+#view-play .raid-dock .raid-caravan,
+#view-play .raid-dock .raid-drawer button {
+  background: #35302a;
+  color: #f5e5ca;
+  border-color: #76644b;
+}
+#view-play .raid-dock .raid-drawer button:disabled { color: #d6c6aa; }
+@media (min-width: 1200px) {
+  body.oasis-desk #view-play #dock.raid-dock {
+    left: max(0px, calc((100vw - 1500px) / 2));
+    right: max(356px, calc((100vw - 1500px) / 2 + 356px));
+  }
+}

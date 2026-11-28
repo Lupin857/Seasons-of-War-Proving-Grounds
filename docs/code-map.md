@@ -19,7 +19,7 @@ global scope and run in the order index.html loads them, exactly like the old in
 - `js/engine/00-runtime-state.js`: engine-owned mutable switches, hooks, and caches. Legacy accessors preserve the
   existing UI and worker bindings while engine code uses the grouped state object.
 - `js/engine/01-card-data.js` through `js/engine/09-learning.js`: card data, battle, miracles, game, balance, shop,
-  AI, search, and training in dependency order. They are classic scripts with no DOM code; legacy function bindings
+  AI, search, and training in dependency order. They are classic scripts with no DOM code. `10-raid.js` owns Raid rosters, resources, siege and round scoring. Legacy function bindings
   remain available while callers migrate to the public API.
 - `js/engine.js`: the final script and stable `OasisEngine` public API. Page and worker load the same ordered list
   from `data-engine-module` script tags; `engineWorkerURL` includes every tagged file with its cache stamp. Add or
@@ -115,6 +115,8 @@ TRAINING (evolution strategies, SPRT safety check, hall of fame, learned pairing
   `__vs` (counters), all per battle. Buildings in a city count as part of that side (`g.battles[].c`).
 
 ## Main UI (`js/ui/`)
+
+- `23-raid.js` renders the Raid setup toggle and fixed Caravan bar, and handles pile transfer gestures. `14-raid.css` styles those surfaces.
 Banners: SHARED UI HELPERS → SOUND → WHO IS VIEWING → GAME LENGTHS → BATTLE VIEW → PLAY → MATCH RECORDER → AI THINKING
 → CARD MOTION (shop) → ONLINE PLAY → SHOP MOVES → MIRACLES IN HAND → SELF-PLAY → TRAIN VIEW → STATS VIEW → BALANCE LAB
 → SHARE WITH CLAUDE (db) → ONE AI EVERYWHERE → PLAYER MODE → FINALIZED BALANCE → RATINGS → NEW GAME: MODE + SETUP →

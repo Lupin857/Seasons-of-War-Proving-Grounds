@@ -85,8 +85,8 @@ function mobReady(me){
 }
 const mobHeld = (me, k) => mobReady(me).reduce((s, j) => s + (MIRS[me.mir[j]][k] || 0), 0);
 const recUI = me => recBase(me) + mobHeld(me, 'rec');
-const armUI = me => bVal(me, 'Smithy') + mobHeld(me, 'arm');
-const trUI = me => bVal(me, 'Study') + mobHeld(me, 'tr');
+const armUI = me => armAllow({...me, _noMir:true}) + mobHeld(me, 'arm');
+const trUI = me => trAllow({...me, _noMir:true}) + mobHeld(me, 'tr');
 // the big miracle popup's play button
 function mirUse(){
   const mm = ui.mirModal; if (!mm) return;
@@ -209,6 +209,7 @@ function dockHTML(){
     if (matMobOn()){ DOCKINFO = {phase, hint, mine, infob}; return matMobDockHTML(acts); }   // one-screen dev: Mobilize on the mat
   } else return '';
   DOCKINFO = {phase, hint, mine, infob};
+  if (G.raid) return raidDockHTML(acts, mine, piles);
   const shopping = G.phase === 'shop' && !ui.battle;
   const deckBtn = i => { const lab = PP() || G.net ? (i === S ? 'Your deck' : esc(nm(i))) : i === S ? 'Your deck' : 'Enemy';
     return `<button type="button" class="dk s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: view cards"><span class="dkic" aria-hidden="true"><i></i><i></i></span><span class="dl">${lab}</span></button>`; };
@@ -245,7 +246,7 @@ function pbarHTML(){
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const L = VS(0), Rt = VS(1);
   const desktop = matDesk() && (matShopOn() || matMobOn() || (ui.battle && labMatZones()));
-  const bar = `<div class="pbsc">${desktop ? '' : GMENU_BTN}<span class="rl">${ui.roll ? 'Opening roll' : `Round ${G.round}`}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
+  const bar = `<div class="pbsc">${desktop ? '' : GMENU_BTN}<span class="rl">${ui.roll ? 'Opening roll' : `Round ${G.round}`}</span><span class="sc" aria-label="${G.raid ? 'Caravan health' : 'Score'} ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">${G.raid ? 'Raid · Health' : `First to ${G.target}`}</span></div>`;
   const hint = !D ? '' : shopping || matMobOn()   // the mat's Mobilize says what to do on the mat itself (and keeps the top bar the shop's height)
     ? (ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : '')
     : `<div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div>`;
@@ -379,6 +380,7 @@ function myPeeks(){ const S = seat(); return PEEK_BY.map(by => peekOf(G, S, by))
 function peekWinHTML(){
   if (ui.resignWin) return resignWinHTML();
   if (ui.codeWin) return bcodeWinHTML();   // paste a battle code (js/ui/18-game-menu.js)
+  if (G?.raid && ui.raidBuy) return raidBuyHTML();
   if (ui.deckView === 0 || ui.deckView === 1){
     if (!G || ui.start || ui.roll || ui.remind){ ui.deckView = null; return ''; }
     const d = deckSheetHTML(); if (!d) return '';
@@ -441,7 +443,7 @@ function popWinHTML(label, cls, top, body, foot){
     ${top}<div class="pkbody mktp">${body}</div>
     <div class="pkfoot"><p class="note">${foot}</p><button type="button" data-act="pk-close">Close</button></div></div></div>`;
 }
-const popShut = () => { ui.pkWin = null; ui.pkPending = false; ui.deckView = null; ui.mason = null; ui.codeWin = false; ui.resignWin = false; };
+const popShut = () => { ui.raidBuy = null; ui.pkWin = null; ui.pkPending = false; ui.deckView = null; ui.mason = null; ui.codeWin = false; ui.resignWin = false; };
 function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); popShut(); renderPlay(); }
 // every card in a pop-up or the turn summary is exactly the size of a market card: measure one and share it
 function syncCardSize(){
@@ -464,11 +466,11 @@ function shopHTML(){
   const bmOk = myTurn && bVal(me, 'Black Market') && !G.bmUsed[S];
   const turnTxt = G.net ? (G.passed[S] ? `You passed. ${esc(nm(O))} is finishing their shopping.` : myTurn ? 'Your turn: buy one card or pass.' : `${esc(nm(O))} is shopping…`)
     : PP() ? `${esc(nm(S))}'s turn: buy one card or pass.${G.passed[O] ? ` ${esc(nm(O))} has passed.` : ''}`
-    : G.passed[0] ? 'You passed. The AI is finishing its shopping.' : myTurn ? 'Your turn: buy one card or pass.' : 'The AI is thinking: it test-battles its options against your army…';
+    : G.passed[0] ? 'You passed. The AI is finishing its shopping.' : myTurn ? 'Your turn: buy one card or pass.' : G.raid ? 'The AI is shopping…' : 'The AI is thinking: it test-battles its options against your army…';
   const turnMsg = myTurn && altarWaiting(G, S) ? 'Altar of Blood: pick a unit to discard first.' : turnTxt;
   const bmN = bVal(me, 'Black Market');
   const ph = compact();   // phones: the decks and the discard pile sit in the bottom bar (dockPilesHTML), not in the market
-  return `${budgetHTML()}
+  return `${G.raid ? `<p class="note">${raidRoundTitle()} first this round.</p>` : ''}${budgetHTML()}
   <div class="row turnrow"><span class="turn ${myTurn ? '' : 'ai'}${PP() ? ` pp s${VS(S)}` : ''}">${ui.visArm ? VIS_ARM_TXT : turnMsg}</span>
     <span class="grow"></span>${ui.visArm ? '<button type="button" data-act="vis-cancel">Cancel</button>' : ''}
     <button type="button" class="primary passbtn" data-act="pass" ${myTurn ? '' : 'disabled'}>Pass</button></div>
@@ -494,7 +496,7 @@ function battleHTML(){
   if (G.over){
     const msg = G.winner < 0 ? 'The game ends in a draw.' : PP() ? `${esc(nm(G.winner))} wins the game.` : G.winner === 0 ? 'You win the game.' : 'The AI wins the game.';
     tail = `<div class="row"><span class="verdict ${VS(G.winner)===0?'a':VS(G.winner)===1?'b':'d'}">${msg}</span><span class="note">${esc(res.result.why)}</span>${ratingNoteHTML()}<span class="grow"></span>${G.rec ? '<button type="button" data-act="rec-copy">Copy match for Claude</button>' : ''}<button type="button" class="primary" data-act="newgame">${PP() ? 'New game…' : 'Choose next opponent'}</button></div>`;
-  } else if (!desktopMat) tail = `<div class="row"><span class="note">${esc(res.result.why)}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${battleDoneLabel()}</button></div>`;
+  } else if (!desktopMat) tail = `<div class="row"><span class="note">${esc(res.result.why)}${res.raid?.bout === 0 && res.raid.damage ? ' Applied after the counterattack.' : ''}</span><span class="grow"></span><button type="button" class="primary" data-act="continue">${battleDoneLabel()}</button></div>`;
   const banner = atEnd && !ui.bannerOff ? `<button type="button" class="banner ${wc}" data-act="banner-off" aria-label="Hide result and show the final board"><span class="bx"><b>${PP() ? (w < 0 ? 'Draw' : esc(nm(w))) : w===0?'Victory':w===1?'Defeat':'Draw'}</b><span class="note">${PP() ? (w < 0 ? 'Neither side wins' : 'wins the battle') + ' · click to see the board' : w===0?'You win the battle':w===1?'The AI wins the battle':'Neither side wins'} · click to see the board</span></span></button>` : '';
   if (!atEnd) tail = tail.replace('<div class="row">', '<div class="row tailwait" aria-hidden="true" inert>');
   return `<div class="panel">

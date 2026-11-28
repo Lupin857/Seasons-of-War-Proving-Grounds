@@ -141,7 +141,7 @@ const PP = () => !!(G && G.pp);
 // Online, each player sees the game from their own seat: you are always drawn in blue along the bottom (the left of the
 // scoreboard), even when you joined second. VS maps a real side (0 host, 1 guest) to the side it is drawn as.
 const VS = s => (G && G.net && NET && NET.seat === 1 && (s === 0 || s === 1)) ? 1 - s : s;
-function seat(){ if (G && G.net && NET) return NET.seat; if (!PP()) return 0; if (G.phase === 'shop') return cur(G); if (G.phase === 'mobilize') return ui.mobSeat || 0; return 0; }
+function seat(){ if (G && G.net && NET) return NET.seat; if (!PP() || (G.raid && ui.battle)) return 0; if (G.phase === 'shop') return cur(G); if (G.phase === 'mobilize') return ui.mobSeat || 0; return 0; }
 const nm = i => G.labels[i];
 const poss = i => PP() ? `${esc(nm(i))}'s` : i === 0 ? 'Your' : 'AI';
 // Starting a game: stop the last game's timers and give the screen a clean state. Pass-and-play and online
@@ -152,8 +152,9 @@ const newRoll = () => ({you:null, ai:null, rolling:false, tie:false, first:null}
 function newPassPlay(names){
   stopTimers();
   const su = setupForGame();
-  G = newGame({genomes:[null, null], labels:names, target:gameTarget(), su});
-  G.suLines = suIsDefault() ? null : suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, names);
+  G = newGame({genomes:[null, null], labels:names, target:gameTarget(), su, raid:SU.raid});
+  G.suLines = G.raid ? ['Raid · 8 Caravan health · 7 unique units total, up to 5 per deck']
+    : suIsDefault() ? null : suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, names);
   G.pp = true; G.opp = null;
   ui = freshUI({roll:newRoll()});
   renderPlay();

@@ -80,3 +80,9 @@ Strong Villager [Pipewalker] reference on the same random battles for every pair
   pushed by `pushBrain` ("One AI everywhere").
 - The website plays from the `#snapshot` JSON. After training or AI changes, refresh it (CLAUDE.md, "Refresh the
   snapshot").
+
+## Raid playtests
+
+The [Raid prototype](raid.md) uses an unrated opponent. It reuses standard card valuation and army assembly. Its shop decisions account for both public rosters and Caravan health, and its lineup search evaluates breach damage and supply use across the round.
+
+The difficulty picker also offers Beginner through Master in standard games whose point target has no calibrated ladder. Those levels use the existing AI rungs and play unrated. Raid uses the same difficulty labels with its own lineup search budgets.

@@ -4,7 +4,7 @@ var flashedNow = false, autoPassT = null, noteSeenKeys = null, autoNews = '';
 // no buy left this shop: nothing could be bought even with unlimited money, and no Divine Favor in hand to add one
 // (afterPass: judge a player who already passed, for the "out of buys" notice about the opponent)
 function noBuysLeft(g, i, afterPass){
-  if (!g || g.phase !== 'shop' || (!afterPass && g.passed[i])) return false;
+  if (!g || g.raid || g.phase !== 'shop' || (!afterPass && g.passed[i])) return false;
   const p = g.players[i];
   if ((p.mir || []).includes('Divine Favor')) return false;
   const rich = {...p, money:1e9};
@@ -23,7 +23,7 @@ function shopMoneyState(g, i){
 function shopNotes(){
   if (pendingFlash) return;   // the turn banner is waiting for the opponent's cards; the notes come with it
   document.querySelectorAll('[data-act="pass"].passglow').forEach(b => b.classList.remove('passglow'));
-  if (!G || ui.start || ui.roll) return;
+  if (!G || G.raid || ui.start || ui.roll) return;
   const ap = ui.autoPass;
   // the auto-pass ended the shop (the other player had already passed): still say why
   if (ap && ap.round === G.round && !ap.shown && G.phase !== 'shop'){
@@ -207,7 +207,7 @@ function drawPlay(options){
    so a phone that reloads the tab (switching apps, locking the screen) comes back to the same spot. Online games
    reconnect through their room instead. A finished game is cleared once its result has been shown. */
 var SAVE_KEY = 'sow-save-v2', saveT = null;
-var SAVE_UI = ['battle','frame','draft','lastDraft','lastDrafts','drafts','mobSeat','handoff','mktTab','dealt','ghosts','bazaarSlots','roll','revealed','pre','lastTurn','musterOpen','bannerOff'];
+var SAVE_UI = ['battle','frame','draft','lastDraft','lastDrafts','drafts','mobSeat','handoff','mktTab','dealt','ghosts','bazaarSlots','roll','revealed','pre','lastTurn','musterOpen','bannerOff','raidOrders'];
 /* Sets and Maps (such as the cards each player has seen this shop) don't survive plain JSON: they come back as empty
    objects and the next Buy or Pass throws. Save them tagged and rebuild them on load, so a reload or a page update
    picks the game up where it was. */
@@ -255,7 +255,10 @@ function loadSave(){
     G = upgradeSave({...s.g, rnd:Math.random});
     ui = freshUI({...(s.u || {}), start:false});
     if (ui.roll){ ui.roll.rolling = false; if (ui.roll.first == null){ ui.roll.you = null; ui.roll.ai = null; ui.roll.tie = false; } }
-    if (!ui.battle && G.phase === 'battle' && !G.over) startShop(G);   // the replay didn't fit in storage: go on to the next shop
+    if (!ui.battle && G.phase === 'battle' && !G.over){
+      if (raidNextFight(G)){ ui.mobSeat = 0; ui.handoff = PP() ? 0 : null; }
+      else startShop(G);
+    }   // the replay didn't fit in storage: go on to the next shop
     if (G.phase === 'mobilize' && !ui.draft && PP() && ui.handoff == null) ui.draft = defaultDraft();
     return true;
   }catch(e){ return false; }
@@ -686,7 +689,7 @@ function lockDeck(){
   const d = draftFromDeck(ui.draft);
   const err = validateDeck(G, seat(), d);
   if (err){ ui.err = err; sfx.err(); renderPlay(); return; }
-  if (!ui.remindOk && !(G.noRemind && G.noRemind.lock)){
+  if (!G.raid && !ui.remindOk && !(G.noRemind && G.noRemind.lock)){
     const left = mobilizeLeftovers();
     if (left){ ui.remind = {kind:'lock', items:left}; sfx.soft(); renderPlay(); return; }
   }
@@ -694,10 +697,20 @@ function lockDeck(){
   // the miracles you played are the ones spent (online both screens work it out the same way, so it's left to the rules there)
   if (!G.net){ const me = G.players[seat()]; me.mirPlay = mobReady(me).map(j => me.mir[j]); }
   if (G.net){ sfx.lock(); ui.err = ''; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => u.gear ? [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0, netIx(u.gear)] : [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0])]); return; }
+  if (G.raid){
+    const S = seat(), orders = ui.raidOrders || (ui.raidOrders = [{}, {}]);
+    orders[S][raidRole(G, S)] = d.map(u => u.name);
+    if (!PP()){
+      sfx.lock(); ui.err = '';
+      showBattle(playBattle(d, raidAiMobilize(G, 1)));
+      ui.bannerOff = false;
+      renderPlay(); toGame(); startAuto(); return;
+    }
+  }
   if (PP()){
     const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = '';
     if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); toGame(); return; }
-    showBattle(playBattle(ui.drafts[0], ui.drafts[1])); ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
+    showBattle(playBattle(ui.drafts[0], ui.drafts[1])); if (G.raid) ui.bannerOff = false; ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
     renderPlay(); toGame(); startAuto(); return;
   }
   sfx.lock();
@@ -762,6 +775,23 @@ $('view-play').addEventListener('click', e => {
     case 'resign-confirm': resignMatch(+t.dataset.p); return;
     case 'roll': doRoll(); return;
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
+    case 'raid-pile': {
+      if (!G?.raid || G.phase !== 'shop' || ui.battle) return;
+      const role = t.dataset.role;
+      ui.raidPile = ui.raidPile === role ? null : role;
+      ui.raidTransferError = '';
+      renderPlay(); return;
+    }
+    case 'raid-transfer': raidTransferUI(t.dataset.name, t.dataset.role); return;
+    case 'raid-siege': playerMove(['raid-siege']); return;
+    case 'raid-buy': {
+      const pick = ui.raidBuy;
+      if (!pick || pick.seat !== seat() || sourceCard(G, seat(), pick.a[1], pick.a[2])?.name !== pick.name) return;
+      popShut();
+      const [action, src, idx, attach, writ] = pick.a;
+      playerMove([action, src, idx, attach, writ, t.dataset.role]);
+      return;
+    }
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
     case 'mason-cancel': sfx.soft(); popShut(); renderPlay(); return;
     case 'mason-tog': { const mm = masonMode(); if (!mm) return; const n = t.dataset.name;
@@ -860,6 +890,12 @@ $('view-play').addEventListener('click', e => {
     case 'fr': sfx.soft(); goFrame(+t.dataset.k); return;
     case 'banner-off': sfx.soft(); ui.bannerOff = true; renderPlay(); return;
     case 'continue': if (G.replay){ sfx.soft(); replayEnd(); return; }
+      if (G.raid && G.raid.bout === 0){
+        sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.revealed = false; ui.pre = null;
+        raidNextFight(G); ui.mobSeat = 0; ui.handoff = PP() ? 0 : null; ui.raidPile = null;
+        renderPlay(); toGame(); return;
+      }
+      if (G.raid) ui.raidPile = null;
       if (typeof bazaarCaptureBattle === 'function') bazaarCaptureBattle();
       if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
       sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay();

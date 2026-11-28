@@ -43,6 +43,7 @@ const RUNGS = [
   {id:'p100', label:'Thinks deeply',        depth:'play'},
   {id:'m100', label:'Thinks deepest',       depth:'master'},
 ];
+const AI_DIFFICULTY_RUNGS = ['novice', 'f100', 't100', 'p100', 'm100'];
 // a budget part-way between two levels: counts are interpolated and rounded, blur and time limits are interpolated
 function blendDepth(A, B, t){
   if (!A || !B) return A || B;
@@ -86,6 +87,7 @@ function strengthU(n, L){ if (L <= 0) return 0; const d = DEFS[n]; const a = ABI
 // At 0-0 in a first-to-3 game that's at least 2 more shops (if one side sweeps), more if it's close;
 // it shrinks as either side nears the target, and shrinks faster when one army is clearly stronger.
 function expShops(g, i){
+  if (g.raid) return Math.min(RULES.maxRounds - g.round, Math.max(0, roundsLeft(g) - 1));
   if (g._po){ const m = g._esPo || (g._esPo = {}); if (m[i] == null){ g._po = false; try{ m[i] = expShops(g, i); } finally { g._po = true; } } return m[i]; }
   const T = g.target, a0 = total(g.players[i]), b0 = total(g.players[1-i]), cap = Math.max(0, RULES.maxRounds - g.round);
   const q0 = Math.round(battleOdds(g, i) * 50) / 50, G = g.players[i].genome || {};
@@ -174,7 +176,9 @@ function mercSwing(g, i, G, held, gain){
   const V = roundValues(g, i, G, logit(q0), logit(battleOdds(g, i)));
   return dq * Math.max(0, V.w - V.l);
 }
-function roundsLeft(g){ const lead = Math.max(total(g.players[0]), total(g.players[1])); return Math.max(1, Math.min(6, (g.target - lead) * 1.6 + 0.5)); }
+function roundsLeft(g){
+  if (g.raid) return Math.max(1, Math.min(6, Math.min(...g.players.map(p => p.health)) / 2));
+  const lead = Math.max(total(g.players[0]), total(g.players[1])); return Math.max(1, Math.min(6, (g.target - lead) * 1.6 + 0.5)); }
 
 function aiValue(g, i, name, kind){
   const p = g.players[i], G = p.genome || baseGenome(), rL = roundsLeft(g), rf = Math.min(rL, 4)/2 + 0.5, bias = (G.bias[name] || 0) ;

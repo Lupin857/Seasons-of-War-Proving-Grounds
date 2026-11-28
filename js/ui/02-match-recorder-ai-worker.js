@@ -14,7 +14,7 @@ function recSnap(g){
 function recStart(g, opp){
   const sk = g.players[1].skill;
   g.rec = {format:'SOW match record v1', id:Date.now(), started:new Date().toISOString(), firstTo:g.target,
-    opponent:opp ? `${opp.rated ? 'rated' : 'unrated'} opponent ${opp.rating}` : 'full-strength AI (unrated)', rules:g.suLines || 'Default',
+    opponent:opp?.difficulty != null ? `${BRACKETS[opp.difficulty]} AI (unrated)` : opp ? `${opp.rated ? 'rated' : 'unrated'} opponent ${opp.rating}` : 'full-strength AI (unrated)', rules:g.suLines || 'Default',
     aiLevel:sk ? (sk.hi ? `budget ${Math.round((sk.t || 0) * 100)}% of the way from ${sk.lo.label} to ${sk.hi.label}` : sk.lo.label) : 'Thinks deepest (full strength, unrated)',
     cards:{units:clone(DEFS), buildings:clone(BDEFS)}, events:[], battles:[]};
 }
@@ -77,16 +77,21 @@ function matchesHTML(){
   if (!all.length) return '';
   return `<details><summary class="note">Recorded games (${all.length}): copy one to paste to Claude</summary><div class="list" style="margin-top:6px">${all.map(r => `<div class="li"><span class="nm" style="font-weight:400">${esc(new Date(r.id).toLocaleString())} · ${esc(r.result || 'unfinished')}${r.finalPoints ? ` ${r.finalPoints.you}–${r.finalPoints.ai}` : ''} · ${esc(r.aiLevel || '')}</span><button type="button" class="small" data-act="rec-copy" data-id="${r.id}">Copy</button></div>`).join('')}</div></details>`;
 }
-function newPlay(opp){
+function newPlay(opp, raid = false){
   stopTimers();
-  const custom = !suIsDefault(), su = setupForGame();
+  const custom = raid || !suIsDefault(), su = setupForGame();
   if (opp && custom) opp = {...opp, rated:false, placement:false};   // custom rules are never rated
-  const genome = opp && CAL ? clone(CAL.genome) : clone(brain.champ);
-  G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, loadOm()], target:gameTarget(), su});
-  G.suLines = custom ? suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, ['You', 'AI']) : null;
+  const genome = opp?.rating != null && CAL ? clone(CAL.genome) : clone(brain.champ);
+  G = newGame({genomes:[null, genome], labels:['You','AI'], om:[null, raid ? null : loadOm()], target:gameTarget(), su, raid});
+  G.suLines = raid ? ['Raid · 8 Caravan health · 7 unique units total, up to 5 per deck'] : custom ? suLines(su, gameTarget(), {mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON}, ['You', 'AI']) : null;
   G.opp = opp || null;
-  if (opp && CAL){ G.players[1].skill = skillFor(opp.rating); novicePersona(G, 1); }   // Novice: its personality is rolled once per game, here
-  recStart(G, opp);
+  if (opp?.difficulty != null){
+    const rung = RUNGS.find(r => r.id === AI_DIFFICULTY_RUNGS[opp.difficulty]);
+    if (rung) G.players[1].skill = {lo:rung};
+    if (raid) G.players[1].raidDifficulty = opp.difficulty;
+  } else if (opp && CAL) G.players[1].skill = skillFor(opp.rating);
+  if (G.players[1].skill && !raid) novicePersona(G, 1);   // Novice: its personality is rolled once per game, here
+  if (!raid) recStart(G, opp);
   ui = freshUI({roll:newRoll()});
   renderPlay();
 }
@@ -209,6 +214,7 @@ function aiThink(cmd, extra){
 // Lock in uses the answer (lockDeck), waiting for it with "Waiting for other player…" if it isn't in yet.
 let AIMOB = null;   // {g, round, p (the promise), r (the answer once in)}
 function aiMobStart(){
+  if (G?.raid) return;
   if (!G || PP() || G.net || G.over || G.phase !== 'mobilize' || ui.battle || ui.start || ui.roll || ui.planning) return;
   if (AIMOB && AIMOB.g === G && AIMOB.round === G.round) return;
   const a = AIMOB = {g:G, round:G.round, r:undefined};
@@ -226,13 +232,14 @@ function scheduleAI(){
     if (oppBusy()){ oppOnIdle(scheduleAI); return; }   // let its last moves finish playing out first
     const g0 = G, before = {u:G.disp.u.map(c => c.name), b:G.disp.b.map(c => c.name), at:{u:G.disp.u.map(c => c.at), b:G.disp.b.map(c => c.at)}}, m0 = G.players[1].money, n0 = G.log.length;
     aiBusy = true; let r = null;
-    try{ r = await aiThink('shop', {depth:AI_DEPTH()}); } finally { aiBusy = false; }
+    try{ if (!G.raid) r = await aiThink('shop', {depth:AI_DEPTH()}); } finally { aiBusy = false; }
     if (G !== g0 || G.phase !== 'shop' || cur(G) !== 1) return;   // the game moved on while it thought
     snapNow();   // where every card sits before the AI moves, so its buys fly from the right spot
     if (r && !r.error && r.acts){
       for (const a of r.acts){ if (a.why) G._why = a.why; const f = window[a.fn]; if (typeof f === 'function') f(G, ...a.args); }
     }
-    if (G.log.length === n0 && G.phase === 'shop' && cur(G) === 1) aiShopTurn(G, 1, AI_DEPTH());   // no worker, or nothing usable came back
+    if (G.raid) raidAiShop(G, 1);
+    else if (G.log.length === n0 && G.phase === 'shop' && cur(G) === 1) aiShopTurn(G, 1, AI_DEPTH());   // no worker, or nothing usable came back
     const queued = motionFrom(1, n0);
     noteAIMoves(before, m0, n0, queued); afterAction();
   }, Math.max(650, (ui.dealUntil || 0) - performance.now() + 350));
