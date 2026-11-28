@@ -13,7 +13,7 @@
    - Abilities play one after another (INK.pace); one that the engine logs after the step's first defeat waits until
      the defeated cards have landed in the graveyard, and so do the cards it brings in.
    - When you move on, the last step's ink soaks away. Back, Skip and jumps show a step's ink at once; 2× halves it all.
-   Everything is redrawn from the live board while it moves; settled ink is left alone (redrawing costs).
+   The live board drives the ink while it moves. Once it settles, redraws and geometry changes wake it again.
    Reads the step the game is starting from ui.inkStart (set by stepForward). */
 (function(){
   const INK = {
@@ -215,9 +215,23 @@
 
   // ---------- state
   let layer = null, over = null, plan = null, t0 = 0, curK = -1, curBattle = null, lastFrame = -1, ghostN = 0;
-  let impact = null;
+  let impact = null, frame = 0, watchedStage = null, watchedLine = null;
+  const view = $('view-play');
+  const resize = new ResizeObserver(wake);
+  function watchLayout(stage, line){
+    if (stage === watchedStage && line === watchedLine) return;
+    resize.disconnect();
+    watchedStage = stage;
+    watchedLine = line;
+    if (stage && line){ resize.observe(stage); resize.observe(line); }
+  }
+  function wake(){
+    if (!frame && (ui.battle || layer || over || ghosts.length)) frame = requestAnimationFrame(tick);
+  }
+  window.battleInkWake = wake;
   window.battleInkImpact = (battle, k, clash) => {
     impact = battle && {battle, k, at:performance.now(), hold:clash?.hold || 0, recoil:clash?.recoil || 220};
+    wake();
   };
   let lastInk = null, lastHtml = '', lastInkU = null, lastHtmlU = '', lastSig = '', lastDabSig = '', strokeCache = null;
   let lastMask = '', lastStrokes = '', lastLabels = '';
@@ -306,20 +320,29 @@
   }
 
   function tick(now){
-    requestAnimationFrame(tick);
+    frame = 0;
     for (let i = ghosts.length - 1; i >= 0; i--){ const g = ghosts[i], u = g.d ? Math.min(1, (now - g.t0) / g.d) : 1;
       g.el.style.opacity = 1 - u; g.el.style.filter = `blur(${(INK.soakBlur * u).toFixed(2)}px)`;
       if (u >= 1){ g.el.remove(); ghosts.splice(i, 1); } }
-    const stage = ui.battle && !$('view-play').hidden ? $('view-play').querySelector('.stage') : null;
-    const line = stage && stage.querySelector('.line.table');
+    const stage = ui.battle && !view.hidden ? view.querySelector('.stage') : null;
+    const line = stage?.querySelector('.line.table') || null;
+    watchLayout(stage, line);
     // no battle on screen: the layers go (they survive redraws on purpose, so the shop's redraw could otherwise take one in)
-    if (!stage || !line){ for (const x of [layer, over]) if (x) x.remove(); layer = over = null; lastHtml = lastHtmlU = ''; lastInk = lastInkU = null; if (!ui.battle){ curK = -1; ui.inkStart = null; } return; }
+    if (!stage || !line){
+      for (const x of [layer, over]) if (x) x.remove();
+      layer = over = null; lastHtml = lastHtmlU = ''; lastInk = lastInkU = null;
+      if (!ui.battle){ curK = -1; lastFrame = -1; ui.inkStart = null; plan = curBattle = impact = null; restoreNotes(); }
+      if (ghosts.length) wake();
+      return;
+    }
+    if (stage.querySelector('.abwin')) abPlace(stage);
     // the strokes lie over the tokens but under the card faces: their own layer inside the (tilted) table, after its rows
     // (re-made if a redraw puts rows after it), with the cards' faces masked out; the dabs go over everything, on the
     // stage (the notes are outside the table)
     if (!over || over.parentNode !== line || over !== line.lastElementChild && !line.lastElementChild.classList.contains('inkghost')){ if (over) over.remove(); over = layerIn(line, 'inkover', false); lastHtmlU = ''; lastSig = ''; }
     if (!layer || layer.parentNode !== stage){ layer = layerIn(stage, 'inklayer', false); lastHtml = ''; lastSig = ''; }
-    over.setAttribute('width', line.offsetWidth); over.setAttribute('height', line.offsetHeight);
+    const width = line.offsetWidth, height = line.offsetHeight;
+    sizeLayer(over, width, height);
     if (ui.frame < lastFrame || (ui.inkStart != null && ui.frame >= ui.inkStart)) ui.inkStart = null;   // Back, or the step has landed
     lastFrame = ui.frame;
     const k = ui.inkStart != null ? ui.inkStart : ui.frame;
@@ -330,7 +353,7 @@
       t0 = forward ? now : -1e9;   // a step forward plays; Back, Skip and jumps show it at once
     }
     const sr = stage.getBoundingClientRect();
-    layer.setAttribute('width', Math.round(sr.width)); layer.setAttribute('height', Math.round(sr.height));
+    sizeLayer(layer, Math.round(sr.width), Math.round(sr.height));
     const T = (now - t0) * speed();
     if (plan.waits.size && plan.release == null){
       const flying = [...document.querySelectorAll('.card.deathfly')].filter(g => plan.defeats.has(g.dataset.fly)).some(g => { const a = g.getAnimations()[0]; if (!a || !a.effect) return false; const ct = a.effect.getComputedTiming(); return ct.progress == null ? ct.activeDuration > 0 && (a.currentTime || 0) < (a.effect.getTiming().delay || 0) + ct.activeDuration * .85 : ct.progress < .85; });
@@ -343,8 +366,10 @@
     // Nothing happens until the board shows this step (the ink plays a step before it lands); on a deck that buries
     // its revealed unit the cards wait for that unit to tuck its attachments in (buryTuck) before they slide on top.
     if (plan.landed == null && ui.frame >= plan.k) plan.landed = T;
+    let pendingArrival = false;
     if (plan.landed != null) for (const a of plan.arrivals){
       const at = Math.max(startOf(a), plan.landed + (a.top && t0 > 0 ? LAB_TUCK + 60 : 0));
+      if (!a.done && T < at) pendingArrival = true;
       const el = stage.querySelector(`.card[data-uid="${a.u}"]`);
       if (el){ touched.add(el); arriveShow(el, a, T < at ? 'wait' : t0 < 0 ? 'now' : 'slide'); }
       else if (T >= at && t0 > 0 && !a.done){ a.done = true; arriveGhost(stage, a); }
@@ -360,13 +385,17 @@
       const hud = c.querySelector(':scope > .hprow');
       return hud ? [faceIn(c, line, hud)] : [];
     }).filter(r => r.w) : [];
-    const size = line.offsetWidth + 'x' + line.offsetHeight;
+    const size = width + 'x' + height;
     if (plan.inkSize && plan.inkSize !== size) for (const e of plan.fx) if (e.damage){ e.path = e.mark = e.stroke = null; }
     plan.inkSize = size;
     const sig = faces.map(r => r.pts || `${r.l},${r.t},${r.w},${r.h}`).join(';') + '#' + (plan.watch || (plan.watch = [...new Set([...plan.fx.flatMap(e => [e.from, e.to, e.via]), ...plan.notes.map(n => n.g.ab.u)].filter(Boolean))])).map(u => { const el = findCard(stage, u); return el ? layoutSig(el, line) : '-'; }).join(';') + '|' + size;
     const dabSig = plan.notes.map(nt => { const b = stage.querySelector(`.abbox[data-abi="${nt.i}"]`), el = b && ((abIsSave(nt.g) && bDeckEl(nt.g.ab.s)) || abSrcEl(stage, nt.g.ab));
       if (!b || !el) return '-'; const r = el.getBoundingClientRect(), q = b.getBoundingClientRect(); return [r.left - sr.left, r.top - sr.top, r.width, q.left - sr.left, q.top - sr.top].map(v => Math.round(v)).join(','); }).join(';');
     const settled = !liveDamage && (ui.inkStart == null || hit) && (t0 < 0 || T > settleAt);
+    // Transforms can move a card or a note without resizing their boxes. Give finite board motion a final paint.
+    if (!settled || pendingArrival || ghosts.length || ui.animT || matBatBusy() ||
+        stage.getAnimations({subtree:true}).some(a => (a.pending || a.playState === 'running') &&
+          Number.isFinite(a.effect?.getComputedTiming().endTime))) wake();
     if (settled && sig === lastSig && dabSig === lastDabSig) return;
     const reuse = settled && sig === lastSig && strokeCache;
     lastSig = sig; lastDabSig = dabSig;
@@ -441,7 +470,7 @@
     }
     strokeCache = {ink:outU, readable};
     const strokes = outU;
-    const mask = strokes ? `<mask id="inkfaces" maskUnits="userSpaceOnUse" x="-200" y="-200" width="${line.offsetWidth + 400}" height="${line.offsetHeight + 400}"><rect x="-200" y="-200" width="${line.offsetWidth + 400}" height="${line.offsetHeight + 400}" fill="#fff"/>${faces.map(r => r.pts ? `<polygon points="${r.pts}" fill="#000"/>` : `<rect x="${r.l}" y="${r.t}" width="${r.w}" height="${r.h}" rx="8" fill="#000"/>`).join('')}</mask>` : '';
+    const mask = strokes ? `<mask id="inkfaces" maskUnits="userSpaceOnUse" x="-200" y="-200" width="${width + 400}" height="${height + 400}"><rect x="-200" y="-200" width="${width + 400}" height="${height + 400}" fill="#fff"/>${faces.map(r => r.pts ? `<polygon points="${r.pts}" fill="#000"/>` : `<rect x="${r.l}" y="${r.t}" width="${r.w}" height="${r.h}" rx="8" fill="#000"/>`).join('')}</mask>` : '';
     outU = strokes ? `<defs>${mask}</defs><g mask="url(#inkfaces)">${strokes}</g><g>${readable}</g>` : '';
     // notes: dabs pressed one by one out to the note; the note slides in from its corner as they arrive
     for (const nt of plan.notes){
@@ -484,5 +513,17 @@
     }
     lastInkU = outU ? {html: outU, w: over.getAttribute('width'), h: over.getAttribute('height')} : null;
   }
-  requestAnimationFrame(tick);
+  function sizeLayer(svg, width, height){
+    if (svg.getAttribute('width') !== String(width)) svg.setAttribute('width', width);
+    if (svg.getAttribute('height') !== String(height)) svg.setAttribute('height', height);
+  }
+  // App tabs can hide the Play view without rendering it. CSS can also start moving a settled board.
+  new MutationObserver(wake).observe(view, {attributes:true, attributeFilter:['hidden']});
+  for (const event of ['animationstart', 'transitionrun']) view.addEventListener(event, wake);
+  addEventListener('resize', wake);
+  addEventListener('scroll', wake, {capture:true, passive:true});
+  window.visualViewport?.addEventListener('resize', wake);
+  window.visualViewport?.addEventListener('scroll', wake);
+  document.fonts?.addEventListener('loadingdone', wake);
+  document.addEventListener('visibilitychange', wake);
 })();
