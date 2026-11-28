@@ -249,6 +249,8 @@ function saveNow(){
     if (G.over && !hideResult()){ localStorage.removeItem(SAVE_KEY); return; }
     const u = {}; for (const k of SAVE_UI) if (ui[k] !== undefined) u[k] = ui[k];
     const {rnd, ...g} = G;
+    // The winner sets the next Shop's order. An active replay is already saved with its cursor in u.
+    if (g.lastBattle) g.lastBattle = {w:g.lastBattle.w};
     const put = (gg, uu) => localStorage.setItem(SAVE_KEY, JSON.stringify({v:1, at:Date.now(), len:LEN, g:gg, u:uu}, saveRep));
     try{ put(g, u); }
     catch(e){   // storage full: drop the match record, then the battle replay, rather than lose the game
