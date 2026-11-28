@@ -153,13 +153,25 @@ function autoMoving(now){
     return end !== Infinity && end < 5000 && t && t.nodeType === 1 && (vp.contains(t) || t.closest('.deathfly, .shbreak')); });
 }
 function stopAnim(){ if (ui.animT){ clearTimeout(ui.animT); ui.animT = null; } }
-// Reserve each side's row at the tallest it gets during this battle (decks shrink, graveyards grow): every frame is
-// laid out once in a hidden copy of the table and measured. Redone when the battle or the table's width changes.
+// Reserve each side's row at the tallest it gets during this battle by measuring hidden copies of the table.
+// Redone when the battle or the table's width changes.
 function applyRsv(root, rsv){
   for (const r of root.querySelectorAll('.trow')) for (const z of r.querySelectorAll(':scope > .chz, :scope > .deckz')){
     const m = rsv[(r.classList.contains('s1') ? 's1' : 's0') + (z.classList.contains('chz') ? 'c' : 'd')]; if (!m) continue;
     z.classList.add('rsv'); z.style.setProperty('--rsvT', typeof m[0] === 'number' ? m[0] + 'px' : m[0]); z.style.setProperty('--rsvL', typeof m[1] === 'number' ? m[1] + 'px' : m[1]);
   }
+}
+function distinctDesktopBattleLayouts(frames){
+  // On the desktop mat, labels are out of flow and the cards, slots and stack room have fixed dimensions.
+  // Keep both sides in the key because the tilted rows share a table and each can affect its height.
+  const cardKind = unit => !unit ? 'empty' : labArt(unit) ? 'art' : 'plain';
+  const seen = new Set();
+  return frames.filter(({snap}) => {
+    const key = JSON.stringify(snap.map(side => [cardKind(side.deck[0]), cardKind(side.charge), side.grave.length > 0]));
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 function reserveRows(){
   const st = $('view-play').querySelector('.stage'), line = st && st.querySelector('.line.table');
@@ -189,10 +201,10 @@ function reserveRows(){
     const fixedRoom = typeof labFixedRoom === 'function';
     // Board settings supplies the fixed room to reserve behind every card before measuring row heights.
     if (fixedRoom){ const fx = labFixedRoom(); for (const k of ['s0c', 's0d', 's1c', 's1d']) rsv[k] = fx.slice(); }
-    if (fixedRoom && document.body.classList.contains('os-deskbat')){
+    if (fixedRoom && mz && document.body.classList.contains('os-deskbat')){
       // Keep each hidden stage under the same panel as the real one. Write a few frames together so their height
       // reads share a layout pass, while keeping the number of stages in the document bounded for long battles.
-      const batchSize = 4, frames = ui.battle.frames;
+      const batchSize = 4, frames = distinctDesktopBattleLayouts(ui.battle.frames);
       for (let start = 0; start < frames.length; start += batchSize){
         const fragment = document.createDocumentFragment();
         const stages = frames.slice(start, start + batchSize).map(fr => {
