@@ -73,9 +73,9 @@ function raidBuySiege(g, i){
   return true;
 }
 
-function raidBattlePlayer(g, i){
+function raidBattlePlayer(g, i, role = raidRole(g, i)){
   const p = g.players[i];
-  const hand = Object.fromEntries(raidNames(p, raidRole(g, i)).map(n => [n, p.hand[n]]));
+  const hand = Object.fromEntries(raidNames(p, role).map(n => [n, p.hand[n]]));
   if (p.hand.Recruit) hand.Recruit = p.hand.Recruit;
   const gear = {...p.gear};
   for (const [n, count] of Object.entries(p.raidSpent.gear)) gear[n] = Math.max(0, (gear[n] || 0) - count);
@@ -97,9 +97,9 @@ function raidSpend(p, deck){
   }
 }
 
-function raidBattleCfg(g, i){
+function raidBattleCfg(g, i, role = raidRole(g, i)){
   const cfg = battleCfg(g, i);
-  if (raidRole(g, i) === 'attack'){
+  if (role === 'attack'){
     cfg.yard = 0;
     cfg.drill = 0;
     cfg.infirmary = false;
@@ -140,4 +140,99 @@ function raidNextFight(g){
   g.phase = 'mobilize';
   g.decks = [null, null];
   return true;
+}
+
+/* Reuse standard card valuation and army assembly. Raid judges the fronts by Caravan damage. */
+function raidAiPosition(g, i, roster = g.players[i].raidRoster){
+  const [me, foe] = [g.players[i], g.players[1 - i]];
+  const strength = (p, assignments, role) => Object.keys(assignments).reduce((sum, n) =>
+    sum + (assignments[n] === role && p.hand[n] ? strengthU(n, uLvl(n, p.hand[n])) : 0), 0);
+  const attack = strength(me, roster, 'attack'), defense = strength(me, roster, 'defense');
+  const theirAttack = strength(foe, foe.raidRoster, 'attack'), theirDefense = strength(foe, foe.raidRoster, 'defense');
+  const contest = (a, b) => Math.tanh((a - b) / (4 + b * .3));
+  return (2 + 3 / Math.max(1, foe.health)) * contest(attack, theirDefense)
+    + (2 + 4 / Math.max(1, me.health)) * contest(defense, theirAttack)
+    + (attack > 0 ? .7 : 0);
+}
+
+function raidAiShop(g, i){
+  const me = g.players[i], foe = g.players[1 - i];
+  if (altarWaiting(g, i)) altarPick(g, i, aiAltarPick(me, g.altarPend[i]));
+  const position = raidAiPosition(g, i);
+  let transfer = null, gain = .35;
+  for (const [name, role] of Object.entries(me.raidRoster)){
+    const to = role === 'attack' ? 'defense' : 'attack';
+    if (raidTransferReason(g, i, name, to)) continue;
+    const delta = raidAiPosition(g, i, {...me.raidRoster, [name]:to}) - position;
+    if (delta > gain){ transfer = {name, to}; gain = delta; }
+  }
+  if (transfer) raidTransfer(g, i, transfer.name, transfer.to);
+  if (bVal(me, 'Black Market') && !g.bmUsed[i]) useBM(g, i, aiBMKind(g, i));
+
+  const weights = me.genome || baseGenome(), before = raidAiPosition(g, i);
+  let best = null, bestScore = 0;
+  for (const o of aiShopOptions(g, i)){
+    const quote = buyInfo(g, i, o.name, o.kind, o.src, o.idx);
+    if (!quote.ok) continue;
+    const assigned = o.kind === 'u' && o.name !== 'Recruit';
+    for (const role of assigned ? raidChoices(me, o.name) : [null]){
+      const originalHand = me.hand;
+      const originalRoster = me.raidRoster;
+      let value;
+      if (assigned){
+        // Card synergies are local to the deck. Keep the full hand for the separate position estimate.
+        me.hand = raidBattlePlayer(g, i, role).hand;
+        try { value = aiValue(g, i, o.name, o.kind); }
+        finally { me.hand = originalHand; }
+        me.hand = {...originalHand, [o.name]:(originalHand[o.name] || 0) + 1};
+        try { value += 2.5 * (raidAiPosition(g, i, {...originalRoster, [o.name]:role}) - before); }
+        finally { me.hand = originalHand; }
+      } else value = aiValue(g, i, o.name, o.kind);
+      const score = value - quote.price * weights.m * .65;
+      if (score > bestScore){ bestScore = score; best = {...o, role}; }
+    }
+  }
+  const siegeValue = (me.raidSiege === 1 ? 5 : 3.2) + raidDeckSize(foe, 'defense') * .7
+    + bVal(foe, 'Armory') * .5 - RAID.siegePrice * weights.m * .65;
+  if (raidDeckSize(me, 'attack') >= 2 && siegeValue > bestScore && raidBuySiege(g, i)) return true;
+  if (best && buy(g, i, best.src, best.idx, null, null, best.role)) return true;
+  return pass(g, i);
+}
+
+function raidAiMobilize(g, i){
+  const attacker = raidAttacker(g), me = raidBattlePlayer(g, i);
+  const myArmy = buildArmy(me), rival = raidBattlePlayer(g, 1 - i), theirArmy = buildArmy(rival);
+  const full = a => assemble(a.core, a.recs, a.arm, false, false, a.sh, a.gear);
+  // These guesses use the public roster and remaining supply only.
+  const guesses = [full(theirArmy)];
+  if (theirArmy.core.length > 1) guesses.push(assemble(theirArmy.core.slice().reverse(),
+    theirArmy.recs, theirArmy.arm, false, true, theirArmy.sh, theirArmy.gear));
+  const cfgs = [0, 1].map(j => raidBattleCfg(g, j));
+  const first = g.raid.bout === 0;
+  const scarce = myArmy.gear.length + myArmy.arm + myArmy.sh + myArmy.recs + myArmy.core.reduce((n, u) => n + u.tr, 0);
+  const budgets = first && scarce > 0 ? [0, .5, 1] : [1];
+  const health = g.players.map((p, j) => p.health - g.raid.damage[j]);
+  let best = [], bestScore = -Infinity;
+  for (const budget of budgets){
+    const take = n => Math.ceil(n * budget);
+    const core = myArmy.core.map(u => ({...u, tr:take(u.tr)}));
+    let train = take(myArmy.core.reduce((n, u) => n + u.tr, 0));
+    // Respect the aggregate budget when Training is spread across several units.
+    for (const u of core){ u.tr = Math.min(u.tr, train); train -= u.tr; }
+    for (const order of permutations(core)){
+      const deck = assemble(order, take(myArmy.recs), take(myArmy.arm), false, budget === .5,
+        take(myArmy.sh), myArmy.gear.slice(0, take(myArmy.gear.length)));
+      const spent = deck.reduce((n, u) => n + (u.name === 'Recruit') + !!u.gear + u.arm + u.sh + u.tr, 0);
+      let score = 0;
+      for (const guess of guesses){
+        const res = runBattle(cfgs.map((cfg, j) => ({...cfg, units:j === i ? deck : guess})), false);
+        const damage = res.result.w === attacker ? res.left[attacker] : 0;
+        const lethal = damage > 0 && damage >= health[1 - attacker];
+        score += (i === attacker ? 1 : -1) * (damage + (lethal ? 12 : 0));
+      }
+      score = score / guesses.length - spent * (first ? .18 : .001);
+      if (score > bestScore){ bestScore = score; best = deck; }
+    }
+  }
+  return best;
 }

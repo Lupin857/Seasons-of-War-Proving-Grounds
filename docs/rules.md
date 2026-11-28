@@ -5,7 +5,7 @@ docs/terminology.md). Brian's Google Sheets are canon for card numbers; this doc
 code*. When a rule changes, update this doc, the in-game Rules tab (`<section id="view-rules">`) and the golden
 test (`record`) together. "Open" items at the bottom are known gaps between the code and Brian's decisions.
 
-For the opt-in pass-and-play mode, see the [Raid prototype](raid.md).
+For the opt-in Raid mode, see the [Raid prototype](raid.md).
 
 ## Game
 - Two players. First to 3, 4 or 5 points **while leading** (each length has its own AI, card stats and ratings).

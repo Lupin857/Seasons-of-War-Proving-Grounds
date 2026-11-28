@@ -138,6 +138,11 @@ function rulesHTML(names, opts){
 }
 const goLabel = R => { const br = bracketOf(R); return suIsDefault() ? `Start ${ME.rating == null ? 'placement' : 'rated'} game vs ${br.name} AI (${R})` : `Start unrated game vs ${br.name} AI (${R})`; };
 function aiSetupHTML(resign){
+  if (SU.raid) return `${raidSetupHTML()}${rulesHTML(['You', 'AI'], {raid:true})}
+    <p class="note">Raid uses its own unrated AI.</p>
+    ${resign ? '<p class="err">Starting a new game ends your current rated game as a loss.</p>' : ''}
+    <div class="row sugo"><button type="button" class="primary" data-act="st-free">${resign && ui.resignArm === 'free' ? 'Click again to resign and start' : 'Start Raid vs AI'}</button></div>`;
+
   const L = ladder(), [lo, hi] = ratingRange();
   const placing = ME.rating == null, mine = placing ? null : ME.rating;
   if (oppPick == null){ const saved = LS.get(lenKey('sow-pick-v1', LEN)); oppPick = Number.isFinite(saved) ? saved : placing ? lo : mine; }   // new players start against Novice
@@ -174,6 +179,7 @@ function aiSetupHTML(resign){
         </div>` : ''}
         ${flag}
       </div>
+      ${raidSetupHTML()}
       ${rulesHTML(['You', 'AI'], {rated:true})}
       ${resign ? `<p class="err">Starting a new game ends your current rated game as a loss.</p>` : ''}
       ${!dflt ? `<p class="note">Custom rules: the game isn't rated. The AI thinks through the new rules on its own; its rating was measured on Default.</p>` : ''}
@@ -314,7 +320,7 @@ $('view-play').addEventListener('click', async e => {
     if (resign) recordResult(true);
     const placing = ME.rating == null;
     ui.pick = null; netLeave();
-    newPlay(a === 'st-free' ? null : {rating: bracketPick(), rated:true, placement:placing});
+    newPlay(a === 'st-free' ? null : {rating: bracketPick(), rated:true, placement:placing}, SU.raid);
   }
 }, true);
 let oppPick = null;   // the AI rating you chose on the slider (saved per game length)

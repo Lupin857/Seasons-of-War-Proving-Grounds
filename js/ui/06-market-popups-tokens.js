@@ -466,7 +466,7 @@ function shopHTML(){
   const bmOk = myTurn && bVal(me, 'Black Market') && !G.bmUsed[S];
   const turnTxt = G.net ? (G.passed[S] ? `You passed. ${esc(nm(O))} is finishing their shopping.` : myTurn ? 'Your turn: buy one card or pass.' : `${esc(nm(O))} is shopping…`)
     : PP() ? `${esc(nm(S))}'s turn: buy one card or pass.${G.passed[O] ? ` ${esc(nm(O))} has passed.` : ''}`
-    : G.passed[0] ? 'You passed. The AI is finishing its shopping.' : myTurn ? 'Your turn: buy one card or pass.' : 'The AI is thinking: it test-battles its options against your army…';
+    : G.passed[0] ? 'You passed. The AI is finishing its shopping.' : myTurn ? 'Your turn: buy one card or pass.' : G.raid ? 'The AI is shopping…' : 'The AI is thinking: it test-battles its options against your army…';
   const turnMsg = myTurn && altarWaiting(G, S) ? 'Altar of Blood: pick a unit to discard first.' : turnTxt;
   const bmN = bVal(me, 'Black Market');
   const ph = compact();   // phones: the decks and the discard pile sit in the bottom bar (dockPilesHTML), not in the market

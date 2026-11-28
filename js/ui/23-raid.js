@@ -5,7 +5,8 @@ function raidSetupHTML(){
 }
 
 function raidRoundTitle(){
-  return `${G.raid.bout === 0 ? 'Opening attack' : 'Counterattack'} · ${esc(nm(raidAttacker(G)))} attacks`;
+  const attacker = raidAttacker(G);
+  return `${G.raid.bout === 0 ? 'Opening attack' : 'Counterattack'} · ${!PP() && attacker === 0 ? 'You attack' : `${esc(nm(attacker))} attacks`}`;
 }
 
 function raidDraft(){
@@ -45,7 +46,7 @@ function raidPublicHTML(){
     const names = raidNames(foe, role).map(n => `${esc(dispName(n))}${foe.hand[n] > 1 ? ` ×${foe.hand[n]}` : ''}`).join(', ');
     return `<span><b>${raidRoleName(role)}</b> ${names || 'Empty'}</span>`;
   }).join('');
-  const pending = active && G.raid.bout === 1 ? `<span class="note">Opening hit: ${G.raid.damage[raidAttacker(G)]} damage pending against ${esc(nm(raidAttacker(G)))}.</span>` : '';
+  const pending = active && G.raid.bout === 1 ? `<span class="note">Opening hit: ${G.raid.damage[raidAttacker(G)]} damage pending against ${!PP() && raidAttacker(G) === 0 ? 'you' : esc(nm(raidAttacker(G)))}.</span>` : '';
   return `<div class="raid-public panel"><b>${esc(nm(O))}’s ${active ? 'active lineup' : 'rosters'}</b>${roster}${foe.raidSiege ? `<span class="note">Siege Workshop ${foe.raidSiege === 2 ? 'ready' : 'under construction'}</span>` : ''}${pending}</div>`;
 }
 
@@ -84,7 +85,7 @@ function raidDockHTML(acts, mine, shopPiles){
     ${raidDrawerHTML(S, open, shopPiles)}
     <div class="raid-dock-row">
       <button type="button" class="raid-caravan deckbtn s${VS(S)}" data-act="raid-pile" data-p="${S}" data-role="caravan" aria-expanded="${open === 'caravan'}" ${!shopping ? 'disabled' : ''}>
-        <b>${esc(nm(S))}’s Caravan</b><small>${shopping ? `${p.money} Water · +${Math.max(0, income(p))} next Shop` : `${uniqueUnits(p)}/${RAID.roster} units`}</small></button>
+        <b>${PP() ? `${esc(nm(S))}’s Caravan` : 'Your Caravan'}</b><small>${shopping ? `${p.money} Water · +${Math.max(0, income(p))} next Shop` : `${uniqueUnits(p)}/${RAID.roster} units`}</small></button>
       <div class="raid-piles" aria-label="Unit decks">${RAID_ROLES.map(pile).join('')}</div>
       <div class="raid-actions">${acts}</div>
     </div>

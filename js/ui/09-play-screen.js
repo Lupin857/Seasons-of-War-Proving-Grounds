@@ -256,7 +256,7 @@ function loadSave(){
     ui = freshUI({...(s.u || {}), start:false});
     if (ui.roll){ ui.roll.rolling = false; if (ui.roll.first == null){ ui.roll.you = null; ui.roll.ai = null; ui.roll.tie = false; } }
     if (!ui.battle && G.phase === 'battle' && !G.over){
-      if (raidNextFight(G)){ ui.mobSeat = 0; ui.handoff = 0; }
+      if (raidNextFight(G)){ ui.mobSeat = 0; ui.handoff = PP() ? 0 : null; }
       else startShop(G);
     }   // the replay didn't fit in storage: go on to the next shop
     if (G.phase === 'mobilize' && !ui.draft && PP() && ui.handoff == null) ui.draft = defaultDraft();
@@ -697,12 +697,18 @@ function lockDeck(){
   // the miracles you played are the ones spent (online both screens work it out the same way, so it's left to the rules there)
   if (!G.net){ const me = G.players[seat()]; me.mirPlay = mobReady(me).map(j => me.mir[j]); }
   if (G.net){ sfx.lock(); ui.err = ''; ui.lastDraft = d; ui.lastDrafts[seat()] = d; netDo(['d', d.map(u => u.gear ? [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0, netIx(u.gear)] : [netIx(u.name), u.arm || 0, u.tr || 0, u.sh || 0])]); return; }
+  if (G.raid){
+    const S = seat(), orders = ui.raidOrders || (ui.raidOrders = [{}, {}]);
+    orders[S][raidRole(G, S)] = d.map(u => u.name);
+    if (!PP()){
+      sfx.lock(); ui.err = '';
+      showBattle(playBattle(d, raidAiMobilize(G, 1)));
+      ui.bannerOff = false;
+      renderPlay(); toGame(); startAuto(); return;
+    }
+  }
   if (PP()){
     const S = seat(); ui.drafts[S] = d; ui.lastDrafts[S] = d; sfx.lock(); ui.err = '';
-    if (G.raid){
-      const orders = ui.raidOrders || (ui.raidOrders = [{}, {}]);
-      orders[S][raidRole(G, S)] = d.map(u => u.name);
-    }
     if (S === 0){ ui.mobSeat = 1; ui.draft = null; ui.handoff = 1; renderPlay(); toGame(); return; }
     showBattle(playBattle(ui.drafts[0], ui.drafts[1])); if (G.raid) ui.bannerOff = false; ui.drafts = [null, null]; ui.mobSeat = 0; ui.handoff = null;
     renderPlay(); toGame(); startAuto(); return;
@@ -886,7 +892,7 @@ $('view-play').addEventListener('click', e => {
     case 'continue': if (G.replay){ sfx.soft(); replayEnd(); return; }
       if (G.raid && G.raid.bout === 0){
         sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.revealed = false; ui.pre = null;
-        raidNextFight(G); ui.mobSeat = 0; ui.handoff = 0; ui.raidPile = null;
+        raidNextFight(G); ui.mobSeat = 0; ui.handoff = PP() ? 0 : null; ui.raidPile = null;
         renderPlay(); toGame(); return;
       }
       if (G.raid) ui.raidPile = null;

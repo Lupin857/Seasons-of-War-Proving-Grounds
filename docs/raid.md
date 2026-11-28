@@ -1,6 +1,6 @@
 # Raid prototype
 
-Raid is an opt-in, unrated mode for two players sharing a device. It tests whether Oasis can support early economic investment, a credible counterattack, and a full five-on-five battle using the same rules at the table.
+Raid is an opt-in, unrated mode in Pass and Play and Play the AI. It tests whether Oasis can support early economic investment, a credible counterattack, and a full five-on-five battle using the same rules at the table.
 
 ## Round sequence
 
@@ -18,3 +18,8 @@ Gear and the Drifter, Might, Shield, and Training supply are shared. Each piece 
 - Can two sequential fights fit at the table? Test a 5v5 followed by a 2v2 over consecutive rounds.
 
 The late-offense test uses a public Siege Workshop. Spend two Water to build it, then two Water in a later Shop to finish it. Each step uses a buy and ends the shop turn. The finished Workshop gives the attacking Vanguard +1 damage and Shieldbreak on its first normal attack. The round-20 playtest cutoff is a draw if both Caravans are still standing. Cathedral, Pack Beasts, and miracles sit out this prototype.
+
+
+## AI playtest opponent
+
+Raid uses the standard AI’s card valuation, token placement and gear heuristics. It values buys against the public Attack and Defense rosters and estimates the economy horizon from remaining Caravan health. It tests lineups against guesses drawn from public information, scores expected breach damage, and may save supplies for the counterattack. This opponent is unrated.

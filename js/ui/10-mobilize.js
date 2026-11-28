@@ -28,7 +28,7 @@ const mzAfterPaint = () => new Promise(resolve => requestAnimationFrame(() => se
 // Start the opening search while the shop clears. Mobilize draws the cards as soon as the draft is ready.
 function mzPrepareDraft(){
   if (!mzDraftNeeded()) return true;
-  if (ui.lastDraft){ ui.draft = defaultDraft(); return true; }
+  if (G.raid || ui.lastDraft){ ui.draft = defaultDraft(); return true; }
   const pending = ui.mzOpening;
   if (!pending || pending.game !== G || pending.round !== G.round) mzOpenDraft();
   return false;

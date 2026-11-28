@@ -103,6 +103,29 @@ vm.runInContext(`
   assert.equal(tie.raid.damage, 0);
   assert.equal(defense.players[0].health, 8);
   assert.equal(defense.players[1].health, 8);
+
+  for (const seed of [2, 7, 19, 41, 71, 99]){
+    const game = newGame({raid:true, rnd:mulberry32(seed), genomes:[baseGenome(), baseGenome()]});
+    let bought = 0;
+    while (!game.over){
+      startShop(game);
+      for (let turns = 0; game.phase === 'shop'; turns++){
+        assert.ok(turns < 20, 'Raid shop must end');
+        const i = cur(game), player = game.players[i], before = player.bought.length;
+        assert.equal(raidAiShop(game, i), true);
+        bought += player.bought.length - before;
+        assert.ok(uniqueUnits(player) <= RAID.roster);
+        assert.ok(RAID_ROLES.every(role => raidDeckSize(player, role) <= RAID.deck));
+      }
+      for (let bout = 0; bout < 2; bout++){
+        const specs = [0, 1].map(i => raidAiMobilize(game, i));
+        fightRaid(game, specs);
+        if (bout === 0) assert.equal(raidNextFight(game), true);
+      }
+    }
+    assert.ok(bought > 0, 'Raid AI should buy cards');
+    assert.ok(game.round <= RULES.maxRounds);
+  }
 `, context, {filename:'raid scenarios'});
 
-console.log('PASS: Raid commitments, caps, transfers, siege, shared resources, and simultaneous damage');
+console.log('PASS: Raid commitments, caps, transfers, siege, shared resources, simultaneous damage, and seeded AI matches');
