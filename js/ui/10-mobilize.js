@@ -22,6 +22,45 @@ const mzIds = d => { for (const u of d || []) if (u && !u.id) u.id = 'm' + (++MZ
 const mzMe = () => G.players[seat()];
 const mzActive = () => !!(G && G.phase === 'mobilize' && !ui.battle && ui.draft && !ui.planning && !(PP() && ui.handoff != null)
   && !(G.net && NET && NET.acts.length > NET.applied[NET.seat]) && !matMobBusy());
+const mzDraftNeeded = () => G && G.phase === 'mobilize' && !G.over && !G.net && !PP()
+  && !ui.draft && !ui.battle && !ui.start && !ui.roll && !ui.planning;
+const mzAfterPaint = () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+// Start the opening search while the shop clears. Mobilize draws the cards as soon as the draft is ready.
+function mzPrepareDraft(){
+  if (!mzDraftNeeded()) return true;
+  if (ui.lastDraft){ ui.draft = defaultDraft(); return true; }
+  const pending = ui.mzOpening;
+  if (!pending || pending.game !== G || pending.round !== G.round) mzOpenDraft();
+  return false;
+}
+async function mzOpenDraft(){
+  const view = ui, game = G, round = G.round, player = seat();
+  const request = view.mzOpening = {game, round};
+  const current = () => G === game && ui === view && G.round === round && seat() === player
+    && ui.mzOpening === request && mzDraftNeeded();
+  saveGame();   // the completed shop is savable even before the draft comes back
+  try{
+    const result = await aiThink('draft', {i:player, K:24, depth:DEPTH_HINT});
+    if (!current()) return;
+    if (result?.deck){
+      view.draft = defaultDraft(result.deck);
+      if (result.omPending?.[player]) (game.omPending ||= [null, null])[player] = result.omPending[player];
+      if (result.mobWhy?.[player]) (game._mobWhy ||= [null, null])[player] = result.mobWhy[player];
+      if (result.mirDecide?.length) (game.mirDecide ||= []).push(...result.mirDecide);
+    } else {
+      await mzAfterPaint();
+      if (!current()) return;
+      view.draft = defaultDraft();
+    }
+  } catch(err){
+    if (!current()) return;
+    view.draft = [];
+    view.err = 'Could not prepare a deck. Build one from the bench or try Suggest.';
+  } finally {
+    if (view.mzOpening === request) delete view.mzOpening;
+  }
+  renderPlay();
+}
 const mzIdx = id => (ui.draft || []).findIndex(u => u.id === id);
 const mzUnit = id => (ui.draft || [])[mzIdx(id)] || null;
 
@@ -354,7 +393,7 @@ async function mzSuggestDeck(){
     if (result?.deck) deck = result.deck;
     else {
       // Give the button time to paint before using the compatibility path without a worker.
-      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      await mzAfterPaint();
       if (current()) deck = netClone(() => aiMobilize(game, player, 60, DEPTH_HINT));
     }
   } catch (err){

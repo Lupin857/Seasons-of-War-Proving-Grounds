@@ -2,6 +2,45 @@
 const SHOP_COIN_ART = 'art/medallion.png';
 const SHOP_COIN_FACE_SHARE = .18; // The printed medallion spans 134 px of the 750 px card art.
 let shopCoinLayer = null, shopCoinArt = null, shopCoinRound = null;
+let shopCoinWarmPending = false, shopCoinWarmDone = false;
+
+function shopCoinImage(){
+  if (!shopCoinArt){ shopCoinArt = new Image(); shopCoinArt.src = SHOP_COIN_ART; }
+  return shopCoinArt;
+}
+
+function shopCoinWarmEnabled(){
+  return !document.hidden && !compact() && rugOn() && matDeskOn() && !reduceMotion();
+}
+
+function shopCoinRequestWarm(){
+  if (shopCoinWarmPending || shopCoinWarmDone || !shopCoinWarmEnabled()) return;
+  shopCoinWarmPending = true;
+  // Decode before scheduling the draw so the first animation can reuse the uploaded texture.
+  shopCoinImage().decode().catch(() => {}).then(() => {
+    if (window.requestIdleCallback) requestIdleCallback(shopCoinWarm);
+    else setTimeout(shopCoinWarm, 300);
+  });
+}
+
+function shopCoinWarm(){
+  shopCoinWarmPending = false;
+  if (!shopCoinWarmEnabled() || shopCoinLayer?.batches.length) return;
+  shopCoinWarmDone = true;
+  const layer = shopCoinCanvas(true);
+  if (layer?.renderer.mode !== 'webgl'){
+    shopCoinLayer ||= layer;
+    return;
+  }
+  // A real draw also warms work that WebGL drivers defer until the first coin.
+  const size = 32;
+  layer.canvas.width = layer.canvas.height = size;
+  try{
+    layer.renderer.draw([{x:16,y:16,r:10,spin:1,tilt:.3,opacity:1}],size,size);
+    layer.renderer.draw([],size,size);
+    shopCoinLayer = layer;
+  }catch(e){}
+}
 
 function shopCoinStart(g){
   const before = g.players.map(p => p.money);
@@ -105,8 +144,15 @@ function shopCoinShader(gl, type, source){
 }
 
 function shopCoinWebGL(canvas, art){
-  const gl = canvas.getContext('webgl', {alpha:true, antialias:true, premultipliedAlpha:false});
+  const gl = canvas.getContext('webgl', {alpha:true, antialias:true, premultipliedAlpha:false,
+    failIfMajorPerformanceCaveat:true});
   if (!gl) return null;
+  // Explicitly enabled software GL can still pass the browser's caveat check.
+  const debug = gl.getExtension('WEBGL_debug_renderer_info');
+  if (debug && /swiftshader|llvmpipe|softpipe|microsoft basic render driver/i.test(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL))){
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return null;
+  }
   const vertex = shopCoinShader(gl, gl.VERTEX_SHADER, `
     attribute vec3 position, normal;
     attribute vec2 texcoord;
@@ -209,14 +255,14 @@ function shopCoinFlat(canvas, art){
   };
 }
 
-function shopCoinCanvas(){
-  if (!shopCoinArt){ shopCoinArt = new Image(); shopCoinArt.src = SHOP_COIN_ART; }
+function shopCoinCanvas(tryWebGL=false){
+  const art = shopCoinImage();
   let canvas = document.createElement('canvas'), renderer;
-  try{ renderer = shopCoinWebGL(canvas,shopCoinArt); }catch(e){}
-  if (!renderer){
-    canvas = document.createElement('canvas');
-    renderer = shopCoinFlat(canvas,shopCoinArt);
+  if (tryWebGL){
+    try{ renderer = shopCoinWebGL(canvas,art); }catch(e){}
+    if (!renderer) canvas = document.createElement('canvas');
   }
+  if (!renderer) renderer = shopCoinFlat(canvas,art);
   if (!renderer) return null;
   canvas.className = 'shop-coins-layer';
   canvas.dataset.renderer = renderer.mode;
@@ -299,15 +345,23 @@ function shopCoinFrame(now){
     }
     return true;
   });
-  if (!layer.batches.length){ layer.canvas.remove(); return; }
+  if (!layer.batches.length){
+    layer.canvas.remove();
+    shopCoinRequestWarm();
+    return;
+  }
   try{ layer.renderer.draw(coins,w,h); }
   catch(e){
     if (layer.renderer.mode !== 'webgl' || !shopCoinUseFallback(layer)){
       layer.canvas.remove();
       for (const batch of layer.batches) batch.resolve();
       shopCoinLayer = null;
+      shopCoinRequestWarm();
       return;
     }
   }
   layer.frame = requestAnimationFrame(shopCoinFrame);
 }
+
+document.addEventListener('visibilitychange', shopCoinRequestWarm);
+shopCoinRequestWarm();

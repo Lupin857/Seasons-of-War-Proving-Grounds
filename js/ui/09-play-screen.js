@@ -122,7 +122,7 @@ function markGame(on){
   phaseKey = k;
 }
 // The Play tab's own drawing. Call renderPlay(), never this: renderPlay adds the steps around it.
-function drawPlay(){
+function drawPlay(options){
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale; it sinks away
   if (NET && !NET.started && !ui.start){ markGame(false); $('view-play').innerHTML = netLobbyHTML(); return; }
@@ -130,6 +130,14 @@ function drawPlay(){
   if (ui.roll){ markGame(true); $('view-play').innerHTML = rollHTML(); if (turnKey === null) turnKey = ''; saveGame(); return; }
   if (ui.battle && ui.frame >= ui.battle.frames.length - 1) ui.revealed = true;   // the result shows once the battle has played out (or been skipped)
   const dealNow = !ui.battle && G.phase === 'shop' && ui.dealt !== G.round;
+  if (options?.purchase && !dealNow && matRefreshPurchase()){
+    saveGame();
+    markMore();
+    flashedNow = false;
+    turnWatch();
+    shopNotes();
+    return 'purchase';
+  }
   const changes = describeOverrides(OV);
   let h = netNoticeHTML() + (changes.length && !(G && G.net) ? `<p class="note">Custom balance active (${changes.length} unpushed ${plural(changes.length, 'change')}, set in Balance & stats). New games use it.</p>` : '') + boardHTML();
   if (ui.battle) h += battleHTML();
@@ -232,7 +240,7 @@ function loadSave(){
     ui = freshUI({...(s.u || {}), start:false});
     if (ui.roll){ ui.roll.rolling = false; if (ui.roll.first == null){ ui.roll.you = null; ui.roll.ai = null; ui.roll.tie = false; } }
     if (!ui.battle && G.phase === 'battle' && !G.over) startShop(G);   // the replay didn't fit in storage: go on to the next shop
-    if (G.phase === 'mobilize' && !ui.draft && !(PP() && ui.handoff != null)) ui.draft = defaultDraft();
+    if (G.phase === 'mobilize' && !ui.draft && PP() && ui.handoff == null) ui.draft = defaultDraft();
     return true;
   }catch(e){ return false; }
 }
@@ -846,8 +854,10 @@ $('view-play').addEventListener('click', e => {
    has loaded, as the wrappers were: a redraw can happen while the page is still starting. Add a step here, in
    order, instead of wrapping renderPlay. */
 function renderPlay(){
+  const draftReady = typeof mzPrepareDraft !== 'function' || mzPrepareDraft();
   if (typeof bazaarShopGate === 'function' && bazaarShopGate()) return;
   if (typeof matMobGate === 'function' && matMobGate()) return;      // one-screen dev: the sweep into Mobilize plays first
+  if (!draftReady) return;                                          // lift the actual deck once its opening search finishes
   if (typeof matBatGate === 'function' && matBatGate()) return;      // one-screen dev: Mobilize gathers into the battle first
   const notes = typeof playNotesBefore === 'function' ? playNotesBefore() : null;   // ability notes, measured before the stage is replaced
   const art = typeof playArtBefore === 'function' ? playArtBefore() : null;         // the card pictures already on screen
@@ -857,8 +867,8 @@ function renderPlay(){
   // the page's classes first (body.lab-inbattle, os-mat...): the battle's rows are measured with them in place
   if (typeof labAfterDraw === 'function') labAfterDraw();            // Board settings: body.lab-inbattle
   if (typeof rugAfterDraw === 'function') rugAfterDraw();            // one-screen dev: the lit rug under the battle
-  if (typeof matBarsAfterDraw === 'function') matBarsAfterDraw();    // one-screen dev: the Caravan bars sit right under the top bar
-  if (typeof r === 'boolean'){ syncShop(r); dealPeeks(r); }           // measure flights after fitting the board to the window
+  if (r !== 'purchase' && typeof matBarsAfterDraw === 'function') matBarsAfterDraw();    // full draws fit the tabletop
+  if (typeof r === 'boolean' || r === 'purchase'){ syncShop(r === true); dealPeeks(r === true); }
   if (ui.battle) reserveRows();                     // every redraw of the battle keeps the reserved row heights
   if (art) playArtAfter(art);                       // put the decoded pictures back (no blink)
   if (typeof playNotesAfter === 'function') playNotesAfter(notes);   // damage cubes follow the board; old notes fade out
@@ -866,5 +876,6 @@ function renderPlay(){
   if (typeof matMobAfterDraw === 'function') matMobAfterDraw();      // one-screen dev: the deck lifts off the mat into Mobilize
   if (typeof matBatAfterDraw === 'function') matBatAfterDraw();      // one-screen dev: the battle board lands (zoom, deck slam)
   if (typeof aiMobStart === 'function') aiMobStart();                // against the AI: it sets its Mobilize deck while you set yours
+  if (typeof shopCoinRequestWarm === 'function') shopCoinRequestWarm();
   return r;
 }
