@@ -166,7 +166,13 @@ function reserveRows(){
   if (!st || !line || !ui.battle) return;
   const mz = typeof labMatZones === 'function' && labMatZones();
   // phone battle on the mat: the cards start at the board's own size each battle; matFitBattle shrinks them to fit
-  if (mz && ui.battle.fitW == null){ ui.battle.fitW = matBatBase(); document.documentElement.style.setProperty('--matbcw', ui.battle.fitW + 'px'); }
+  if (mz && (ui.battle.fitW == null || matDesk())){
+    const width = matBatBase();
+    if (ui.battle.fitW !== width){
+      ui.battle.fitW = width;
+      document.documentElement.style.setProperty('--matbcw', width + 'px');
+    }
+  }
   const tight = document.body.matches('.os-deskbat.os-battle-tight');
   const w = Math.round(st.getBoundingClientRect().width), key = w + ':' + ui.battle.frames.length + ':' + (typeof LAB === 'object' ? LAB.splay : '') + ':' + (mz ? ui.battle.fitW + ':' + tight : '');
   if (ui.battle.rowKey !== key){
@@ -223,8 +229,7 @@ function reserveRows(){
    rows each time (no redraw). Rows are reserved for the tallest frame, so the size holds for the whole battle. */
 // the battle cards' own size on the mat: the phone board's, or on the desktop the table's card size from the shop
 function matBatBase(){
-  const d = typeof matDesk === 'function' && matDesk() && parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--deskmw'));
-  return d > 0 ? d : Math.round(98 * LAB.zoom / 100);
+  return matDesk() ? matDesktopLayout().width : Math.round(98 * LAB.zoom / 100);
 }
 function matSetBattlePivot(line){
   const q = matDesktopBattleCamera();
@@ -235,19 +240,11 @@ function matSetBattlePivot(line){
 }
 function matFitDesktopBattle(line, b){
   const de = document.documentElement, panel = line.closest('.panel'), body = document.body;
-  const width = b.matSeats?.width || matBatBase();
-  de.style.setProperty('--stripw', width + 'px');
-  if (b.fitW !== width){
-    b.fitW = width;
-    de.style.setProperty('--matbcw', width + 'px');
-    reserveRows();
-    return;
-  }
+  const {width, flatY} = matDesktopLayout();
   line.style.removeProperty('--battle-y-offset');
   panel.classList.remove('os-battle-scroll');
-  matPlaceBattleStrips();
-  const so = document.querySelector('#view-play .osbars .osstrip.opp');
-  const sm = document.querySelector('#view-play .osbars .osstrip.me'), gb = $('gtop')?.getBoundingClientRect().bottom || 0;
+  const so = document.querySelector('#view-play .osstrip.opp .oscarrow');
+  const sm = document.querySelector('#view-play .osstrip.me .oscarrow'), gb = $('gtop')?.getBoundingClientRect().bottom || 0;
   const top = so?.getBoundingClientRect().bottom + 8 || gb, bottom = sm?.getBoundingClientRect().top - 8 || innerHeight;
   de.style.setProperty('--dsh-o', Math.max(0, top - gb) + 'px');
   de.style.setProperty('--dsh-m', Math.max(0, innerHeight - bottom) + 'px');
@@ -277,11 +274,9 @@ function matFitDesktopBattle(line, b){
   if (projected.height > room){
     panel.classList.add('os-battle-scroll');
   } else {
-    const q = matDesktopBattleCamera(), a = q.t * Math.PI / 180;
-    const unproject = y => (y - q.oy) / (Math.cos(a) + (y - q.oy) * Math.sin(a) / q.d);
     const center = (projected.top + projected.bottom) / 2;
     const aim = (viewport.top + viewport.bottom) / 2;
-    line.style.setProperty('--battle-y-offset', unproject(aim) - unproject(center) + 'px');
+    line.style.setProperty('--battle-y-offset', flatY(aim) - flatY(center) + 'px');
   }
   matSetBattlePivot(line);
   panel.onscroll = panel.classList.contains('os-battle-scroll') ? () => matSetBattlePivot(line) : null;
@@ -361,7 +356,9 @@ function showFrame(k, glide){
   // revealed units buried this step under cards put on top of their deck (the engine's deck-top moves)
   const buried = ui.battle && k === ui.frame + 1 ? [...new Set(frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-top').map(m => +m.u.split('-')[0]))]
     .map(side => { const u = ui.battle.frames[ui.frame].snap[side].deck[0]; return u ? `${side}-${u.uid}` : null; }).filter(Boolean) : [];
-  ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay(); reserveRows();
+  ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay();
+  // renderPlay reserves the desktop rows before the movement code measures them.
+  if (!document.body.classList.contains('os-deskbat')) reserveRows();
   if (prevF && ui.battle) animateTokens(prevF, ui.battle.frames[k]); else clearTimeout(ui.tokT);
   if (broken.length) breakTokens(broken);
   if (ui.battle && k === ui.battle.frames.length - 1 && !ui.battle.chimed){

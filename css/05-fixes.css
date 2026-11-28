@@ -251,7 +251,6 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .dock .dtiles .tslots .pips{display:inline-flex;gap:2px;margin-left:2px;align-items:center}
   .dock .dtiles .tslots .pip{width:10px;height:10px;border-width:2px;border-radius:2px}
   .dock .dtiles .tslots .pip.x{border-radius:50%;border-color:var(--or);background:var(--or)}
-  .dock .dtiles .tslots .xsep{width:2px}
   .dock .dtiles .tile.s1 .tslots .pip:not(.x){border-color:var(--gules);background:var(--gules)}
   .dock .dtiles .tslots .pip.used{background:transparent!important;border-color:var(--line)!important}
 }
@@ -259,7 +258,6 @@ button[data-act="pass"].passglow:not(:disabled){animation:passglow 1.4s ease-in-
   .dock .dtiles.mid .tile{padding:6px 5px}
   .dock .dtiles .tslots{gap:3px}
   .dock .dtiles .tslots .pip{width:9px;height:9px}
-  .dock .dtiles .tslots .xsep{width:0}
   .dock .dtiles .tslots .slotg{letter-spacing:0}
   .dock .dtiles.mid .ts{gap:5px}
   .dock .dtiles.mid .ts>span{letter-spacing:0;gap:3px}

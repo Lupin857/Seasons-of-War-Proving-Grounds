@@ -489,13 +489,12 @@ function withOpp(g, i, fake, fn){
 }
 // What will the opponent still buy this shop? They take turns with me, so when I'm choosing they usually have buys
 // left. Predict them greedily with my own judgment as the model of theirs (I can't see their weights): the card they'd
-// value most that they can afford, then the next, within their remaining unit and building buys and money.
+// value most that they can afford, then the next, within their remaining buys and money.
 // excl {src, idx}: a display card I'm about to take, so it isn't there for them. Returns {picks, fake} or null.
 function predictOppBuys(g, i, G, excl){
   const o = 1 - i, opp = g.players[o];
   if (g.phase !== 'shop' || !g.buys || g.passed[o]) return null;
   // their buys and money as they'd stand after each predicted purchase, priced by the real rules
-  // (Carpenter's Guild slots and discount, the +$1 extra buy)
   const b = {...g.buys[o]};
   const opts = [];
   g.disp.u.forEach((c, idx) => { if (!(excl && excl.src === 'du' && excl.idx === idx)) opts.push({name:c.name, kind:'u', src:'du', idx}); });

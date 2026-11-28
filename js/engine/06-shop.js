@@ -24,15 +24,14 @@ function whyNot(info, p){
 }
 function buyInfo(g, i, name, kind, src, idx){ const o = {src, idx, who:i}; return buyQuote(g.players[i], g.buys[i], name, kind, src, mirSur(mirOf(g, o)), pairOf(g, o), mirOf(g, o).length); }
 // The price and buy slot for one card, or why it can't be bought. p is anything with {hand, city, money}
-// and b the buys used this shop ({u, b, carp, extra}), so the AI can price hypothetical purchases the same way.
+// and b the buys used this shop, so the AI can price hypothetical purchases the same way.
 // nm: how many miracles are under the card (Chapel)
 function buyQuote(p, b, name, kind, src, sur, pair, nm){
   const Dd = kind === 'u' ? DEFS[name] : BDEFS[name];
   let price = (name === 'Recruit' && kind === 'u' && p.city && p.city['Muster Hall'] ? 0 : Dd.c) + (sur || 0);   // Muster Hall: Recruits cost $0. miracle surcharge: discounts below apply to the total
   const no = cantAcquire(p, name, kind); if (no) return {ok:false, why:no};
-  // the discard pile: only War College buys from it (duplicates of units you own, for free)
+  // War College buys duplicates of owned cards from the discard pile for free, using a buy.
   if (src === 'mu' && !(p.city && p.city['War College'])) return {ok:false, why:'Needs War College'};
-  // Scrapyard: any card you already own a copy of, for free, using a normal buy
   if (src === 'mu' && !(ownsCard(p, name) > 0)) return {ok:false, why:'Only duplicates of your cards'};
   pair = pair || [];
   const nFld = (name === 'Field' ? 1 : 0) + pair.filter(n => n === 'Field').length;
@@ -50,7 +49,6 @@ function buyQuote(p, b, name, kind, src, sur, pair, nm){
   if (baseOk) slot = 'base';
   else if (b.carp < bVal(p, "Carpenter's Guild")) slot = 'carp';   // Carpenter's Guild: extra buys of any kind
   else if (b.fav > 0) slot = 'fav';   // Divine Favor: an extra buy at normal price
-  else if (!b.extra){ slot = 'extra'; price += 1; }
   else return {ok:false, why:'Buys used up'};
   if (kind === 'b' && !isGear(name) && bVal(p, "Carpenter's Guild")){ const nb = 1 + pair.filter(n => !isGear(n)).length; price = Math.max(nb, price - nb); }   // Carpenter's Guild discount, each building (not gear)
   let chap = 0, wc = 0;
@@ -68,7 +66,13 @@ const bmOff = p => Math.max(1, bLvl(p, 'Black Market'));
 // Fields you may buy this shop
 function fieldCap(p){ return ruleOf(p, 'fps', RULES.fieldsPerShop); }
 function baseLeft(b){ return buysOf(b) - (b.u + b.b); }
-function useSlot(b, kind, slot, name){ if (name === 'Field') b.fld = (b.fld || 0) + 1; if (slot === 'wc'){ b.wc = (b.wc || 0) + 1; return; } if (slot === 'base'){ if (kind === 'u') b.u++; else b.b++; } else if (slot === 'carp') b.carp++; else if (slot === 'fav') b.fav--; else b.extra = true; }
+function useSlot(b, kind, slot, name){
+  if (name === 'Field') b.fld = (b.fld || 0) + 1;
+  if (slot === 'base'){
+    if (kind === 'u') b.u++; else b.b++;
+  } else if (slot === 'carp') b.carp++;
+  else if (slot === 'fav') b.fav--;
+}
 function sourceCard(g, i, src, idx){
   if (src === 'du') return g.disp.u[idx] && {name:g.disp.u[idx].name, kind:'u'};
   if (src === 'db') return g.disp.b[idx] && {name:g.disp.b[idx].name, kind:'b'};
@@ -134,7 +138,7 @@ function buyRule(g, i, src, idx, attach, writ){
     else p.city[n] = (p.city[n] || 0) + 1;
     p.bought.push(n); if (g.shopBought) g.shopBought[i].push(n); pairGot.push(n);
   }
-  const extra = (info.slot === 'extra' ? ' (extra buy, +$1)' : info.slot === 'carp' ? " (Carpenter's Guild)" : '') + (src === 'bm' ? ` (Black Market, $${bmOff(p)} off)` : '') + (src === 'mu' ? ' from the discard pile (War College)' : '');
+  const extra = (info.slot === 'carp' ? " (Carpenter's Guild)" : '') + (src === 'bm' ? ` (Black Market, $${bmOff(p)} off)` : '') + (src === 'mu' ? ' from the discard pile (War College)' : '');
   const extraFull = extra + (info.slot === 'fav' ? ' (Divine Favor)' : '') + (src === 'vis' ? ' (Vision)' : '') + (info.disc ? ` (${info.disc}, $${MIRS[info.disc].disc} off)` : '') + (info.chap ? ` (Chapel, $${info.chap} off)` : '') + '';
   g.log.push({t:`${g.labels[i]} ${src === 'mu' ? (g.labels[i]==='You'?'take':'takes') : g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''}${pairGot.length ? ` and ${pairGot.join(' and ')} (Covenant)` : ''} for $${info.price}${extraFull}${src === 'fz' ? ' (frozen)' : ''}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null, pair:pairGot.length ? pairGot : undefined, src, idx, id:cid, at:spot ? spot.at : null}});
   const again = mir.length ? gainMiracles(g, i, mir, writ, spot) : false;

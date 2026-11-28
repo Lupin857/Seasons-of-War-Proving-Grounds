@@ -96,7 +96,7 @@ function startShop(g){
   else if (g.lastBattle && g.lastBattle.w >= 0) first = 1 - g.lastBattle.w;
   else first = g.order[1];
   g.order = [first, 1 - first]; g.turnIdx = 0; g.passed = [false,false];
-  g.buys = [0,1].map(i => ({u:0, b:0, carp:0, extra:false, fav:0, favN:0, fld:0, wc:0, cap:buyCap(g.players[i])}));
+  g.buys = [0,1].map(i => ({u:0, b:0, carp:0, fav:0, favN:0, fld:0, wc:0, cap:buyCap(g.players[i])}));
   g.peek = [[], []]; g.bmUsed = [false,false];
   g.seen = [new Set(), new Set()]; g.shopBought = [[], []]; g.buyTags = [{}, {}];
   g.mirSeen = [new Set(), new Set()]; g.mirShop = [[], []];

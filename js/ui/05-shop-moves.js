@@ -185,16 +185,21 @@ async function netStartClick(a, resign){
   if (a === 'st-net-ready'){ if (!NET) return; NET.ready = true; netSave(); netPresence(); if (NET.peer && !NET.started) netStart(); else renderPlay(); return; }
   if (a === 'st-net-leave'){ netLeave(); ui.start = !G; renderPlay(); return; }
   if (a === 'st-net-copy'){ try{ await navigator.clipboard.writeText(netInvite()); const c = $('net-copied'); if (c) c.textContent = 'Copied.'; }catch(e){ const c = $('net-copied'); if (c) c.textContent = netInvite(); } return; }
+  const rejoin = a === 'st-net-rejoin', saved = LS.get('sow-net');
+  const joinCode = a === 'st-net-join' ? val('net-code').toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+  if (rejoin && !saved) return;
+  if (joinCode !== null && joinCode.length !== 6){ ui.netErr = 'Room codes are 6 letters and numbers.'; renderPlay(); return; }
+  if (saved && (rejoin || joinCode === saved.code) && saved.v !== NET_V && saved.acts?.length){
+    ui.netErr = 'This saved room uses the previous shop rules. Create a new room to play with the current rules.';
+    renderPlay();
+    return;
+  }
   if (resign && ui.resignArm !== 'net'){ ui.resignArm = 'net'; renderPlay(); return; }
   if (resign) recordResult(true);
   const name = (val('net-name') || 'Player').slice(0, 16); LS.set('sow-net-name', name);
-  if (a === 'st-net-rejoin'){ const sv = LS.get('sow-net'); if (!sv) return; netLeave(); await netOpen({code:sv.code, seat:sv.seat, name:sv.name || name, seed:sv.seed, target:sv.target, mir:sv.mir, bmir:sv.bmir, rf:sv.rf, su:sv.su, ready:sv.ready, acts:sv.acts}); return; }
+  if (rejoin){ netLeave(); await netOpen({...saved, name:saved.name || name}); return; }
   if (a === 'st-net-host'){ netLeave(); await netOpen({code:netCode(), seat:0, name, seed:(Math.random() * 2147483647) | 0, target:gameTarget(), mir:MIRACLES_ON, bmir:MIRACLES_ON && BATTLE_MIR_ON, rf:REFILL_ON, su:setupForGame(), acts:[]}); return; }
-  if (a === 'st-net-join'){
-    const code = val('net-code').toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (code.length !== 6){ ui.netErr = 'Room codes are 6 letters and numbers.'; renderPlay(); return; }
-    netLeave(); await netOpen({code, seat:null, name, acts:[]}); return;
-  }
+  if (joinCode){ netLeave(); await netOpen({code:joinCode, seat:null, name, acts:[]}); }
 }
 function afterAction(){
   if (G && G.net){ netAfter(); return; }
@@ -574,7 +579,7 @@ function marketCard0(name, kind, src, idx, side, always, mir){
   }
   const short = !info.ok && info.price != null && me.money < info.price;
   const jump = info.ok || short ? jumpText(name, kind, own) : '';
-  const label = info.ok && info.slot === 'wc' ? 'Take free (War College)' : info.ok ? `Buy $${info.price}${info.slot === 'extra' ? ' (extra buy)' : info.slot === 'carp' ? ' (Carpenter)' : info.slot === 'fav' ? ' (Divine Favor)' : ''}${src === 'bm' ? ` ($${bmOff(me)} off)` : ''}${info.disc ? ` (${esc(info.disc)})` : ''}` : esc(whyNot(info, me));
+  const label = info.ok ? `Buy $${info.price}${info.slot === 'carp' ? ' (Carpenter)' : info.slot === 'fav' ? ' (Divine Favor)' : ''}${src === 'bm' ? ` ($${bmOff(me)} off)` : ''}${info.disc ? ` (${esc(info.disc)})` : ''}` : esc(whyNot(info, me));
   const pair = pairOf(G, {src, idx:idx ?? 0, who:S});
   const sur = mirSur(mir), hasMir = !!(mir && mir.length), mkey = `${src}:${idx}:${name}`;
   const card = `<div class="mcard ${kind}${wrole === 'src' ? ' writsrc' : wrole === 'off' ? ' writoff' : ''}${short ? ' cant' : ''}${info.ok && myTurn && !wrole ? ' canbuy' : ''}${jump ? ' lvup' : ''}${always ? ' always' : ''}${hasMir ? ' hasmir' : ''}${side ? ' leaving' : ''}${short || own ? ' hasst' : ''}"${hasMir ? ` data-act="mir-peek" data-k="${esc(mkey)}" title="${mir.length > 1 ? `${mir.length} miracles` : 'A miracle'} behind this card. Click to see." aria-label="${esc(name)}: ${mir.length > 1 ? `${mir.length} miracles` : 'a miracle'} behind it. Click to see." role="button" tabindex="0"` : ''}>

@@ -59,6 +59,8 @@
   On the desktop mat, the menu is in the upper left and the score sits over Discard. The two Caravan rows share
   slot columns on the table and have equal projected margins from the top and bottom of the screen.
   The coin heaps and water counts stay with the rows through phase changes.
+  One card width is calculated for the desktop tabletop from the window and the game's slot counts. It is capped
+  at 173 px so extra room on wider screens shows more sand. Shop, Mobilize and Battle use the same seat layout.
   The rug extends past the left edge far enough for the roll itself to disappear. **Wait from Shop close to rug
   roll-up** starts when cards begin packing, so the roll can overlap card flights or the deck and discard exits.
   In the desktop Shop, a held card grows slightly and swings around the exact point grabbed, with a soft shadow that
@@ -78,7 +80,8 @@
   card continues to its destination. The flying coins match the scale of the cards' printed water icons.
 - Desktop mat Mobilize overlaps the market sweep with the bought piles merging. In the lift, the deck, bench fan,
   fight order numbers, labels and controls settle together. Cards and controls take input once those animations
-  finish. The vertical deck cards are up to 25% wider than the market cards and shrink to fit when the stack gets tall.
+  finish. The vertical deck cards are up to 25% wider than the market cards. A crowded stack tightens the
+  exposed card bands first and shrinks its cards if the available space still requires it.
   Reduced motion skips the entrance. On desktop, Lock in starts gathering immediately. Gear and tokens tuck
   behind their units, and unused bench cards gather beside your Caravan. Your Caravan crops downward from its
   original bottom edge. The rival's crops upward from its original top edge. Battle draws after the crops settle,
