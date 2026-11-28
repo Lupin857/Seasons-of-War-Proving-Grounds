@@ -31,7 +31,7 @@ const plural = (n, word) => n > 1 ? word + 's' : word;
 function bLvl(p, n){ const c = p.city[n] || 0; return Math.min(c, BDEFS[n].lv.length); }
 function bVal(p, n){ const l = bLvl(p, n); return l ? BDEFS[n].lv[l-1] : 0; }
 function slotsUsed(p){ let s = 0; for (const k in p.city){ if (!p.city[k]) continue; s += k === 'Field' ? p.city[k] : 1; } return s; }
-function deckCap(p){ return ruleOf(p, 'deckCap', RULES.deckCap) + bVal(p, 'Reserve Encampment'); }
+function deckCap(p){ if (p.raidRoster) return RAID.deck; return ruleOf(p, 'deckCap', RULES.deckCap) + bVal(p, 'Reserve Encampment'); }
 const exemptUnit = n => n === 'Mercenary' || n === 'Recruit';
 function uniqueUnits(p){ return Object.keys(p.hand).filter(n => p.hand[n] > 0 && !exemptUnit(n)).length; }
 function hiredBladeCost(c){ if (!c) return 0; const v = DEFS['Hired Blade'].v || [1]; return v[Math.min(c, DEFS['Hired Blade'].p.length, v.length) - 1]; }
@@ -44,10 +44,12 @@ function masonTargets(p){ return Object.keys(p.city).filter(n => n !== 'Field' &
 function newGame(o){
   o = o || {};
   const g = newGame0(o);
-  return applySetup(g, o.su);
+  applySetup(g, o.su);
+  if (o.raid) raidInit(g);
+  return g;
 }
 function newGame0(o){
-  const rnd = o.rnd || Math.random, mo = o.miracles ?? MIRACLES_ON, bmo = !!(mo && (o.battleMir ?? BATTLE_MIR_ON)), rf = !!(o.refill ?? REFILL_ON);
+  const rnd = o.rnd || Math.random, mo = !o.raid && (o.miracles ?? MIRACLES_ON), bmo = !!(mo && (o.battleMir ?? BATTLE_MIR_ON)), rf = !!(o.refill ?? REFILL_ON);
   return {rnd, miracles:mo, battleMir:bmo, refill:rf, spells:[[], []], salvMir:[], target:o.target || RULES.target, round:0, phase:'shop', winner:null, over:false,
     uDeck:shuffle(unitPool().concat(mo ? mirPool('u', bmo) : []), rnd), bDeck:shuffle(bldPool().concat(mo ? mirPool('b', bmo) : []), rnd), mirShown:{},
     disp:{u:[], b:[]}, muster:[], log:[], labels:o.labels || ['Azure','Gules'],
@@ -75,12 +77,13 @@ const cur = g => g.order[g.turnIdx];
 
 function startShop(g){
   g.round++; g.phase = 'shop';
+  if (g.raid) raidResetRound(g);
   for (const p of g.players) p.money += Math.max(0, income(p));
   // catch-up (a setup option): the player behind on points gets extra water
   let catchMsg = null;
   const cu = (g.su && g.su.catchup) || 0;
   if (cu > 0 && g.round > 1){
-    const t0 = total(g.players[0]), t1 = total(g.players[1]);
+    const [t0, t1] = g.players.map(p => g.raid ? p.health : total(p));
     if (t0 !== t1){ const j = t0 < t1 ? 0 : 1; g.players[j].money += cu; catchMsg = {t:`Catch-up: ${g.labels[j]} ${g.labels[j] === 'You' ? 'are' : 'is'} behind and ${g.labels[j] === 'You' ? 'get' : 'gets'} +$${cu}.`, side:j}; }
   }
   for (const k of ['u','b']){
@@ -93,6 +96,8 @@ function startShop(g){
   }
   let first;
   if (g.round === 1){ first = g.firstOverride != null ? g.firstOverride : g.rnd() < 0.5 ? 0 : 1; g.first1 = first; }
+  else if (g.raid) first = g.players[0].health === g.players[1].health ? 1 - g.order[0]
+    : g.players[0].health < g.players[1].health ? 0 : 1;
   else if (g.lastBattle && g.lastBattle.w >= 0) first = 1 - g.lastBattle.w;
   else first = g.order[1];
   g.order = [first, 1 - first]; g.turnIdx = 0; g.passed = [false,false];
@@ -125,7 +130,7 @@ function aiAltarPick(p, opts){
 }
 function altarDiscard(g, i, name){
   const p = g.players[i]; if (!p.hand[name]) return false;
-  if (!--p.hand[name]) delete p.hand[name];
+  if (!--p.hand[name]){ delete p.hand[name]; if (p.raidRoster) delete p.raidRoster[name]; }
   (g.muster || (g.muster = [])).push(name);
   if (g.altarPend) g.altarPend[i] = null;
   g.log.push({t:`Altar of Blood: ${g.labels[i]} ${g.labels[i]==='You'?'discard':'discards'} ${name}.`, side:i, ev:{a:'altar', n:name}});

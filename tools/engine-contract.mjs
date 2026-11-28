@@ -19,7 +19,7 @@ const moduleIds = [...html.matchAll(/<script\b([^>]*)>/g)]
   .map(x => x.module);
 
 assert.deepEqual(moduleIds, [
-  'runtime-state', 'card-data', 'battle', 'miracles', 'game', 'balance', 'shop', 'ai', 'search', 'learning', 'public-api',
+  'runtime-state', 'card-data', 'battle', 'miracles', 'game', 'balance', 'shop', 'ai', 'search', 'learning', 'raid', 'public-api',
 ], 'engine modules must load once in their documented dependency order');
 const sw = fs.readFileSync(path.join(here, '..', 'sw.js'), 'utf8');
 for (const [, file] of html.matchAll(/<script\b([^>]*)>/g)) {

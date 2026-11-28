@@ -19,7 +19,7 @@ const SLIDE = 'cubic-bezier(.22,.9,.3,1)';
 const MZ_HOLD = 200, MZ_SLOP = 8, MZ_MOUSE = 5, MZ_MS = 240, MZ_STRIP = .36;
 let MZ_N = 0;
 const mzIds = d => { for (const u of d || []) if (u && !u.id) u.id = 'm' + (++MZ_N); return d; };
-const mzMe = () => G.players[seat()];
+const mzMe = () => G.raid ? raidBattlePlayer(G, seat()) : G.players[seat()];
 const mzActive = () => !!(G && G.phase === 'mobilize' && !ui.battle && ui.draft && !ui.planning && !(PP() && ui.handoff != null)
   && !(G.net && NET && NET.acts.length > NET.applied[NET.seat]) && !matMobBusy());
 const mzDraftNeeded = () => G && G.phase === 'mobilize' && !G.over && !G.net && !PP()
@@ -206,13 +206,16 @@ const tuckImg = (url, alt) => `<div class="cface art"><img class="cart" src="${u
 function handoffHTML(){
   const S = ui.handoff, O = 1 - S;
   return `<div class="panel handoff s${VS(S)}">
-    <span class="eyebrow">Round ${G.round} · Mobilize</span>
+    <span class="eyebrow">Round ${G.round} · ${G.raid ? raidRoundTitle() : 'Mobilize'}</span>
     <h2>Pass the device to ${esc(nm(S))}</h2>
     <p class="note">${S === 0 ? `${esc(nm(O))}, look away: ${esc(nm(S))} sets a secret deck order first.` : `${esc(nm(0))} has locked in. ${esc(nm(O))}, look away while ${esc(nm(S))} sets theirs.`}</p>
     <button type="button" class="primary big" data-act="pp-ready">I'm ${esc(nm(S))}, show my army</button>
   </div>`;
 }
-function mobHintText(){ return ''; }
+function mobHintText(){
+  if (!G.raid) return '';
+  return `${raidRoundTitle()} · Order your ${raidRoleName(raidRole(G, seat()))} deck.`;
+}
 // pips: one per slot, filled for each one used
 function mzPips(label, used, cap, cls){
   if (!cap && !used) return '';
@@ -268,7 +271,7 @@ function mobilizeHTML(){
   if (G.net && !ui.draft) ui.draft = netClone(defaultDraft);
   if (PP() && ui.handoff != null) return handoffHTML();
   if (matMobOn()) return matMobHTML();   // one-screen dev (phones): Mobilize over the dimmed mat
-  const S = seat(), me = G.players[S], d = mzIds(ui.draft || []);
+  const S = seat(), me = mzMe(), d = mzIds(ui.draft || []);
   const L = mzLimits(me, d);
   // which miracles this deck uses up (more Drifters or tokens than your own)
   const spend = mirSpend(me, 'rec', L.rec[0] - recBase(me)).concat(mirSpend(me, 'arm', L.arm[0] - bVal(me, 'Smithy')), mirSpend(me, 'tr', L.tr[0] - bVal(me, 'Study'))).map(j => me.mir[j]);
@@ -283,14 +286,14 @@ function mobilizeHTML(){
   const bench = mzBenchItems(me, d).map(mzBenchCard).join('');
   const lockLbl = ui.planning ? 'The AI is planning its deck…' : PP() && !G.net && S === 0 ? `Lock in and pass to ${esc(nm(1))}` : G.net ? 'Lock in' : 'Lock in and battle';
   return `<div class="forces mz">
-    <section class="panel mz-deck"><h2>${PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck'} <button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button></h2>
+    <section class="panel mz-deck"><h2>${G.raid ? raidRoleName(raidRole(G, S)) : PP() && !G.net ? `${esc(nm(S))}'s deck` : 'Your deck'} <button type="button" class="infob" data-tip="${esc(MOB_INFO)}" aria-label="How Mobilize works">i</button></h2>
       ${mzLimitsHTML(me, d)}
       ${spend.length ? `<p class="note">✶ This deck uses ${spend.map(esc).join(' and ')}.</p>` : ''}
       ${d.length > 1 ? '<div class="mzend back">Back · fights last</div>' : ''}
       <div class="mzstack" id="mz-deck">${rows || '<div class="mzempty">Drag units here from the bench</div>'}</div>
       ${d.length ? `<div class="mzend front">Front · fights first</div>` : ''}
       ${ui.err ? `<p class="err" role="alert">${esc(ui.err)}</p>` : ''}
-      <div class="row mzacts">${mzSuggestHTML('Suggest a deck')}<span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lockLbl}</button></div>
+      <div class="row mzacts">${G.raid ? '' : mzSuggestHTML('Suggest a deck')}<span class="grow"></span><button type="button" class="primary" data-act="lock" ${ui.planning ? 'disabled' : ''}>${lockLbl}</button></div>
     </section>
     <div class="mobright">
       <section class="panel mz-bench"><h2>Bench</h2>

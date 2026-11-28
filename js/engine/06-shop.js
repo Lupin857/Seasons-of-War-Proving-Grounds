@@ -30,6 +30,8 @@ function buyQuote(p, b, name, kind, src, sur, pair, nm){
   const Dd = kind === 'u' ? DEFS[name] : BDEFS[name];
   let price = (name === 'Recruit' && kind === 'u' && p.city && p.city['Muster Hall'] ? 0 : Dd.c) + (sur || 0);   // Muster Hall: Recruits cost $0. miracle surcharge: discounts below apply to the total
   const no = cantAcquire(p, name, kind); if (no) return {ok:false, why:no};
+  if (p.raidRoster && kind === 'u' && name !== 'Recruit' && !raidChoices(p, name).length)
+    return {ok:false, why:'Raid roster is full'};
   // War College buys duplicates of owned cards from the discard pile for free, using a buy.
   if (src === 'mu' && !(p.city && p.city['War College'])) return {ok:false, why:'Needs War College'};
   if (src === 'mu' && !(ownsCard(p, name) > 0)) return {ok:false, why:'Only duplicates of your cards'};
@@ -101,12 +103,18 @@ function useDisc(g, i, ...a){ return shopAct('useDisc', useDiscRule, g, i, a); }
 function useWrit(g, i, ...a){ return shopAct('useWrit', useWritRule, g, i, a); }
 function useFreeze(g, i, ...a){ return shopAct('useFreeze', useFreezeRule, g, i, a); }
 function useRedeal(g, i, ...a){ return shopAct('useRedeal', useRedealRule, g, i, a); }
-function buyRule(g, i, src, idx, attach, writ){
+function buyRule(g, i, src, idx, attach, writ, role){
   if (g.phase !== 'shop' || cur(g) !== i || altarWaiting(g, i)) return false;
   noteSeen(g, i);
   const sc = sourceCard(g, i, src, idx); if (!sc) return false;
   const info = buyInfo(g, i, sc.name, sc.kind, src, idx); if (!info.ok) return false;
-  const p = g.players[i], b = g.buys[i], mir = mirOf(g, {src, idx, who:i}).slice(), pair = pairOf(g, {src, idx, who:i}).slice();
+  const p = g.players[i];
+  if (g.raid && sc.kind === 'u' && sc.name !== 'Recruit'){
+    const choices = raidChoices(p, sc.name);
+    role = p.raidRoster[sc.name] || role;
+    if (!choices.includes(role)) return false;
+  }
+  const b = g.buys[i], mir = mirOf(g, {src, idx, who:i}).slice(), pair = pairOf(g, {src, idx, who:i}).slice();
   const scObj = slotOf(g, {src, idx, who:i}), cid = scObj && scObj.id != null ? scObj.id : null;
   const spot = src === 'du' || src === 'db' ? {k:src === 'du' ? 'u' : 'b', at:(scObj || {}).at} : src === 'fz' ? {k:sc.kind, at:null} : null;
   // the situation at the moment of buying (before paying), for situational card opinions
@@ -123,7 +131,10 @@ function buyRule(g, i, src, idx, attach, writ){
     peekOf(g, i, src).cards.splice(idx, 1);
     endPeek(g, i, src);
   }
-  if (sc.kind === 'u') p.hand[sc.name] = (p.hand[sc.name] || 0) + 1;
+  if (sc.kind === 'u'){
+    p.hand[sc.name] = (p.hand[sc.name] || 0) + 1;
+    if (g.raid && sc.name !== 'Recruit') p.raidRoster[sc.name] = role;
+  }
   else if (isGear(sc.name)){ p.gear = p.gear || {}; p.gear[sc.name] = (p.gear[sc.name] || 0) + 1; }
   else if (sc.name === "Mason's Guild"){ p.city[attach] = (p.city[attach] || 0) + 1; p.mason = p.mason || {}; p.mason[attach] = (p.mason[attach] || 0) + 1; }
   else p.city[sc.name] = (p.city[sc.name] || 0) + 1;
@@ -140,7 +151,7 @@ function buyRule(g, i, src, idx, attach, writ){
   }
   const extra = (info.slot === 'carp' ? " (Carpenter's Guild)" : '') + (src === 'bm' ? ` (Black Market, $${bmOff(p)} off)` : '') + (src === 'mu' ? ' from the discard pile (War College)' : '');
   const extraFull = extra + (info.slot === 'fav' ? ' (Divine Favor)' : '') + (src === 'vis' ? ' (Vision)' : '') + (info.disc ? ` (${info.disc}, $${MIRS[info.disc].disc} off)` : '') + (info.chap ? ` (Chapel, $${info.chap} off)` : '') + '';
-  g.log.push({t:`${g.labels[i]} ${src === 'mu' ? (g.labels[i]==='You'?'take':'takes') : g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''}${pairGot.length ? ` and ${pairGot.join(' and ')} (Covenant)` : ''} for $${info.price}${extraFull}${src === 'fz' ? ' (frozen)' : ''}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null, pair:pairGot.length ? pairGot : undefined, src, idx, id:cid, at:spot ? spot.at : null}});
+  g.log.push({t:`${g.labels[i]} ${src === 'mu' ? (g.labels[i]==='You'?'take':'takes') : g.labels[i]==='You'?'buy':'buys'} ${sc.name}${sc.name === "Mason's Guild" ? ` for ${attach}` : ''}${pairGot.length ? ` and ${pairGot.join(' and ')} (Covenant)` : ''} for $${info.price}${extraFull}${src === 'fz' ? ' (frozen)' : ''}.`, side:i, ev:{a:'buy', n:sc.name, k:sc.kind, price:info.price, on:sc.name === "Mason's Guild" ? attach : null, ...(g.raid && role ? {raidRole:role} : {}), pair:pairGot.length ? pairGot : undefined, src, idx, id:cid, at:spot ? spot.at : null}});
   const again = mir.length ? gainMiracles(g, i, mir, writ, spot) : false;
   if (spot && (src === 'du' || src === 'db')) refillRow(g, spot.k, spot.at);
   if (again) g.log.push({t:`${g.labels[i]} ${g.labels[i]==='You'?'take':'takes'} another shop turn (Discard Writ).`, side:i});
@@ -337,7 +348,7 @@ function sellRule(g, i, kind, name){
   if (!canSell(g, i, kind, name)) return false;
   const p = g.players[i];
   let back = name;
-  if (kind === 'u'){ if (!--p.hand[name]) delete p.hand[name]; }
+  if (kind === 'u'){ if (!--p.hand[name]){ delete p.hand[name]; if (p.raidRoster) delete p.raidRoster[name]; } }
   else if (isGear(name)){ if (!--p.gear[name]) delete p.gear[name]; }
   else {
     if (p.mason && p.mason[name] > 0){ p.mason[name]--; back = "Mason's Guild"; }
@@ -429,7 +440,11 @@ function endShop(g){
   g.phase = 'mobilize'; g.decks = [null,null];
 }
 function validateDeck(g, i, spec){
-  const p = g.players[i];
+  if (g.raid){
+    const why = raidValidate(g, i, spec);
+    if (why) return why;
+  }
+  const p = g.raid ? raidBattlePlayer(g, i) : g.players[i];
   // battle miracles: each placed one must be in hand (they never count as units)
   const sp = spec.filter(u => isBat(u.name));
   if (sp.length){
@@ -529,6 +544,7 @@ function battleCfg(g, i){
   return {units:g.decks[i], spells:(g.spells && g.spells[i]) || [], treb:bLvl(p,'Trebuchet'), yard:bVal(p,'Training Yard'), drill:bVal(p,'Muster Hall'), infirmary:!!p.city.Infirmary, label:g.labels[i]};
 }
 function doBattle(g, record){
+  if (g.raid) return raidDoBattle(g, record);
   const res = runBattle([battleCfg(g,0), battleCfg(g,1)], record);
   const w = res.result.w;
   g.lastBattle = {w, res};

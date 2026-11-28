@@ -5,7 +5,7 @@ const netEncode = a => a[0] === 'b' ? ['b', a[1], a[2], a[3] == null ? null : ne
 const netDecode = a => a[0] === 'b' ? ['b', a[1], a[2], a[3] == null ? null : netName(a[3])].concat(Array.isArray(a[4]) ? [a[4].map(netName)] : []) : a[0] === 's' ? ['s', a[1], netName(a[2])] : a;
 function applyMove(i, a){
   switch (a[0]){
-    case 'b': return buy(G, i, a[1], a[2], a[3] == null ? undefined : a[3], Array.isArray(a[4]) ? a[4] : undefined);
+    case 'b': return buy(G, i, a[1], a[2], a[3] == null ? undefined : a[3], Array.isArray(a[4]) ? a[4] : undefined, a[5]);
     case 's': return sell(G, i, a[1], a[2]);
     case 'p': return pass(G, i);
     case 'm': return useBM(G, i, a[1]);
@@ -15,6 +15,8 @@ function applyMove(i, a){
     case 'i': return useFreeze(G, i, a[1], a[2]);
     case 'r': return useRedeal(G, i);
     case 'a': return altarPick(G, i, a[1]);
+    case 'raid-transfer': return raidTransfer(G, i, a[1], a[2]);
+    case 'raid-siege': return raidBuySiege(G, i);
   }
   return false;
 }
@@ -34,7 +36,7 @@ function addGhost(k, idx, name, price, who, frz){
   if (!ui.ghosts || ui.ghosts.round !== G.round) ui.ghosts = {round:G.round, u:[], b:[]};
   ui.ghosts[k].push(frz ? {idx, name, price, who, frz:true} : {idx, name, price, who});
 }
-const MOVE_SOUND = {i:() => sfx.rustle(), b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), v:() => sfx.rustle(), f:() => sfx.rustle(), z:() => sfx.rustle(), r:() => sfx.rustle(), a:() => sfx.sell(), p:() => sfx.wood()};
+const MOVE_SOUND = {i:() => sfx.rustle(), b:v => sfx.coin(v), s:() => sfx.sell(), m:() => sfx.rustle(), v:() => sfx.rustle(), f:() => sfx.rustle(), z:() => sfx.rustle(), r:() => sfx.rustle(), a:() => sfx.sell(), p:() => sfx.wood(), 'raid-transfer':() => sfx.pick(), 'raid-siege':v => sfx.coin(v)};
 // Make a shop move for player i, plus what the screen does around it: the ghost card and a sound.
 // vol: how loud a successful move sounds (null: silent); own: a failed move is this screen's player's, so it buzzes.
 function shopMove(i, a, vol, own){
@@ -53,12 +55,15 @@ function shopMove(i, a, vol, own){
 // Named playerMove (not doMove): the engine's doMove(g, j, m) shares the page's global scope, and a second
 // function with the same name silently replaced it, so the AI's main-thread search sent its trial moves here.
 function playerMove(a){
+  if (raidBuyPrompt(a)) return;
   if (G.net){ netDo(netEncode(a)); return; }
   const S = seat(), n0 = G.log.length;
   snapNow();
   const ok = shopMove(S, a, 1, true);
   if (ok) motionFrom(S, n0);   // its flights start with the redraw below
-  if (a[0] === 'b' || a[0] === 'p' || a[0] === 'i') afterAction({purchase:ok && a[0] === 'b'}); else renderPlay();
+  if (G.raid && cur(G) !== S) ui.raidPile = null;
+  if (a[0] === 'raid-transfer' && ok){ ui.raidPile = a[2]; ui.raidTransferError = ''; }
+  if (a[0] === 'b' || a[0] === 'p' || a[0] === 'i' || a[0] === 'raid-siege') afterAction({purchase:ok && a[0] === 'b'}); else renderPlay();
 }
 // apply every move both players have made that this page hasn't applied yet
 function netPump(){
@@ -236,6 +241,7 @@ function reEquip(me, d){
   return d;
 }
 function defaultDraft(deck){
+  if (G.raid) return raidDraft();
   const S = seat(), me = G.players[S], last = PP() ? ui.lastDrafts[S] : ui.lastDraft;
   if (last){
     const keep = last.filter(u => u.name !== 'Recruit' && me.hand[u.name]).map(u => ({name:u.name, arm:0, tr:0}));
@@ -251,15 +257,16 @@ function defaultDraft(deck){
 // While a battle is still playing out, the scoreboard shows the board as it was before the battle, so the score
 // doesn't give the result away. It catches up once the last step is shown (or the battle is skipped to its end).
 const hideResult = () => !!(ui.battle && !ui.revealed && ui.pre);
-const boardSnap = () => ({tot:G.players.map(p => total(p)), money:G.players.map(p => p.money), inc:G.players.map(p => income(p)), cath:G.players.map(p => !!p.city.Cathedral)});
+const boardSnap = () => ({tot:G.players.map(p => G.raid ? p.health : total(p)), money:G.players.map(p => p.money), inc:G.players.map(p => income(p)), cath:G.players.map(p => !!p.city.Cathedral)});
 // the button that ends a battle (the dock and the battle panel)
 function battleDoneLabel(){
   if (G.replay) return 'Back to your game';
+  if (G.raid && G.raid.bout === 0) return 'Mobilize counterattack';
   return G.net ? (NET && NET.needShop ? `Go to round ${G.round + 1} shop` : `Go to round ${G.round} shop`) : `Go to round ${G.round + 1} shop`;
 }
 function phaseLabel(){
   if (G.replay) return 'Replay';   // a battle loaded from a battle code (js/ui/18-game-menu.js)
-  if (ui.battle) return G.over && !hideResult() ? 'Game over' : 'Battle';
+  if (ui.battle) return G.over && !hideResult() ? 'Game over' : G.raid ? (ui.battle.raid?.bout === 0 ? 'Opening attack' : 'Counterattack') : 'Battle';
   return {shop:'Shop', mobilize:'Mobilize', battle:'Battle', over:'Game over'}[G.phase];
 }
 // plain-text name for labels and attributes; deckLabel below is the visible (HTML) version
@@ -279,6 +286,7 @@ function capsHTML(i, chip){
   return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + `<span class="caprow">${one(b, bc, 'City', `City slots used; the city holds ${bc} (each Field takes a slot)`)}${chip}</span>`;
 }
 function boardHTML(where){
+  if (G.raid) return raidPublicHTML();
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const turnChip = i => !shopping ? '' : G.passed[i] ? '<span class="tchip passed">Passed</span>' : cur(G) === i ? `<span class="tchip now">${PP() && !G.net ? 'Shopping' : `<span class="tw">${i === seat() ? 'Your' : 'Their'} </span>turn`}</span>` : '';

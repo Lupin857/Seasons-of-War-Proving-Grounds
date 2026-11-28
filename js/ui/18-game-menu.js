@@ -163,6 +163,7 @@ function bcodeOf(res){
   const flip = !!(G.net && typeof NET !== 'undefined' && NET && NET.seat === 1), f = a => flip ? a.slice().reverse() : a.slice();
   const tot = ui.battle === res && ui.pre ? ui.pre.tot : G.players.map(p => total(p));
   const w = res.result.w, d = {v:1, b:OASIS_BUILD, r:G.round, t:G.target, l:f(G.labels), p:f(tot), c:f(res.cfgs), w:flip && w >= 0 ? 1 - w : w};
+  if (res.raid) d.raid = {...res.raid, attacker:flip ? 1 - res.raid.attacker : res.raid.attacker};
   return BCODE_TAG + bcodeB64(JSON.stringify(d));
 }
 function bcodeCopy(){
@@ -206,15 +207,20 @@ function replayStart(d){
   keep.ui.codeWin = false; keep.ui.codeErr = ''; keep.ui.codeText = '';
   stopTimers(); stopAuto(); stopAnim();
   try{ window.OasisCubes && OasisCubes.clear(); }catch(e){}
-  G = newGame({genomes:[null, null], labels:(d.l || ['You', 'AI']).slice(0, 2), target:d.t || 3});
+  G = newGame({genomes:[null, null], labels:(d.l || ['You', 'AI']).slice(0, 2), target:d.t || 3, raid:d.raid?.attacker === 0 || d.raid?.attacker === 1});
   G.replay = keep; G.replayCode = d; G.pp = false; G.opp = null;
   G.round = d.r || 1; G.phase = 'battle';
-  G.players.forEach((p, i) => { p.score = +(d.p || [])[i] || 0; });
+  G.players.forEach((p, i) => { p[G.raid ? 'health' : 'score'] = +(d.p || [])[i] || 0; });
   G.decks = d.c.map(x => clone(x.units)); G.spells = d.c.map(x => clone(x.spells || []));
   ui = freshUI();
   ui.pre = boardSnap();
-  const res = runBattle(clone(d.c), true), w = res.result.w;
-  G.lastBattle = {w, res}; if (w >= 0) G.players[w].score++;
+  const res = runBattle(clone(d.c), true, G.raid ? {raidAttacker:d.raid.attacker} : undefined), w = res.result.w;
+  G.lastBattle = {w, res};
+  if (G.raid){
+    res.raid = {...d.raid, damage:w === d.raid.attacker ? res.left[w] : 0};
+    const p = G.players[1 - d.raid.attacker];
+    p.health = Math.max(0, p.health - res.raid.damage);
+  } else if (w >= 0) G.players[w].score++;
   showBattle(res);
   renderPlay(); startAuto();
   if (d.w != null && d.w !== w) showToast(`This build plays the battle out differently (the code is from ${d.b || 'an older build'}).`);

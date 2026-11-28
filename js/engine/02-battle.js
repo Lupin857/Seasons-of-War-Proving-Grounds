@@ -1,5 +1,5 @@
 /* ===================== BATTLE ENGINE ===================== */
-function runBattle(cfgs, record){
+function runBattle(cfgs, record, options){
   if (record === undefined) record = true;
   // a recorded battle keeps a copy of both armies as they were sent in: a battle code rebuilds the fight from them
   const cfgCopy = record ? JSON.parse(JSON.stringify(cfgs)) : undefined;
@@ -18,7 +18,7 @@ function runBattle(cfgs, record){
     return {nm:cfg.label || ['Azure','Gules'][i], deck, charge:null, grave:[], van:deck.length ? deck[0].uid : null,
             rear:deck.length ? deck[deck.length-1].uid : null,
             revealed:null, inf:!!cfg.infirmary, infUsed:false, treb:+cfg.treb||0, armory:cfg.armory ? BDEFS.Armory.lv[cfg.armory-1] : 0, yard:+cfg.yard||0, drill:+cfg.drill||0,
-            tail, silence:0, drums:0};
+            tail, silence:0, drums:0, raidSiege:!!cfg.raidSiege};
   });
   // AB: the ability being resolved right now; every line it writes carries it (for the battle view's ability windows)
   let AB = null;
@@ -504,9 +504,15 @@ function runBattle(cfgs, record){
         withAb(abU(c[p], p), () => log(`${nameOf(c[p])} removes ${many(k, 'an Armament', 'Armaments')} from ${nameOf(e)} (${power(e)} power).`, p, record ? {from:`${c[p].owner}-${c[p].uid}`, to:`${e.owner}-${e.uid}`, by:p, drop:{tok:'arm', n:k}} : undefined));   // drop: the tokens it discards (the screen breaks them)
       }
     }
+    const siege = P.map((side, p) => side.raidSiege && side.van === c[p].uid);
     const atk = [0,1].map(p => {
       let a = power(c[p]);
       if (key(c[p]) === 'Pikeman' && ab(c[p]) && power(c[1-p]) > power(c[p])) a += val(c[p]);
+      if (siege[p]){
+        a++;
+        P[p].raidSiege = false;
+        withAb(abB('Siege Workshop', p), () => log(`${nameOf(c[p])} gains 1 damage and Shieldbreak on this hit.`, p));
+      }
       return a;
     });
     const tgt = [0,1].map(p => (key(c[p]) === 'Assassin' && ab(c[p]) && top(1-p)) ? top(1-p) : c[1-p]);
@@ -520,7 +526,7 @@ function runBattle(cfgs, record){
       // a fight hit is the plain fight, unless an ability shaped it (Pikeman's bonus, Assassin's Stealth)
       const shaped = (key(c[p]) === 'Pikeman' && ab(c[p]) && atk[p] > power(c[p])) || tgt[p] !== c[1-p] || (key(c[p]) === 'Executioner' && ab(c[p]));
       // Shield-break: Fencer, Battle Axe. Overrun: Lancer, Lance.
-      const brk = c[p].gear === 'Battle Axe';
+      const brk = siege[p] || c[p].gear === 'Battle Axe';
       const over = (key(c[p]) === 'Lancer' && ab(c[p])) || c[p].gear === 'Lance';
       withAb(shaped ? abU(c[p], p) : null, () => asSrc(c[p], () => asAtk(() => {
         if (over) overrunHit(tgt[p], atk[p], N, p, tgt[p] === c[1-p] ? top(1-p) : P[1-p].deck[1], key(c[p]) === 'Lancer' && ab(c[p]) ? abU(c[p], p) : abG(c[p], p, 'Lance'), brk);
@@ -598,7 +604,7 @@ function runBattle(cfgs, record){
 
   let result = null;
   const check = () => {
-    if (out(0) && out(1)) return {w:-1, why:'Both armies ran out at the same time. No one scores.'};
+    if (out(0) && out(1)) return {w:-1, why:options?.raidAttacker != null ? 'Both armies ran out. No Caravan damage.' : 'Both armies ran out at the same time. No one scores.'};
     if (out(0)) return {w:1, why:`${P[0].nm} ran out of units.`};
     if (out(1)) return {w:0, why:`${P[1].nm} ran out of units.`};
     return null;
@@ -618,7 +624,13 @@ function runBattle(cfgs, record){
   }
   const left = p => (P[p].charge ? 1 : 0) + P[p].deck.length;
   if (result.w >= 0) result.why += ` ${P[result.w].nm} ${P[result.w].nm === 'You' ? 'have' : 'has'} ${left(result.w)} unit${left(result.w)===1?'':'s'} left.`;
-  log(result.w < 0 ? 'Draw.' : `${P[result.w].nm} ${P[result.w].nm === 'You' ? 'win' : 'wins'} the battle and ${P[result.w].nm === 'You' ? 'score' : 'scores'} 1 point.`, result.w < 0 ? undefined : result.w);
+  if (options?.raidAttacker != null){
+    const attacker = options.raidAttacker, damage = result.w === attacker ? left(attacker) : 0;
+    const impact = damage ? `${P[attacker].nm} breaches for ${damage} Caravan damage.` : 'No Caravan damage.';
+    result.why += ' ' + impact;
+    log(impact, attacker);
+  }
+  else log(result.w < 0 ? 'Draw.' : `${P[result.w].nm} ${P[result.w].nm === 'You' ? 'win' : 'wins'} the battle and ${P[result.w].nm === 'You' ? 'score' : 'scores'} 1 point.`, result.w < 0 ? undefined : result.w);
   frame('Result');
   return {frames, result, left:[left(0), left(1)], cfgs:cfgCopy};
 }

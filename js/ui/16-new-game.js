@@ -8,11 +8,11 @@ const SU_LIM = {water:[0, 20], fields:[0, 10], drift:[0, 6], inc:[0, 10], buys:[
 const SU_PL = ['water', 'fields', 'drift', 'inc', 'buys', 'fps'];
 const SU_SH = ['deckCap', 'city', 'uDisp', 'bDisp', 'catchup'];
 // the setup screen's state: suDefault()'s fields, plus tgt (a custom points-to-win, or null for 3/4/5) and split
-function suFresh(){ return {...suDefault(), tgt:null, split:false}; }
+function suFresh(){ return {...suDefault(), tgt:null, split:false, raid:false}; }
 let SU = (() => {
   const d = suFresh(), s = LS.get(SU_KEY);
   if (!s || typeof s !== 'object') return d;
-  const out = {...d, tgt:Number.isFinite(s.tgt) ? s.tgt : null, split:!!s.split};
+  const out = {...d, tgt:Number.isFinite(s.tgt) ? s.tgt : null, split:!!s.split, raid:!!s.raid};
   for (const k of SU_SH) if (Number.isFinite(s[k])) out[k] = s[k];
   out.pl = d.pl.map((q, i) => { const sq = (s.pl && s.pl[i]) || {}, o = {...q}; for (const k of SU_PL) if (Number.isFinite(sq[k])) o[k] = sq[k]; return o; });
   return out;
@@ -91,7 +91,7 @@ function modesHTML(back, resign){
 // the rules part of every setup screen. names: the two sides' labels (for the per-player columns)
 function rulesHTML(names, opts){
   opts = opts || {};
-  const d = suDefault(), dflt = suIsDefault(), split = SU.split;
+  const d = suDefault(), dflt = suIsDefault(), split = SU.split, raid = opts.raid && SU.raid;
   const step = (path, v, lim, lbl) => `<span class="sustep"><button type="button" data-su-step="${path}" data-d="-1" aria-label="Less ${lbl}" ${v <= lim[0] ? 'disabled' : ''}>−</button><input type="number" inputmode="numeric" data-su="${path}" value="${v}" min="${lim[0]}" max="${lim[1]}" aria-label="${lbl}"><button type="button" data-su-step="${path}" data-d="1" aria-label="More ${lbl}" ${v >= lim[1] ? 'disabled' : ''}>+</button></span>`;
   const chg = (v, dv) => v !== dv ? ' chg' : '';
   const plRow = (k, lbl, hint) => {
@@ -111,9 +111,9 @@ function rulesHTML(names, opts){
         <label class="suswitch"><input type="checkbox" data-su-split ${split ? 'checked' : ''}> Set each player separately</label></div>
       <div class="sugrid">
         <fieldset class="sufs"><legend>Game</legend>
-          <div class="surow"><span class="sul">Points to win</span><div class="seg" role="group" aria-label="Points to win">${LENS.map(L => `<button type="button" data-su-pts="${L}" aria-pressed="${pts === L}" ${job || calState.busy ? 'disabled' : ''}>${L}</button>`).join('')}<button type="button" data-su-pts="c" aria-pressed="${pts === 'c'}" ${job || calState.busy ? 'disabled' : ''}>Custom</button></div></div>
-          ${SU.tgt != null ? `<div class="surow"><span class="sul">Custom points<span class="note">Never rated</span></span><div class="sucell chg">${step('tgt', SU.tgt, SU_LIM.tgt, 'Custom points to win')}</div></div>` : ''}
-          ${shRow('catchup', 'Catch-up water', SU.catchup ? 'Behind on points: +$ each shop' : 'Off. The player behind on points gets this much extra each shop')}
+          ${raid ? '<p class="note">Raid starts each Caravan at 8 health.</p>' : `<div class="surow"><span class="sul">Points to win</span><div class="seg" role="group" aria-label="Points to win">${LENS.map(L => `<button type="button" data-su-pts="${L}" aria-pressed="${pts === L}" ${job || calState.busy ? 'disabled' : ''}>${L}</button>`).join('')}<button type="button" data-su-pts="c" aria-pressed="${pts === 'c'}" ${job || calState.busy ? 'disabled' : ''}>Custom</button></div></div>
+          ${SU.tgt != null ? `<div class="surow"><span class="sul">Custom points<span class="note">Never rated</span></span><div class="sucell chg">${step('tgt', SU.tgt, SU_LIM.tgt, 'Custom points to win')}</div></div>` : ''}`}
+          ${shRow('catchup', 'Catch-up water', raid ? 'The Caravan with less health gets extra Water' : SU.catchup ? 'Behind on points: +$ each shop' : 'Off. The player behind on points gets this much extra each shop')}
         </fieldset>
         <fieldset class="sufs suwide"><legend>Starting cards &amp; economy</legend>
           ${colHead}
@@ -127,12 +127,12 @@ function rulesHTML(names, opts){
           <p class="note r1">Round 1 water: ${split ? names.map((n, i) => `${esc(n)} $${SU.pl[i].inc + SU.pl[i].fields + SU.pl[i].water}`).join(', ') : `$${SU.pl[0].inc + SU.pl[0].fields + SU.pl[0].water} each`}.</p>
         </fieldset>
         <fieldset class="sufs"><legend>Limits</legend>
-          ${shRow('deckCap', 'Units limit', 'Different units in a deck')}
+          ${raid ? '<p class="note">Up to 7 unique units total, 5 per deck.</p>' : shRow('deckCap', 'Units limit', 'Different units in a deck')}
           ${shRow('city', 'Caravan slots', 'Harvesters use one each')}
           ${shRow('uDisp', 'Units in the shop', '')}
           ${shRow('bDisp', 'Caravan cards in the shop', '')}
         </fieldset>
-        <fieldset class="sufs"><legend>Card sets</legend>${mirToggleHTML()}</fieldset>
+        <fieldset class="sufs"><legend>Card sets</legend>${raid ? `<p class="note">Raid uses the standard card sets without miracles, Cathedral or Pack Beasts.</p><label class="suswitch"><input type="checkbox" data-raid-refill ${REFILL_ON ? 'checked' : ''}> Automatic shop refills</label>` : mirToggleHTML()}</fieldset>
       </div>
     </div>`;
 }
@@ -193,8 +193,9 @@ function ppSetupHTML(resign){
         <label class="ppn s0"><span class="eyebrow">Player 1</span><input type="text" id="pp-n0" maxlength="16" value="${esc(names[0])}"></label>
         <label class="ppn s1"><span class="eyebrow">Player 2</span><input type="text" id="pp-n1" maxlength="16" value="${esc(names[1])}"></label>
       </div>
-      ${rulesHTML(names)}
-      <div class="row sugo"><button type="button" class="primary" data-act="st-pp">${resign && ui.resignArm === 'pp' ? 'Click again to resign and start' : `Start pass-and-play game (first to ${gameTarget()})`}</button></div>`;
+      ${raidSetupHTML()}
+      ${rulesHTML(names, {raid:true})}
+      <div class="row sugo"><button type="button" class="primary" data-act="st-pp">${resign && ui.resignArm === 'pp' ? 'Click again to resign and start' : SU.raid ? 'Start Raid' : `Start pass-and-play game (first to ${gameTarget()})`}</button></div>`;
 }
 function netSetupHTML(){
   const saved = LS.get('sow-net'), nameV = esc(LS.get('sow-net-name') || (LS.get('sow-pp-names') || [])[0] || '');
@@ -244,6 +245,8 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.matches?.('[data-raid-setup]')){ SU.raid = t.checked; suSave(); renderPlay(); return; }
+  if (t.matches?.('[data-raid-refill]')){ REFILL_ON = t.checked; LS.set('sow-refill', REFILL_ON); renderPlay(); return; }
   if (t.matches && t.matches('[data-su]')){ suSet(t.dataset.su, t.value); renderPlay(); return; }
   if (t.matches && t.matches('[data-su-split]')){
     SU.split = !!t.checked;

@@ -1406,7 +1406,7 @@ const MAT_SWEEP = 700, MAT_SWEEP_GAP = 95, MAT_MOB_LIFT = 1250, MAT_MERGE = 300;
 // too behind localStorage.oasisMatDesk, matWidthOn in js/rug.js);
 // the pass-and-play hand-over and the online "Deck locked in" panels come before it, as before. Desktop keeps its own.
 function matMobOn(){
-  return !!G && G.phase === 'mobilize' && !ui.battle && !G.over && !ui.start && !ui.roll && matWidthOn()
+  return !!G && !G.raid && G.phase === 'mobilize' && !ui.battle && !G.over && !ui.start && !ui.roll && matWidthOn()
     && !(PP() && ui.handoff != null) && !(G.net && NET && NET.acts.length > NET.applied[NET.seat]);
 }
 function matMobBusy(){ return MATMOB.busy; }
