@@ -13,38 +13,70 @@ function shopCoinWarmEnabled(){
   return !document.hidden && !compact() && rugOn() && matDeskOn() && !reduceMotion();
 }
 
+function shopCoinViewport(){
+  const w = innerWidth, h = innerHeight, scale = Math.min(1.5, devicePixelRatio || 1);
+  return {w,h,cw:Math.round(w*scale),ch:Math.round(h*scale)};
+}
+
+function shopCoinFitCanvas(canvas, {cw,ch}){
+  if (canvas.width !== cw) canvas.width = cw;
+  if (canvas.height !== ch) canvas.height = ch;
+}
+
+function shopCoinNeedsWarm({cw,ch}){
+  return !shopCoinWarmDone || (shopCoinLayer?.renderer.mode === 'webgl'
+    && (shopCoinLayer.canvas.width !== cw || shopCoinLayer.canvas.height !== ch));
+}
+
 function shopCoinRequestWarm(){
-  if (shopCoinWarmPending || shopCoinWarmDone || !shopCoinWarmEnabled()) return;
+  if (shopCoinWarmPending || shopCoinLayer?.batches.length || !shopCoinWarmEnabled()
+    || !shopCoinNeedsWarm(shopCoinViewport())) return;
   shopCoinWarmPending = true;
-  // Decode before scheduling the draw so the first animation can reuse the uploaded texture.
-  shopCoinImage().decode().catch(() => {}).then(() => {
+  const queue = () => {
     if (window.requestIdleCallback) requestIdleCallback(shopCoinWarm);
     else setTimeout(shopCoinWarm, 300);
-  });
+  };
+  // Decode before the first draw so the animation can reuse the uploaded texture.
+  if (shopCoinWarmDone) queue();
+  else shopCoinImage().decode().catch(() => {}).then(queue);
 }
 
 function shopCoinWarm(){
   shopCoinWarmPending = false;
   if (!shopCoinWarmEnabled() || shopCoinLayer?.batches.length) return;
+  const viewport = shopCoinViewport();
+  if (!shopCoinNeedsWarm(viewport)) return;
+  const layer = shopCoinWarmDone ? shopCoinLayer : shopCoinCanvas(true);
   shopCoinWarmDone = true;
-  const layer = shopCoinCanvas(true);
   if (layer?.renderer.mode !== 'webgl'){
     shopCoinLayer ||= layer;
     return;
   }
-  // A real draw also warms work that WebGL drivers defer until the first coin.
-  const size = 32;
-  layer.canvas.width = layer.canvas.height = size;
+  // Draw while detached at the same size as an animation to warm WebGL's backing buffer.
+  const {w,h} = viewport;
+  shopCoinFitCanvas(layer.canvas, viewport);
   try{
-    layer.renderer.draw([{x:16,y:16,r:10,spin:1,tilt:.3,opacity:1}],size,size);
-    layer.renderer.draw([],size,size);
+    layer.renderer.draw([{x:w/2,y:h/2,r:10,spin:1,tilt:.3,opacity:1}],w,h);
+    layer.renderer.draw([],w,h);
     shopCoinLayer = layer;
-  }catch(e){}
+  }catch(e){
+    if (shopCoinLayer === layer && !shopCoinUseFallback(layer)) shopCoinLayer = null;
+  }
+}
+
+function shopCoinWatchResolution(){
+  window.matchMedia?.(`(resolution: ${devicePixelRatio || 1}dppx)`)
+    .addEventListener?.('change', shopCoinWatchResolution, {once:true});
+  shopCoinRequestWarm();
 }
 
 function shopCoinStart(g){
   const before = g.players.map(p => p.money);
   startShop(g);
+  shopCoinRecordIncome(g, before);
+}
+
+function shopCoinRecordIncome(g, before){
   shopCoinRound = {game:g, round:g.round, amounts:g.players.map((p, i) => p.money - before[i])};
 }
 
@@ -324,11 +356,6 @@ function shopCoinFrame(now){
   const layer = shopCoinLayer;
   if (!layer) return;
   layer.frame = 0;
-  const w = innerWidth, h = innerHeight, scale = Math.min(1.5,devicePixelRatio || 1);
-  const cw = Math.round(w*scale), ch = Math.round(h*scale);
-  if (layer.canvas.width !== cw || layer.canvas.height !== ch){
-    layer.canvas.width = cw; layer.canvas.height = ch;
-  }
   const coins = [];
   layer.batches = layer.batches.filter(batch => {
     const elapsed = now-batch.began;
@@ -350,6 +377,9 @@ function shopCoinFrame(now){
     shopCoinRequestWarm();
     return;
   }
+  const viewport = shopCoinViewport();
+  shopCoinFitCanvas(layer.canvas, viewport);
+  const {w,h} = viewport;
   try{ layer.renderer.draw(coins,w,h); }
   catch(e){
     if (layer.renderer.mode !== 'webgl' || !shopCoinUseFallback(layer)){
@@ -364,4 +394,5 @@ function shopCoinFrame(now){
 }
 
 document.addEventListener('visibilitychange', shopCoinRequestWarm);
-shopCoinRequestWarm();
+addEventListener('resize', shopCoinRequestWarm);
+shopCoinWatchResolution();

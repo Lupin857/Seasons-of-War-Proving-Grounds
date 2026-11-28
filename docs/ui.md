@@ -75,9 +75,12 @@
   Battle entrance directly, with the same card gathering and deck landing as a desktop match.
 - Match setup fetches and decodes game art before starting. The layout-specific Shop textures load with the
   card art. A missing image is reported and the game can continue.
+- The first desktop Shop prepares its hidden layout and deal across frames while the dice result is on screen.
+  Once the player continues, it reuses that board and plays the regular opening sequence.
 - Desktop Shop income drops into the banks during the opening. Sale proceeds arc from the departing card
   into its bank. A purchase sends water to the bottom edge of the bought card, where it clinks before the
   card continues to its destination. The flying coins match the scale of the cards' printed water icons.
+  A detached WebGL canvas warms at its animation size when the browser is idle.
 - Desktop mat Mobilize overlaps the market sweep with the bought piles merging. In the lift, the deck, bench fan,
   fight order numbers, labels and controls settle together. Cards and controls take input once those animations
   finish. The vertical deck cards are up to 25% wider than the market cards. A crowded stack tightens the

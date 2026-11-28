@@ -346,7 +346,83 @@ function bazaarReturnPile(host, card, source, projection, duration){
   return {el, start};
 }
 
+let bazaarFirstShop;
+
+function bazaarDropFirstShop(){
+  const state = bazaarFirstShop;
+  bazaarFirstShop = null;
+  state?.shop?.remove();
+  state?.plan?.cancel();
+}
+
+function bazaarStageFirstShop(){
+  if (ui.roll?.first == null || G.round !== 0 || G.net || compact() || !matDeskOn() || !rugOn() || reduceMotion()) return;
+  const source = G, view = ui, roll = ui.roll;
+  const state = bazaarFirstShop = {source, view, roll};
+  const current = () => bazaarFirstShop === state && G === source && ui === view && ui.roll === roll && !ui.start;
+  state.ready = new Promise(resolve => requestAnimationFrame(resolve)).then(async () => {
+    if (!current()) return;
+    // Round one already has shuffled decks and a settled first player. Prepare without committing the live game.
+    const game = structuredClone({...source, rnd:null});
+    game.rnd = source.rnd;
+    startShop(game);
+    const draft = {...view, roll:null, mktTab:'u'};
+    G = state.game = game;
+    ui = draft;
+    try{
+      const template = document.createElement('template');
+      template.innerHTML = matShopHTML();
+      const shop = state.shop = template.content.firstElementChild;
+      shop.classList.add('os-first-prep');
+      shop.inert = true;
+      $('view-play').append(shop);
+      matDesktopLayout();
+      matFitDesk(shop);
+      matShopInspectCards(shop);
+    }finally{ G = source; ui = view; }
+    state.slots = draft.bazaarSlots;
+    state.plan = await bazaarPrepareOpening(state.shop, current, () => !state.entering);
+  }).catch(error => {
+    console.error('Preparing first Shop', error);
+    if (bazaarFirstShop === state) bazaarDropFirstShop();
+  });
+}
+
+async function bazaarEnterFirstShop(control){
+  const source = G, view = ui, roll = ui.roll, state = bazaarFirstShop;
+  if (state?.entering) return;
+  if (state){
+    state.entering = true;
+    control.disabled = true;
+    await state.ready;
+  }
+  if (G !== source || ui !== view || ui.roll !== roll || ui.start) return;
+  ui.roll = null;
+  ui.mktTab = 'u';
+  const plan = state?.plan;
+  if (bazaarFirstShop === state && plan?.width === innerWidth && plan.height === innerHeight &&
+      state.shop.isConnected && !compact() && matDeskOn() && rugOn() && !reduceMotion()){
+    G = state.game;
+    ui.bazaarSlots = state.slots;
+    shopCoinRecordIncome(G, source.players.map(p => p.money));
+  } else {
+    bazaarDropFirstShop();
+    shopCoinStart(G);
+  }
+  renderPlay();
+  scheduleAI();
+}
+
+function bazaarFirstShopBoard(){
+  return bazaarFirstShop?.game === G && bazaarFirstShop?.plan ? bazaarFirstShop.shop : null;
+}
+
 function bazaarOpenAfterBattle(shop){
+  if (bazaarFirstShopBoard() === shop){
+    const {plan} = bazaarFirstShop;
+    bazaarFirstShop = null;
+    return bazaarStartOpening(shop, plan);
+  }
   const state = bazaarBattleReturn;
   if (!bazaarReturnsToShop()){ bazaarBattleReturn = null; return bazaarOpen(shop); }
   state.shop = shop;
@@ -355,7 +431,8 @@ function bazaarOpenAfterBattle(shop){
   const restores = [];
   let prepared;
   const returning = bazaarAnimateReturn(shop, state, restores);
-  const preparation = bazaarPrepareOpening(shop, state).then(plan => { prepared = plan; });
+  const preparation = bazaarPrepareOpening(shop, () => bazaarBattleReturn === state && G === state.game)
+    .then(plan => { prepared = plan; });
   return Promise.allSettled([returning, preparation]).then(results => {
     for (const result of results) if (result.status === 'rejected') console.error('Battle to Shop', result.reason);
     for (const restore of restores) restore();
@@ -570,10 +647,11 @@ function bazaarOpen(shop){
   return bazaarStartOpening(shop, plan);
 }
 
-async function bazaarPrepareOpening(shop, state){
+async function bazaarPrepareOpening(shop, current, hasTime = () => true){
   // Ahead of the handoff, build the hidden rug and flights on separate frames.
-  const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
-  const sameShop = () => shop.isConnected && bazaarBattleReturn === state && G === state.game;
+  // If the player has already clicked through, finish building the remaining flights now.
+  const nextFrame = () => hasTime() ? new Promise(resolve => requestAnimationFrame(resolve)) : Promise.resolve();
+  const sameShop = () => shop.isConnected && current();
   const stage = {animations:[], cues:[], hold(animation){
     animation.pause();
     animation.currentTime = 0;

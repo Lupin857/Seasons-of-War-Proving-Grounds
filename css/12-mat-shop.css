@@ -4,7 +4,8 @@
    bars (.osbar: Caravan, hand spot, deck pile) are flat and fixed, the rival's under the top bar and yours above the
    bottom bar, the same in the shop, Mobilize and the battle; the mat lies between them.
    --mw: one market card's width: three across a tray, or less when the screen is short. */
-html:has(#view-play .osshop),body:has(#view-play .osshop){overflow:hidden}   /* one screen: nothing to scroll */
+html:has(#view-play .osshop:not(.os-first-prep)),body:has(#view-play .osshop:not(.os-first-prep)){overflow:hidden}   /* one screen: nothing to scroll */
+#view-play > .os-first-prep{opacity:0;visibility:hidden;pointer-events:none}
 /* everything else the Play tab draws around the shop (recent moves, the New game row) stays off the mat */
 #view-play > div:has(> .osshop) > :not(.osshop):not(.osmob):not(.osbar):not(.mirtray):not(.mirmodal){display:none!important}
 #view-play .osshop{position:fixed;left:0;right:0;top:calc(var(--gtb, var(--bh,46px)) + var(--osbt));bottom:calc(var(--dockh,64px) + var(--osbb));z-index:1;

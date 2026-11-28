@@ -125,6 +125,7 @@ function markGame(on){
 function drawPlay(options){
   try{ if (G && G.over && G.opp && G.opp.rated && !G.ratedDone && !G.pp && !G.net) recordResult(); }catch(e){}   // safety net: never lose a finished rated game
   try{ if (peekEl) closePeek(); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale; it sinks away
+  if ((ui.start || ui.roll) && typeof bazaarDropFirstShop === 'function') bazaarDropFirstShop();
   if (NET && !NET.started && !ui.start){ markGame(false); $('view-play').innerHTML = netLobbyHTML(); return; }
   if (!G || ui.start){ markGame(false); $('view-play').innerHTML = startHTML(); if (turnKey === null) turnKey = ''; return; }
   if (ui.roll){
@@ -133,6 +134,7 @@ function drawPlay(options){
     $('view-play').innerHTML = pbarHTML() + rollHTML() + peekWinHTML();
     if (turnKey === null) turnKey = '';
     saveGame();
+    if (typeof bazaarStageFirstShop === 'function') bazaarStageFirstShop();
     return;
   }
   if (G.net && NET?.resignRequested && !G.over && !NET.err){
@@ -154,10 +156,11 @@ function drawPlay(options){
     return 'purchase';
   }
   const changes = describeOverrides(OV);
+  const firstBoard = dealNow && typeof bazaarFirstShopBoard === 'function' ? bazaarFirstShopBoard() : null;
   let h = netNoticeHTML() + (changes.length && !(G && G.net) ? `<p class="note">Custom balance active (${changes.length} unpushed ${plural(changes.length, 'change')}, set in Balance & stats). New games use it.</p>` : '') + boardHTML();
   if (G.resignedBy != null) h += resignResultHTML();
   else if (ui.battle) h += battleHTML();
-  else if (G.phase === 'shop') h += shopHTML();
+  else if (G.phase === 'shop') h += firstBoard ? '<div data-first-shop-slot></div>' + mirTrayHTML() + mirModalHTML() : shopHTML();
   else if (G.phase === 'mobilize') h += mobilizeHTML();
   h += `<div class="row">${suChipHTML()}${G.net && NET ? `<span class="note">Online room <b class="mono">${esc(NET.code)}</b></span><button type="button" data-act="st-net-leave">Leave room</button>` : ''}<span class="grow"></span><button type="button" data-act="newgame">${G.over && !hideResult() && !PP() ? 'Choose next opponent' : 'New game…'}</button></div>`;
   const lw = $('view-play').querySelector('.linewrap'), sx = lw ? lw.scrollLeft : 0;
@@ -167,7 +170,14 @@ function drawPlay(options){
   const POPS = [['.mirmodal', '.mirmbox'], ['.remind', '.remindbox'], ['.mirtray', '.mirtray'], ['.pkwin', '.pksheet']];
   const vp0 = $('view-play'), oldPops = POPS.map(([b]) => { const e = vp0.querySelector(b); return e ? {e, r:e.getBoundingClientRect()} : null; });
   const playHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
-  if (typeof morphOn === 'function' && morphOn()) morphInto($('view-play'), playHTML); else $('view-play').innerHTML = playHTML;
+  if (firstBoard){
+    const template = document.createElement('template');
+    template.innerHTML = playHTML;
+    template.content.querySelector('[data-first-shop-slot]').replaceWith(firstBoard);
+    vp0.replaceChildren(template.content);
+    firstBoard.classList.remove('os-first-prep');
+    firstBoard.inert = false;
+  } else if (typeof morphOn === 'function' && morphOn()) morphInto($('view-play'), playHTML); else $('view-play').innerHTML = playHTML;
   syncCardSize();
   document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.pkwin'));
   { const pw = vp0.querySelector('.pkwin'); if (pw && !pw.__swiped && (pw.__swiped = 1)) wireSwipe(pw.querySelector('.pksheet'), pw, pw.querySelector('.sheethead'), null,
@@ -761,7 +771,7 @@ $('view-play').addEventListener('click', e => {
     case 'deck-close': popShut(); sfx.soft(); renderPlay(); return;
     case 'resign-confirm': resignMatch(+t.dataset.p); return;
     case 'roll': doRoll(); return;
-    case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
+    case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); bazaarEnterFirstShop(t); return;
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
     case 'mason-cancel': sfx.soft(); popShut(); renderPlay(); return;
     case 'mason-tog': { const mm = masonMode(); if (!mm) return; const n = t.dataset.name;
