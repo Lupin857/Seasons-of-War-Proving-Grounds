@@ -79,29 +79,29 @@
 <script src="js/engine/09-learning.js?v=v95-resign-menu" data-engine-module="learning"></script>
 <script src="js/engine.js?v=v95-resign-menu" id="engine" data-engine-module="public-api"></script>
 <script src="js/names.js?v=v95-resign-menu" id="oasis-names"></script>
-<script src="js/art.js?v=v95-resign-menu" id="oasis-art"></script>
+<script src="js/art.js?v=v97-art-mobilize-performance" id="oasis-art"></script>
 <script src="js/ui/00-core.js?v=v95-resign-menu"></script>
 <script src="js/ui/01-battle-view.js?v=v95-resign-menu"></script>
 <script src="js/ui/02-match-recorder-ai-worker.js?v=v95-resign-menu"></script>
-<script src="js/ui/03-card-motion.js?v=v95-resign-menu"></script>
+<script src="js/ui/03-card-motion.js?v=v97-art-mobilize-performance"></script>
 <script src="js/ui/04-online.js?v=v95-resign-menu"></script>
 <script src="js/ui/05-shop-moves.js?v=v95-resign-menu"></script>
 <script src="js/ui/06-market-popups-tokens.js?v=v95-resign-menu"></script>
 <script src="js/ui/07-battle-steps.js?v=v96-distinct-battle-layouts"></script>
 <script src="js/ui/08-flips-reminders-banners.js?v=v95-resign-menu"></script>
 <script src="js/ui/09-play-screen.js?v=v96-first-shop-staging"></script>
-<script src="js/ui/10-mobilize.js?v=v95-resign-menu"></script>
+<script src="js/ui/10-mobilize.js?v=v97-art-mobilize-performance"></script>
 <script src="js/ui/11-self-play.js?v=v95-resign-menu"></script>
 <script src="js/ui/12-train-view.js?v=v95-resign-menu"></script>
 <script src="js/ui/13-stats-view.js?v=v95-resign-menu"></script>
 <script src="js/ui/14-balance-lab.js?v=v95-resign-menu"></script>
 <script src="js/ui/15-sync-roles-ratings.js?v=v95-resign-menu"></script>
-<script src="js/ui/16-new-game.js?v=v95-resign-menu"></script>
+<script src="js/ui/16-new-game.js?v=v97-art-mobilize-performance"></script>
 <script src="js/ui/17-card-peek-tooltips.js?v=v95-resign-menu"></script>
 
 <script src="js/desktop.js?v=v95-resign-menu" id="oasis-desktop-js"></script>
 <script src="js/mobile-crop.js?v=v95-resign-menu" id="oasis-mobile-crop-js"></script>
-<script src="js/board-settings.js?v=v96-first-shop-staging" id="lab-js"></script>
+<script src="js/board-settings.js?v=v97-art-mobilize-performance" id="lab-js"></script>
 
 <link rel="stylesheet" href="css/07-no-anchor.css?v=v95-resign-menu" id="oasis-noanchor-css">
 <link rel="stylesheet" href="css/08-cards-tab.css?v=v95-resign-menu" id="oasis-cards-css">
@@ -114,14 +114,13 @@
 <script src="js/ui/18-game-menu.js?v=v95-resign-menu"></script>
 <script src="js/ui/19-battle-ink.js?v=v95-resign-menu"></script>
 <script src="js/rug.js?v=v95-resign-menu"></script>
-<script src="js/ui/20-mat-shop.js?v=v95-resign-menu"></script>
+<script src="js/ui/20-mat-shop.js?v=v97-art-mobilize-performance"></script>
 <script src="js/ui/21-bazaar.js?v=v96-first-shop-staging"></script>
 <script src="js/ui/22-shop-coins.js?v=v96-first-shop-staging"></script>
 <script src="cubes.js?v=v95-resign-menu" defer></script>
 <script>/* Installable app + offline play (does nothing where service workers aren't allowed, e.g. inside Claude) */
 if ('serviceWorker' in navigator) window.addEventListener('load', () => {
-  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready)
-    .then(r => { if (r.active) r.active.postMessage('warm-art'); }).catch(() => {});
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 });</script>
 </body></html>
 
