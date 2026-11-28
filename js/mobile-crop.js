@@ -73,6 +73,7 @@ function cubeSync(){
 // (steps of renderPlay)
 function playNotesBefore(){ return abSnap(document.querySelector('#view-play .stage')); }   // measured before the redraw replaces the stage
 function playNotesAfter(snap){
+  window.battleInkWake?.();
   try{ cubeSync(); }catch(e){ console.error(e); }
   // the redraw replaced the notes: if they changed (or went away), let the old ones fade out
   try{ if (snap){ const nw = document.querySelector('#view-play .stage .abwin');
