@@ -165,18 +165,19 @@ async function replay(mode, firstPlay = false){
   stage.classList.remove('is-interactive');
   frame.tabIndex = -1;
   dragGuide.hidden = true;
-  status.textContent = firstPlay ? 'Loading Shop artwork…'
+  status.textContent = firstPlay && mode === 'open' ? 'Loading Shop artwork…'
     : {open:'Opening Shop…', close:'Closing Shop…', both:'Playing full cycle…',
       drag:'Setting up drag preview…', inspect:'Setting up enlarge preview…', mobilize:'Opening Mobilize…',
-      'battle-end':'Preparing Battle result…'}[mode];
+      'battle-end':'Preparing Battle result…', charge:'Preparing Deck → Charge…'}[mode];
   try {
     await bridge.play(mode, {...settings});
     const drag = mode === 'drag';
-    const interactive = drag || mode === 'inspect' || mode === 'mobilize' || mode === 'battle-end';
+    const interactive = drag || mode === 'inspect' || mode === 'mobilize' || mode === 'battle-end' || mode === 'charge';
     status.textContent = {drag:'Drag a card to try it', inspect:'Click a card to enlarge it',
       open:'Shop is open', close:'Shop is closed', both:'Shop is closed',
       mobilize:'',
-      'battle-end':'Choose Go to round 2 shop to preview the return.'}[mode];
+      'battle-end':'Choose Go to round 2 shop to preview the return.',
+      charge:'Press Next step twice quickly to try the queue. Choose Try Deck → Charge to reset.'}[mode];
     stage.classList.toggle('is-interactive', interactive);
     frame.tabIndex = interactive ? 0 : -1;
     dragGuide.hidden = !drag;
@@ -236,7 +237,8 @@ previewBridge().then(candidate => {
   updateOutput();
   reset.disabled = false;
   copy.disabled = false;
-  replay('open', true);
+  const mode = new URLSearchParams(location.search).get('preview') === 'charge' ? 'charge' : 'open';
+  replay(mode, true);
 }).catch(error => {
   console.error('Oasis Shop lab', error);
   status.textContent = 'Preview didn’t load. Reload this page to try again.';

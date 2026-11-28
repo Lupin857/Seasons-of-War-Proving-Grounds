@@ -360,6 +360,10 @@ function breakShieldsNow(){
 function stepForward(){
   if (!ui.battle) return;
   const last = ui.battle.frames.length - 1;
+  if (ui.chargeSlide){
+    if (ui.frame < last) ui.chargeSlide.queued = true;
+    return;
+  }
   // a click while a step is still animating finishes that step at once and goes straight on to the next one,
   // so every click moves exactly one step however fast you click
   if (ui.animT) goFrame(ui.pendingFrame);

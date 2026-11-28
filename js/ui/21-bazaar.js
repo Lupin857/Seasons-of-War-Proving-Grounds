@@ -695,7 +695,7 @@ if (bazaarLabRequested()) window.OasisBazaarLab = {
     }
   },
   async play(mode, settings = {}){
-    if (!['open','close','both','drag','inspect','mobilize','battle-end'].includes(mode)) throw new Error('Unknown preview sequence.');
+    if (!['open','close','both','drag','inspect','mobilize','battle-end','charge'].includes(mode)) throw new Error('Unknown preview sequence.');
     if (MATBAT.entrance) await MATBAT.entrance;
     bazaarTiming = Object.fromEntries(Object.entries(BAZAAR_DEFAULTS).map(([key, value]) => {
       const next = settings[key];
@@ -713,7 +713,8 @@ if (bazaarLabRequested()) window.OasisBazaarLab = {
     dismissTurnFlash();
     G = newGame({rnd:mulberry32(7108), labels:['You', 'Rival'], miracles:false});
     const interactive = mode === 'drag' || mode === 'inspect';
-    const battleEnd = mode === 'battle-end', crowded = mode === 'mobilize' || battleEnd;
+    const battlePreview = mode === 'battle-end' || mode === 'charge';
+    const crowded = mode === 'mobilize' || battlePreview;
     G.pp = !interactive && !crowded;
     ui = freshUI({dealt:G.round, bazaarMobilize:crowded});
     startShop(G);
@@ -725,17 +726,23 @@ if (bazaarLabRequested()) window.OasisBazaarLab = {
       G.noRemind = {lock:true};
       const rival = {deck:[{name:'Slinger'}, {name:'Fencer'}, {name:'Scholar'}]};
       AIMOB = {g:G, round:G.round, r:rival, p:Promise.resolve(rival)};
-      MATMOB.lift = !battleEnd;
-      if (battleEnd) document.querySelector('#view-play .osshop:not(.osmobmat)')?.remove();
+      MATMOB.lift = !battlePreview;
+      if (battlePreview) document.querySelector('#view-play .osshop:not(.osmobmat)')?.remove();
       renderPlay();
       dismissTurnFlash();
-      if (battleEnd){
+      if (battlePreview){
         const mat = document.querySelector('.osmobmat.osdesk'), mob = document.querySelector('.osdeskmob');
         if (!mat || !mob) throw new Error('The preview needs a desktop-size game view.');
         const {seats} = matBatScene(mat, mob);
         showBattle(playBattle(draftFromDeck(ui.draft), rival.deck));
         ui.battle.matSeats = seats;
-        goFrame(ui.battle.frames.length - 1, false);
+        if (mode === 'charge'){
+          ui.battle.matIn = true;
+          const firstCharge = ui.battle.frames.findIndex(frame => frameMoves(frame).some(move => move.from === 'deck' && move.to === 'charge'));
+          goFrame(Math.max(0, firstCharge - 1), false);
+        } else {
+          goFrame(ui.battle.frames.length - 1, false);
+        }
         return;
       }
       await MATMOB.entrance;
