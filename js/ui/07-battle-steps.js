@@ -13,7 +13,6 @@ function unitsOf(fr, zones){
    card to its note. Notes belong to the step on screen and go when you move on; they are hidden while auto-play runs,
    and the Ability notes button turns them off. */
 const abOn = () => LS.get('sow-abwin') !== false;
-let abRaf = 0;
 function abGroups(f){
   const groups = new Map();
   for (const l of f.lines){ if (!l.ab) continue; const k = l.ab.g ? `g:${l.ab.n}:${l.ab.u}` : l.ab.u || `b:${l.ab.s}:${l.ab.n}`; if (!groups.has(k)) groups.set(k, {ab:l.ab, lines:[]}); groups.get(k).lines.push(l); }
@@ -59,10 +58,10 @@ function abFade(snap){
 }
 function mountAbWin(){
   const stage = $('view-play').querySelector('.stage'); if (!stage) return;
+  window.battleInkWake?.();
   const fNow = ui.battle && abOn() && !autoOn() ? ui.battle.frames[ui.abFrame != null ? ui.abFrame : ui.frame] : null;
   const showing = stage.querySelector('.abwin'), key = fNow ? abGroups(fNow).map(g => abNoteHTML(g, fNow, 0)).join('|') : '';
   if (showing && key && showing.dataset.key === key) return;   // same notes: nothing to do (no fade, no jump)
-  cancelAnimationFrame(abRaf); abRaf = 0;
   abFade(abSnap(stage)); stage.querySelectorAll('.abwin').forEach(n => n.remove());
   if (!fNow) return;
   const f = fNow, gs = abGroups(f); if (!gs.length) return;
@@ -82,16 +81,17 @@ function mountAbWin(){
   const win = document.createElement('div'); win.className = 'abwin'; win.dataset.key = key;
   win.innerHTML = [0, 1].flatMap(s => ['L', 'R'].map(h => { const c = col(s, h); return c ? `<div class="abcol s${VS(s)} ${h}">${c}</div>` : ''; })).join('');
   try{ kwDecorate(win, null, true); }catch(e){}   // no keyword list here, so each keyword explains itself on hover
-  win.addEventListener('click', e => { const bx = e.target.closest('.abbox'); if (bx){ e.stopPropagation(); bx.classList.toggle('min'); } });
+  win.addEventListener('click', e => {
+    const bx = e.target.closest('.abbox'); if (!bx) return;
+    e.stopPropagation();
+    bx.classList.toggle('min');
+    window.battleInkWake?.();
+  });
   stage.appendChild(win);
   // the gear that triggered lights up on the unit wearing it
   for (const g of gs) if (g.ab.g){ const el = abSrcEl(stage, g.ab); const ch = el && (el.closest('.gtk') || (el.classList.contains('cgear') ? el : null)); if (ch) ch.classList.add('gfire'); }
-  // the notes keep their place as the board around them moves (see abPlace)
-  const tick = () => {
-    const st = win.isConnected && win.closest('.stage'); if (!st){ abRaf = 0; return; }
-    abPlace(st); abRaf = requestAnimationFrame(tick);
-  };
-  tick();
+  // Place new notes immediately. The ink's frame updates keep them in place while the board moves.
+  abPlace(stage);
 }
 function abSrcEl(stage, ab){
   // a Shield note always points at the Shield token itself (from the first moment, not only once the board redraws)
@@ -382,18 +382,38 @@ function goFrame(k, glide){
 // The step itself; call goFrame, not this.
 function showFrame(k, glide){
   stopAnim();
+  const forward = ui.battle && k === ui.frame + 1;
+  const next = forward ? ui.battle.frames[k] : null;
+  const moves = frameMoves(next);
+  const under = moves.filter(m => m.to === 'deck-bottom');
+  const died = moves.filter(m => m.to === 'grave');
+  // Revealed units buried under cards put on top of their deck may also need a flight copy.
+  const buried = [...new Set(moves.filter(m => m.to === 'deck-top').map(m => +m.u.split('-')[0]))]
+    .map(side => { const u = ui.battle.frames[ui.frame].snap[side].deck[0]; return u ? `${side}-${u.uid}` : null; }).filter(Boolean);
   const from = new Map();
-  if (glide && !reduceMotion()) for (const el of $('view-play').querySelectorAll('.line [data-uid]')){ const r = el.getBoundingClientRect(); r.wasB = el.tagName === 'B'; r.loc = tableXY(el, el.closest('.line')); if (!r.wasB) r.clone = el.cloneNode(true); from.set(el.dataset.uid, r); }
+  if (glide && !reduceMotion()){
+    const flightIds = new Set([...died.map(m => m.u), ...under.map(m => m.u), ...buried]);
+    // Older saved battles can lack a defeat record. Keep the existing flip when the rendered pile takes a unit.
+    next?.snap.forEach(({grave}, side) => {
+      const top = grave.at(-1);
+      if (top) flightIds.add(`${side}-${top.uid}`);
+    });
+    for (const el of $('view-play').querySelectorAll('.line [data-uid]')){
+      const id = el.dataset.uid, r = el.getBoundingClientRect();
+      r.wasB = el.tagName === 'B';
+      // A jump may glide to a later grave, too. Adjacent steps have the exact moves from the Chronicle.
+      if (!r.wasB && (!forward || flightIds.has(id))){
+        r.loc = tableXY(el, el.closest('.line'));
+        r.clone = el.cloneNode(true);
+      }
+      from.set(id, r);
+    }
+  }
   const prevF = glide && ui.battle ? ui.battle.frames[ui.frame] : null;
-  const broken = ui.battle && k === ui.frame + 1 ? shieldsToBreak() : [];   // shields that blocked a hit this step
+  const broken = forward ? shieldsToBreak() : [];   // shields that blocked a hit this step
   // tokens this step discards (a Fencer's Might, as the engine records it in drop) break the same way as it lands
-  if (ui.battle && k === ui.frame + 1) for (const l of ui.battle.frames[k].lines) if (l.drop && l.to)
+  if (next) for (const l of next.lines) if (l.drop && l.to)
     for (const pk of $('view-play').querySelectorAll(`.stage .card[data-uid="${l.to}"] > .pk[data-k="${l.drop.tok}"]:not(.mbn)`)){ const b = tokenBreakInfo(pk); if (b) broken.push(b); }
-  const under = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-bottom') : [];   // cards going back under their deck
-  const died = ui.battle && k === ui.frame + 1 ? frameMoves(ui.battle.frames[k]).filter(m => m.to === 'grave') : [];   // cards defeated this step
-  // revealed units buried this step under cards put on top of their deck (the engine's deck-top moves)
-  const buried = ui.battle && k === ui.frame + 1 ? [...new Set(frameMoves(ui.battle.frames[k]).filter(m => m.to === 'deck-top').map(m => +m.u.split('-')[0]))]
-    .map(side => { const u = ui.battle.frames[ui.frame].snap[side].deck[0]; return u ? `${side}-${u.uid}` : null; }).filter(Boolean) : [];
   ui.frame = k; if (!ui.keepBanner) ui.bannerOff = false; renderPlay();
   // renderPlay reserves the desktop rows before the movement code measures them.
   if (!document.body.classList.contains('os-deskbat')) reserveRows();
@@ -441,7 +461,7 @@ function showFrame(k, glide){
   const order = died.map(m => m.u), seen = [0, 0];
   flies.sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
   // a unit whose place a new card takes (Cowardly Squire) leaves its tokens and gear behind for it
-  const placed = new Set(ui.battle && k === ui.frame ? frameMoves(ui.battle.frames[k]).filter(m => m.place).map(m => m.place) : []);
+  const placed = new Set((forward ? moves : frameMoves(ui.battle?.frames[k])).filter(m => m.place).map(m => m.place));
   for (const [uid, r0, tgt] of flies){ const s = +uid.split('-')[0]; deathFly(r0, tgt, GRAVE_STAGGER * seen[s]++, placed.has(uid)); }
   // a card that went back under its deck and is out of sight now slides in there (alone in its deck it's the revealed
   // card instead, and the FLIP above already moved it)
