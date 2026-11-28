@@ -128,6 +128,8 @@ CARD PEEK (keywords) → TOOLTIPS.
   The paste box is `bcodeWinHTML` in the one pop-up (`ui.codeWin`; `peekWinHTML` draws it). Copying goes through
   `copyText` (02, shared with "Copy match for Claude"). To look at a battle Brian sends: load the page headless,
   then `bcodeLoad(code)`.
+- Local match saves keep the last Battle's winner for Shop turn order. The active replay and its cursor are saved
+  together in `ui`. Older saves with a second replay copy still load.
 - Tabs: Play, Cards, Train the AI, Balance & stats (`view-lab` on top, designers only; `view-stats` below), Rules.
 - Roles: `applyRole`, `isPlayer()`. The owner is the designer; shared viewers are players (no lab or training).
 - Balance: `FINAL = {ov, at, patches}`, server doc `balance/final`. `setBaseline`, `finalizeBalance(ov, back)` pushes
