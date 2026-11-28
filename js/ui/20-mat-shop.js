@@ -66,12 +66,13 @@ function matSeatHTML(i, mode = 'shop'){
     const handRow = gear.length || mine ? `<div class="fcards oshandrow" aria-label="${who} hand">${handHTML || '<span class="osslot oshandslot" aria-hidden="true">Hand</span>'}</div>` : '';
     rest = `<i class="osbardiv" aria-hidden="true"></i>${handRow}${pile}${mine ? '' : matPurseHTML(i)}`;
     if (desk) rest = `<i class="osbardiv" aria-hidden="true"></i>${matDeskPilesHTML(i, hand, mode)}${matPurseHTML(i)}`;
+    else if (G.raid && mode === 'shop') rest = `<i class="osbardiv" aria-hidden="true"></i>${handRow}${mine ? '' : matPurseHTML(i)}`;
   }
   const act = mode === 'shop' && G.phase === 'shop' && !G.passed[i] && cur(G) === i;   // whose turn it is: their bar glows
   const side = desk ? `<span class="osside" aria-hidden="true">${PP() || G.net ? esc(nm(i)) : mine ? 'You' : 'Enemy'}</span>` : '';
   if (strip) rest = `<i class="osbardiv" aria-hidden="true"></i><div class="ospile osbattle-pile">${mine ? matBattleBenchHTML() : ''}</div>
     <div class="ospile osbattle-pile" aria-hidden="true"></div>${matDeskPilesHTML(i, hand, 'battle')}${matPurseHTML(i)}`;
-  return `<section class="osseat ${strip ? 'osrow osstrip' : desk ? 'osrow' : 'osbar'} ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" aria-label="${who} side${act ? ', shopping now' : ''}">
+  return `<section class="osseat ${strip ? 'osrow osstrip' : desk ? 'osrow' : 'osbar'} ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${G.raid ? ' osraid-seat' : ''}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" aria-label="${who} side${act ? ', shopping now' : ''}">
     ${side}<div class="fcards oscarrow" style="--n:${spots}" aria-label="${who} Caravan, ${slotsUsed(p)} of ${cap}">${carHTML}</div>${rest}
   </section>`;
 }
@@ -150,7 +151,7 @@ function matDeskPilesHTML(i, hand, mode = 'shop'){
   }
   if (mode === 'mob') return gone('Deck · lifted').replace('ospile osgone', 'ospile osdeck osgone') + gone('Bought · joined deck') + mir;
   if (mode === 'battle') return mir;   // the battle's strip: the Caravan, Miracles and the water
-  return deckPile + boughtPile + mir;
+  return (G.raid ? '' : deckPile) + boughtPile + mir;
 }
 const MATDESK_BOUNDS = new WeakMap();
 // Choose one printed card width from the room available for the entire desktop tabletop.
@@ -275,7 +276,7 @@ function matTraysHTML(deck, row, extra, side, bazaar = false){
 }
 function matShopTraysHTML(S){
   return matTraysHTML(k => deckPileHTML(k, false, true), (k, src) => marketRow(k, src, true),
-    [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${shopActsHTML()}</div>`, true);
+    [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${G.raid ? '' : shopActsHTML()}</div>`, true);
 }
 function matShopHTML(){
   const S = seat();
@@ -294,7 +295,7 @@ function matShopHTML(){
 // An ordinary purchase updates the stock, which side is active, and both rows' buy controls.
 // Keep the surrounding board and its fitted geometry in place.
 function matRefreshPurchase(){
-  if (!matShopOn() || !matDesk() || !morphOn() || PP() || G.net || G.miracles ||
+  if (!matShopOn() || !matDesk() || !morphOn() || PP() || G.net || G.miracles || G.raid ||
       ui.deckView != null || ui.pkWin || ui.remind) return false;
   const view = $('view-play'), desk = view.querySelector('.osshop.osdesk:not(.osmobmat)');
   const score = view.querySelector('#gtop .pbsc .sc'), layout = matDeskLayout;
@@ -794,7 +795,13 @@ function matFlightGeometry(r, d, M){
 function matSpotOf(n, k, i = seat()){
   const me = document.querySelector(`#view-play .osseat.${i === seat() ? 'me' : 'opp'}`); if (!me) return null;
   const bought = me.querySelector('.osbought .ostop');   // desktop: units and gear land on the "Bought this shop" pile
-  if (k === 'u') return bought || me.querySelector('.ospile .ostop');
+  if (k === 'u'){
+    if (G.raid && i === seat()){
+      const role = G.players[i].raidRoster[n], pile = role && document.querySelector(`[data-raid-drop="${role}"]`);
+      if (pile) return pile;
+    }
+    return bought || me.querySelector('.ospile .ostop');
+  }
   const named = sel => [...me.querySelectorAll(sel)].filter(e => { const f = e.querySelector('.cfm'); return f && f.dataset.n === n; }).pop();
   return named('.oshand') || named('.oscar') || (BDEFS[n] && BDEFS[n].gear ? bought : null) || null;
 }
@@ -1406,7 +1413,7 @@ const MAT_SWEEP = 700, MAT_SWEEP_GAP = 95, MAT_MOB_LIFT = 1250, MAT_MERGE = 300;
 // too behind localStorage.oasisMatDesk, matWidthOn in js/rug.js);
 // the pass-and-play hand-over and the online "Deck locked in" panels come before it, as before. Desktop keeps its own.
 function matMobOn(){
-  return !!G && !G.raid && G.phase === 'mobilize' && !ui.battle && !G.over && !ui.start && !ui.roll && matWidthOn()
+  return !!G && G.phase === 'mobilize' && !ui.battle && !G.over && !ui.start && !ui.roll && (G.raid || matWidthOn())
     && !(PP() && ui.handoff != null) && !(G.net && NET && NET.acts.length > NET.applied[NET.seat]);
 }
 function matMobBusy(){ return MATMOB.busy; }
@@ -1426,18 +1433,18 @@ function matMobRow(k, src){
   return marketRow(k, src) + '<span class="osmkgap" aria-hidden="true"></span>'.repeat(Math.max(0, want - n));
 }
 function matMobHTML(){
-  const S = seat(), me = G.players[S], d = mzIds(ui.draft || []);
+  const S = seat(), me = mzMe(), d = mzIds(ui.draft || []);
   let k = 0; const nos = d.map(u => isBat(u.name) ? 0 : ++k);
   const rows = d.map((u, i) => mzDeckCard(u, nos[i])).reverse().join('');   // drawn back (top) to front: card 1, in full, at the bottom
   const items = mzBenchItems(me, d), bench = items.map(mzBenchCard).join('');
-  const who = PP() && !G.net && !ui.bazaarMobilize ? `${esc(nm(S))}'s deck` : 'Your deck';
+  const who = G.raid ? `${raidRoleName(raidRole(G, S))} deck` : PP() && !G.net && !ui.bazaarMobilize ? `${esc(nm(S))}'s deck` : 'Your deck';
   if (matDesk()) return matMobDeskHTML(S, me, d, rows, items, who);
   return `${matSeatHTML(1 - S, 'mob')}${matSeatHTML(S, 'mob')}<div class="osshop osmobmat${MATMOB.lift ? ' oslifting' : ''}" aria-hidden="true"><div class="osplane"><div class="osinner">
     ${matTraysHTML(matSweptDeck, matMobRow, ['', frozenHTML(S)])}
   </div></div></div>
   <div class="osmob"><div class="osmobdim" aria-hidden="true"></div>
     <div class="forces mz osmz" style="--n:${Math.max(1, d.length)};--tt:${d.reduce((t, u) => t + (u.gear ? 1 : 0) + (u.arm || 0) + (u.tr || 0) + (u.sh || 0), 0)};--bn:${Math.max(1, items.length)}">
-      <section class="mz-deck" aria-label="${who}"><div class="osmzhd">${who}</div>${mzLimitsHTML(me, d)}
+      <section class="mz-deck" aria-label="${who}"><div class="osmzhd">${who}</div>${G.raid ? raidMobilizeNoteHTML() : ''}${mzLimitsHTML(me, d)}
         <div class="mzstack" id="mz-deck">${rows || '<div class="mzempty">Drag units here from the bench</div>'}</div>
         ${ui.err ? `<p class="err" role="alert">${esc(ui.err)}</p>` : ''}
       </section>
@@ -1885,7 +1892,7 @@ function matMobDeskHTML(S, me, d, rows, items, who){
   const order = new Map((ui.mzBenchOrder?.[S] || []).map((key, i) => [key, i]));
   const sorted = [...items].sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity));
   const bench = sorted.map(it => `<div class="osfanslot">${mzBenchCard(it)}</div>`).join('');
-  const ai = !PP() && !G.net ? 'AI planning its deck…' : `${esc(nm(1 - S))}'s deck`;
+  const ai = G.raid ? `${esc(nm(1 - S))} · ${raidRoleName(raidRole(G, 1 - S))}` : !PP() && !G.net ? 'AI planning its deck…' : `${esc(nm(1 - S))}'s deck`;
   return `<div class="osshop osdesk osmobmat${MATMOB.lift ? ' oslifting' : ''}" aria-hidden="true"><div class="osplane"><div class="osinner">
     ${matSeatHTML(1 - S, 'mob')}
     ${matTraysHTML(matSweptDeck, matMobRow, ['', frozenHTML(S)], '<div class="dbtns ospass" aria-hidden="true"></div>')}
@@ -1893,7 +1900,7 @@ function matMobDeskHTML(S, me, d, rows, items, who){
   </div></div></div>
   <div class="osmob osdeskmob"><div class="osmobdim" aria-hidden="true"></div>
     <div class="forces mz osmz" style="--n:${Math.max(1, d.length)};--tt:${d.reduce((t, u) => t + (u.gear ? 1 : 0) + (u.arm || 0) + (u.tr || 0) + (u.sh || 0), 0)}">
-      <section class="mz-deck" aria-label="${who}"><h2 class="osmzhd">${who}</h2>${mzLimitsHTML(me, d)}
+      <section class="mz-deck" aria-label="${who}"><h2 class="osmzhd">${who}</h2>${G.raid ? raidMobilizeNoteHTML() : ''}${mzLimitsHTML(me, d)}
         <div class="mzstack" id="mz-deck">${rows || '<div class="mzempty">Drag units here from the bench</div>'}</div>
         ${d.length ? '<div class="osmz-first">Bottom card fights first</div>' : ''}
         ${ui.err ? `<p class="err" role="alert">${esc(ui.err)}</p>` : ''}
@@ -1906,7 +1913,7 @@ function matMobDeskHTML(S, me, d, rows, items, who){
       </div>
     </div>
     <div class="osaideck" aria-hidden="true"><span class="oback osaicard"></span><span class="osaitxt">${ai}</span></div>
-    <div class="osmobacts">${mzSuggestHTML('Suggest', 'act')}${mobLockHTML()}</div>
+    <div class="osmobacts">${G.raid ? '' : mzSuggestHTML('Suggest', 'act')}${mobLockHTML()}</div>
   </div>${mirModalHTML()}`;
 }
 // renderPlay's step on the desktop: the fan, Lock in and the AI's deck take their places (after the mat is fitted)
@@ -1951,7 +1958,7 @@ function matDeskMobLayout(){
 // the bottom bar in Mobilize on the mat: Suggest a deck, then Lock in (same height as the shop's bar, so the mat stays put)
 function matMobDockHTML(acts){
   if (matDesk()) return '';   // desktop: Suggest and Lock in stand on the mat where Pass was (matMobDeskHTML)
-  return `<div class="dock osdock osmobdock${ui.planning ? '' : ' mine'} ph-mobilize" id="dock">${mzSuggestHTML('Suggest', 'act')}<div class="dbtns dact">${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
+  return `<div class="dock osdock osmobdock${ui.planning ? '' : ' mine'} ph-mobilize" id="dock">${G.raid ? '' : mzSuggestHTML('Suggest', 'act')}<div class="dbtns dact">${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
 // renderPlay's first step: the shop is still on the mat and the game has moved on to Mobilize. Wait for the rival's
 // last moves to play, then sweep the market and draw Mobilize. Returns true when this redraw should wait.

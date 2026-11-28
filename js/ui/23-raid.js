@@ -39,18 +39,23 @@ function raidBuyHTML(){
 }
 
 function raidPublicHTML(){
-  if (ui.battle || G.over || (G.phase !== 'shop' && G.phase !== 'mobilize') || ui.handoff != null) return '';
-  const S = seat(), O = 1 - S, foe = G.players[O], active = G.phase === 'mobilize';
-  const roles = active ? [raidRole(G, O)] : RAID_ROLES;
-  const roster = roles.map(role => {
+  const O = 1 - seat(), foe = G.players[O];
+  const roster = RAID_ROLES.map(role => {
     const names = raidNames(foe, role).map(n => `${esc(dispName(n))}${foe.hand[n] > 1 ? ` ×${foe.hand[n]}` : ''}`).join(', ');
     return `<span><b>${raidRoleName(role)}</b> ${names || 'Empty'}</span>`;
   }).join('');
-  const pending = active && G.raid.bout === 1 ? `<span class="note">Opening hit: ${G.raid.damage[raidAttacker(G)]} damage pending against ${!PP() && raidAttacker(G) === 0 ? 'you' : esc(nm(raidAttacker(G)))}.</span>` : '';
-  return `<div class="raid-public panel"><b>${esc(nm(O))}’s ${active ? 'active lineup' : 'rosters'}</b>${roster}${foe.raidSiege ? `<span class="note">Siege Workshop ${foe.raidSiege === 2 ? 'ready' : 'under construction'}</span>` : ''}${pending}</div>`;
+  const siege = foe.raidSiege ? `<span class="note">Siege Workshop ${foe.raidSiege === 2 ? 'ready' : 'under construction'}</span>` : '';
+  return `<div class="raid-public panel"><b>${esc(nm(O))}’s rosters</b>${roster}${siege}</div>`;
 }
 
-function raidDrawerHTML(S, open, shopPiles){
+function raidMobilizeNoteHTML(){
+  const pending = G.raid.bout === 1 ? ` · ${G.raid.damage[raidAttacker(G)]} damage pending` : '';
+  const O = 1 - seat(), p = G.players[O], role = raidRole(G, O);
+  const units = raidNames(p, role).map(n => esc(dispName(n))).join(', ');
+  return `<div class="raid-mob-note"><b>${raidRoundTitle()}${pending}</b><span>Facing ${units || 'an empty ' + raidRoleName(role) + ' deck'}</span></div>`;
+}
+
+function raidDrawerHTML(S, open){
   if (!open) return '';
   const p = G.players[S];
   if (open === 'caravan'){
@@ -59,7 +64,9 @@ function raidDrawerHTML(S, open, shopPiles){
     return `<div class="raid-drawer" id="raid-drawer">
       <button type="button" data-act="deck-open" data-p="${S}">View Caravan, gear &amp; sell cards</button>
       <button type="button" data-act="raid-siege" ${siegeWhy ? 'disabled' : ''} title="${esc(siegeWhy)}">${siegeText}</button>
-      ${siegeWhy && p.raidSiege === 1 ? `<small>${esc(siegeWhy)}</small>` : ''}${shopPiles}
+      ${siegeWhy && p.raidSiege === 1 ? `<small>${esc(siegeWhy)}</small>` : ''}
+      <small>${raidRoundTitle()}</small>
+      ${raidPublicHTML()}
     </div>`;
   }
   const to = open === 'attack' ? 'defense' : 'attack';
@@ -73,23 +80,23 @@ function raidDrawerHTML(S, open, shopPiles){
         aria-label="Move ${esc(dispName(n))} to ${raidRoleName(to)}">Move to ${raidRoleName(to)}</button>
     </div>`;
   }).join('');
-  return `<div class="raid-drawer" id="raid-drawer"><div class="raid-unit-row">${units || `<span class="note">${raidRoleName(open)} is empty.</span>`}</div></div>`;
+  const note = ui.raidTransferError ? esc(ui.raidTransferError) : p.raidTransfer ? 'Transfer used this Shop' : 'Drag a card onto the other pile, or use Move.';
+  return `<div class="raid-drawer" id="raid-drawer"><div class="raid-unit-row">${units || `<span class="note">${raidRoleName(open)} is empty.</span>`}</div><small class="raid-transfer-note">${note}</small></div>`;
 }
 
-function raidDockHTML(acts, mine, shopPiles){
+function raidDockHTML(acts, mine){
   const S = seat(), p = G.players[S], shopping = G.phase === 'shop' && !ui.battle;
   const open = shopping ? ui.raidPile : null;
   const pile = role => `<button type="button" class="raid-pile raid-${role}" data-act="raid-pile" data-role="${role}" data-raid-drop="${role}"
     aria-expanded="${open === role}" ${!shopping ? 'disabled' : ''}><span>${raidRoleName(role)}</span><b>${raidDeckSize(p, role)}/${RAID.deck}</b></button>`;
   return `<footer id="dock" class="dock raid-dock${mine ? ' mine' : ''}">
-    ${raidDrawerHTML(S, open, shopPiles)}
+    ${raidDrawerHTML(S, open)}
     <div class="raid-dock-row">
       <button type="button" class="raid-caravan deckbtn s${VS(S)}" data-act="raid-pile" data-p="${S}" data-role="caravan" aria-expanded="${open === 'caravan'}" ${!shopping ? 'disabled' : ''}>
         <b>${PP() ? `${esc(nm(S))}’s Caravan` : 'Your Caravan'}</b><small>${shopping ? `${p.money} Water · +${Math.max(0, income(p))} next Shop` : `${uniqueUnits(p)}/${RAID.roster} units`}</small></button>
       <div class="raid-piles" aria-label="Unit decks">${RAID_ROLES.map(pile).join('')}</div>
-      <div class="raid-actions">${acts}</div>
+      <div class="raid-actions"><span class="raid-buy-count">${Math.max(0, baseLeft(G.buys[S]))} buys left</span>${acts}</div>
     </div>
-    ${shopping && open && open !== 'caravan' ? `<small class="raid-transfer-note">${ui.raidTransferError ? esc(ui.raidTransferError) : p.raidTransfer ? 'Transfer used this Shop' : 'Drag a card onto the other pile, or use Move.'}</small>` : ''}
   </footer><div class="dockspace" aria-hidden="true"></div>`;
 }
 

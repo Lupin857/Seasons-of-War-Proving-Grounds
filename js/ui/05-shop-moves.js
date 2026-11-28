@@ -286,7 +286,7 @@ function capsHTML(i, chip){
   return one(u, uc, 'Units', `Unique units owned; the deck holds ${uc}`) + `<span class="caprow">${one(b, bc, 'City', `City slots used; the city holds ${bc} (each Field takes a slot)`)}${chip}</span>`;
 }
 function boardHTML(where){
-  if (G.raid) return raidPublicHTML();
+  if (G.raid) return '';
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const turnChip = i => !shopping ? '' : G.passed[i] ? '<span class="tchip passed">Passed</span>' : cur(G) === i ? `<span class="tchip now">${PP() && !G.net ? 'Shopping' : `<span class="tw">${i === seat() ? 'Your' : 'Their'} </span>turn`}</span>` : '';

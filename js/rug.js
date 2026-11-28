@@ -20,7 +20,7 @@ function rugSand(){ try{ return localStorage.getItem('oasisRug') !== '1'; }catch
 // compact() (js/ui/07-battle-steps.js) still means "phone layout"; these mean "the mat", at any width.
 function matDeskOn(){ try{ return localStorage.getItem('oasisMatDesk') !== '0'; }catch(e){ return true; } }
 function matWidthOn(){ return innerWidth <= 640 || matDeskOn(); }   // this width shows the mat (rug switch or not)
-function matOn(){ return rugOn() && typeof G !== 'undefined' && !!G && !G.raid && !ui.start && !ui.roll && matWidthOn(); }   // the mat is on
+function matOn(){ return typeof G !== 'undefined' && !!G && !ui.start && !ui.roll && (G.raid || (rugOn() && matWidthOn())); }   // the mat is on
 function matDesk(){ return matOn() && !compact(); }   // the mat in its desktop layout (stage 1 on: the shop)
 function rugInit(){
   rugCv = document.createElement('canvas'); rugCv.id = 'rugworld'; rugCv.setAttribute('aria-hidden', 'true');

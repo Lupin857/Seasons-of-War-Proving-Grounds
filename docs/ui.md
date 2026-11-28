@@ -166,4 +166,8 @@
 
 ## Raid
 
+Raid uses the same tabletop Shop, Mobilize, and Battle presentation as standard play. The fixed Raid controls sit beneath the Shop tabletop. Opening a pile keeps the market in place.
+
 In Pass and Play or Play the AI setup, select Raid to use Caravan health and separate Attack and Defense rosters. The fixed Caravan bar opens either public pile. During your Shop turn, drag a unit card onto the opposite pile or use its Move button. The Caravan panel provides the support inventory and Siege Workshop. Each fight has its own private Mobilize handoffs. The second lineup can use leftover gear and tokens.
+
+[Legacy Shop retirement brief](retire-legacy-shop.md)
