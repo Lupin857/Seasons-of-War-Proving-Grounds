@@ -137,21 +137,19 @@ function slotsHTML(short){
   const group = (label, n, used, cls) => `<span class="slotg">${label}<span class="pips" aria-hidden="true">${
     Array.from({length:n}, (_, k) => `<i class="pip${cls ? ' ' + cls : ''}${k < used ? ' used' : ''}"></i>`).join('')}</span><span class="sr">${n - used} of ${n} left</span></span>`;
   return `<div class="slots">
-      ${group(short ? 'Buys' : 'Buys', buysOf(b), b.u + b.b)}
+      ${group('Buys', buysOf(b), b.u + b.b)}
       ${carp ? group(short ? 'Guild' : "Carpenter's buys", carp, b.carp) : ''}
-      ${group(short ? 'Field' : 'Field', fieldCap(me), Math.min(fieldCap(me), b.fld || 0))}
-      ${group(short ? '<span class="gold">+$1</span>' : 'Extra buy +$1', 1, b.extra ? 1 : 0, 'x')}
+      ${group('Field', fieldCap(me), Math.min(fieldCap(me), b.fld || 0))}
       ${b.favN ? group(short ? 'Favor' : 'Divine Favor', b.favN, b.favN - b.fav, 'x') : ''}
     </div>`;
 }
-// a deck tile's buys left, on one line: buy squares and the gold extra-buy coin together, then Field (and the rare
-// Carpenter's and Divine Favor pips). Side i's color.
+// A deck tile's buys left, on one line: regular buys, Field limit, and any Carpenter's or Divine Favor pips.
 function tileSlotsHTML(i){
   const me = G.players[i], b = G.buys[i], carp = bVal(me, "Carpenter's Guild");
   const pips = (n, used, cls) => Array.from({length:n}, (_, k) => `<i class="pip${cls ? ' ' + cls : ''}${k < used ? ' used' : ''}"></i>`).join('');
   const g = (label, inner) => `<span class="slotg">${label}<span class="pips">${inner}</span></span>`;
   const fc = fieldCap(me);
-  return `<span class="tslots">${g('Buys', pips(buysOf(b), b.u + b.b) + `<span class="xsep"></span>` + pips(1, b.extra ? 1 : 0, 'x'))}${g('Field', pips(fc, Math.min(fc, b.fld || 0)))}${carp ? g('Guild', pips(carp, b.carp)) : ''}${b.favN ? g('Favor', pips(b.favN, b.favN - b.fav, 'x')) : ''}</span>`;
+  return `<span class="tslots">${g('Buys', pips(buysOf(b), b.u + b.b))}${g('Field', pips(fc, Math.min(fc, b.fld || 0)))}${carp ? g('Guild', pips(carp, b.carp)) : ''}${b.favN ? g('Favor', pips(b.favN, b.favN - b.fav, 'x')) : ''}</span>`;
 }
 // The phone bar along the bottom of the screen, in every phase: which phase it is, what to do right now, and the
 // button that moves the game on (Pass, Lock in, Next step, Continue). It stands out when it's waiting on you.

@@ -18,14 +18,15 @@ test (`record`) together. "Open" items at the bottom are known gaps between the 
 - Income each shop: base + income cards. Money carries over.
 - Display: 5 units and 5 supports. Unbought cards turn sideways and come back once; unbought again, they go face up to
   the discard pile. Refills (module): a bought card is replaced from its deck at once.
-- Per shop: 3 buys of any kind (units, supports, gear), plus once per shop one extra buy for $1 more. At most
-  1 Moisture Harvester [Field] per shop. Moisture Harvesters ($1, +$1 income) and Drifters [Recruit] ($1 token) are
-  always for sale.
-- Caravan [City]: 5 support slots; duplicates share a slot, Moisture Harvesters don't take one.
+- By default, each player gets 3 buys per shop, shared by units, supports and gear. Mobile Workshop and Divine Favor
+  can grant extra buys. Moisture Harvesters [Field] ($1, +$1 income) and Drifters [Recruit] ($1 token) are always for
+  sale and each uses a buy. The default limit is 1 Moisture Harvester per shop.
+- The Caravan [City] has 5 support slots. Duplicate supports share a slot, and each Moisture Harvester takes its own slot.
 - Selling: on your shop turn, any number of cards for $1 each ($2 with The Bazaar), including cards bought this shop
   and gear in hand. Doesn't use a buy or end the turn. A sold unit/support drops one level. Sold cards go face up to
   the discard pile (Moisture Harvesters return to the supply). Altar of Sublimation [Altar of Blood] can't be sold.
-- Discard pile: face up, public. Only Scrapyard [War College] takes from it (see Open).
+- The discard pile is face up and public. Scrapyard [War College] lets you buy duplicates of cards you own from the
+  discard pile for free. Each duplicate uses a buy.
 - Supports with shop effects: Mobile Workshop [Carpenter's Guild] (+1/2/3 buys of any kind, supports $1 cheaper,
   minimum $1); The Fence [Black Market] ($2: once per shop look at the top 3/4/5 of one deck, buy one for $1/2/3 less
   with a normal buy, rest go to the bottom); Dowser's Blessing [Mason's Guild] (attaches to a support as an extra
@@ -92,14 +93,12 @@ abilities trigger as they fall and resolve in their own step after (Corpse Loote
 Outpost. The War Drums battle miracle is retired (War Drums is gear).
 
 ## Open: code differs from Brian's decisions (fix the code, then move the rule up)
-1. **Scrapyard [War College]** (confirmed Nov 2026): should take duplicates of **any card type** you own from the
-   discard pile, free, but **using a buy**. Code still does units only, without a buy.
-2. **Bottoming:** Brian wants to remove putting cards on the bottom of a deck. Still in code: The Fence leftovers,
+1. **Bottoming:** Brian wants to remove putting cards on the bottom of a deck. Still in code: The Fence leftovers,
    miracles turned up by The Fence/Vision, Field Medic, Infirmary Tent, Second Wind, Sand Sailor. Replacements not
    decided yet; ask before changing.
-3. **Heirloom Blade** (confirmed): during battle it moves from its defeated wearer to the next unit in the deck with no
+2. **Heirloom Blade** (confirmed): during battle it moves from its defeated wearer to the next unit in the deck with no
    gear (engine is right); after the battle it returns to the unit it was first equipped to (the gear memory,
    `p.equip`, already restores that). Only the Rules tab text is wrong ("moves to your Rearguard").
-4. **Lance:** code gives +1 power; Brian described +2. Check the Sheets.
-5. **Names:** Novice Soldier vs. Observant Novice (Studious Squire's display name); White Knight still mapped though
+3. **Lance:** code gives +1 power; Brian described +2. Check the Sheets.
+4. **Names:** Novice Soldier vs. Observant Novice (Studious Squire's display name); White Knight still mapped though
    removed.

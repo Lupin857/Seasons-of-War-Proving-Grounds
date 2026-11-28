@@ -60,4 +60,43 @@ const originalSettings = api.settings.get();
 api.settings.set({miracles: !originalSettings.miracles});
 assert.equal(ctx.MIRACLES_ON, !originalSettings.miracles, 'settings API must keep the legacy UI switch in sync');
 api.settings.set(originalSettings);
+
+const startShop = vm.runInContext('startShop', ctx);
+const buyInShop = (game, src, idx) => api.shop.act('buy', game, 0, src, idx);
+function openShop(setup){
+  const game = api.game.create({rnd:api.random.mulberry32(712), su:setup});
+  game.firstOverride = 0;
+  startShop(game);
+  game.players[0].money = 30;
+  return game;
+}
+const regular = openShop();
+assert.equal(regular.buys[0].cap, 3, 'the default shop starts with three regular buys');
+assert.equal(buyInShop(regular, 'recruit'), true, 'a Drifter uses a regular buy');
+assert.equal(api.shop.act('pass', regular, 1), true);
+assert.equal(buyInShop(regular, 'field'), true, 'a Moisture Harvester uses the same buy pool');
+assert.equal(buyInShop(regular, 'field'), false, 'the default Harvester limit is one per shop');
+assert.equal(buyInShop(regular, 'recruit'), true, 'the third regular buy succeeds');
+assert.equal(buyInShop(regular, 'recruit'), false, 'a fourth regular buy is unavailable even with spare water');
+
+regular.buys[0].extra = true;
+assert.equal(buyInShop(regular, 'recruit'), false, 'a legacy saved paid buy does not affect the regular limit');
+regular.players[0].city["Carpenter's Guild"] = 1;
+assert.equal(buyInShop(regular, 'recruit'), true, 'Mobile Workshop still grants its card buy');
+regular.players[0].mir.push('Divine Favor');
+assert.equal(api.shop.act('useFavor', regular, 0), true);
+assert.equal(buyInShop(regular, 'recruit'), true, 'Divine Favor still grants its card buy');
+assert.equal(buyInShop(regular, 'recruit'), false, 'card buys run out after use');
+
+const custom = openShop({pl:[{buys:2}, {buys:4}]});
+custom.players[0].city['War College'] = 1;
+custom.players[0].gear.Lance = 1;
+custom.muster.push('Lance');
+assert.equal(custom.buys[1].cap, 4, 'custom allowances may differ by player');
+assert.equal(buyInShop(custom, 'mu', 0), true, 'Scrapyard lets players buy an owned gear duplicate');
+assert.equal(custom.players[0].money, 30, 'Scrapyard duplicates are free');
+assert.equal(api.shop.act('pass', custom, 1), true);
+assert.equal(buyInShop(custom, 'recruit'), true);
+assert.equal(buyInShop(custom, 'recruit'), false, 'Scrapyard spends one of the player’s custom regular buys');
+
 console.log(`PASS: ${moduleIds.length} ordered engine modules and stable OasisEngine API`);

@@ -4,7 +4,7 @@
    Each page applies both players' moves in turn order, so both arrive at the same game without ever sending it.
    Moves are kept on this device too, so a reload can rejoin the room and replay them. */
 let NET = null, ROOM_NS;
-const NET_V = 5;
+const NET_V = 6;
 const netCards = () => [...new Set([...Object.keys(DEFS), ...Object.keys(BDEFS)])].sort();
 const netIx = n => { const k = netCards().indexOf(n); return k < 0 ? n : k; };
 const netName = x => typeof x === 'number' ? netCards()[x] : x;
@@ -110,7 +110,7 @@ function peerJoin(name, o){
     link: () => link
   });
 }
-function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, rf:NET.rf, su:NET.su, ready:NET.ready, at:Date.now()}); }
+function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {v:NET_V, code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, rf:NET.rf, su:NET.su, ready:NET.ready, at:Date.now()}); }
 function netPresence(){
   if (!NET || !NET.room || NET.seat == null) return;
   const pr = {app:'sow', v:NET_V, code:NET.code, seat:NET.seat, name:NET.name, hash:NET.hash, acts:NET.acts};

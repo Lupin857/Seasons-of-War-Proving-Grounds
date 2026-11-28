@@ -387,7 +387,7 @@ function endPress(){
 $('view-play').addEventListener('pointerdown', e => {
   const card = e.target.closest('.mktp .mcard, .fcards .mcard, .dgrid .mcard'); if (!card || e.button > 0 || card.classList.contains('masonpick') || card.classList.contains('tcard') || card.classList.contains('writtgt') || card.classList.contains('writoff')) return;
   if (compact()) return;   // phones open a card with a tap instead
-  if (typeof matDesk === 'function' && matDesk() && card.closest('.osdesk')) return;   // the desktop mat opens on click
+  if (typeof matDesk === 'function' && matDesk() && card.closest('.osshop.osdesk')) return;   // the desktop Shop opens on click
   if (e.pointerType !== 'mouse' && card.closest('.dgrid')) return;   // touch: holding a Mobilize card picks it up to drag; double-tap reads it
   endPress();
   press = {x:e.clientX, y:e.clientY, t:setTimeout(() => openPeek(card), 380)};
@@ -412,7 +412,7 @@ $('view-play').addEventListener('click', e => {
   if (e.target.closest('button')) return;
   if (!compact() && (e.target.closest('.hgtok') || e.target.closest('.mcard.hasmir'))) return;   // desktop: a covered card's click shows its miracles   // the card's own buttons (pressed for you from the sheet) act as usual
   const card = e.target.closest('.mktp .mcard, .fcards .mcard, .pkwin .mcard'); if (!card || card.classList.contains('masonpick') || card.classList.contains('writtgt') || card.classList.contains('writoff') || e.target.closest('.mirpop')) return;
-  if (typeof matDesk === 'function' && matDesk() && card.closest('#view-play .osdesk')) return;
+  if (typeof matDesk === 'function' && matDesk() && card.closest('#view-play .osshop.osdesk')) return;
   e.stopPropagation(); e.preventDefault(); openPeek(card, true);
 }, true);
 // the press that opened a peek must not also buy the card

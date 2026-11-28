@@ -291,22 +291,18 @@ function bazaarCaptureBattle(){
   const view = $('view-play'), line = view.querySelector('.stage .line.matz');
   if (!matDesk() || reduceMotion() || !line || !ui.battle || G.over || ui.frame !== ui.battle.frames.length - 1) return;
   const camera = matDesktopBattleCamera();
-  const scene = ui.battle.matSeats, final = ui.battle.frames[ui.frame].snap, mine = seat();
+  const final = ui.battle.frames[ui.frame].snap, mine = seat();
   const style = line.style.cssText;
   line.style.setProperty('transform', 'none', 'important');
   const sideData = ['me', 'opp'].map((side, index) => {
     const strip = view.querySelector(`.osstrip.${side}`), row = strip?.querySelector('.oscarrow');
     if (!row) return null;
-    const stripTransform = strip.style.transform;
-    strip.style.transform = 'none';
-    const rowRect = row.getBoundingClientRect(), anchor = strip.matches('.osstrip-anchored') && scene?.[side];
-    const dx = anchor ? anchor.left - rowRect.left : 0, dy = anchor ? anchor.top - rowRect.top : 0;
-    const anchored = el => { const r = el.getBoundingClientRect(); return {left:r.left + dx, top:r.top + dy, width:r.width, height:r.height}; };
-    const caravan = [...row.querySelectorAll('.oscar')].map(card => ({card, name:card.dataset.b, r:anchored(card)}));
-    const purse = strip.querySelector('.ospurse'), bank = purse && {purse, r:anchored(purse)};
+    const cards = [...row.querySelectorAll('.oscar')], purse = strip.querySelector('.ospurse');
     const bench = strip.querySelector('.osbench-face');
-    const benchPile = bench && {r:anchored(bench), name:bench.querySelector('.cfm')?.dataset.n, layers:bench.parentElement.querySelectorAll('.oback').length};
-    strip.style.transform = stripTransform;
+    const flat = matFlatRects(strip.closest('.osplane'), [...cards, purse, bench]);
+    const caravan = cards.map(card => ({card, name:card.dataset.b, r:flat.get(card)}));
+    const bank = purse && {purse, r:flat.get(purse)};
+    const benchPile = bench && {r:flat.get(bench), name:bench.querySelector('.cfm')?.dataset.n, layers:bench.parentElement.querySelectorAll('.oback').length};
     const playerIndex = index ? 1 - mine : mine;
     const player = final[playerIndex], zones = line.querySelector(`.trow.s${index}`);
     const pile = (selector, name, layers = 0) => {

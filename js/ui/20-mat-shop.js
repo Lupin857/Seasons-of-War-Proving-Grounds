@@ -69,7 +69,8 @@ function matSeatHTML(i, mode = 'shop'){
   }
   const act = mode === 'shop' && G.phase === 'shop' && !G.passed[i] && cur(G) === i;   // whose turn it is: their bar glows
   const side = desk ? `<span class="osside" aria-hidden="true">${PP() || G.net ? esc(nm(i)) : mine ? 'You' : 'Enemy'}</span>` : '';
-  if (strip) rest = `<i class="osbardiv" aria-hidden="true"></i>${mine ? matBattleBenchHTML() : ''}${matDeskPilesHTML(i, hand, 'battle')}${matPurseHTML(i)}`;
+  if (strip) rest = `<i class="osbardiv" aria-hidden="true"></i><div class="ospile osbattle-pile">${mine ? matBattleBenchHTML() : ''}</div>
+    <div class="ospile osbattle-pile" aria-hidden="true"></div>${matDeskPilesHTML(i, hand, 'battle')}${matPurseHTML(i)}`;
   return `<section class="osseat ${strip ? 'osrow osstrip' : desk ? 'osrow' : 'osbar'} ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" aria-label="${who} side${act ? ', shopping now' : ''}">
     ${side}<div class="fcards oscarrow" style="--n:${spots}" aria-label="${who} Caravan, ${slotsUsed(p)} of ${cap}">${carHTML}</div>${rest}
   </section>`;
@@ -130,11 +131,13 @@ function matDeskPilesHTML(i, hand, mode = 'shop'){
     <span class="ospile-stock">${edges(dn, true)}${dtop ? top(dtop, false, true) : '<span class="osslot" aria-hidden="true"></span>'}</span><span class="ostag">${esc(dtag)}</span></button>`;
   // bought this shop: the latest buy on top (it hides while a rival's buy is still on its way to it)
   const bn = purchases.length, btop = purchases.at(-1), b = G.buys && G.buys[i], left = b ? Math.max(0, baseLeft(b)) : 0, of = b ? buysOf(b) : 3;
+  const bonus = b ? Math.max(0, bVal(p, "Carpenter's Guild") - b.carp) + (b.fav || 0) : 0;
+  const buysLabel = `${left} of ${of} regular buys left${bonus ? `, ${bonus} bonus ${bonus === 1 ? 'buy' : 'buys'} left` : ''}`;
   const bhide = btop && (matWaitN(i, 'pile') || matWaitN(i, btop));
   const pileTag = mine ? 'button' : 'div';
   const pileAction = mine ? ` type="button" data-act="deck-open" data-p="${i}" aria-haspopup="dialog"` : '';
-  const boughtPile = `<${pileTag} class="ospile osbought s${VS(i)}"${pileAction} aria-label="Bought this shop: ${bn} card${bn === 1 ? '' : 's'}, ${left} of ${of} buys left">
-    <span class="ospile-stock">${layers(purchases)}${btop ? top(btop, bhide, mine) : '<span class="osslot" aria-hidden="true"></span>'}</span><span class="ostag osgold">Bought this shop<br>${left}/${of} buys left</span></${pileTag}>`;
+  const boughtPile = `<${pileTag} class="ospile osbought s${VS(i)}"${pileAction} aria-label="Bought this shop: ${bn} card${bn === 1 ? '' : 's'}, ${buysLabel}">
+    <span class="ospile-stock">${layers(purchases)}${btop ? top(btop, bhide, mine) : '<span class="osslot" aria-hidden="true"></span>'}</span><span class="ostag osgold">Bought this shop<br>${left}/${of} buys left${bonus ? ` · +${bonus} bonus` : ''}</span></${pileTag}>`;
   // Miracles: face down with the count (yours opens the miracles tray, as the phone's Miracles button does)
   let mir = '';
   // Mobilize: both decks are lifted off the mat (the bought pile joined the deck at the end of the shop)
@@ -149,11 +152,37 @@ function matDeskPilesHTML(i, hand, mode = 'shop'){
   if (mode === 'battle') return mir;   // the battle's strip: the Caravan, Miracles and the water
   return deckPile + boughtPile + mir;
 }
-// renderPlay's step: the bars (and the mat between them) start right where the top bar ends on screen (--gtb), so the
-// rival's bar is at the same place in every phase whatever the page's scroll (the battle can scroll a little)
 const MATDESK_BOUNDS = new WeakMap();
+// Choose one printed card width from the room available for the entire desktop tabletop.
+const MAT_DESK_CAMERA = {d:2100, t:14};
+let matDeskLayout;
+function matDesktopLayout(){
+  const w = innerWidth, h = innerHeight;
+  const previous = matDeskLayout?.game === G ? matDeskLayout : null;
+  const slots = Math.max(previous?.slots || 0, ...G.players.map(p => Math.max(citySlots(p), slotsUsed(p))));
+  if (previous?.w === w && previous.h === h && previous.slots === slots) return previous;
+  const offers = Math.max(dispSize(G, 'u'), dispSize(G, 'b'));
+  // Market: two sources, sideways offer slots, and a sideways discard. Seats: keep room for both
+  // inventory slots and the bank, even when the inventory is off the tabletop during Battle.
+  const marketWidth = (w - 188) / (2.6 + 1.4 * offers);
+  const seatCards = slots + 2 + Number(G.miracles);
+  const seatWidth = (w - 218 - (G.miracles ? 12 : 0)) / (seatCards + (seatCards + 2) * .07);
+  const width = Math.max(24, Math.floor(Math.min(173, marketWidth, seatWidth, (h - 104) / 5.55) * 10) / 10);
+  const camera = {...MAT_DESK_CAMERA, ox:w / 2, oy:h};
+  const a = camera.t * Math.PI / 180;
+  const flatY = y => {
+    const dy = y - h;
+    return h + dy / (Math.cos(a) + dy * Math.sin(a) / camera.d);
+  };
+  const style = document.documentElement.style;
+  style.setProperty('--deskmw', width + 'px');
+  style.setProperty('--desk-far-top', flatY(18) + 'px');
+  style.setProperty('--desk-caravan-slots', String(slots));
+  return matDeskLayout = {game:G, w, h, slots, width, camera, flatY};
+}
 function matBarsAfterDraw(geometryOnly = false){
   const desk = document.querySelector('#view-play .osshop.osdesk');
+  if (matDesk()) matDesktopLayout();
   if (!document.querySelector('#view-play .osbar') && !desk) return;
   if (window.scrollY && !matBarsAfterDraw.busy){ matBarsAfterDraw.busy = true; window.scrollTo(0, 0); matBarsAfterDraw.busy = false; }   // the page sits at its top in every phase on the mat, so nothing shifts between them
   const g = $('gtop'), b = g && g.offsetHeight ? Math.round(g.getBoundingClientRect().bottom) : null;
@@ -164,7 +193,7 @@ function matBarsAfterDraw(geometryOnly = false){
     if (geometryOnly && previous && box.top === previous.top && box.left === previous.left &&
         box.width === previous.width && box.height === previous.height) return;
     MATDESK_BOUNDS.set(desk, box);
-    matFitDesk(desk, box);
+    matFitDesk(desk);
     matDeskMobLayout();
     if (!geometryOnly) matShopInspectCards(desk);
     return;
@@ -197,73 +226,36 @@ function matFitMat(){
   }
   shop.style.setProperty('--mw', Math.floor(lo * 10) / 10 + 'px');
 }
-// desktop: the card width (--mw) that fits the whole mat (both rows and the trays) in the window, in its tilt, rows
-// anchored to the bottom; about 173 px at 1920x1080 (the mock-up). Searched on screen, so the tilt is included.
-function matFitDesk(shop, box = shop.getBoundingClientRect()){
-  const inner = shop.querySelector('.osinner'); if (!inner) return;
-  for (const key of ['--shop-middle-offset', '--caravan-far-y', '--caravan-far-x']) shop.style.removeProperty(key);
-  const fits = width => {
-    shop.style.setProperty('--mw', width + 'px');
-    for (const c of inner.children){
-      const r = c.getBoundingClientRect();
-      if (r.height && (r.top < box.top || r.bottom > box.bottom || r.left < box.left || r.right > box.right)) return false;
-    }
-    return true;
-  };
-  // Search exact tenths of a pixel so a second draw cannot creep toward a wider fit.
-  let lo = 600, hi = 3201;
-  const previous = Math.round(parseFloat(document.documentElement.style.getPropertyValue('--deskmw')) * 10);
-  if (previous >= lo && previous < hi){
-    if (fits(previous / 10)){
-      lo = previous;
-      if (previous < 3200 && fits((previous + 1) / 10)) lo++;
-      else hi = previous + 1;
-    } else hi = previous;
+// Center the rug between the projected caravans. The seat anchors belong to the shared tabletop.
+function matFitDesk(shop){
+  const market = shop.querySelector('.osmkt');
+  if (!market) return;
+  const {flatY} = matDesktopLayout();
+  const farRow = shop.querySelector('.osseat.opp .oscarrow'), nearRow = shop.querySelector('.osseat.me .oscarrow');
+  const far = farRow.getBoundingClientRect(), near = nearRow.getBoundingClientRect();
+  const r = market.getBoundingClientRect();
+  const current = parseFloat(shop.style.getPropertyValue('--shop-middle-offset')) || 0;
+  const offset = flatY((far.bottom + near.top) / 2) - flatY((r.top + r.bottom) / 2);
+  if (Math.abs(offset) > .02) shop.style.setProperty('--shop-middle-offset', current + offset + 'px');
+  const rug = market.querySelector('.osbazaar');
+  if (rug){
+    const centered = market.getBoundingClientRect();
+    const farTags = [...farRow.closest('.osseat').querySelectorAll('.ospile > .ostag')];
+    const nearTags = [...nearRow.closest('.osseat').querySelectorAll('.ospile > .ostag')];
+    const clearance = Math.max(12,
+      ...farTags.map(tag => tag.getBoundingClientRect().bottom - far.bottom + 6),
+      ...nearTags.map(tag => near.top - tag.getBoundingClientRect().top + 6));
+    const gap = Math.max(0, Math.min(clearance, centered.top - far.bottom, near.top - centered.bottom));
+    rug.style.setProperty('--rug-top', flatY(far.bottom + gap) - flatY(centered.top) + 'px');
+    rug.style.setProperty('--rug-bottom', flatY(centered.bottom) - flatY(near.top - gap) + 'px');
   }
-  while (hi - lo > 1){
-    const middle = Math.floor((lo + hi) / 2);
-    if (fits(middle / 10)) lo = middle; else hi = middle;
-  }
-  const mw = lo / 10 + 'px';
-  shop.style.setProperty('--mw', mw); document.documentElement.style.setProperty('--deskmw', mw);   // (the battle's Caravan strips keep this size)
-  const market = inner.querySelector('.osmkt');
-  const farRow = inner.querySelector('.osseat.opp .oscarrow'), nearRow = inner.querySelector('.osseat.me .oscarrow');
-  const camera = matTiltOf();
-  if (market && farRow && nearRow && camera){
-    const radians = camera.t * Math.PI / 180;
-    const unproject = y => (y - camera.oy) /
-      (Math.cos(radians) + (y - camera.oy) * Math.sin(radians) / camera.d);
-    const flat = matFlatRects(inner.parentElement, [farRow, nearRow]);
-    const near = nearRow.getBoundingClientRect(), farY = farRow.getBoundingClientRect().top;
-    const targetTop = box.top + (box.bottom - near.bottom);
-    shop.style.setProperty('--caravan-far-y', unproject(targetTop) - unproject(farY) + 'px');
-    shop.style.setProperty('--caravan-far-x', flat.get(nearRow).left - flat.get(farRow).left + 'px');
-    const far = farRow.getBoundingClientRect(), r = market.getBoundingClientRect();
-    const middle = (r.top + r.bottom) / 2, target = (far.bottom + near.top) / 2;
-    const min = unproject(far.bottom) - unproject(r.top), max = unproject(near.top) - unproject(r.bottom);
-    const offset = Math.max(min, Math.min(max, unproject(target) - unproject(middle)));
-    shop.style.setProperty('--shop-middle-offset', offset + 'px');
-    const rug = market.querySelector('.osbazaar');
-    if (rug){
-      const centered = market.getBoundingClientRect();
-      const farTags = [...farRow.closest('.osseat').querySelectorAll('.ospile > .ostag')];
-      const nearTags = [...nearRow.closest('.osseat').querySelectorAll('.ospile > .ostag')];
-      const clearance = Math.max(12,
-        ...farTags.map(tag => tag.getBoundingClientRect().bottom - far.bottom + 6),
-        ...nearTags.map(tag => near.top - tag.getBoundingClientRect().top + 6));
-      const gap = Math.max(0, Math.min(clearance, centered.top - far.bottom, near.top - centered.bottom));
-      rug.style.setProperty('--rug-top', unproject(far.bottom + gap) - unproject(centered.top) + 'px');
-      rug.style.setProperty('--rug-bottom', unproject(centered.bottom) - unproject(near.top - gap) + 'px');
-    }
-  }
-  const discard = inner.querySelector('.osdisc')?.getBoundingClientRect();
+  const discard = shop.querySelector('.osdisc')?.getBoundingClientRect();
   if (discard){
     const style = document.documentElement.style;
     style.setProperty('--desk-score-x', Math.max(106, Math.min(innerWidth - 106, discard.left + discard.width / 2)) + 'px');
     style.setProperty('--desk-score-y', Math.max(48, discard.top - 12) + 'px');
   }
   bazaarFitRug(shop);
-  const mob = document.querySelector('#view-play .osdeskmob'); if (mob) mob.style.setProperty('--mw', mw);   // Mobilize's cards are the board's size
 }
 const MATBARS_SEEN = new WeakSet();
 const matBarsHere = () => !!document.querySelector('#view-play :is(.osbar, .osshop.osdesk)');
@@ -2244,8 +2236,14 @@ function matBattleBenchHTML(){
   const bench = (ui.battle?.matSeats || MATBAT.prep?.seats)?.bench;
   if (!bench?.count) return '';
   const edges = Array.from({length:Math.min(3, bench.count - 1)}, (_, i) => `<i class="oback" style="--k:${i + 1}"></i>`).join('');
-  return `<div class="ospile osbenchpile" role="img" aria-label="Unused bench cards" style="--benchw:${bench.width}px">${edges}
+  return `<div class="osbenchpile" role="img" aria-label="Unused bench cards">${edges}
     <div class="osbench-face">${bench.face}</div></div>`;
+}
+function matBattleSeatsHTML(opp, me){
+  const seats = matSeatHTML(opp, 'battle') + matSeatHTML(me, 'battle');
+  return matDesk()
+    ? `<div class="osbars osdesk osbattle-table"><div class="osplane"><div class="osinner">${seats}</div></div></div>`
+    : `<div class="osbars">${seats}</div>`;
 }
 function matBatScene(mat, mob){
   const L = {mat, mob};
@@ -2255,11 +2253,8 @@ function matBatScene(mat, mob){
     return L;
   }
   const plane = mat.querySelector('.osplane'), projection = matTiltOf();
-  const me = mat.querySelector('.osseat.me .oscarrow'), opp = mat.querySelector('.osseat.opp .oscarrow');
-  const nearSeat = me.closest('.osseat'), farSeat = opp.closest('.osseat');
-  const nearPurse = nearSeat.querySelector('.ospurse'), farPurse = farSeat.querySelector('.ospurse');
   const home = mat.querySelector('.osseat.me .osdeck > .osslot');
-  const flat = matFlatRects(plane, [me, opp, nearSeat, farSeat, nearPurse, farPurse, home]);
+  const r = matFlatRects(plane, [home]).get(home);
   const fan = [...mob.querySelectorAll('#mz-bench .osfanslot')], scroll = mob.querySelector('.osmob-bench-scroll');
   const bounds = scroll.getBoundingClientRect();
   const visible = fan.filter(slot => {
@@ -2267,62 +2262,15 @@ function matBatScene(mat, mob){
     return rect.bottom > bounds.top && rect.top < bounds.bottom;
   });
   const card = (visible.at(-1) || fan.at(-1))?.firstElementChild;
-  const r = flat.get(home);
-  const croppedRow = row => {
-    const rect = flat.get(row);
-    const drop = matCropMetrics(row.querySelector('.oscar') || row.firstElementChild).drop;
-    return {left:rect.left, top:rect.top + drop, seatWidth:flat.get(nearSeat).width, purse:flat.get(nearPurse)};
-  };
-  const benchFace = card?.querySelector('.mzface'), benchCrop = benchFace && matCropMetrics(benchFace);
+  const benchFace = card?.querySelector('.mzface');
   L.fan = fan;
   L.visibleBench = new Set(visible);
-  L.seats = {projection, viewW:innerWidth, viewH:innerHeight, width:parseFloat(getComputedStyle(mat).getPropertyValue('--mw')),
-    me:croppedRow(me), opp:{left:flat.get(opp).left, top:flat.get(opp).top, seatWidth:flat.get(farSeat).width, purse:flat.get(farPurse)},
-    bench:benchCrop && r ? {left:r.left, top:r.top, drop:benchCrop.drop, width:benchCrop.width,
+  L.seats = {projection, bench:benchFace && r ? {left:r.left, top:r.top, width:r.width,
       count:fan.length, face:benchFace.innerHTML} : null};
   return L;
 }
 function matDesktopBattleCamera(){
-  const scene = ui.battle?.matSeats;
-  if (scene && scene.viewW === innerWidth && scene.viewH === innerHeight) return scene.projection;
-  return {d:2100, t:14, ox:innerWidth / 2, oy:innerHeight};
-}
-function matPlaceBattleStrips(){
-  const scene = ui.battle?.matSeats || MATBAT.prep?.seats;
-  const anchor = scene && scene.viewW === innerWidth && scene.viewH === innerHeight;
-  const strips = document.querySelectorAll('#view-play .osbars .osstrip');
-  for (const strip of strips){
-    strip.classList.toggle('osstrip-anchored', !!anchor);
-    strip.style.transform = '';
-    strip.style.width = '';
-    const purse = strip.querySelector('.ospurse');
-    const pile = strip.querySelector('.osbenchpile');
-    if (purse) { purse.style.left = ''; purse.style.top = ''; }
-    if (pile) pile.style.translate = '';
-    if (!anchor){
-      strip.style.transformOrigin = '0 0';
-      strip.style.transform = 'none';
-      const rect = strip.getBoundingClientRect();
-      strip.style.transform = new DOMMatrix().translate(-rect.left, -rect.top)
-        .multiply(matTiltMatrix(1, matDesktopBattleCamera())).translate(rect.left, rect.top).toString();
-      continue;
-    }
-    strip.style.transformOrigin = '';
-    const side = strip.classList.contains('me') ? 'me' : 'opp', original = scene[side];
-    strip.style.width = original.seatWidth + 'px';
-    const current = strip.querySelector('.oscarrow').getBoundingClientRect();
-    const x = original.left - current.left, y = original.top - current.top;
-    if (purse && original.purse){
-      purse.style.left = original.purse.left - x + 'px';
-      purse.style.top = original.purse.top - y + 'px';
-    }
-    if (pile && scene.bench){
-      const rect = pile.getBoundingClientRect();
-      pile.style.translate = `${scene.bench.left - rect.left - x}px ${scene.bench.top + scene.bench.drop - rect.top - y}px`;
-    }
-    strip.style.transform = matTiltMatrix(1, matDesktopBattleCamera()).translate(x, y).toString();
-  }
-  return !!anchor;
+  return matDesktopLayout().camera;
 }
 function matBatPrepare(){
   if (!matDesk() || !labMatZones() || reduceMotion() || MATBAT.prep?.game === G) return false;
@@ -2467,13 +2415,14 @@ function matBatBenchFold(L){
   const motion = [];
   const {duration, gap} = matPileMotion(L.fan.length, false);
   const scroll = L.mob.querySelector('.osmob-bench-scroll');
-  const offset = scroll.scrollTop, w = home.width;
+  const offset = scroll.scrollTop;
   scroll.classList.add('osbench-flight');
   if (offset) scroll.firstElementChild.style.translate = `0 ${-offset}px`;
   L.fan.forEach((slot, i) => {
     const row = slot.parentElement.getBoundingClientRect(), pose = slot._pose;
     if (!pose) return;
-    const card = slot.firstElementChild, r = {left:row.left + pose.x, top:row.top + pose.y, width:w, height:card.offsetHeight};
+    const card = slot.firstElementChild, w = parseFloat(getComputedStyle(card.querySelector('.mzface')).width);
+    const r = {left:row.left + pose.x, top:row.top + pose.y, width:w, height:card.offsetHeight};
     if (!L.visibleBench.has(slot)) { slot.style.visibility = 'hidden'; return; }
     const layout = {left:row.left, top:row.top, width:w, height:r.height};
     const frames = matArc(layout, {r, tilt:0, rot:pose.rot}, {r:home, tilt:1},

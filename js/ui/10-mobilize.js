@@ -546,7 +546,16 @@ function mzDragFrame(p, scroll = true){
 }
 // the deck's cards in layout order (back to front), the slot included
 // each card's name strip as a share of its width: the layout's --mzsr on #mz-deck if it sets one (the desktop cascade)
-const mzStripR = () => { const d = $('mz-deck'), v = d ? parseFloat(getComputedStyle(d).getPropertyValue('--mzsr')) : NaN; return v > 0 ? v : MZ_STRIP; };
+const mzStripR = () => {
+  const deck = $('mz-deck'), row = deck?.querySelector('.mzc:not(:last-child)');
+  if (row && deck.closest('.osdeskmob')){
+    const style = getComputedStyle(row), width = parseFloat(style.width);
+    const exposed = parseFloat(style.height) + parseFloat(style.marginBottom);
+    if (width > 0 && exposed > 0) return exposed / width;
+  }
+  const ratio = deck ? parseFloat(getComputedStyle(deck).getPropertyValue('--mzsr')) : NaN;
+  return ratio > 0 ? ratio : MZ_STRIP;
+};
 const mzRows = () => { const d = $('mz-deck'); return d ? [...d.children].filter(x => x.classList.contains('mzc') && !x.classList.contains('mz-gone')) : []; };
 // which card's band a height on screen falls in: each card owns its strip (and the room for its tokens above it);
 // above the top card counts as the top card, and everything below the front card's strip counts as the front card.

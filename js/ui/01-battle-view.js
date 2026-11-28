@@ -124,7 +124,7 @@ function lineHTML0(f, names){
     <div class="clash" aria-hidden="true">⚔︎</div>
     <div class="trow s0">${labDeck(sn[M], M, names)}${chargeZone(sn[M], M)}${labGrave(sn[M], M, names)}</div>
     ${cityRow(M)}
-  </div></div>${mz && G && G.players && typeof matSeatHTML === 'function' ? `<div class="osbars">${matSeatHTML(T, 'battle')}${matSeatHTML(M, 'battle')}</div>` : ''}`;
+  </div></div>${mz && G && G.players && typeof matBattleSeatsHTML === 'function' ? matBattleSeatsHTML(T, M) : ''}`;
 }
 function chronHTML(frames, at){
   return `<div class="chron">${frames.map((f, k) => [f, k]).filter(([, k]) => k <= at).reverse().map(([f, k]) => `<div class="fr ${k===at?'on':''} ${k>at?'future':''}" data-act="fr" data-k="${k}" tabindex="0"><h3>${esc(f.label)}</h3><ul>${
