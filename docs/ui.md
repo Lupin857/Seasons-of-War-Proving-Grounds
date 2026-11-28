@@ -158,6 +158,8 @@
 - **Nothing on the board moves.** Every charge and deck spot always keeps room for the biggest stack a card can have
   (`STACK_MAX` = 5 bands: copies, gear, Might, Training, Shield), on desktop and phone, in every splay
   (`labFixedRoom`). Duplicate copies share one band with a "×2" count, like tokens. Zone labels are one fixed height.
+  The desktop mat measures one frame per layout. The layout accounts for both graveyards and whether each deck
+  and charge spot is empty, has an art card, or has a plain card.
   Row heights only ever grow (`window.__rowKeep`), never shrink between battles. Check board changes with a
   headless test that a card and the empty outline sit at the same pixel spot in every step, on both sides.
 - Empty outlines (deck "Deck empty", charge and graveyard "Empty", in the zone-label lettering) are part of the
