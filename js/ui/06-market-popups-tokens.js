@@ -239,13 +239,14 @@ function dockHTML(){
 // Each side's money and limits live in the bottom bar (phone) and the deck tiles (desktop), not here.
 const GMENU_BTN = '<button type="button" class="gmenu-btn" data-gmenu aria-label="Menu" aria-haspopup="menu" aria-expanded="false"><span></span><span></span><span></span></button>';
 function pbarHTML(){
-  const D = DOCKINFO; if (!D) return '';
+  const D = DOCKINFO;
+  if (!D && !ui.roll && G.phase !== 'mobilize' && G.resignedBy == null && !(G.net && NET?.resignRequested)) return '';
   const B = hideResult() ? ui.pre : boardSnap();
   const shopping = G.phase === 'shop' && !ui.battle && !G.over;
   const L = VS(0), Rt = VS(1);
   const desktop = matDesk() && (matShopOn() || matMobOn() || (ui.battle && labMatZones()));
-  const bar = `<div class="pbsc">${desktop ? '' : GMENU_BTN}<span class="rl">Round ${G.round}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
-  const hint = shopping || matMobOn()   // the mat's Mobilize says what to do on the mat itself (and keeps the top bar the shop's height)
+  const bar = `<div class="pbsc">${desktop ? '' : GMENU_BTN}<span class="rl">${ui.roll ? 'Opening roll' : `Round ${G.round}`}</span><span class="sc" aria-label="Score ${B.tot[L]} to ${B.tot[Rt]}"><b class="a">${B.tot[L]}</b><span class="dash">–</span><b class="b">${B.tot[Rt]}</b></span><span class="rr">First to ${G.target}</span></div>`;
+  const hint = !D ? '' : shopping || matMobOn()   // the mat's Mobilize says what to do on the mat itself (and keeps the top bar the shop's height)
     ? (ui.visArm ? `<div class="pbhint mine"><span class="dtxt">${D.hint}</span></div>` : '')
     : `<div class="pbhint${D.mine ? ' mine' : ''}"><span class="dphase">${esc(D.phase)}</span><span class="dtxt">${D.hint}</span>${D.infob}</div>`;
   return `<div class="gtop gs${desktop ? ' gtop-mat' : ''}" id="gtop">${desktop ? GMENU_BTN : ''}${bar}${hint}</div>`;
@@ -376,6 +377,7 @@ function myPeeks(){ const S = seat(); return PEEK_BY.map(by => peekOf(G, S, by))
    by its top strip, tap ✕, Close or outside it to close. Closing a peek keeps the cards set aside: the deck glows
    "Peek 3" until you buy one or the shop ends. */
 function peekWinHTML(){
+  if (ui.resignWin) return resignWinHTML();
   if (ui.codeWin) return bcodeWinHTML();   // paste a battle code (js/ui/18-game-menu.js)
   if (ui.deckView === 0 || ui.deckView === 1){
     if (!G || ui.start || ui.roll || ui.remind){ ui.deckView = null; return ''; }
@@ -439,7 +441,7 @@ function popWinHTML(label, cls, top, body, foot){
     ${top}<div class="pkbody mktp">${body}</div>
     <div class="pkfoot"><p class="note">${foot}</p><button type="button" data-act="pk-close">Close</button></div></div></div>`;
 }
-const popShut = () => { ui.pkWin = null; ui.pkPending = false; ui.deckView = null; ui.mason = null; ui.codeWin = false; };
+const popShut = () => { ui.pkWin = null; ui.pkPending = false; ui.deckView = null; ui.mason = null; ui.codeWin = false; ui.resignWin = false; };
 function closePkWin(){ const w = $('view-play').querySelector('.pkwin'); if (w) w.remove(); popShut(); renderPlay(); }
 // every card in a pop-up or the turn summary is exactly the size of a market card: measure one and share it
 function syncCardSize(){

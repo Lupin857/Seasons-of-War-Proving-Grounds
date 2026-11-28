@@ -108,11 +108,22 @@ function netPump(){
 }
 // after any change: make sure a deck draft exists when it's time to mobilize, then draw
 function netAfter(){
+  // Only the host decides the outcome, after applying any available moves. A guest can resign out of turn.
+  if (G?.net && NET?.started && !NET.err){
+    if (!G.over && NET.seat === 0 && NET.resignedSeat == null && (NET.resignRequested || NET.peerResignRequested)){
+      NET.resignedSeat = NET.resignRequested ? 0 : 1;
+      netSave();
+    }
+    if (NET.resignedSeat != null && G.resignedBy == null){
+      finishResignedMatch(NET.resignedSeat);
+      if (NET.seat === 0) netPresence();
+    }
+  }
   if (G && G.net && NET && G.phase === 'mobilize' && !ui.battle && !ui.draft && NET.acts.length === NET.applied[NET.seat]) ui.draft = netClone(defaultDraft);
   renderPlay();
 }
 function netDo(a){
-  if (!NET || !G || !G.net || NET.err) return;
+  if (!NET || !G || !G.net || G.over || NET.err || NET.resignRequested) return;
   const S = NET.seat, caught = NET.acts.length === NET.applied[S];
   if (!caught) return;
   if (a[0] === 'd' ? G.phase !== 'mobilize' : (G.phase !== 'shop' || cur(G) !== S || ui.battle)) return;
@@ -189,7 +200,7 @@ async function netStartClick(a, resign){
   const joinCode = a === 'st-net-join' ? val('net-code').toLowerCase().replace(/[^a-z0-9]/g, '') : null;
   if (rejoin && !saved) return;
   if (joinCode !== null && joinCode.length !== 6){ ui.netErr = 'Room codes are 6 letters and numbers.'; renderPlay(); return; }
-  if (saved && (rejoin || joinCode === saved.code) && saved.v !== NET_V && saved.acts?.length){
+  if (saved && (rejoin || joinCode === saved.code) && !(saved.v >= NET_MIN_SAVE_V && saved.v <= NET_V) && saved.acts?.length){
     ui.netErr = 'This saved room uses the previous shop rules. Create a new room to play with the current rules.';
     renderPlay();
     return;
