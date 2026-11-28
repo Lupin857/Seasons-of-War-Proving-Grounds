@@ -3,7 +3,7 @@
    version; the cached copy is only used when the network is missing or slow.
    Card art and fonts: cache first (they rarely change).
    Bump VERSION whenever files are added, removed or renamed. */
-const VERSION = 'oasis-v12-shared-tabletop-three-buys';
+const VERSION = 'oasis-v14-resign-menu';
 const CORE = [
  "./",
  "index.html",

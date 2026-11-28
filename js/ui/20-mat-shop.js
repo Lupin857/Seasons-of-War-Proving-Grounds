@@ -273,12 +273,16 @@ function matTraysHTML(deck, row, extra, side, bazaar = false){
       ${extra[1] || ''}
     </div>${side ? `<div class="osright">${disc}${side}</div>` : ''}</div>`;
 }
+function matShopTraysHTML(S){
+  return matTraysHTML(k => deckPileHTML(k, false, true), (k, src) => marketRow(k, src, true),
+    [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${shopActsHTML()}</div>`, true);
+}
 function matShopHTML(){
   const S = seat();
   // desktop: both rows and the trays on one tilted mat, the discard and Pass on the right, no bottom bar
   if (matDesk()) return `<div class="osshop osdesk"><div class="osplane"><div class="osinner">
     ${matSeatHTML(1 - S)}
-    ${matTraysHTML(k => deckPileHTML(k, false, true), (k, src) => marketRow(k, src, true), [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${shopActsHTML()}</div>`, true)}
+    ${matShopTraysHTML(S)}
     ${matSeatHTML(S)}
   </div></div></div>
   ${mirTrayHTML()}${mirModalHTML()}`;
@@ -286,6 +290,33 @@ function matShopHTML(){
     ${matTraysHTML(k => deckPileHTML(k, false, true), marketRow, [writBarHTML(), frozenHTML(S)])}
   </div></div></div>
   ${mirTrayHTML()}${mirModalHTML()}`;
+}
+// An ordinary purchase updates the stock, which side is active, and both rows' buy controls.
+// Keep the surrounding board and its fitted geometry in place.
+function matRefreshPurchase(){
+  if (!matShopOn() || !matDesk() || !morphOn() || PP() || G.net || G.miracles ||
+      ui.deckView != null || ui.pkWin || ui.remind) return false;
+  const view = $('view-play'), desk = view.querySelector('.osshop.osdesk:not(.osmobmat)');
+  const score = view.querySelector('#gtop .pbsc .sc'), layout = matDeskLayout;
+  if (!desk || !score || view.querySelector('.osdeckfan, .pkwin, .remind') ||
+      !layout || matDesktopLayout() !== layout || !MATDESK_BOUNDS.has(desk)) return false;
+  const S = seat(), template = document.createElement('template');
+  template.innerHTML = matSeatHTML(1 - S) + matShopTraysHTML(S) + matSeatHTML(S);
+  const selectors = ['.osseat.opp', '.ostray[data-k="u"]', '.ostray[data-k="b"]', '.osright', '.osseat.me'];
+  const regions = selectors.map(selector => [desk.querySelector(selector), template.content.querySelector(selector)]);
+  if (regions.some(([current, next]) => !current || !next)) return false;
+  for (const [current, next] of regions){
+    if (current.matches('.osseat.opp')) mAttrs(current, next);
+    else mNode(current, next);
+  }
+  const points = boardSnap().tot, left = points[VS(0)], right = points[VS(1)];
+  const a = score.querySelector('.a'), b = score.querySelector('.b');
+  if (a.textContent !== String(left)) a.textContent = left;
+  if (b.textContent !== String(right)) b.textContent = right;
+  const label = `Score ${left} to ${right}`;
+  if (score.getAttribute('aria-label') !== label) score.setAttribute('aria-label', label);
+  matShopInspectCards(desk);
+  return true;
 }
 // the bottom bar on the mat: your purse, buys left, then Miracles and Pass (the same buttons the phone shop bar uses)
 function matDockHTML(mine, mirBtn, acts){

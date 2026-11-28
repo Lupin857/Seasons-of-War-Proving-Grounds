@@ -179,24 +179,50 @@ function reserveRows(){
     const probe = document.createElement('div');
     probe.className = 'stage'; probe.setAttribute('aria-hidden', 'true');
     probe.style.cssText = `position:absolute;left:-10000px;top:0;width:${w}px;visibility:hidden;pointer-events:none`;
-    st.parentNode.appendChild(probe);
     const names = PP() ? [poss(0), poss(1)] : ['Your', 'AI'], mx = [0, 0], rsv = {};
-    const zones = root => [...root.querySelectorAll('.trow')].flatMap(r => [...r.querySelectorAll(':scope > .chz, :scope > .deckz')].map(z => ({z, k:(r.classList.contains('s1') ? 's1' : 's0') + (z.classList.contains('chz') ? 'c' : 'd')})));
-    const face = z => z.querySelector('.charge > .card.hasart:not(.mini), .tzc > .card.hasart:not(.mini)');
-    // pass 1: every card spot keeps room for the biggest stack a card can have (STACK_MAX bands), in every battle,
-    // so the room never depends on what this battle happens to hold
-    if (typeof labFixedRoom === 'function'){ const fx = labFixedRoom(); for (const k of ['s0c', 's0d', 's1c', 's1d']) rsv[k] = fx.slice(); }
-    else for (const fr of ui.battle.frames){
-      probe.innerHTML = lineHTML(fr, names);
-      for (const {z, k} of zones(probe)){ const c = face(z); if (!c) continue; const cs = getComputedStyle(c), m = rsv[k] || (rsv[k] = [0, 0]);
-        m[0] = Math.max(m[0], parseFloat(cs.marginTop) || 0); m[1] = Math.max(m[1], parseFloat(cs.marginLeft) || 0); }
+    const measure = root => {
+      for (const r of root.querySelectorAll('.trow')){
+        const i = r.classList.contains('s1') ? 1 : 0;
+        mx[i] = Math.max(mx[i], r.getBoundingClientRect().height);
+      }
+    };
+    const fixedRoom = typeof labFixedRoom === 'function';
+    // Board settings supplies the fixed room to reserve behind every card before measuring row heights.
+    if (fixedRoom){ const fx = labFixedRoom(); for (const k of ['s0c', 's0d', 's1c', 's1d']) rsv[k] = fx.slice(); }
+    if (fixedRoom && document.body.classList.contains('os-deskbat')){
+      // Keep each hidden stage under the same panel as the real one. Write a few frames together so their height
+      // reads share a layout pass, while keeping the number of stages in the document bounded for long battles.
+      const batchSize = 4, frames = ui.battle.frames;
+      for (let start = 0; start < frames.length; start += batchSize){
+        const fragment = document.createDocumentFragment();
+        const stages = frames.slice(start, start + batchSize).map(fr => {
+          const stage = probe.cloneNode(false);
+          stage.innerHTML = lineHTML(fr, names);
+          applyRsv(stage, rsv);
+          fragment.appendChild(stage);
+          return stage;
+        });
+        st.parentNode.appendChild(fragment);
+        try { for (const stage of stages) measure(stage); }
+        finally { for (const stage of stages) stage.remove(); }
+      }
+    } else {
+      st.parentNode.appendChild(probe);
+      if (!fixedRoom){
+        const zones = root => [...root.querySelectorAll('.trow')].flatMap(r => [...r.querySelectorAll(':scope > .chz, :scope > .deckz')].map(z => ({z, k:(r.classList.contains('s1') ? 's1' : 's0') + (z.classList.contains('chz') ? 'c' : 'd')})));
+        const face = z => z.querySelector('.charge > .card.hasart:not(.mini), .tzc > .card.hasart:not(.mini)');
+        for (const fr of ui.battle.frames){
+          probe.innerHTML = lineHTML(fr, names);
+          for (const {z, k} of zones(probe)){ const c = face(z); if (!c) continue; const cs = getComputedStyle(c), m = rsv[k] || (rsv[k] = [0, 0]);
+            m[0] = Math.max(m[0], parseFloat(cs.marginTop) || 0); m[1] = Math.max(m[1], parseFloat(cs.marginLeft) || 0); }
+        }
+      }
+      for (const fr of ui.battle.frames){
+        probe.innerHTML = lineHTML(fr, names); applyRsv(probe, rsv);
+        measure(probe);
+      }
+      probe.remove();
     }
-    // pass 2: row heights with that room held
-    for (const fr of ui.battle.frames){
-      probe.innerHTML = lineHTML(fr, names); applyRsv(probe, rsv);
-      probe.querySelectorAll('.trow').forEach(r => { const i = r.classList.contains('s1') ? 1 : 0; mx[i] = Math.max(mx[i], r.getBoundingClientRect().height); });
-    }
-    probe.remove();
     // the rows keep the tallest height any battle has needed at this width and board look, so they never shrink
     // from one battle to the next
     const gk = w + ':' + (typeof LAB === 'object' ? [LAB.splay, LAB.size, LAB.view, LAB.zoom, LAB.tilt].join(',') : '') + (mz ? ':' + LABROOM + ':' + ui.battle.fitW + ':' + tight : '');
