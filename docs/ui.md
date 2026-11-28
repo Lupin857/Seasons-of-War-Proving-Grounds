@@ -97,8 +97,9 @@
   before their top cards splay their attachments.
 - Mobilize drag follows the mouse at its grab point. On desktop, the vertical deck opens room at the numbered
   insertion slot while the unit is still held. Bench cards slide aside using the Shop pile's slot selection, motion and
-  landing. Attachment targeting keeps cards opaque and outlines the unit under the pointer, with its name or the reason
-  for refusal. Spare copies stay on the bench while a token or gear card lifts, and the receiving unit
+  landing. The desktop drag reuses its deck bounds and bench slot centers, tracks the bench scroll offset, and
+  refreshes measurements after a layout change. Attachment targeting keeps cards opaque and outlines the unit under
+  the pointer, with its name or the reason for refusal. Spare copies stay on the bench while a token or gear card lifts, and the receiving unit
   covers the attachment as it slides behind the face. Suggest uses the AI worker when available and applies to the
   draft it was requested for.
 - Flying cards travel **under** the bars, decks, discard pile and banners (use `LAYER` / `flyZ`).

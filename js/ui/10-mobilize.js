@@ -417,6 +417,33 @@ function mzOpen(el){
 
 /* ---------- input: one controller for mouse, touch and pen ---------- */
 let mzP = null;   // the press or drag in progress
+const mzDragResize = new ResizeObserver(() => mzInvalidateDragGeometry());
+function mzInvalidateDragGeometry(event){
+  const p = mzP;
+  if (!p?.desktop || !p.drag) return;
+  // Scrolling the bench only shifts its content. Slot centers are cached in scroll-content coordinates.
+  if (!event || event.target !== p.geometry?.scroll) p.geometry = null;
+  if (!p.frame) p.frame = requestAnimationFrame(() => mzDragFrame(p));
+}
+function mzDragGeometry(p){
+  if (p.geometry) return p.geometry;
+  const deck = $('mz-deck'), bench = document.querySelector('.osdeskmob .mz-bench');
+  const scroll = bench?.querySelector('.osmob-bench-scroll');
+  if (!deck || !scroll) return null;
+  const deckRect = deck.getBoundingClientRect(), benchRect = scroll.getBoundingClientRect();
+  if (p.slot && (p.deckWidth !== deckRect.width || p.viewportWidth !== innerWidth || p.viewportHeight !== innerHeight)){
+    p.deckWidth = deckRect.width;
+    p.viewportWidth = innerWidth;
+    p.viewportHeight = innerHeight;
+    p.strip = p.deckTargets ? mzStripR(true) : p.strip;
+    // Take resting strip midpoints before previews can move any rows. Resize resets the reference layout.
+    p.deckTargets = mzRows().filter(row => row !== p.slot).map(row => {
+      const tuck = parseFloat(getComputedStyle(row).marginTop) || 0;
+      return {row, mid:row.offsetTop + (row.offsetWidth * p.strip - tuck) / 2};
+    });
+  }
+  return p.geometry = {deck, deckRect, bench, scroll, benchRect, benchLeft:bench.closest('.mobright').getBoundingClientRect().left};
+}
 function mzDown(e){
   const el = e.target.closest('.mz [data-mz]');
   if (!el || e.target.closest('button,a,input,select')) return;
@@ -533,10 +560,8 @@ function mzStart(){
     if (p.desktop){
       // Measure the resting strips and their tucked cards once. Opening and moving the slot must not move
       // the hit thresholds, or tall rows can push the pointer back across the boundary that just moved them.
-      p.deckTargets = mzRows().filter(row => row !== slot).map(row => {
-        const tuck = parseFloat(getComputedStyle(row).marginTop) || 0;
-        return {row, mid:row.offsetTop + (row.offsetWidth * p.strip - tuck) / 2};
-      });
+      const rows = mzRows(), i = rows.indexOf(slot);
+      p.slotAt = i < 0 ? null : rows.length - 1 - i;
       if (slot.isConnected) mzRenumber();
     }
   } else {
@@ -554,6 +579,10 @@ function mzStart(){
       row.classList.toggle('mz-ok', !why);
     }
   }
+  if (p.desktop){
+    const geometry = mzDragGeometry(p);
+    if (geometry) for (const el of [geometry.deck, geometry.scroll]) mzDragResize.observe(el);
+  }
   if (!p.lifted || !p.touch) sfx.pick();
 }
 function mzDragFrame(p, scroll = true){
@@ -566,27 +595,34 @@ function mzDragFrame(p, scroll = true){
     if (v) window.scrollBy(0, Math.max(-24, Math.min(24, v)));
     scrolled = before !== window.scrollY;
   }
-  if (scroll && p.desktop){
-    const bench = document.querySelector('.osmob-bench-scroll'), r = bench?.getBoundingClientRect();
-    if (r && p.cx > r.left && p.cx < r.right && p.cy > r.top && p.cy < r.bottom){
-      const before = bench.scrollTop;
+  const refresh = p.desktop && !p.geometry;
+  const geometry = p.desktop && mzDragGeometry(p);
+  let benchMoved = false;
+  if (geometry){
+    const {scroll:bench, benchRect:r} = geometry;
+    const before = bench.scrollTop;
+    if (scroll && p.cx > r.left && p.cx < r.right && p.cy > r.top && p.cy < r.bottom){
       if (p.cy < r.top + 28) bench.scrollTop -= 12;
       if (p.cy > r.bottom - 28) bench.scrollTop += 12;
-      scrolled = bench.scrollTop !== before;
     }
+    const top = bench.scrollTop;
+    scrolled ||= before !== top;
+    benchMoved = p.benchScrollTop !== top;
+    p.benchScrollTop = top;
   }
-  if (p.x !== p.cx || p.y !== p.cy || scrolled){
+  const moved = p.x !== p.cx || p.y !== p.cy;
+  if (moved || scrolled || refresh || benchMoved){
     p.x = p.cx; p.y = p.cy;
-    mzHover();
-    p.wrap.style.transform = `translate3d(${p.x - p.x0}px,${p.y - p.y0}px,0)`;
+    mzHover(geometry);
+    if (moved) p.wrap.style.transform = `translate3d(${p.x - p.x0}px,${p.y - p.y0}px,0)`;
   }
   const swing = p.physical && matDragPhysicalPaint(p, performance.now());
   if (scroll && (scrolled || swing)) p.frame = requestAnimationFrame(() => mzDragFrame(p));
 }
 // the deck's cards in layout order (back to front), the slot included
 // each card's name strip as a share of its width: the layout's --mzsr on #mz-deck if it sets one (the desktop cascade)
-const mzStripR = () => {
-  const deck = $('mz-deck'), row = deck?.querySelector('.mzc:not(:last-child)');
+const mzStripR = (withoutSlot = false) => {
+  const deck = $('mz-deck'), row = deck?.querySelector(withoutSlot ? '.mzc:not(:last-child,.mzslot,.mz-gone)' : '.mzc:not(:last-child)');
   if (row && deck.closest('.osdeskmob')){
     const style = getComputedStyle(row), width = parseFloat(style.width);
     const exposed = parseFloat(style.height) + parseFloat(style.marginBottom);
@@ -625,15 +661,20 @@ function mzRenumber(){
   }
 }
 // move the slot (FLIP: the other cards slide to their new places)
-function mzPlaceSlot(y){
-  const p = mzP, deck = $('mz-deck'), slot = p.slot; if (!deck || !slot) return;
+function mzPlaceSlot(y, geometry){
+  const p = mzP, deck = geometry?.deck || $('mz-deck'), slot = p.slot; if (!deck || !slot) return;
+  if (geometry){
+    const localY = y - geometry.deckRect.top;
+    const i = p.deckTargets.findIndex(target => localY < target.mid);
+    const at = i < 0 ? 0 : p.deckTargets.length - i;
+    if (at === p.slotAt) return;
+    mzMoveSlot(p, deck, i < 0 ? null : p.deckTargets[i].row, p.deckTargets.map(target => target.row), y);
+    p.slotAt = at;
+    return;
+  }
   const rows = mzRows(), others = rows.filter(x => x !== slot);
   let ref;
-  if (p.deckTargets){
-    const localY = y - deck.getBoundingClientRect().top;
-    ref = p.deckTargets.find(target => localY < target.mid)?.row || null;
-    if (slot.isConnected && ref === (others[rows.indexOf(slot)] || null)) return;
-  } else if (!slot.isConnected){
+  if (!slot.isConnected){
     const b = mzBand(others, y);
     if (b < 0) ref = null;
     else { const t = others[b], r = t.getBoundingClientRect(), last = b === others.length - 1;
@@ -647,6 +688,10 @@ function mzPlaceSlot(y){
     if (!t || t === slot) return;
     ref = b > si ? rows[b + 1] || null : t;
   }
+  mzMoveSlot(p, deck, ref, others, y);
+}
+function mzMoveSlot(p, deck, ref, others, y){
+  const {slot} = p;
   if (slot.nextElementSibling === ref && slot.isConnected) return;
   const before = new Map(others.map(x => [x, x.getBoundingClientRect()]));
   if (ref) deck.insertBefore(slot, ref); else deck.appendChild(slot);
@@ -657,6 +702,7 @@ function mzPlaceSlot(y){
 function mzDropSlot(){
   const p = mzP, slot = p.slot; if (!slot || !slot.isConnected) return;
   p.slotY = null;
+  p.slotAt = null;
   const others = mzRows().filter(x => x !== slot), before = new Map(others.map(x => [x, x.getBoundingClientRect()]));
   slot.remove(); mzRenumber();
   mzSlideSlot(others, before);
@@ -691,7 +737,7 @@ function mzBenchRemainder(p){
 }
 function mzDragCue(p, text, blocked = false){
   if (!p.cue) return;
-  p.cue.hidden = !text;
+  if (p.cue.hidden !== !text) p.cue.hidden = !text;
   if (!text) return;
   if (!p.cueSize || p.cue.textContent !== text){
     p.cue.textContent = text;
@@ -701,37 +747,51 @@ function mzDragCue(p, text, blocked = false){
   p.cue.style.left = Math.max(8, Math.min(innerWidth - p.cueSize.width - 10, p.cx + 16)) + 'px';
   p.cue.style.top = Math.max(8, Math.min(innerHeight - p.cueSize.height - 10, p.cy + 18)) + 'px';
 }
-function mzAttachmentTarget(p){
+function mzMarkAttachment(p, target, blocked){
+  if (p.attachmentRow === target) return;
+  p.attachmentRow?.classList.remove('mz-attachment-target', 'mz-attachment-blocked');
+  target?.classList.add('mz-attachment-target');
+  target?.classList.toggle('mz-attachment-blocked', blocked);
+  p.attachmentRow = target;
+}
+function mzAttachmentTarget(p, returns){
   const hit = document.elementFromPoint(p.cx, p.cy);
   const face = hit?.closest('#mz-deck .mzface');
   const row = face?.closest('#mz-deck > [data-mz="deck"]');
-  for (const mark of document.querySelectorAll('#mz-deck .mz-attachment-target'))
-    if (mark !== row) mark.classList.remove('mz-attachment-target', 'mz-attachment-blocked');
   const unit = row && mzUnit(row.dataset.id), why = row && p.attachmentBlocks.get(row.dataset.id);
-  if (!unit || why == null){ mzDragCue(p, ''); return null; }
-  row.classList.add('mz-attachment-target');
-  row.classList.toggle('mz-attachment-blocked', !!why);
+  const target = unit && why != null ? row : null;
+  mzMarkAttachment(p, target, !!why);
+  if (!target || returns){
+    mzDragCue(p, returns ? 'Return to bench' : '');
+    return target && !why ? row.dataset.id : null;
+  }
   const item = p.tok ? dispName(TOKN[p.tok]) : dispName(p.name);
   mzDragCue(p, why || `Attach ${item} to ${dispName(unit.name)}`, !!why);
   return why ? null : row.dataset.id;
 }
-function mzBenchInsertion(p){
-  if (!matPlaceShopFanCard(p)) return false;
+function mzBenchInsertion(p, geometry){
+  if (!matPlaceShopFanCard(p, geometry)) return false;
   const {fan, held, original} = p.reorder;
-  if (p.remainder) p.remainder.hidden = fan.slots.indexOf(held) !== original.indexOf(held);
+  if (p.remainder){
+    const hidden = fan.slots.indexOf(held) !== original.indexOf(held);
+    if (p.remainder.hidden !== hidden) p.remainder.hidden = hidden;
+  }
   return true;
 }
-function mzPreviewDeckRoom(p){
-  if (!p.desktop) return;
-  const rows = mzRows(), i = rows.indexOf(p.slot);
-  const front = i >= 0 && p.slot.classList.contains('mz-spread') ? rows.slice(i+1) : [];
-  const deck = $('mz-deck');
+function mzPreviewDeckRoom(p, geometry){
+  if (!geometry) return;
+  const at = p.slotAt, old = p.room;
+  if (old && old.at === at && old.geometry === geometry) return;
+  const {deck, deckRect, benchLeft} = geometry;
   const part = p.slot?.offsetWidth || 0;
-  const slotRight = deck.getBoundingClientRect().left + (p.slot?.offsetLeft || 0) + part;
-  const benchLeft = document.querySelector('.mobright').getBoundingClientRect().left;
+  const slotRight = deckRect.left + (p.slot?.offsetLeft || 0) + part;
   const shift = Math.max(0, Math.min(part * .66, benchLeft - slotRight - 12));
-  deck.style.setProperty('--mz-preview-room', shift+'px');
-  for (const row of rows) row.classList.toggle('mz-room', front.includes(row) && shift > 0);
+  const rows = at > 0 && shift > 0 && p.slot.classList.contains('mz-spread') ?
+    p.deckTargets.slice(-at).map(target => target.row) : [];
+  if (shift !== old?.shift) deck.style.setProperty('--mz-preview-room', shift+'px');
+  for (const row of old?.rows || []) if (!rows.includes(row)) row.classList.remove('mz-room');
+  for (const row of rows) if (!old?.rows.includes(row)) row.classList.add('mz-room');
+  p.room = {geometry, at, shift, rows};
 }
 function mzCarryDeckRoom(before){
   const room = new Map();
@@ -753,21 +813,20 @@ function mzCloseDeckRoom(room){
       {duration});
   }
 }
-function mzHover(){
+function mzHover(geometry){
   const p = mzP; if (!p || !p.drag) return;
-  const bench = document.querySelector('.forces.mz .mz-bench');
-  const benchRect = bench?.querySelector('.osmob-bench-scroll')?.getBoundingClientRect();
-  const deckRect = p.desktop ? $('mz-deck').getBoundingClientRect() : null;
+  if (p.desktop && !geometry) return;
+  const bench = geometry?.bench || document.querySelector('.forces.mz .mz-bench');
   const over = r => r && p.cx >= r.left && p.cx <= r.right && p.cy >= r.top && p.cy <= r.bottom;
-  const side = p.desktop ? over(benchRect) ? 'bench' : over(deckRect) ? 'deck' : null : mzSide(p.cx);
+  const side = geometry ? over(geometry.benchRect) ? 'bench' : over(geometry.deckRect) ? 'deck' : null : mzSide(p.cx);
   if (p.reorder){
     const {fan, original, held} = p.reorder;
-    if (mzBenchInsertion(p)){
+    if (mzBenchInsertion(p, geometry)){
       mzDropSlot();
-      mzPreviewDeckRoom(p);
+      mzPreviewDeckRoom(p, geometry);
+      mzMarkAttachment(p, null);
       mzDragCue(p, '');
       p.target = {reorder:true};
-      document.querySelectorAll('#mz-deck .mz-over').forEach(row => row.classList.remove('mz-over'));
       return;
     }
     if (fan.slots.some((slot, i) => slot !== original[i])) matArrangeShopFan(fan, original, held);
@@ -779,14 +838,18 @@ function mzHover(){
     p.refused = side === 'deck' && !!p.blocked;
     p.wrap.classList.toggle('mz-refused', p.refused);
     if (side === 'deck'){
-      if (!p.refused) mzPlaceSlot(y);
-      const rows = mzRows(), si = rows.indexOf(p.slot);
-      p.target = si < 0 ? null : {at:rows.length - 1 - si};   // deck position counts from the front (bottom)
+      if (!p.refused) mzPlaceSlot(y, geometry);
+      let at = p.slotAt;
+      if (!geometry){
+        const rows = mzRows(), si = rows.indexOf(p.slot);
+        at = si < 0 ? null : rows.length - 1 - si;
+      }
+      p.target = at == null ? null : {at};  // deck position counts from the front (bottom)
     } else {
       mzDropSlot();
       p.target = side === 'bench' && p.type === 'deck' ? {bench:true} : null;
     }
-    mzPreviewDeckRoom(p);
+    mzPreviewDeckRoom(p, geometry);
     if (p.desktop) mzDragCue(p, p.refused ? p.blocked :
       p.target?.bench ? 'Move to bench' : p.target?.at != null ? p.slot.classList.contains('spell') ? 'Place miracle here' : `Fight order ${p.slot.dataset.no || p.target.at+1}` : '',
       p.refused);
@@ -797,8 +860,7 @@ function mzHover(){
   let ok = null;
   if (p.desktop){
     const returns = !!(p.from && side === 'bench');
-    ok = mzAttachmentTarget(p);
-    if (returns) mzDragCue(p, 'Return to bench');
+    ok = mzAttachmentTarget(p, returns);
     p.target = ok ? {unit:ok} : returns ? {bench:true} : null;
     if (bench) bench.classList.toggle('mz-over', returns);
     return;
@@ -938,6 +1000,7 @@ function mzLandHeld(p, el){
 }
 function mzDrop(cancel){
   const p = mzP; mzP = null;
+  if (p.desktop) mzDragResize.disconnect();
   clearTimeout(p.t); if (p.frame) cancelAnimationFrame(p.frame);
   const view = $('view-play');
   if (view.hasPointerCapture(p.pid)) view.releasePointerCapture(p.pid);
@@ -947,8 +1010,7 @@ function mzDrop(cancel){
   const deckRoom = physical && t?.at != null ? mzCarryDeckRoom(before) : null;
   p.cue?.remove();
   p.remainder?.remove();
-  for (const row of document.querySelectorAll('#mz-deck .mz-attachment-target'))
-    row.classList.remove('mz-attachment-target', 'mz-attachment-blocked');
+  mzMarkAttachment(p, null);
   mzUnstage();
   if (p.reorder){
     const {fan, held, original} = p.reorder;
@@ -997,7 +1059,7 @@ function mzDrop(cancel){
 function mzUp(e){
   const p = mzP; if (!p || e.pointerId !== p.pid) return;
   if (p.drag){
-    if (p.frame || p.cx !== e.clientX || p.cy !== e.clientY){
+    if (p.frame || p.cx !== e.clientX || p.cy !== e.clientY || (p.desktop && p.geometry?.scroll.scrollTop !== p.benchScrollTop)){
       if (p.frame) cancelAnimationFrame(p.frame);
       p.cx = e.clientX; p.cy = e.clientY; mzDragFrame(p, false);
     }
@@ -1013,6 +1075,8 @@ function mzCancel(){
 $('view-play').addEventListener('pointerdown', mzDown);
 window.addEventListener('pointermove', mzMove, {passive:false});
 window.addEventListener('pointerup', mzUp);
+window.addEventListener('resize', mzInvalidateDragGeometry);
+window.addEventListener('scroll', mzInvalidateDragGeometry, {capture:true, passive:true});
 window.addEventListener('pointercancel', e => { if (mzP && e.pointerId === mzP.pid) mzCancel(); });
 window.addEventListener('blur', mzCancel);
 window.addEventListener('keydown', e => {

@@ -1672,18 +1672,23 @@ function matLandingSpace(faces, shift, duration){
     }
   };
 }
-function matPlaceShopFanCard(p){
+function matPlaceShopFanCard(p, geometry){
   if (!p.reorder?.fan.overlay.isConnected) return false;
   const {fan, held, dx, dy} = p.reorder, {rows, positions, slots, w, h} = fan;
-  const bounds = (rows.matches('#mz-bench') ? rows.parentElement : rows).getBoundingClientRect(), margin = 20;
+  const bounds = geometry?.benchRect || rows.getBoundingClientRect(), margin = 20;
   if (p.x < bounds.left - margin || p.x > bounds.right + margin ||
       p.y < bounds.top - margin || p.y > bounds.bottom + margin) return false;
-  const boundsByRow = new Map([...rows.children].map(row => [row, row.getBoundingClientRect()]));
-  const centers = positions.map(({row, pose}) => {
-    const at = boundsByRow.get(row);
-    return {x:at.left + pose.x + w/2, y:at.top + pose.y + h/2};
-  });
-  const current = slots.indexOf(held), target = closestCardSlot(centers, p.x + dx, p.y + dy, current);
+  const scrollTop = geometry ? p.benchScrollTop : 0;
+  let centers = geometry?.centers;
+  if (!centers){
+    const boundsByRow = new Map([...rows.children].map(row => [row, row.getBoundingClientRect()]));
+    centers = positions.map(({row, pose}) => {
+      const at = boundsByRow.get(row);
+      return {x:at.left + pose.x + w/2, y:at.top + pose.y + h/2 + scrollTop};
+    });
+    if (geometry) geometry.centers = centers;
+  }
+  const current = slots.indexOf(held), target = closestCardSlot(centers, p.x + dx, p.y + dy + scrollTop, current);
   if (target !== current){
     const order = [...slots];
     order.splice(current, 1);
@@ -1913,7 +1918,9 @@ function matMobDeskHTML(S, me, d, rows, items, who){
 function matDeskMobLayout(){
   const mob = document.querySelector('#view-play .osdeskmob'); if (!mob) return;
   MATMOB.layoutPending = false;
-  const fan = mob.querySelector('#mz-bench.osfan'), slots = fan ? [...fan.querySelectorAll('.osfanslot')] : [];
+  const fan = mob.querySelector('#mz-bench.osfan'), dragging = mzP?.reorder;
+  const live = dragging?.fan.overlay === fan ? dragging : null;
+  const slots = live ? live.fan.slots : fan ? [...fan.querySelectorAll('.osfanslot')] : [];
   if (fan) fan._cardLayout = null;
   if (slots.length){
     const width = fan.parentElement.clientWidth - 26;
@@ -1939,7 +1946,12 @@ function matDeskMobLayout(){
         content.append(row);
       }
       fan.replaceChildren(content);
-      fan._cardLayout = {overlay:fan, rows:fan, slots, positions, w, h};
+      fan._cardLayout = Object.assign(live?.fan || {}, {overlay:fan, rows:fan, slots, positions, w, h});
+      if (live && mzP.remainder){
+        const rest = positions[live.original.indexOf(live.held)];
+        mzP.remainder.style.transform = matFanTf(rest.pose, w, h);
+        rest.row.append(mzP.remainder);
+      }
       fan.parentElement.scrollTop = scroll;
     }
   }
@@ -1947,6 +1959,7 @@ function matDeskMobLayout(){
   const pass = document.querySelector('#view-play .osdesk.osmobmat .ospass'), acts = mob.querySelector('.osmobacts');
   if (pass && acts){ const r = pass.getBoundingClientRect(), m = mob.getBoundingClientRect(); acts.style.left = (r.left - m.left) + 'px'; acts.style.top = (r.top - m.top) + 'px'; acts.style.width = r.width + 'px'; }
   const ai = mob.querySelector('.osaicard'); if (ai) ai.style.transform = matRotTf(MAT_AIDECK_ROT, ai.offsetWidth, ai.offsetHeight);
+  mzInvalidateDragGeometry();
 }
 // the bottom bar in Mobilize on the mat: Suggest a deck, then Lock in (same height as the shop's bar, so the mat stays put)
 function matMobDockHTML(acts){
