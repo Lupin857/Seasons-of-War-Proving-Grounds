@@ -42,6 +42,8 @@ body.ingame .wrap:has(> #view-play:not([hidden]) #gtop) > .tabs{display:none}
 .gmenu-pop[hidden]{display:none}
 .gmenu-item{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;
   border:0;background:none;border-radius:7px;padding:10px 10px;font:inherit;font-weight:700;color:var(--ink);cursor:pointer}
+.gmenu-item.gmenu-resign,.resign-confirm{color:var(--gules)}
+.pkwin:has(.resignwin){z-index:91} /* keep confirmation above a turn banner that arrives while it is open */
 .gmenu-item:hover{background:color-mix(in srgb, var(--or) 12%, transparent)}
 .gmenu-here{font-weight:500;font-size:12px;color:var(--muted)}
 .gmenu-sep{height:1px;background:var(--line);margin:4px 6px}

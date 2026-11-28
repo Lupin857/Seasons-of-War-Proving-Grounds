@@ -34,7 +34,8 @@
     // designers on a wide screen can opt out of the default one-screen table (localStorage.oasisMatDesk, js/rug.js)
     const md = typeof canAdmin !== 'undefined' && canAdmin && !playerPreview && !compact() && typeof matDeskOn === 'function'
       ? `<button type="button" role="menuitemcheckbox" aria-checked="${matDeskOn()}" class="gmenu-item gmenu-snd" data-gmdesk="1">Desktop table<span class="gmenu-sw${matDeskOn() ? ' on' : ''}" aria-hidden="true"><i></i></span></button>` : '';
-    pop.innerHTML = items + s + sp + md + (bs ? (s || sp ? '' : '<div class="gmenu-sep"></div>') + bs : '') + (bc ? '<div class="gmenu-sep"></div>' + bc : '');
+    const resign = canResignMatch() ? '<div class="gmenu-sep"></div><button type="button" role="menuitem" class="gmenu-item gmenu-resign" data-gresign aria-haspopup="dialog">Resign</button>' : '';
+    pop.innerHTML = items + s + sp + md + (bs ? (s || sp ? '' : '<div class="gmenu-sep"></div>') + bs : '') + (bc ? '<div class="gmenu-sep"></div>' + bc : '') + resign;
   }
   function mark(){ const b = btn(); if (b) b.setAttribute('aria-expanded', String(!pop.hidden)); }
   function place(){
@@ -43,18 +44,31 @@
     pop.style.top = Math.round(r.bottom + 6) + 'px';
     pop.style.left = Math.round(Math.max(8, r.left)) + 'px';
   }
-  function open(){ build(); pop.hidden = false; place(); mark(); }
+  function open(keyboard){
+    build(); pop.hidden = false; place(); mark();
+    if (keyboard) pop.querySelector('button')?.focus({preventScroll:true});
+  }
   function close(){ if (pop.hidden) return; pop.hidden = true; mark(); }
 
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-gmenu]');
-    if (b){ e.stopPropagation(); try { sfx.soft(); } catch(_){} pop.hidden ? open() : close(); return; }
+    if (b){ e.stopPropagation(); try { sfx.soft(); } catch(_){} pop.hidden ? open(e.detail === 0) : close(); return; }
     if (!pop.hidden && !pop.contains(e.target)) close();
   }, true);
   pop.addEventListener('click', e => {
     const t = e.target.closest('[data-gtab]'), s = e.target.closest('[data-gsnd]'), bd = e.target.closest('[data-gboard]'), gc = e.target.closest('[data-gcode]'), sp = e.target.closest('[data-gspeed]');
     if (sp){ try { sfx.soft(); } catch(_){} LS.set('sow-autofast', !autoFast()); if (autoOn() && autoT) startAuto(200); build(); return; }
     if (e.target.closest('[data-gmdesk]')){ try { sfx.soft(); } catch(_){} try { localStorage.setItem('oasisMatDesk', matDeskOn() ? '0' : '1'); } catch(_){} build(); if (G && !$('view-play').hidden) renderPlay(); return; }
+    if (e.target.closest('[data-gresign]')){
+      close();
+      if (!canResignMatch()) return;
+      sfx.soft();
+      popShut();
+      ui.resignWin = true;
+      renderPlay();
+      document.querySelector('.resignwin .sheetx')?.focus({preventScroll:true});
+      return;
+    }
     if (gc){
       close(); try { sfx.soft(); } catch(_){}
       const k = gc.dataset.gcode;
@@ -81,6 +95,57 @@
   const vp = document.getElementById('view-play');
   if (vp) new MutationObserver(() => { if (!pop.hidden) requestAnimationFrame(() => { place(); mark(); }); }).observe(vp, {childList:true, subtree:true});
 })();
+
+function canResignMatch(){
+  return !!(G && !G.over && !G.replay && !ui.start && (!G.net || (NET && !NET.err && !NET.resignRequested)));
+}
+function resignWinHTML(){
+  if (!canResignMatch()) return '';
+  const shared = PP() && !G.net;
+  const choices = shared ? [0, 1] : [seat()];
+  const body = `<section class="pksec"><h2 class="pkttl">Resign this game?</h2>
+    <p class="pksub">${shared ? 'Choose the player who is resigning. The other player wins.'
+      : G.opp && G.opp.rated ? 'Resigning ends this match and counts as a rated loss.'
+      : 'Resigning ends this match and gives your opponent the win.'}</p>
+    <div class="row">${choices.map(i => `<button type="button" class="resign-confirm" data-act="resign-confirm" data-p="${i}">${shared ? `Resign as ${esc(nm(i))}` : 'Resign game'}</button>`).join('')}</div></section>`;
+  return popWinHTML('Resign this game?', 'resignwin', '', body, 'Close to keep playing.');
+}
+function resignMatch(i){
+  if (!ui.resignWin || !canResignMatch() || (i !== 0 && i !== 1)) return;
+  if (G.net){
+    if (i !== NET.seat) return;
+    NET.resignRequested = true;
+    popShut();
+    netSave();
+    netPresence();
+    netAfter();
+    return;
+  }
+  if (!PP() && i !== 0) return;
+  finishResignedMatch(i);
+  renderPlay();
+}
+function finishResignedMatch(i){
+  stopTimers();
+  stopAuto();
+  stopAnim();
+  G.over = true;
+  G.phase = 'over';
+  G.winner = 1 - i;
+  G.resignedBy = i;
+  // Keep the New game setup open if the online result arrives while the player is using it.
+  ui = freshUI({start:ui.start});
+  recordResult(true);
+  recSave(G);
+  saveNow();
+}
+function resignResultHTML(){
+  const i = G.resignedBy, w = G.winner;
+  const msg = G.net ? (i === seat() ? 'You resigned. Your opponent wins.' : 'Your opponent resigned. You win.')
+    : PP() ? `${esc(nm(i))} resigned. ${esc(nm(w))} wins.` : 'You resigned. The AI wins.';
+  return `<section class="panel finalbox" role="status"><h2>Game over</h2>
+    <p class="verdict ${VS(w) === 0 ? 'a' : 'b'}">${msg}</p>${ratingNoteHTML()}</section>`;
+}
 
 /* ===================== BATTLE CODES =====================
    Battles have no luck in them, so both armies as they went in (runBattle keeps a copy on recorded battles: res.cfgs)

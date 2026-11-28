@@ -2320,7 +2320,7 @@ function matBatWanted(){
 // pinned where they are and taken out of the page, then this same redraw draws the battle underneath.
 function matBatGate(){
   if (MATBAT.busy){ MATBAT.redraw = true; return true; }
-  if (MATBAT.prep && MATBAT.prep.game !== G) MATBAT.prep = null;
+  if (MATBAT.prep && (MATBAT.prep.game !== G || G.over)) MATBAT.prep = null;
   if (MATBAT.prep && !ui.battle) return true;
   if (!matBatWanted()) return false;
   ui.battle.matIn = true;

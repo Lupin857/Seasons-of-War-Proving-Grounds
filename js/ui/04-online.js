@@ -4,7 +4,8 @@
    Each page applies both players' moves in turn order, so both arrive at the same game without ever sending it.
    Moves are kept on this device too, so a reload can rejoin the room and replay them. */
 let NET = null, ROOM_NS;
-const NET_V = 6;
+const NET_V = 7;
+const NET_MIN_SAVE_V = 6; // Version 6 already uses the current Shop rules.
 const netCards = () => [...new Set([...Object.keys(DEFS), ...Object.keys(BDEFS)])].sort();
 const netIx = n => { const k = netCards().indexOf(n); return k < 0 ? n : k; };
 const netName = x => typeof x === 'number' ? netCards()[x] : x;
@@ -110,12 +111,14 @@ function peerJoin(name, o){
     link: () => link
   });
 }
-function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {v:NET_V, code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, rf:NET.rf, su:NET.su, ready:NET.ready, at:Date.now()}); }
+function netSave(){ if (NET && NET.seat != null) LS.set('sow-net', {v:NET_V, code:NET.code, seat:NET.seat, name:NET.name, acts:NET.acts, seed:NET.seed, target:NET.target, mir:NET.mir, bmir:NET.bmir, rf:NET.rf, su:NET.su, ready:NET.ready, resignRequested:NET.resignRequested, resignedSeat:NET.resignedSeat, at:Date.now()}); }
 function netPresence(){
   if (!NET || !NET.room || NET.seat == null) return;
   const pr = {app:'sow', v:NET_V, code:NET.code, seat:NET.seat, name:NET.name, hash:NET.hash, acts:NET.acts};
   if (NET.seat === 0) Object.assign(pr, {seed:NET.seed, target:NET.target, mir:NET.mir !== false, bmir:NET.bmir === true, rf:NET.rf === true, su:NET.su});
   else pr.ready = !!NET.ready;
+  if (NET.seat === 0 && NET.resignedSeat != null) pr.resignedSeat = NET.resignedSeat;
+  if (NET.seat === 1 && NET.resignRequested) pr.resignRequested = true;
   if (JSON.stringify(pr).length > 4000){ NET.err = 'This game has grown too long to keep in sync online.'; renderPlay(); return; }
   NET.room.presence(pr).catch(() => {});
 }
@@ -126,9 +129,10 @@ async function netOpen(opts){
   try{ r = await room.join('sow-' + opts.code, {host:opts.seat === 0}); }
   catch(e){ ui.netErr = e && e.code === 'not_permitted' ? "Your access to this page doesn't include live rooms. Ask the page's owner to invite you by email from the Share menu." : "Couldn't open the room. Try again in a moment."; renderPlay(); return; }
   NET = {code:opts.code, seat:opts.seat, name:opts.name, seed:opts.seed, target:opts.target, mir:opts.mir !== false, bmir:opts.bmir === true, rf:opts.rf === true, su:opts.su || null, ready:opts.seat === 0 || !!opts.ready || !!(opts.acts && opts.acts.length), acts:opts.acts || [], peerActs:[], peer:null,
+    resignRequested:!!opts.resignRequested, resignedSeat:opts.resignedSeat ?? null,
     hash:netHash(), room:r, applied:[0, 0], started:false, here:false, err:'', since:Date.now(), needShop:false, live:false};
   ui.netErr = ''; ui.start = false;
-  r.onPeers(netPeers, e => { if (NET && NET.room === r){ NET.err = (e && e.message) || 'Lost the connection to the room. Reload the page and rejoin it from Play online.'; renderPlay(); } });
+  r.onPeers(ch => { if (NET && NET.room === r) netPeers(ch); }, e => { if (NET && NET.room === r){ NET.err = (e && e.message) || 'Lost the connection to the room. Reload the page and rejoin it from Play online.'; renderPlay(); } });
   if (NET.seat != null){ netSave(); netPresence(); }
   renderPlay();
   setTimeout(() => { if (NET && NET.room === r && !NET.started) renderPlay(); }, 7000);   // update the "nobody here yet" hint
@@ -159,6 +163,11 @@ function netPeers(ch){
     if (NET.seat === 1){ NET.seed = pr.seed; NET.target = pr.target; NET.mir = pr.mir !== false; NET.bmir = pr.bmir === true; NET.rf = pr.rf === true; NET.su = pr.su || null; }
     NET.peerReady = NET.seat === 1 || pr.ready === true || (Array.isArray(pr.acts) && pr.acts.length > 0);
     NET.peerActs = Array.isArray(pr.acts) ? pr.acts : [];
+    if (NET.seat === 0) NET.peerResignRequested = pr.resignRequested === true;
+    else if ((pr.resignedSeat === 0 || pr.resignedSeat === 1) && NET.resignedSeat !== pr.resignedSeat){
+      NET.resignedSeat = pr.resignedSeat;
+      netSave();
+    }
     if (!NET.started){ if (NET.ready && NET.peerReady) netStart(); else renderPlay(); } else { netPump(); netAfter(); }
     if (!wasHere && NET.started && G && !G.over && NET.since + 3000 < Date.now()) showToast(`${NET.peer.name} is here.`);
   } else if (wasHere && NET.started){ renderPlay(); }

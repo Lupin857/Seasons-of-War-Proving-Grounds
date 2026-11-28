@@ -395,7 +395,11 @@ $('view-play').addEventListener('pointerdown', e => {
 window.addEventListener('pointermove', e => { if (press && !peekEl && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) endPress(); });
 window.addEventListener('pointerup', e => { if (peekEl && peekReady) return; endPress(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && peekEl) closePeek(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !peekEl && (ui.pkWin || ui.deckView != null)){ popShut(); renderPlay(); } }, true);   // capture: runs before a card pop-up's Escape, so one press closes one thing
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !peekEl && (ui.pkWin || ui.deckView != null || ui.resignWin)){
+  const resign = ui.resignWin;
+  popShut(); renderPlay();
+  if (resign) $('gtop')?.querySelector('[data-gmenu]')?.focus({preventScroll:true});
+} }, true);   // capture: runs before a card pop-up's Escape, so one press closes one thing
 // a card with miracles behind it opens its panel from the keyboard too
 $('view-play').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.mcard.hasmir, .mcard.writtgt, .stage .card.citycard, .osinspectable[tabindex]')){ e.preventDefault(); e.target.click(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.remind){ ui.remind = null; renderPlay(); } });

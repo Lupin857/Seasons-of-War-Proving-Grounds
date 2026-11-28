@@ -127,7 +127,22 @@ function drawPlay(options){
   try{ if (peekEl) closePeek(); }catch(e){}   // a re-render (e.g. the AI buys) makes an open peek stale; it sinks away
   if (NET && !NET.started && !ui.start){ markGame(false); $('view-play').innerHTML = netLobbyHTML(); return; }
   if (!G || ui.start){ markGame(false); $('view-play').innerHTML = startHTML(); if (turnKey === null) turnKey = ''; return; }
-  if (ui.roll){ markGame(true); $('view-play').innerHTML = rollHTML(); if (turnKey === null) turnKey = ''; saveGame(); return; }
+  if (ui.roll){
+    DOCKINFO = null;
+    markGame(true);
+    $('view-play').innerHTML = pbarHTML() + rollHTML() + peekWinHTML();
+    if (turnKey === null) turnKey = '';
+    saveGame();
+    return;
+  }
+  if (G.net && NET?.resignRequested && !G.over && !NET.err){
+    markGame(true);
+    DOCKINFO = null;
+    document.body.classList.remove('dsopen');
+    $('view-play').innerHTML = pbarHTML() + `<section class="panel finalbox" role="status"><h2>Resigning…</h2>
+      <p>Your resignation is saved. Waiting for the host to confirm it.</p></section>`;
+    return;
+  }
   if (ui.battle && ui.frame >= ui.battle.frames.length - 1) ui.revealed = true;   // the result shows once the battle has played out (or been skipped)
   const dealNow = !ui.battle && G.phase === 'shop' && ui.dealt !== G.round;
   if (options?.purchase && !dealNow && matRefreshPurchase()){
@@ -140,10 +155,11 @@ function drawPlay(options){
   }
   const changes = describeOverrides(OV);
   let h = netNoticeHTML() + (changes.length && !(G && G.net) ? `<p class="note">Custom balance active (${changes.length} unpushed ${plural(changes.length, 'change')}, set in Balance & stats). New games use it.</p>` : '') + boardHTML();
-  if (ui.battle) h += battleHTML();
+  if (G.resignedBy != null) h += resignResultHTML();
+  else if (ui.battle) h += battleHTML();
   else if (G.phase === 'shop') h += shopHTML();
   else if (G.phase === 'mobilize') h += mobilizeHTML();
-  h += `<div class="row">${suChipHTML()}${G.net && NET ? `<span class="note">Online room <b class="mono">${esc(NET.code)}</b></span><button type="button" data-act="st-net-leave">Leave room</button>` : ''}<span class="grow"></span><button type="button" data-act="newgame">${G.over && !hideResult() ? 'Choose next opponent' : 'New game…'}</button></div>`;
+  h += `<div class="row">${suChipHTML()}${G.net && NET ? `<span class="note">Online room <b class="mono">${esc(NET.code)}</b></span><button type="button" data-act="st-net-leave">Leave room</button>` : ''}<span class="grow"></span><button type="button" data-act="newgame">${G.over && !hideResult() && !PP() ? 'Choose next opponent' : 'New game…'}</button></div>`;
   const lw = $('view-play').querySelector('.linewrap'), sx = lw ? lw.scrollLeft : 0;
   const wasMine = !!$('view-play').querySelector('.dock.mine');
   const dockH = dockHTML();
@@ -690,11 +706,12 @@ function lockDeck(){
   if (!gathering && !(AIMOB && AIMOB.g === G && AIMOB.round === G.round && AIMOB.r !== undefined)) renderPlay();
   const g0 = G;
   setTimeout(async () => {
+    if (G !== g0 || G.over) return;
     // the AI plans from public information only; your locked deck is not visible to it
     let aiDeck = null;
     // Draw the destination while the bench gathers so the units can fly straight to the Battle slot.
     const r = await aiMobResult();
-    if (G !== g0) return;
+    if (G !== g0 || G.over) return;
     if (r && !r.error && r.deck){ aiDeck = r.deck; if (r.omPending) G.omPending = r.omPending; if (r.mobWhy){ G._mobWhy = r.mobWhy; G._mobLevel = r.mobLevel; } }
     else aiDeck = aiMobilize(G, 1, 60, AI_DEPTH()) || [];
     showBattle(playBattle(d, aiDeck)); ui.planning = false;
@@ -742,6 +759,7 @@ $('view-play').addEventListener('click', e => {
   switch (act){
     case 'deck-open': { if (matOpenOwnPile(t)) return; const k = +t.dataset.p; ui.pkWin = null; ui.pkPending = false; ui.mason = null; ui.deckView = ui.deckView === k && !t.closest('.dstabs') ? null : k; sfx.soft(); renderPlay(); const sh = $('view-play').querySelector('.dsheet [aria-selected="true"]'); if (sh) sh.focus({preventScroll:true}); return; }
     case 'deck-close': popShut(); sfx.soft(); renderPlay(); return;
+    case 'resign-confirm': resignMatch(+t.dataset.p); return;
     case 'roll': doRoll(); return;
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
     case 'mkt-tab': ui.mktTab = t.dataset.k === 'b' ? 'b' : 'u'; sfx.soft(); renderPlay(); markMore(); return;
@@ -797,7 +815,13 @@ $('view-play').addEventListener('click', e => {
     case 'vis-u': case 'vis-b': { const k = act === 'vis-b' ? 'b' : 'u'; ui.visArm = false; ui.pkWin = 'peek'; ui.pkFocus = k; ui.pkPending = true; playerMove(['v', k]); return; }
     case 'pk-open': ui.deckView = null; ui.mason = null; ui.pkWin = 'peek'; ui.pkFocus = t.dataset.k; ui.pkPending = false; sfx.pick(); renderPlay(); return;
     case 'bc-load': sfx.soft(); bcodeLoad(ui.codeText); return;
-    case 'pk-close': if (t.classList.contains('pkwin') && e.target.closest('.pksheet')) return; popShut(); sfx.soft(); renderPlay(); return;
+    case 'pk-close': {
+      if (t.classList.contains('pkwin') && e.target.closest('.pksheet')) return;
+      const resign = ui.resignWin;
+      popShut(); sfx.soft(); renderPlay();
+      if (resign) $('gtop')?.querySelector('[data-gmenu]')?.focus({preventScroll:true});
+      return;
+    }
     case 'mirm-use': { mirUse(); return; }
     case 'mir-peek': { const k = t.dataset.k; mirTurn(t.closest('.mcard'), k, () => { ui.mirOpen = ui.mirOpen === k ? null : k; }); return; }
     case 'sell-u': case 'sell-b': {
