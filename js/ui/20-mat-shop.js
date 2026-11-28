@@ -54,10 +54,8 @@ function matSeatHTML(i, mode = 'shop'){
   }).join('');
   let rest = '';
   if (deckOn && G.raid && mode === 'shop'){
-    const gear = desk ? matDeskPilesHTML(i, hand, mode)
-      : `<div class="fcards oshandrow">${Object.keys(p.gear || {}).filter(n => p.gear[n] > 0).map(n =>
-        `<div class="mcard b oshand">${cardFace(n, 'b', p.gear[n], true)}${sell(n, 'b')}</div>`).join('')}</div>`;
-    rest = `<i class="osbardiv" aria-hidden="true"></i>${raidPileSlotsHTML(i)}${gear}${desk || !mine ? matPurseHTML(i) : ''}`;
+    const bank = `<div class="raid-bank">${matPurseHTML(i)}${raidShopStatusHTML(i)}</div>`;
+    rest = `<i class="osbardiv" aria-hidden="true"></i>${raidPileSlotsHTML(i)}${bank}`;
   } else if (deckOn){
     const copies = Object.values(hand).reduce((t, c) => t + Math.max(0, c), 0), top = matPileTop(p, hand);
     const uc = deckCap(p), uu = uniqueUnits(hand === p.hand ? p : {...p, hand});
@@ -153,16 +151,20 @@ function matDeskPilesHTML(i, hand, mode = 'shop'){
     mir = mine ? `<button type="button" class="ospile osmirp${live ? ' glow' : ''}${ui.mirTray ? ' on' : ''}" data-act="mir-tray" aria-expanded="${!!ui.mirTray}" aria-label="Miracles (${mn})">${inner}</button>`
       : `<div class="ospile osmirp" aria-label="${esc(nm(i))}'s miracles: ${mn}">${inner}</div>`;
   }
-  if (mode === 'mob') return gone('Deck · lifted').replace('ospile osgone', 'ospile osdeck osgone') + gone('Bought · joined deck') + mir;
+  if (mode === 'mob'){
+    const label = G.raid ? `${raidRoleName(raidRole(G, i))} · lifted` : 'Deck · lifted';
+    return gone(label).replace('ospile osgone', 'ospile osdeck osgone') + (G.raid ? '' : gone('Bought · joined deck')) + mir;
+  }
   if (mode === 'battle') return mir;   // the battle's strip: the Caravan, Miracles and the water
-  return (G.raid ? '' : deckPile) + boughtPile + mir;
+  return deckPile + boughtPile + mir;
 }
 const MATDESK_BOUNDS = new WeakMap();
 // Choose one printed card width from the room available for the entire desktop tabletop.
 const MAT_DESK_CAMERA = {d:2100, t:14};
 let matDeskLayout;
 function matDesktopLayout(){
-  const w = innerWidth, h = innerHeight;
+  const shop = document.querySelector('#view-play .osshop.osdesk');
+  const w = shop?.clientWidth || innerWidth, h = shop?.clientHeight || innerHeight;
   const previous = matDeskLayout?.game === G ? matDeskLayout : null;
   const slots = Math.max(previous?.slots || 0, ...G.players.map(p => Math.max(citySlots(p), slotsUsed(p))));
   if (previous?.w === w && previous.h === h && previous.slots === slots) return previous;
@@ -187,7 +189,7 @@ function matDesktopLayout(){
 }
 function matBarsAfterDraw(geometryOnly = false){
   const desk = document.querySelector('#view-play .osshop.osdesk');
-  if (matDesk()) matDesktopLayout();
+  const layout = matDesk() ? matDesktopLayout() : null;
   if (!document.querySelector('#view-play .osbar') && !desk) return;
   if (window.scrollY && !matBarsAfterDraw.busy){ matBarsAfterDraw.busy = true; window.scrollTo(0, 0); matBarsAfterDraw.busy = false; }   // the page sits at its top in every phase on the mat, so nothing shifts between them
   const g = $('gtop'), b = g && g.offsetHeight ? Math.round(g.getBoundingClientRect().bottom) : null;
@@ -196,8 +198,8 @@ function matBarsAfterDraw(geometryOnly = false){
     if (g && !MATBARS_SEEN.has(g)){ MATBARS_SEEN.add(g); MATBARS_RO.observe(g, {box:'border-box'}); }
     const box = desk.getBoundingClientRect(), previous = MATDESK_BOUNDS.get(desk);
     if (geometryOnly && previous && box.top === previous.top && box.left === previous.left &&
-        box.width === previous.width && box.height === previous.height) return;
-    MATDESK_BOUNDS.set(desk, box);
+        box.width === previous.width && box.height === previous.height && previous.layout === layout) return;
+    MATDESK_BOUNDS.set(desk, {top:box.top, left:box.left, width:box.width, height:box.height, layout});
     matFitDesk(desk);
     matDeskMobLayout();
     if (G.raid) raidPositionDrawer();
@@ -240,10 +242,13 @@ function matFitDesk(shop){
   const {flatY} = matDesktopLayout();
   const farRow = shop.querySelector('.osseat.opp .oscarrow'), nearRow = shop.querySelector('.osseat.me .oscarrow');
   const far = farRow.getBoundingClientRect(), near = nearRow.getBoundingClientRect();
+  if (!far.height || !near.height || far.bottom >= near.top) return;
+  // Measure from the CSS baseline so a previous viewport's offset cannot feed back into the fit.
+  shop.style.removeProperty('--shop-middle-offset');
   const r = market.getBoundingClientRect();
-  const current = parseFloat(shop.style.getPropertyValue('--shop-middle-offset')) || 0;
   const offset = flatY((far.bottom + near.top) / 2) - flatY((r.top + r.bottom) / 2);
-  if (Math.abs(offset) > .02) shop.style.setProperty('--shop-middle-offset', current + offset + 'px');
+  if (r.height && Number.isFinite(offset) && Math.abs(offset) > .02)
+    shop.style.setProperty('--shop-middle-offset', offset + 'px');
   const rug = market.querySelector('.osbazaar');
   if (rug){
     const centered = market.getBoundingClientRect();
@@ -282,7 +287,7 @@ function matTraysHTML(deck, row, extra, side, bazaar = false){
 }
 function matShopTraysHTML(S){
   return matTraysHTML(k => deckPileHTML(k, false, true), (k, src) => marketRow(k, src, true),
-    [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${G.raid ? '' : shopActsHTML()}</div>`, true);
+    [writBarHTML(), frozenHTML(S)], `<div class="dbtns ospass">${shopActsHTML()}${G.raid ? raidSiegeButtonHTML() : ''}</div>`, true);
 }
 function matShopHTML(){
   const S = seat();
@@ -329,6 +334,8 @@ function matRefreshPurchase(){
 function matDockHTML(mine, mirBtn, acts){
   if (matDesk()) return '';   // desktop: no bottom bar (the water, buys left and Miracles are on your row, Pass by the discard)
   const S = seat();
+  if (G.raid) return `<div class="dock osdock raid-shop-controls ph-shop" id="dock"><span class="grow"></span>
+    <div class="dbtns dact">${raidSiegeButtonHTML()}${acts}</div></div>`;
   return `<div class="dock osdock${mine ? ' mine' : ''} ph-shop" id="dock">${matPurseHTML(S)}${tileSlotsHTML(S)}<span class="grow"></span><div class="dbtns dact">${ui.visArm ? '' : mirBtn}${acts}</div></div><div class="dockspace" aria-hidden="true"></div>`;
 }
 
@@ -800,14 +807,12 @@ function matFlightGeometry(r, d, M){
 // gear in the hand spot, supports in the Caravan (the card it levels, or its new spot)
 function matSpotOf(n, k, i = seat()){
   const me = document.querySelector(`#view-play .osseat.${i === seat() ? 'me' : 'opp'}`); if (!me) return null;
-  const bought = me.querySelector('.osbought .ostop');   // desktop: units and gear land on the "Bought this shop" pile
-  if (k === 'u'){
-    if (G.raid){
-      const role = G.players[i].raidRoster[n], pile = role && me.querySelector(`.raid-pile[data-role="${role}"] .ostop`);
-      if (pile) return pile;
-    }
-    return bought || me.querySelector('.ospile .ostop');
+  if (G.raid && (k === 'u' || isGear(n))){
+    const role = n === 'Recruit' || isGear(n) ? 'deck' : G.players[i].raidRoster[n];
+    return role ? me.querySelector(`.raid-pile[data-role="${role}"] .ostop`) : null;
   }
+  const bought = me.querySelector('.osbought .ostop');   // desktop: units and gear land on the "Bought this shop" pile
+  if (k === 'u') return bought || me.querySelector('.ospile .ostop');
   const named = sel => [...me.querySelectorAll(sel)].filter(e => { const f = e.querySelector('.cfm'); return f && f.dataset.n === n; }).pop();
   return named('.oshand') || named('.oscar') || (BDEFS[n] && BDEFS[n].gear ? bought : null) || null;
 }
@@ -966,7 +971,10 @@ function matDragStart(p, e){
       if (contact) contact.animate([{opacity:1}, {opacity:0}], {...fade, fill:'forwards'}).onfinish = () => contact.remove();
     }
   }
-  p.target = p.w.ok ? document.querySelector(p.w.buy ? '#view-play .osdesk .osseat.me' : '#view-play .osdesk .osdisc') : null;
+  if (p.w.ok && G.raid && p.w.buy){
+    p.raidTargets = raidShopDropTargets(card);
+    p.raidTargets.forEach(el => el.classList.add('osdrop'));
+  } else p.target = p.w.ok ? document.querySelector(p.w.buy ? '#view-play .osdesk .osseat.me' : '#view-play .osdesk .osdisc') : null;
   if (p.fanPile && p.target){
     const r = p.target.getBoundingClientRect();
     const cue = document.createElement('div');
@@ -1031,8 +1039,18 @@ function matGrabPoint(pose, x, y){
   return {x:p.x + w, y:p.y + h};
 }
 function matDragOver(p, e){
-  if (!p.target || !p.target.isConnected) return false;
-  const r = p.target.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  const hit = el => {
+    if (!el?.isConnected) return false;
+    const r = el.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  };
+  if (p.raidTargets){
+    const targets = raidShopDropTargets(p.card);
+    if (p.target) p.target.classList.remove('osover');
+    p.target = targets.find(hit) || null;
+    return !!p.target;
+  }
+  return hit(p.target);
 }
 function matDragMove(p, e){
   p.x = e.clientX; p.y = e.clientY;
@@ -1137,6 +1155,7 @@ function matDragDrop(p, ok, {reset = false, cancel = false} = {}){
   if (p.tag) p.tag.remove();
   p.discardCue?.remove();
   if (p.target) p.target.classList.remove('osdrop', 'osover');
+  p.raidTargets?.forEach(el => el.classList.remove('osdrop', 'osover'));
   if (p.physical && $('view-play').hasPointerCapture(p.pid)) $('view-play').releasePointerCapture(p.pid);
   if (p.reorder?.fan.overlay.isConnected){
     const {fan, original, held} = p.reorder;
@@ -1168,7 +1187,13 @@ function matDragDrop(p, ok, {reset = false, cancel = false} = {}){
   MATLIFT.held = {g:p.g, fanPile:p.fanPile};
   const c = matDragFind(p), w = c && matDragWhat(c);
   if (c && c !== p.card){ MATLIFT.src = c; c.classList.add('oslifted'); }
-  if (ok && w && w.ok && G && G.phase === 'shop'){ const b = w.buy || w.sell; MATDRAG.eat = false; b.click(); MATDRAG.eat = true; }
+  if (ok && w && w.ok && G && G.phase === 'shop'){
+    const b = w.buy || w.sell, role = p.target?.dataset.role;
+    MATDRAG.eat = false;
+    if (G.raid && w.buy && RAID_ROLES.includes(role)) playerMove(['b', b.dataset.src, +b.dataset.idx, null, null, role]);
+    else b.click();
+    MATDRAG.eat = true;
+  }
   matLiftUnheld();   // nothing took it (refused, or a pick to make first): back to its spot
 }
 function matDragArm(e, card, inspector, face){
@@ -1182,14 +1207,15 @@ function matDragArm(e, card, inspector, face){
     sel:card.classList.contains('oscar') ? '.oscar' : fanPile === 'bought' || card.closest('.osbought') ? '.osbought .ostop' : '.osdeck .ostop'};
 }
 $('view-play').addEventListener('pointerdown', e => {
-  const card = matDeskShopCard(e.target) || e.target.closest('.osdeckfan-card');
+  const mobileRaid = G?.raid && !matDesk() && matShopOn() ? e.target.closest('.osshop .osmkt .mcard[data-ck]') : null;
+  const card = matDeskShopCard(e.target) || e.target.closest('.osdeckfan-card') || mobileRaid;
   if (card && !e.target.closest('.ostag, .osright button')) matDragArm(e, card);
 });
 window.addEventListener('pointermove', e => {
   const p = MATDRAG.p; if (!p || e.pointerId !== p.pid) return;
   if (!p.drag){
     if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < MAT_DRAG_PX) return;   // under it: a plain click (it does nothing)
-    const c = matDesk() && matDragFind(p), w = c && (matDragWhat(c) || (p.inspector && {ok:false}));
+    const c = (matDesk() || (G?.raid && matShopOn())) && matDragFind(p), w = c && (matDragWhat(c) || (p.inspector && {ok:false}));
     if (!w || c.inert || (p.inspector && p.inspector !== peekEl)){ MATDRAG.p = null; return; }
     p.card = c; p.w = w;
     if (!matDragStart(p, e)){ MATDRAG.p = null; return; }
@@ -1267,7 +1293,8 @@ function matOppStand(ev){
 // (or any Moisture Harvester copy) adds a spot; a level-up or Mason's Guild shows on a card that is already there
 function matOppWaitKey(i, ev){
   if (ev.on) return null;
-  if (ev.k === 'u') return 'pile';
+  if (G.raid && (ev.n === 'Recruit' || isGear(ev.n))) return 'raid-deck';
+  if (ev.k === 'u') return G.raid ? 'raid-' + G.players[i].raidRoster[ev.n] : 'pile';
   return ev.n === 'Field' || !SPOTS.has(`os:${i}:${ev.n}`) ? ev.n : null;
 }
 // the queue has played out: the purses and spots show the game as it is

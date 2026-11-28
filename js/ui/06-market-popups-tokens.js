@@ -209,7 +209,6 @@ function dockHTML(){
     if (matMobOn()){ DOCKINFO = {phase, hint, mine, infob}; return matMobDockHTML(acts); }   // one-screen dev: Mobilize on the mat
   } else return '';
   DOCKINFO = {phase, hint, mine, infob};
-  if (G.raid && !ui.battle && G.phase === 'shop') return raidDockHTML(acts, mine);
   const shopping = G.phase === 'shop' && !ui.battle;
   const deckBtn = i => { const lab = PP() || G.net ? (i === S ? 'Your deck' : esc(nm(i))) : i === S ? 'Your deck' : 'Enemy';
     return `<button type="button" class="dk s${VS(i)}${ui.deckView === i ? ' on' : ''}" data-act="deck-open" data-p="${i}" aria-haspopup="dialog" aria-label="${esc(deckName(i))}: view cards"><span class="dkic" aria-hidden="true"><i></i><i></i></span><span class="dl">${lab}</span></button>`; };

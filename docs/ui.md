@@ -166,7 +166,7 @@
 
 ## Raid
 
-Raid uses the same tabletop Shop, Mobilize, and Battle presentation as standard play. Each Caravan row replaces its single Deck slot with Attack and Defense piles during the Shop. Either player’s piles open for inspection. Only your own piles accept transfers. Opening a pile keeps the market in place.
+Raid uses the same tabletop Shop, Mobilize, and Battle presentation as standard play. Each Raid Shop row shows Caravan, Offense, Defense, the shared Deck, and the water counter in that order. Either player’s piles open for inspection. Only your own piles accept transfers. Opening a pile keeps the market in place. Bought This Shop is a text label. Drag a market card to its destination, or tap to inspect and buy. Units land directly in their assigned deck. Gear and Drifters land in the shared Deck, and supports land in the Caravan.
 
 In Pass and Play or Play the AI setup, select Raid to use Caravan health and separate Attack and Defense rosters. The fixed Caravan bar opens either public pile. During your Shop turn, drag a unit card onto the opposite pile or use its Move button. The Caravan panel provides the support inventory and Siege Workshop. Each fight has its own private Mobilize handoffs. The second lineup can use leftover gear and tokens.
 

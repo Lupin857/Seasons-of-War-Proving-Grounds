@@ -4,7 +4,7 @@ Raid is an opt-in, unrated mode in Pass and Play and Play the AI. It tests wheth
 
 ## Round sequence
 
-1. Shop together using the usual alternating turns. Buy each new unit into Attack or Defense. Duplicate purchases upgrade the unit in place. Each player can move one existing unit between decks per Shop, for free, during their turn. Either Caravan’s Attack and Defense piles can be opened in the Shop to see the public rosters. The rosters hold up to seven unique units in total and five per deck.
+1. Shop together using the usual alternating turns. Buy each new unit into Attack or Defense. Duplicate purchases upgrade the unit in place. Each player can move one existing unit between decks per Shop, for free, during their turn. Either Caravan’s Attack and Defense piles can be opened in the Shop to see the public rosters. A separate shared Deck holds gear and Drifters. The rosters hold up to seven unique units in total and five per deck.
 2. Pass the device to set the first fight's lineups in secret. One player's Attack faces the other player's Defense. Only the two active lineups use the table.
 3. Resolve that fight and note the damage owed. Reverse roles. Secretly order the other two lineups and resolve the counterattack. Alternate who attacks first each round.
 4. Apply both hits together. Caravans start at eight health. A successful attack deals one damage for each surviving attacker, including units still in the deck. A hold or tie deals zero. Mutual destruction is a draw.

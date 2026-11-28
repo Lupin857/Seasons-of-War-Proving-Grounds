@@ -166,7 +166,7 @@ function drawPlay(options){
   if (ui.visArm && !(G && G.phase === 'shop' && !ui.battle && cur(G) === seat() && !G.passed[seat()] && (G.players[seat()].mir || []).includes('Vision') && !peekOf(G, seat(), 'vis'))) ui.visArm = false;
   const POPS = [['.mirmodal', '.mirmbox'], ['.remind', '.remindbox'], ['.mirtray', '.mirtray'], ['.pkwin', '.pksheet']];
   const vp0 = $('view-play'), oldPops = POPS.map(([b]) => { const e = vp0.querySelector(b); return e ? {e, r:e.getBoundingClientRect()} : null; });
-  const playHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
+  const playHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G.raid ? raidDrawerHTML(seat(), ui.raidPile) : ''}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
   if (typeof morphOn === 'function' && morphOn()) morphInto($('view-play'), playHTML); else $('view-play').innerHTML = playHTML;
   syncCardSize();
   document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.pkwin'));

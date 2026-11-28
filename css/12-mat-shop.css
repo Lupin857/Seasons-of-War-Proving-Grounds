@@ -264,6 +264,7 @@ body.os-mat .oinsp{display:none!important}   /* the right-side card panel stays 
   --osres:1;--ostilt:14deg;--mw:var(--deskmw,173px);--osg:calc(var(--mw) * .07);
   --desk-card-h:calc(var(--mw) * 1037 / 750);--desk-crop-h:calc(var(--mw) * 728 / 750)
 }
+#view-play .osdesk.osshop { height: 100dvh; }
 #view-play .osbattle-table{display:block;z-index:2;pointer-events:none}
 #view-play:has(#gtop.gtop-mat){--gtb:0px}
 html body #view-play #gtop.gtop-mat{

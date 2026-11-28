@@ -38,22 +38,36 @@ function raidBuyHTML(){
   return popWinHTML('Choose a deck', 'raid-buy', '', body, 'This assignment carries over between rounds.');
 }
 
+function raidSharedHand(p){
+  const hand = Object.fromEntries(Object.entries(p.gear || {}).filter(([, copies]) => copies > 0));
+  if (p.hand.Recruit > 0) hand.Recruit = p.hand.Recruit;
+  return hand;
+}
+
+const raidPileLabel = role => ({attack:'Offense', defense:'Defense', deck:'Deck'})[role];
+
 function raidPileSlotsHTML(i){
   const p = G.players[i], mine = i === seat();
-  return RAID_ROLES.map(role => {
+  return [...RAID_ROLES, 'deck'].map(role => {
+    const shared = role === 'deck', label = raidPileLabel(role);
     // The public card on top follows purchase history, independently of the secret battle order.
-    const hand = Object.fromEntries(raidNames(p, role).map(n => [n, p.hand[n]]));
-    const top = matPileTop(p, hand), count = raidDeckSize(p, role);
+    const hand = shared ? raidSharedHand(p) : Object.fromEntries(raidNames(p, role).map(n => [n, p.hand[n]]));
+    const top = matPileTop(p, hand);
+    const count = shared ? Object.values(hand).reduce((n, copies) => n + copies, 0) : raidDeckSize(p, role);
+    const tally = shared ? String(count) : `${count}/${RAID.deck}`;
+    const description = shared ? `${count} gear and Drifter cards` : `${count} of ${RAID.deck} units`;
     const expanded = ui.raidPile?.player === i && ui.raidPile?.role === role;
     const edges = Array.from({length:Math.min(2, Math.max(0, count - 1))}, (_, k) =>
       `<i class="osedge" style="--k:${k + 1}" aria-hidden="true"></i>`).join('');
-    const stock = top ? `<span class="mcard u ostop" aria-hidden="true">${cardFace(top, 'u', hand[top], true)}</span>`
+    const waiting = matWaitN(i, `raid-${role}`) ? ' style="visibility:hidden"' : '';
+    const kind = top ? cardKind(top) : 'u';
+    const stock = top ? `<span class="mcard ${kind} ostop" aria-hidden="true"${waiting}>${cardFace(top, kind, top === 'Recruit' ? 1 : hand[top], true)}</span>`
       : '<span class="osslot" aria-hidden="true"></span>';
     return `<button type="button" class="ospile raid-pile raid-${role} s${VS(i)}" data-act="raid-pile" data-role="${role}"
-      data-p="${i}" ${mine ? `data-raid-drop="${role}"` : ''} aria-expanded="${expanded}"
-      aria-label="${esc(mine && !PP() ? 'Your' : nm(i) + '’s')} ${raidRoleName(role)} pile, ${count} of ${RAID.deck} units">
+      data-p="${i}" ${mine && !shared ? `data-raid-drop="${role}"` : ''} aria-expanded="${expanded}"
+      aria-label="${esc(mine && !PP() ? 'Your' : nm(i) + '’s')} ${label} pile, ${description}">
       ${matDesk() ? `<span class="ospile-stock">${edges}${stock}</span>` : edges + stock}
-      <span class="ostag">${raidRoleName(role)}${matDesk() ? ` <b>${count}/${RAID.deck}</b>` : ''}</span></button>`;
+      <span class="ostag">${label}${matDesk() ? ` <b>${tally}</b>` : ''}</span></button>`;
   }).join('');
 }
 
@@ -65,36 +79,32 @@ function raidMobilizeNoteHTML(){
 }
 
 function raidDrawerHTML(S, open){
-  if (!open) return '';
+  if (!open || !G.raid || G.phase !== 'shop' || ui.battle) return '';
   const {player, role} = open, p = G.players[player], mine = player === S;
-  if (role === 'caravan'){
-    const siegeWhy = raidSiegeReason(G, S);
-    const siegeText = p.raidSiege === 2 ? 'Siege Workshop ready' : `${p.raidSiege === 1 ? 'Finish' : 'Build'} Siege Workshop · ${RAID.siegePrice} Water`;
-    return `<div class="raid-drawer" id="raid-drawer">
-      <button type="button" data-act="deck-open" data-p="${S}">View Caravan, gear &amp; sell cards</button>
-      <button type="button" data-act="raid-siege" ${siegeWhy ? 'disabled' : ''} title="${esc(siegeWhy)}">${siegeText}</button>
-      ${siegeWhy && p.raidSiege === 1 ? `<small>${esc(siegeWhy)}</small>` : ''}
-      <small>${raidRoundTitle()}</small>
-    </div>`;
-  }
+  const shared = role === 'deck', canMove = mine && !shared;
   const to = role === 'attack' ? 'defense' : 'attack';
-  const units = raidNames(p, role).sort((a, b) => dispName(a).localeCompare(dispName(b))).map(n => {
-    const why = mine ? raidTransferReason(G, S, n, to) : '', art = artURL(n, 'u');
-    const level = uLvl(n, p.hand[n]);
+  const stock = shared ? raidSharedHand(p) : Object.fromEntries(raidNames(p, role).map(n => [n, p.hand[n]]));
+  const units = Object.keys(stock).sort((a, b) => dispName(a).localeCompare(dispName(b))).map(n => {
+    const kind = cardKind(n), copies = stock[n], art = artURL(n, kind);
+    const level = kind === 'u' ? uLvl(n, copies) : 1;
+    const why = canMove ? raidTransferReason(G, S, n, to) : '';
+    const qty = copies > 1 ? ` · ×${copies}` : '';
+    const detail = shared ? (kind === 'u' ? 'Drifter' : 'Gear') : `Lv ${level}`;
     return `<div class="raid-unit">
-      <span class="raid-card" ${mine && !why ? `data-raid-drag="${esc(n)}" data-role="${role}"` : ''}>
+      <span class="raid-card" ${canMove && !why ? `data-raid-drag="${esc(n)}" data-role="${role}"` : ''}>
         ${art ? `<img src="${art}" alt="" draggable="false">` : ''}
-        <span>${esc(dispName(n))}<small>Lv ${level}${p.hand[n] > 1 ? ` · ×${p.hand[n]}` : ''}</small></span></span>
-      <details class="raid-unit-rules"><summary>Card details</summary><span>${cardTx(n, 'u', level, true)}</span></details>
-      ${mine ? `<button type="button" data-act="raid-transfer" data-name="${esc(n)}" data-role="${to}"
+        <span>${esc(dispName(n))}<small>${detail}${qty}</small></span></span>
+      <details class="raid-unit-rules"><summary>Card details</summary><span>${cardTx(n, kind, level, true)}</span></details>
+      ${mine && canSell(G, S, kind, n) ? shopSellBtnHTML(n, kind) : ''}
+      ${canMove ? `<button type="button" data-act="raid-transfer" data-name="${esc(n)}" data-role="${to}"
         ${why ? 'disabled' : ''} title="${esc(why)}" aria-label="Move ${esc(dispName(n))} to ${raidRoleName(to)}">Move to ${raidRoleName(to)}</button>` : ''}
     </div>`;
   }).join('');
-  const note = mine ? ui.raidTransferError ? esc(ui.raidTransferError) : p.raidTransfer ? 'Transfer used this Shop' : 'Drag a card onto the other pile, or use Move.' : '';
-  const title = `${mine && !PP() ? 'Your' : esc(nm(player)) + '’s'} ${raidRoleName(role)} pile`;
+  const note = canMove ? ui.raidTransferError ? esc(ui.raidTransferError) : p.raidTransfer ? 'Transfer used this Shop' : 'Drag a card onto the other pile, or use Move.' : '';
+  const title = `${mine && !PP() ? 'Your' : esc(nm(player)) + '’s'} ${raidPileLabel(role)} pile`;
   return `<section class="raid-drawer raid-roster-drawer" id="raid-drawer" data-raid-player="${player}" aria-label="${title}">
     <header><b>${title}</b><button type="button" data-act="raid-close-pile">Close</button></header>
-    <div class="raid-unit-row">${units || '<span>This pile is empty.</span>'}</div>
+    <div class="raid-unit-row">${units || (shared ? '<span>No gear or Drifters in this Deck.</span>' : '<span>This pile is empty.</span>')}</div>
     ${note ? `<small class="raid-transfer-note">${note}</small>` : ''}</section>`;
 }
 
@@ -104,23 +114,35 @@ function raidPositionDrawer(){
   const mine = +drawer.dataset.raidPlayer === seat();
   const row = document.querySelector(`#view-play .osseat.${mine ? 'me' : 'opp'}.osbar-shop`);
   if (!row) return;
-  const rect = row.getBoundingClientRect(), dock = $('dock').getBoundingClientRect();
+  const rect = row.getBoundingClientRect();
   const caption = matDesk() ? 24 : 0;
-  const anchor = mine ? Math.max(0, dock.top - rect.top) + caption : rect.bottom + caption;
+  const anchor = mine ? Math.max(0, innerHeight - rect.top) + caption : rect.bottom + caption;
   drawer.style.setProperty('--raid-drawer-anchor', anchor + 'px');
   drawer.classList.toggle('raid-rival-drawer', !mine);
 }
 
-function raidDockHTML(acts, mine){
-  const S = seat(), p = G.players[S], open = ui.raidPile;
-  return `<footer id="dock" class="dock raid-dock${mine ? ' mine' : ''}">
-    ${raidDrawerHTML(S, open)}
-    <div class="raid-dock-row">
-      <button type="button" class="raid-caravan deckbtn s${VS(S)}" data-act="raid-pile" data-p="${S}" data-role="caravan" aria-expanded="${open?.role === 'caravan'}">
-        <b>${PP() ? `${esc(nm(S))}’s Caravan` : 'Your Caravan'}</b><small>${p.money} Water · +${Math.max(0, income(p))} next Shop</small></button>
-      <div class="raid-actions"><span class="raid-buy-count">${Math.max(0, baseLeft(G.buys[S]))} buys left</span>${acts}</div>
-    </div>
-  </footer><div class="dockspace" aria-hidden="true"></div>`;
+function raidShopStatusHTML(i){
+  const p = G.players[i], b = G.buys[i], left = Math.max(0, baseLeft(b)), cap = buysOf(b);
+  const bonus = Math.max(0, bVal(p, "Carpenter's Guild") - b.carp) + (b.fav || 0);
+  return `<small class="raid-shop-status">Bought this shop<br>${left}/${cap} buys left${bonus ? ` · +${bonus} bonus` : ''}</small>`;
+}
+
+function raidSiegeButtonHTML(){
+  const S = seat(), stage = G.players[S].raidSiege;
+  const why = raidSiegeReason(G, S);
+  const label = stage === 2 ? 'Siege ready' : `${stage === 1 ? 'Finish' : 'Build'} siege · ${RAID.siegePrice}`;
+  return `<button type="button" class="raid-siege-btn" data-act="raid-siege" ${why ? 'disabled' : ''} title="${esc(why || label + ' Water')}">${label}</button>`;
+}
+
+function raidShopDropTargets(card){
+  const buy = card.querySelector(':scope > [data-act="buy"]'), S = seat();
+  const offer = buy && sourceCard(G, S, buy.dataset.src, +buy.dataset.idx);
+  const row = document.querySelector('#view-play .osseat.me.osbar-shop');
+  if (!offer || !row) return [];
+  if (offer.name === 'Recruit' || isGear(offer.name)) return [...row.querySelectorAll('.raid-pile[data-role="deck"]')];
+  if (offer.kind === 'b') return [...row.querySelectorAll('.oscarrow')];
+  const roles = raidChoices(G.players[S], offer.name);
+  return roles.flatMap(role => [...row.querySelectorAll(`.raid-pile[data-role="${role}"]`)]);
 }
 
 function raidTransferUI(name, role){
