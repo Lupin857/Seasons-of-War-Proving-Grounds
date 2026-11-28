@@ -115,7 +115,8 @@ const FLYHOSTS = new Map();
 function pinFly(g, x, y, w, h){
   if (!g.dataset.solid){
     g.dataset.solid = '1';
-    solidArt(g, g.classList.contains('osbazaar-flight') ? undefined : w);
+    // Leave extra pixel density for the near edge of the 3D Shop flip as it rises toward the camera.
+    solidArt(g, w * (g.classList.contains('osbazaar-flight') ? 1.5 : 1));
   }
   for (const [k, v] of [['position','fixed'], ['left', x + 'px'], ['top', y + 'px'], ['right','auto'], ['bottom','auto'], ['width', w + 'px'], ['height', h + 'px'], ['margin','0'], ['min-height','0'], ['max-width','none']]) g.style.setProperty(k, v, 'important');
 }

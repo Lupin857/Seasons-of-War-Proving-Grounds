@@ -170,8 +170,8 @@ self.addEventListener('activate', e => {
   })());
 });
 
-// The page asks for this once it has loaded, so the ~13 MB of card art
-// downloads in the background instead of slowing the first visit.
+// Match setup asks for this after loading its artwork, so the card library
+// stays available offline without downloading it on a fresh Home screen.
 self.addEventListener('message', e => {
   if (e.data === 'warm-art') e.waitUntil(warmArt());
 });

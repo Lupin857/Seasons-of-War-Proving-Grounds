@@ -74,7 +74,10 @@ global scope and run in the order index.html loads them, exactly like the old in
   `art/tabmask.svg` is the phone crop shape.
 - Installable app (Nov 2026, v87): `manifest.webmanifest` (name, icons, standalone launch), `icons/` (placeholder
   icons cropped from the Might medallion), and `sw.js`, a service worker registered by a small script at the end of
-  index.html. `sw.js` precaches the code (`CORE` list) and, once the page has loaded, the card art (`ART` list).
+  index.html. `sw.js` precaches the code (`CORE` list). Match setup starts loading card art and the current board
+  textures, which the start and resume paths wait for. Once match art is ready, the page asks the service worker to retain
+  the art library for offline play (`ART` list). Shop deal canvases use the card's on-table size, display pixel
+  ratio and extra resolution for the raised flip.
   Code and pages are network first (online players always get the newest files; the cache is only the offline
   fallback); images and Google Fonts are cache first. **When you add, remove or rename a file the page loads, update
   `CORE`/`ART` in sw.js and bump its `VERSION`**, or offline play misses the file (a missing `CORE` file makes the
