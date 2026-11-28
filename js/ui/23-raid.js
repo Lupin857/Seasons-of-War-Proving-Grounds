@@ -46,27 +46,33 @@ function raidSharedHand(p){
 
 const raidPileLabel = role => ({attack:'Offense', defense:'Defense', deck:'Deck'})[role];
 
-function raidPileSlotsHTML(i){
+function raidPileTop(row, role){
+  return row?.querySelector(`.raid-pile[data-role="${role}"] :is(.ostop,.osslot)`);
+}
+
+function raidPileSlotsHTML(i, mode){
   const p = G.players[i], mine = i === seat();
+  const activeRole = ui.battle?.raid ? (ui.battle.raid.attacker === i ? 'attack' : 'defense') : raidRole(G, i);
   return [...RAID_ROLES, 'deck'].map(role => {
     const shared = role === 'deck', label = raidPileLabel(role);
+    const deployed = role === activeRole && (mode === 'battle' || (mode === 'mob' && !MATMOB.lift));
     // The public card on top follows purchase history, independently of the secret battle order.
     const hand = shared ? raidSharedHand(p) : Object.fromEntries(raidNames(p, role).map(n => [n, p.hand[n]]));
     const top = matPileTop(p, hand);
     const count = shared ? Object.values(hand).reduce((n, copies) => n + copies, 0) : raidDeckSize(p, role);
     const tally = shared ? String(count) : `${count}/${RAID.deck}`;
     const description = shared ? `${count} gear and Drifter cards` : `${count} of ${RAID.deck} units`;
-    const expanded = ui.raidPile?.player === i && ui.raidPile?.role === role;
     const edges = Array.from({length:Math.min(2, Math.max(0, count - 1))}, (_, k) =>
       `<i class="osedge" style="--k:${k + 1}" aria-hidden="true"></i>`).join('');
     const waiting = matWaitN(i, `raid-${role}`) ? ' style="visibility:hidden"' : '';
     const kind = top ? cardKind(top) : 'u';
-    const stock = top ? `<span class="mcard ${kind} ostop" aria-hidden="true"${waiting}>${cardFace(top, kind, top === 'Recruit' ? 1 : hand[top], true)}</span>`
-      : '<span class="osslot" aria-hidden="true"></span>';
-    return `<button type="button" class="ospile raid-pile raid-${role} s${VS(i)}" data-act="raid-pile" data-role="${role}"
-      data-p="${i}" ${mine && !shared ? `data-raid-drop="${role}"` : ''} aria-expanded="${expanded}"
-      aria-label="${esc(mine && !PP() ? 'Your' : nm(i) + '’s')} ${label} pile, ${description}">
-      ${matDesk() ? `<span class="ospile-stock">${edges}${stock}</span>` : edges + stock}
+    const stock = top ? `<span class="mcard ${kind} ostop" aria-hidden="true"${waiting}>${cardFace(top, kind, top === 'Recruit' ? 1 : hand[top], true)}</span>` : '';
+    const slot = '<span class="osslot" aria-hidden="true"></span>';
+    const contents = (deployed || !stock ? slot : '') + (stock ? edges + stock : '');
+    return `<button type="button" class="ospile raid-pile raid-${role} s${VS(i)}${deployed ? ' raid-deployed' : ''}" data-act="raid-pile" data-role="${role}"
+      data-p="${i}" ${mine && !shared && mode === 'shop' ? `data-raid-drop="${role}"` : ''} ${deployed || mode === 'mob' ? 'disabled' : ''} aria-expanded="false" aria-haspopup="dialog"
+      aria-label="${esc(mine && !PP() ? 'Your' : nm(i) + '’s')} ${label} pile, ${deployed ? 'deployed' : description}">
+      ${matDesk() ? `<span class="ospile-stock">${contents}</span>` : contents}
       <span class="ostag">${label}${matDesk() ? ` <b>${tally}</b>` : ''}</span></button>`;
   }).join('');
 }
@@ -76,49 +82,6 @@ function raidMobilizeNoteHTML(){
   const O = 1 - seat(), p = G.players[O], role = raidRole(G, O);
   const units = raidNames(p, role).map(n => esc(dispName(n))).join(', ');
   return `<div class="raid-mob-note"><b>${raidRoundTitle()}${pending}</b><span>Facing ${units || 'an empty ' + raidRoleName(role) + ' deck'}</span></div>`;
-}
-
-function raidDrawerHTML(S, open){
-  if (!open || !G.raid || G.phase !== 'shop' || ui.battle) return '';
-  const {player, role} = open, p = G.players[player], mine = player === S;
-  const shared = role === 'deck', canMove = mine && !shared;
-  const to = role === 'attack' ? 'defense' : 'attack';
-  const stock = shared ? raidSharedHand(p) : Object.fromEntries(raidNames(p, role).map(n => [n, p.hand[n]]));
-  const units = Object.keys(stock).sort((a, b) => dispName(a).localeCompare(dispName(b))).map(n => {
-    const kind = cardKind(n), copies = stock[n], art = artURL(n, kind);
-    const level = kind === 'u' ? uLvl(n, copies) : 1;
-    const why = canMove ? raidTransferReason(G, S, n, to) : '';
-    const qty = copies > 1 ? ` · ×${copies}` : '';
-    const detail = shared ? (kind === 'u' ? 'Drifter' : 'Gear') : `Lv ${level}`;
-    return `<div class="raid-unit">
-      <span class="raid-card" ${canMove && !why ? `data-raid-drag="${esc(n)}" data-role="${role}"` : ''}>
-        ${art ? `<img src="${art}" alt="" draggable="false">` : ''}
-        <span>${esc(dispName(n))}<small>${detail}${qty}</small></span></span>
-      <details class="raid-unit-rules"><summary>Card details</summary><span>${cardTx(n, kind, level, true)}</span></details>
-      ${mine && canSell(G, S, kind, n) ? shopSellBtnHTML(n, kind) : ''}
-      ${canMove ? `<button type="button" data-act="raid-transfer" data-name="${esc(n)}" data-role="${to}"
-        ${why ? 'disabled' : ''} title="${esc(why)}" aria-label="Move ${esc(dispName(n))} to ${raidRoleName(to)}">Move to ${raidRoleName(to)}</button>` : ''}
-    </div>`;
-  }).join('');
-  const note = canMove ? ui.raidTransferError ? esc(ui.raidTransferError) : p.raidTransfer ? 'Transfer used this Shop' : 'Drag a card onto the other pile, or use Move.' : '';
-  const title = `${mine && !PP() ? 'Your' : esc(nm(player)) + '’s'} ${raidPileLabel(role)} pile`;
-  return `<section class="raid-drawer raid-roster-drawer" id="raid-drawer" data-raid-player="${player}" aria-label="${title}">
-    <header><b>${title}</b><button type="button" data-act="raid-close-pile">Close</button></header>
-    <div class="raid-unit-row">${units || (shared ? '<span>No gear or Drifters in this Deck.</span>' : '<span>This pile is empty.</span>')}</div>
-    ${note ? `<small class="raid-transfer-note">${note}</small>` : ''}</section>`;
-}
-
-function raidPositionDrawer(){
-  const drawer = document.querySelector('.raid-roster-drawer');
-  if (!drawer) return;
-  const mine = +drawer.dataset.raidPlayer === seat();
-  const row = document.querySelector(`#view-play .osseat.${mine ? 'me' : 'opp'}.osbar-shop`);
-  if (!row) return;
-  const rect = row.getBoundingClientRect();
-  const caption = matDesk() ? 24 : 0;
-  const anchor = mine ? Math.max(0, innerHeight - rect.top) + caption : rect.bottom + caption;
-  drawer.style.setProperty('--raid-drawer-anchor', anchor + 'px');
-  drawer.classList.toggle('raid-rival-drawer', !mine);
 }
 
 function raidShopStatusHTML(i){
@@ -134,6 +97,84 @@ function raidSiegeButtonHTML(){
   return `<button type="button" class="raid-siege-btn" data-act="raid-siege" ${why ? 'disabled' : ''} title="${esc(why || label + ' Water')}">${label}</button>`;
 }
 
+async function raidClearBattle(view, battle){
+  if (reduceMotion()) return;
+  const line = view.querySelector('.stage .line.table');
+  if (!line || !view.querySelector('.osbar-battle .raid-pile')) return;
+  const opening = battle.frames[0].snap, ending = battle.frames.at(-1).snap;
+  const controls = [...view.querySelectorAll('.battlectl, #dock, .tailwait, [data-act="continue"]')].filter(el => !el.inert);
+  const flyers = [], flights = [];
+  controls.forEach(el => { el.inert = true; });
+  view.classList.add('raid-clearing');
+  try{
+    for (const i of [0, 1]){
+      const row = view.querySelector(`.osbar-battle.s${VS(i)}`);
+      const roster = row.querySelector('.raid-deployed');
+      const shared = row.querySelector('.raid-deck');
+      const home = matPoseOf(roster.querySelector('.osslot'));
+      const sharedHome = matPoseOf(shared.querySelector('.ostop,.osslot'));
+      const field = line.querySelector(`.trow.s${VS(i)}`);
+      const deployed = new Map(opening[i].deck.map(unit => [unit.uid, unit]));
+      const sources = [
+        [ending[i].deck, field.querySelector('.deckz .revealed'), false],
+        [[ending[i].charge], field.querySelector('.chz .charging'), false],
+        [ending[i].grave, field.querySelector('.grz .gcard:not(.gunder)'), true]
+      ];
+      let delay = 0;
+      const fly = (from, dest, name, kind, faceDown) => {
+        if (!from?.width || !dest) return;
+        const card = document.createElement('div');
+        card.className = 'mcard raid-return-card ' + kind;
+        card.innerHTML = faceDown ? '<span class="oback"></span>' : cardFace(name, kind, 1, true);
+        const frames = matArc(from, {r:from, tilt:0}, dest, {arc:22, levelThroughout:true});
+        if (!frames) return;
+        flyEl(card, from, from.width, from.height, LAYER.flight);
+        flyers.push(card);
+        flights.push(card.animate(frames, {duration:420, delay, easing:MAT_EASE, fill:'both'}).finished);
+        delay += 28;
+      };
+      for (const [units, source, faceDown] of sources){
+        const from = source?.getBoundingClientRect();
+        for (const unit of units){
+          const original = unit && deployed.get(unit.uid);
+          if (!original) continue;
+          fly(from, original.name === 'Recruit' ? sharedHome : home, original.name, 'u', faceDown);
+          if (original.gear) fly(from, sharedHome, original.gear, 'b', false);
+        }
+      }
+    }
+    await Promise.allSettled(flights);
+    if (flights.length){
+      view.classList.add('raid-restacked');
+      flyers.splice(0).forEach(card => card.remove());
+      await new Promise(resolve => setTimeout(resolve, 110));
+    }
+  } finally {
+    flyers.forEach(card => card.remove());
+    controls.forEach(el => { el.inert = false; });
+    view.classList.remove('raid-clearing', 'raid-restacked');
+  }
+}
+
+function raidContinue(){
+  if (ui.raidClearing || ui.frame !== ui.battle.frames.length - 1) return;
+  const game = G, state = ui, battle = ui.battle;
+  sfx.soft(); stopAuto(); stopAnim(); closePeek(true);
+  state.raidClearing = true;
+  raidClearBattle($('view-play'), battle).catch(err => console.error('Raid cleanup', err)).finally(() => {
+    state.raidClearing = false;
+    if (G !== game || ui !== state || ui.battle !== battle) return;
+    ui.battle = null; ui.revealed = false; ui.pre = null; ui.mktTab = 'u';
+    if (raidNextFight(G)){
+      ui.mobSeat = 0; ui.handoff = PP() ? 0 : null;
+      MATMOB.lift = matMobOn() && !reduceMotion();
+      renderPlay(); toGame();
+    } else {
+      shopCoinStart(G); renderPlay(); scheduleAI();
+    }
+  });
+}
+
 function raidShopDropTargets(card){
   const buy = card.querySelector(':scope > [data-act="buy"]'), S = seat();
   const offer = buy && sourceCard(G, S, buy.dataset.src, +buy.dataset.idx);
@@ -146,50 +187,61 @@ function raidShopDropTargets(card){
 }
 
 function raidTransferUI(name, role){
-  const S = seat(), why = raidTransferReason(G, S, name, role);
-  if (why){
-    ui.raidTransferError = why;
-    sfx.err();
-  } else {
-    playerMove(['raid-transfer', name, role]);
-    return;
-  }
-  renderPlay();
+  const why = raidTransferReason(G, seat(), name, role);
+  if (why){ showToast(why); sfx.err(); return; }
+  closePeek(true);
+  const view = $('view-play');
+  view.querySelector('.osdeckfan[data-raid-pile]')?.remove();
+  view.querySelector('.raid-pile[aria-expanded="true"]')?.setAttribute('aria-expanded', 'false');
+  playerMove(['raid-transfer', name, role]);
 }
 
-let raidDrag = null;
-const raidDropAt = e => document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-raid-drop]');
+const raidDrag = {p:null, eat:false};
+window.addEventListener('click', e => {
+  if (!raidDrag.eat) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+}, true);
+function raidDropAt(e, d){
+  const to = d.role === 'attack' ? 'defense' : 'attack';
+  const target = document.querySelector(`#view-play .osseat.me [data-raid-drop="${to}"]`);
+  const b = target?.getBoundingClientRect();
+  return b && e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom ? target : null;
+}
 $('view-play').addEventListener('pointerdown', e => {
   const card = e.target.closest('[data-raid-drag]');
-  if (!card || !G?.raid || !e.isPrimary || e.button !== 0) return;
-  raidDrag = {card, id:e.pointerId, x:e.clientX, y:e.clientY, name:card.dataset.raidDrag, role:card.dataset.role};
+  if (!card || e.target.closest('button') || !G?.raid || !e.isPrimary || e.button !== 0) return;
+  raidDrag.p = {card, id:e.pointerId, x:e.clientX, y:e.clientY, name:card.dataset.raidDrag, role:card.dataset.role};
   card.setPointerCapture(e.pointerId);
 });
 window.addEventListener('pointermove', e => {
-  const d = raidDrag;
+  const d = raidDrag.p;
   if (!d || d.id !== e.pointerId) return;
   if (!d.ghost && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return;
   if (!d.ghost){
-    d.ghost = d.card.cloneNode(true);
-    d.ghost.classList.add('raid-drag-card');
-    d.ghost.setAttribute('aria-hidden', 'true');
-    document.body.append(d.ghost);
+    raidDrag.eat = true;
+    d.card.closest('.osdeckfan')?.classList.add('raid-transferring');
+    const box = d.card.getBoundingClientRect(), {g} = flyer(d.card, 'u');
+    d.ghost = g;
+    flyEl(g, box, box.width, box.height, LAYER.cardPop);
+    g.classList.add('raid-drag-card');
   }
-  d.ghost.style.transform = `translate(${e.clientX + 8}px, ${e.clientY - 22}px)`;
+  d.ghost.style.translate = `${e.clientX - d.x}px ${e.clientY - d.y}px`;
   d.target?.classList.remove('raid-drop-ready');
-  const t = raidDropAt(e);
-  d.target = t && t.dataset.raidDrop !== d.role ? t : null;
+  d.target = raidDropAt(e, d);
   d.target?.classList.add('raid-drop-ready');
 });
 function raidEndDrag(e){
-  const d = raidDrag;
+  const d = raidDrag.p;
   if (!d || d.id !== e.pointerId) return;
-  raidDrag = null;
+  raidDrag.p = null;
   d.ghost?.remove();
+  d.card.closest('.osdeckfan')?.classList.remove('raid-transferring');
   d.target?.classList.remove('raid-drop-ready');
   if (e.type === 'pointerup' && d.ghost && d.card.isConnected && G?.raid){
-    const t = raidDropAt(e), role = t?.dataset.raidDrop;
-    if (role && role !== d.role) raidTransferUI(d.name, role);
+    const target = raidDropAt(e, d);
+    if (target) raidTransferUI(d.name, target.dataset.raidDrop);
   }
+  setTimeout(() => { raidDrag.eat = false; }, 0);
 }
 for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) window.addEventListener(type, raidEndDrag);

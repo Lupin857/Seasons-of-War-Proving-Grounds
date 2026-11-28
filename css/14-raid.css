@@ -13,34 +13,6 @@
 .raid-setup input { width: 20px; height: 20px; accent-color: #d3a65a; }
 .raid-setup small { display: block; color: #d6c6aa; }
 .raid-buy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.raid-drawer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 7px;
-  max-width: 960px;
-  margin: 0 auto 8px;
-}
-.raid-unit-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.raid-unit { display: grid; gap: 3px; min-width: 0; max-width: 144px; }
-.raid-card {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  padding: 5px 8px;
-  background: #343b3d;
-  border: 1px solid #8b9799;
-  border-radius: 5px;
-  overflow-wrap: anywhere;
-  user-select: none;
-}
-.raid-card img { width: 30px; height: 31px; object-fit: cover; border-radius: 3px; pointer-events: none; }
-.raid-card small { display: block; color: #d6c6aa; }
-.raid-unit button { font-size: 12px; min-height: 30px; padding: 4px 6px; }
-.raid-card[data-raid-drag] { cursor: grab; touch-action: none; }
-.raid-drag-card { position: fixed; inset: 0 auto auto 0; pointer-events: none; z-index: 150; opacity: .95; }
-.raid-transfer-note { flex: 1 0 100%; color: #d6c6aa; }
 #view-play #dock.raid-shop-controls {
   background: transparent !important;
   border: 0;
@@ -50,23 +22,6 @@
   pointer-events: none;
 }
 #view-play #dock.raid-shop-controls button { pointer-events: auto; }
-/* A pile opens next to its row without moving the market. */
-#view-play .raid-drawer {
-  position: fixed;
-  inset: auto 8px var(--raid-drawer-anchor, 0px);
-  z-index: 26;
-  max-height: min(42dvh, 330px);
-  overflow: auto;
-  padding: 8px;
-  margin: 0 auto;
-  background: #29231b;
-  color: #f5e5ca;
-  border: 1px solid #76644b;
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 -4px 16px #0005;
-}
-#view-play .raid-drawer button { background: #35302a; color: #f5e5ca; border-color: #76644b; }
-#view-play .raid-drawer button:disabled { color: #d6c6aa; }
 .raid-shop-status {
   align-self: center;
   flex: none;
@@ -79,10 +34,7 @@
   white-space: nowrap;
 }
 .raid-mob-note { display: grid; gap: 2px; margin: 4px 0; font-size: 12px; color: #ead9bc; }
-@media (max-width: 480px) {
-}
-
-#view-play .osbar.osraid-seat.osbar-shop {
+#view-play .osbar.osraid-seat {
   --raid-pile-width: clamp(29px, 9vw, 46px);
   --osbw: min(46px, calc((100vw - 107px - 3 * var(--raid-pile-width) - 4px * (var(--raid-city-slots) - 1)) / var(--raid-city-slots)));
   padding-inline: 7px;
@@ -97,6 +49,38 @@
   color: #251e15;
   white-space: nowrap;
 }
+#view-play .raid-pile:disabled { opacity: 1; cursor: default; }
+#view-play:not(.raid-restacked) .raid-pile.raid-deployed :is(.ostop,.osedge),
+#view-play.raid-restacked .raid-pile.raid-deployed:has(.ostop) .osslot { display: none; }
+#view-play .osbar.osbar-mob.osraid-seat .raid-pile { visibility: visible; }
+#view-play .osbattle-table .raid-pile { pointer-events: auto; }
+#view-play .osbattle-table .raid-pile {
+  height: var(--desk-crop-h);
+  align-self: flex-start;
+}
+#view-play .osbattle-table .me .raid-pile { align-self: flex-end; }
+#view-play .osbattle-table .raid-pile .ospile-stock > :is(.ostop,.osslot) {
+  height: var(--desk-crop-h) !important;
+}
+#view-play .osbattle-table .raid-pile .ostop > .cface.art {
+  height: 100%;
+  aspect-ratio: 750/728;
+  clip-path: url(#tabclip);
+}
+#view-play .osbattle-table .raid-pile .ostop > .cface.art > :is(img,canvas) {
+  height: auto;
+  aspect-ratio: 750/1037;
+}
+body.os-deskbat #view-play .osstrip .raid-pile > .ostag {
+  inset: calc(100% + 2px) auto auto calc(var(--mw) / 2);
+  background: #2a2018;
+  color: #f3e4ca;
+}
+body.os-deskbat #view-play .osstrip.me .raid-pile > .ostag {
+  inset: auto auto calc(100% + 2px) calc(var(--mw) / 2);
+}
+#view-play.raid-clearing .line .tzc { visibility: hidden; }
+.raid-return-card > .oback { position: absolute; inset: 0; }
 #view-play .raid-pile .osslot { border-color: var(--raid-pile-color); }
 .raid-attack { --raid-pile-color: #ab5437; }
 .raid-defense { --raid-pile-color: #507c99; }
@@ -105,18 +89,17 @@
   outline: 2px solid #e5bd74;
   outline-offset: 1px;
 }
-#view-play .raid-rival-drawer {
-  position: fixed;
-  top: var(--raid-drawer-anchor, 0px);
-  bottom: auto;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 16px #0005;
-}
-.raid-roster-drawer header { display: flex; width: 100%; justify-content: space-between; align-items: center; }
-.raid-roster-drawer header button { min-height: 32px; padding: 3px 8px; }
-.raid-unit-rules { font-size: 12px; color: #f5e5ca; }
-.raid-unit-rules summary { cursor: pointer; }
-
+#view-play .raid-pile[aria-expanded="true"] :is(.ostop,.osedge) { visibility: hidden; }
+#view-play .osdeckfan[data-raid-pile] .osdeckfan-panel { min-width: min(340px, calc(100vw - 40px)); }
+#view-play .osdeckfan[data-raid-pile] .cface.art { aspect-ratio: 750/1037; clip-path: none; }
+#view-play .osdeckfan[data-raid-pile] .cface.art > :is(img,canvas).cart { height: 100%; }
+#view-play .osdeckfan-card[data-raid-drag] { cursor: grab; touch-action: none; }
+#view-play .osdeckfan.raid-transferring { background: rgba(12,8,5,.24); }
+.raid-drag-card { pointer-events: none; }
+.raid-drag-card > .cface.art { aspect-ratio: 750/1037; clip-path: none; }
+.raid-drag-card > .cface.art > :is(img,canvas) { height: 100%; }
+.raid-fan-note { margin: 0 8px; font-size: 13px; }
+.raid-fan-count { position: absolute; right: 4px; bottom: 4px; background: #29231b; color: #f5e5ca; padding: 1px 4px; border-radius: 4px; }
 #view-play:has(.osraid-seat.osbar-shop) .osmkt .mcard[data-ck] { touch-action: none; }
 #view-play .osraid-seat :is(.raid-pile, .oscarrow).osdrop { outline: 2px solid #e5bd74; outline-offset: 2px; }
 #view-play .osraid-seat :is(.raid-pile, .oscarrow).osover { box-shadow: 0 0 16px #e5bd74; }

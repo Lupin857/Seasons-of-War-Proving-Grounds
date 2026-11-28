@@ -166,7 +166,7 @@ function drawPlay(options){
   if (ui.visArm && !(G && G.phase === 'shop' && !ui.battle && cur(G) === seat() && !G.passed[seat()] && (G.players[seat()].mir || []).includes('Vision') && !peekOf(G, seat(), 'vis'))) ui.visArm = false;
   const POPS = [['.mirmodal', '.mirmbox'], ['.remind', '.remindbox'], ['.mirtray', '.mirtray'], ['.pkwin', '.pksheet']];
   const vp0 = $('view-play'), oldPops = POPS.map(([b]) => { const e = vp0.querySelector(b); return e ? {e, r:e.getBoundingClientRect()} : null; });
-  const playHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G.raid ? raidDrawerHTML(seat(), ui.raidPile) : ''}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
+  const playHTML = `${pbarHTML()}<div style="display:flex;flex-direction:column;gap:14px">${h}</div>${dockH}${G && !ui.start ? peekWinHTML() : ''}${remindHTML()}`;
   if (typeof morphOn === 'function' && morphOn()) morphInto($('view-play'), playHTML); else $('view-play').innerHTML = playHTML;
   syncCardSize();
   document.body.classList.toggle('dsopen', !!$('view-play').querySelector('.pkwin'));
@@ -775,20 +775,7 @@ $('view-play').addEventListener('click', e => {
     case 'resign-confirm': resignMatch(+t.dataset.p); return;
     case 'roll': doRoll(); return;
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
-    case 'raid-pile': {
-      if (!G?.raid || G.phase !== 'shop' || ui.battle) return;
-      const {role, p} = t.dataset, player = +p;
-      const current = ui.raidPile;
-      ui.raidPile = current?.role === role && current.player === player ? null : {player, role};
-      ui.raidTransferError = '';
-      renderPlay(); return;
-    }
-    case 'raid-close-pile': {
-      const open = ui.raidPile; ui.raidPile = null;
-      renderPlay();
-      if (open) document.querySelector(`[data-act="raid-pile"][data-p="${open.player}"][data-role="${open.role}"]`)?.focus({preventScroll:true});
-      return;
-    }
+    case 'raid-pile': if (G?.raid) matOpenShopPile(t); return;
     case 'raid-transfer': raidTransferUI(t.dataset.name, t.dataset.role); return;
     case 'raid-siege': playerMove(['raid-siege']); return;
     case 'raid-buy': {
@@ -897,12 +884,7 @@ $('view-play').addEventListener('click', e => {
     case 'fr': sfx.soft(); goFrame(+t.dataset.k); return;
     case 'banner-off': sfx.soft(); ui.bannerOff = true; renderPlay(); return;
     case 'continue': if (G.replay){ sfx.soft(); replayEnd(); return; }
-      if (G.raid && G.raid.bout === 0){
-        sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.revealed = false; ui.pre = null;
-        raidNextFight(G); ui.mobSeat = 0; ui.handoff = PP() ? 0 : null; ui.raidPile = null;
-        renderPlay(); toGame(); return;
-      }
-      if (G.raid) ui.raidPile = null;
+      if (G.raid && !G.net){ raidContinue(); return; }
       if (typeof bazaarCaptureBattle === 'function') bazaarCaptureBattle();
       if (G.net){ sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; netPump(); netAfter(); toGame(); return; }
       sfx.soft(); stopAuto(); stopAnim(); ui.battle = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay();
@@ -921,6 +903,7 @@ $('view-play').addEventListener('click', e => {
    has loaded, as the wrappers were: a redraw can happen while the page is still starting. Add a step here, in
    order, instead of wrapping renderPlay. */
 function renderPlay(){
+  if (ui.raidClearing) return;
   const draftReady = typeof mzPrepareDraft !== 'function' || mzPrepareDraft();
   if (typeof bazaarShopGate === 'function' && bazaarShopGate()) return;
   if (typeof matMobGate === 'function' && matMobGate()) return;      // one-screen dev: the sweep into Mobilize plays first
