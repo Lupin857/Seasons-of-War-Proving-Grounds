@@ -62,7 +62,7 @@ function playerMove(a){
   const ok = shopMove(S, a, 1, true);
   if (ok) motionFrom(S, n0);   // its flights start with the redraw below
   if (G.raid && cur(G) !== S) ui.raidPile = null;
-  if (a[0] === 'raid-transfer' && ok){ ui.raidPile = a[2]; ui.raidTransferError = ''; }
+  if (a[0] === 'raid-transfer' && ok){ ui.raidPile = {player:S, role:a[2]}; ui.raidTransferError = ''; }
   if (a[0] === 'b' || a[0] === 'p' || a[0] === 'i' || a[0] === 'raid-siege') afterAction({purchase:ok && a[0] === 'b'}); else renderPlay();
 }
 // apply every move both players have made that this page hasn't applied yet

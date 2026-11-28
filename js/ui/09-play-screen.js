@@ -777,10 +777,17 @@ $('view-play').addEventListener('click', e => {
     case 'roll-go': if (!ui.roll || ui.roll.first == null) return; sfx.soft(); ui.roll = null; ui.mktTab = 'u'; shopCoinStart(G); renderPlay(); scheduleAI(); return;
     case 'raid-pile': {
       if (!G?.raid || G.phase !== 'shop' || ui.battle) return;
-      const role = t.dataset.role;
-      ui.raidPile = ui.raidPile === role ? null : role;
+      const {role, p} = t.dataset, player = +p;
+      const current = ui.raidPile;
+      ui.raidPile = current?.role === role && current.player === player ? null : {player, role};
       ui.raidTransferError = '';
       renderPlay(); return;
+    }
+    case 'raid-close-pile': {
+      const open = ui.raidPile; ui.raidPile = null;
+      renderPlay();
+      if (open) document.querySelector(`[data-act="raid-pile"][data-p="${open.player}"][data-role="${open.role}"]`)?.focus({preventScroll:true});
+      return;
     }
     case 'raid-transfer': raidTransferUI(t.dataset.name, t.dataset.role); return;
     case 'raid-siege': playerMove(['raid-siege']); return;

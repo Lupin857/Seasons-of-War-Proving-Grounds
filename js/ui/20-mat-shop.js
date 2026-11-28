@@ -53,7 +53,12 @@ function matSeatHTML(i, mode = 'shop'){
     return desk ? `<div class="oscar-stock">${html}</div>` : html;
   }).join('');
   let rest = '';
-  if (deckOn){
+  if (deckOn && G.raid && mode === 'shop'){
+    const gear = desk ? matDeskPilesHTML(i, hand, mode)
+      : `<div class="fcards oshandrow">${Object.keys(p.gear || {}).filter(n => p.gear[n] > 0).map(n =>
+        `<div class="mcard b oshand">${cardFace(n, 'b', p.gear[n], true)}${sell(n, 'b')}</div>`).join('')}</div>`;
+    rest = `<i class="osbardiv" aria-hidden="true"></i>${raidPileSlotsHTML(i)}${gear}${desk || !mine ? matPurseHTML(i) : ''}`;
+  } else if (deckOn){
     const copies = Object.values(hand).reduce((t, c) => t + Math.max(0, c), 0), top = matPileTop(p, hand);
     const uc = deckCap(p), uu = uniqueUnits(hand === p.hand ? p : {...p, hand});
     const edges = Array.from({length:Math.min(3, Math.max(0, copies - 1))}, (_, k) => `<i class="osedge" style="--k:${k + 1}"></i>`).join('');
@@ -66,13 +71,12 @@ function matSeatHTML(i, mode = 'shop'){
     const handRow = gear.length || mine ? `<div class="fcards oshandrow" aria-label="${who} hand">${handHTML || '<span class="osslot oshandslot" aria-hidden="true">Hand</span>'}</div>` : '';
     rest = `<i class="osbardiv" aria-hidden="true"></i>${handRow}${pile}${mine ? '' : matPurseHTML(i)}`;
     if (desk) rest = `<i class="osbardiv" aria-hidden="true"></i>${matDeskPilesHTML(i, hand, mode)}${matPurseHTML(i)}`;
-    else if (G.raid && mode === 'shop') rest = `<i class="osbardiv" aria-hidden="true"></i>${handRow}${mine ? '' : matPurseHTML(i)}`;
   }
   const act = mode === 'shop' && G.phase === 'shop' && !G.passed[i] && cur(G) === i;   // whose turn it is: their bar glows
   const side = desk ? `<span class="osside" aria-hidden="true">${PP() || G.net ? esc(nm(i)) : mine ? 'You' : 'Enemy'}</span>` : '';
   if (strip) rest = `<i class="osbardiv" aria-hidden="true"></i><div class="ospile osbattle-pile">${mine ? matBattleBenchHTML() : ''}</div>
     <div class="ospile osbattle-pile" aria-hidden="true"></div>${matDeskPilesHTML(i, hand, 'battle')}${matPurseHTML(i)}`;
-  return `<section class="osseat ${strip ? 'osrow osstrip' : desk ? 'osrow' : 'osbar'} ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${G.raid ? ' osraid-seat' : ''}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" aria-label="${who} side${act ? ', shopping now' : ''}">
+  return `<section class="osseat ${strip ? 'osrow osstrip' : desk ? 'osrow' : 'osbar'} ${mine ? 'me' : 'opp'} s${VS(i)} osbar-${mode}${G.raid ? ' osraid-seat' : ''}${act ? ' osact' : ''}${mode === 'mob' && MATMOB.lift ? ' oslifting' : ''}" ${G.raid && mode === 'shop' ? `style="--raid-city-slots:${spots}"` : ''} aria-label="${who} side${act ? ', shopping now' : ''}">
     ${side}<div class="fcards oscarrow" style="--n:${spots}" aria-label="${who} Caravan, ${slotsUsed(p)} of ${cap}">${carHTML}</div>${rest}
   </section>`;
 }
@@ -166,7 +170,7 @@ function matDesktopLayout(){
   // Market: two sources, sideways offer slots, and a sideways discard. Seats: keep room for both
   // inventory slots and the bank, even when the inventory is off the tabletop during Battle.
   const marketWidth = (w - 188) / (2.6 + 1.4 * offers);
-  const seatCards = slots + 2 + Number(G.miracles);
+  const seatCards = slots + 2 + Number(G.miracles || !!G.raid);
   const seatWidth = (w - 218 - (G.miracles ? 12 : 0)) / (seatCards + (seatCards + 2) * .07);
   const width = Math.max(24, Math.floor(Math.min(173, marketWidth, seatWidth, (h - 104) / 5.55) * 10) / 10);
   const camera = {...MAT_DESK_CAMERA, ox:w / 2, oy:h};
@@ -196,6 +200,7 @@ function matBarsAfterDraw(geometryOnly = false){
     MATDESK_BOUNDS.set(desk, box);
     matFitDesk(desk);
     matDeskMobLayout();
+    if (G.raid) raidPositionDrawer();
     if (!geometryOnly) matShopInspectCards(desk);
     return;
   }
@@ -205,6 +210,7 @@ function matBarsAfterDraw(geometryOnly = false){
   if (dh != null && document.documentElement.style.getPropertyValue('--dockh') !== dh + 'px') document.documentElement.style.setProperty('--dockh', dh + 'px');
   for (const e of [g, dk]) if (e && !MATBARS_SEEN.has(e)){ MATBARS_SEEN.add(e); MATBARS_RO.observe(e, {box:'border-box'}); }   // border box: the home-bar room is padding
   matFitMat();
+  if (G.raid) raidPositionDrawer();
 }
 // the shop's cards fit between the two bars on any screen: if the trays still reach under a bar (a short or odd-sized
 // phone), the card width (--mw) shrinks in proportion until they fit. Measured on screen, so the tilt is included.
@@ -796,8 +802,8 @@ function matSpotOf(n, k, i = seat()){
   const me = document.querySelector(`#view-play .osseat.${i === seat() ? 'me' : 'opp'}`); if (!me) return null;
   const bought = me.querySelector('.osbought .ostop');   // desktop: units and gear land on the "Bought this shop" pile
   if (k === 'u'){
-    if (G.raid && i === seat()){
-      const role = G.players[i].raidRoster[n], pile = role && document.querySelector(`[data-raid-drop="${role}"]`);
+    if (G.raid){
+      const role = G.players[i].raidRoster[n], pile = role && me.querySelector(`.raid-pile[data-role="${role}"] .ostop`);
       if (pile) return pile;
     }
     return bought || me.querySelector('.ospile .ostop');

@@ -12,8 +12,6 @@
 }
 .raid-setup input { width: 20px; height: 20px; accent-color: #d3a65a; }
 .raid-setup small, .raid-caravan small { display: block; color: #d6c6aa; }
-.raid-public { display: flex; flex-wrap: wrap; column-gap: 16px; row-gap: 4px; align-items: baseline; }
-.raid-public > span > b { margin-right: 4px; }
 .raid-buy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #view-play #dock.raid-dock {
   display: block;
@@ -28,7 +26,7 @@
 }
 .raid-dock-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: stretch;
   max-width: 960px;
@@ -36,20 +34,7 @@
 }
 .raid-dock-row button { min-height: 44px; }
 .raid-caravan { min-width: 0; text-align: left; overflow-wrap: anywhere; }
-.raid-dock-row .raid-caravan:disabled, .raid-dock-row .raid-pile:disabled { opacity: .85; }
-.raid-piles, .raid-actions { display: flex; gap: 5px; align-items: stretch; }
-.raid-dock-row .raid-pile {
-  display: grid;
-  gap: 2px;
-  align-content: center;
-  padding: 4px 9px;
-  text-align: center;
-  line-height: 1.05;
-  border-bottom-width: 3px;
-}
-.raid-pile.raid-attack { border-color: #bd815e; background: #3e2823; }
-.raid-pile.raid-defense { border-color: #869fac; background: #233841; }
-.raid-dock-row button[aria-expanded="true"], .raid-dock-row .raid-drop-ready { outline: 2px solid #e5bd74; outline-offset: 1px; }
+.raid-actions { display: flex; gap: 5px; align-items: stretch; }
 .raid-drawer {
   display: flex;
   flex-wrap: wrap;
@@ -81,7 +66,6 @@
 @media (max-width: 600px) {
   #view-play #dock.raid-dock { padding-inline: 7px; }
   .raid-dock-row { gap: 5px; }
-  .raid-dock-row .raid-pile { padding-inline: 5px; font-size: 12px; }
   .raid-caravan { padding: 4px 6px; font-size: 12px; }
   .raid-dock-row .raid-actions .act { white-space: normal; font-size: 12px; padding: 4px 6px; max-width: 104px; }
   .raid-unit { max-width: min(138px, 43vw); }
@@ -109,7 +93,6 @@
   border-radius: 8px 8px 0 0;
   box-shadow: 0 -4px 16px #0005;
 }
-.raid-dock .raid-public { flex: 1 0 100%; }
 .raid-buy-count { align-self: center; font-size: 12px; white-space: nowrap; }
 .raid-mob-note { display: grid; gap: 2px; margin: 4px 0; font-size: 12px; color: #ead9bc; }
 #view-play .osdesk .osraid-seat.osbar-shop.me { bottom: calc(18px + var(--dockh, 64px)); }
@@ -118,3 +101,40 @@
   .raid-actions .raid-buy-count { font-size: 10px; }
   #view-play .osbar.osraid-seat .oshandrow { margin-inline: 0; }
 }
+
+#view-play .osbar.osraid-seat.osbar-shop {
+  --osbw: min(46px, calc((100vw - 86px - 4px * (var(--raid-city-slots) - 1)) / (var(--raid-city-slots) + 2)));
+  padding-inline: 7px;
+}
+#view-play .osbar.osraid-seat.opp.osbar-shop {
+  --osbw: min(42px, calc((100vw - 145px - 4px * (var(--raid-city-slots) - 1)) / (var(--raid-city-slots) + 2)));
+}
+#view-play .osbar.osraid-seat .oshandrow:empty { display: none !important; }
+#view-play .osbar .raid-pile { margin-bottom: 11px; }
+#view-play .osbar .raid-pile .ostag {
+  position: absolute;
+  inset: auto auto auto 50%;
+  transform: translateX(-50%);
+  font: 700 9px/1.1 var(--f-body);
+  color: #251e15;
+  white-space: nowrap;
+}
+#view-play .raid-pile .osslot { border-color: var(--raid-pile-color); }
+.raid-attack { --raid-pile-color: #ab5437; }
+.raid-defense { --raid-pile-color: #507c99; }
+#view-play .raid-pile:is([aria-expanded="true"], .raid-drop-ready) :is(.ostop, .osslot) {
+  outline: 2px solid #e5bd74;
+  outline-offset: 1px;
+}
+.raid-dock .raid-roster-drawer { bottom: calc(100% + var(--raid-drawer-anchor, 0px)); }
+.raid-dock .raid-rival-drawer {
+  position: fixed;
+  top: var(--raid-drawer-anchor, 0px);
+  bottom: auto;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 16px #0005;
+}
+.raid-roster-drawer header { display: flex; width: 100%; justify-content: space-between; align-items: center; }
+.raid-roster-drawer header button { min-height: 32px; padding: 3px 8px; }
+.raid-unit-rules { font-size: 12px; color: #f5e5ca; }
+.raid-unit-rules summary { cursor: pointer; }
